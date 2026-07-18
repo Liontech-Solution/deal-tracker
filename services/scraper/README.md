@@ -89,3 +89,23 @@ La imagen se construye con el contexto en la **raíz del repo** (necesita
 ```bash
 docker build -f services/scraper/Dockerfile -t deal-tracker-scraper .
 ```
+
+### Imagen publicada (multiarch)
+
+El workflow `scraper-ci` construye la imagen **multiarch** (`linux/amd64` + `linux/arm64`,
+para el cluster k3s sobre Raspberry Pi) con `buildx` + QEMU. En los PR solo valida que
+compila; **al mergear a `main`** hace push a GHCR:
+
+- `ghcr.io/liontech-solution/deal-tracker-scraper:latest` (tag móvil)
+- `ghcr.io/liontech-solution/deal-tracker-scraper:<git-sha>` (inmutable, para rollback)
+
+Se conservan las **10 imágenes etiquetadas más recientes** (paso de retención); el resto se
+elimina para no saturar el almacenamiento. El paquete es **privado**: el cluster necesita un
+`imagePullSecret` con permiso de lectura sobre el paquete (se configura en el repo de
+manifiestos, no aquí).
+
+Comprobar la imagen publicada:
+
+```bash
+docker manifest inspect ghcr.io/liontech-solution/deal-tracker-scraper:latest
+```
