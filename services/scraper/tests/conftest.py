@@ -11,6 +11,10 @@ import pytest
 from scraper.migrate import apply_migrations
 
 FIXTURES = Path(__file__).parent / "fixtures"
+# Ruta a db/migrations resuelta desde el repo (no desde el paquete instalado), para que
+# funcione tanto con install editable como no-editable (p.ej. en CI). Layout:
+# services/scraper/tests/conftest.py -> parents[3] == raíz del repo.
+MIGRATIONS_DIR = Path(__file__).resolve().parents[3] / "db" / "migrations"
 
 _DATA_TABLES = "price_history, variant, product, scrape_run, retailer"
 
@@ -30,7 +34,7 @@ def db_conn() -> Any:
     if not url:
         pytest.skip("TEST_DATABASE_URL no definido; test de integración omitido")
     conn = psycopg.connect(url, autocommit=False)
-    apply_migrations(conn)
+    apply_migrations(conn, MIGRATIONS_DIR)
     with conn.cursor() as cur:
         cur.execute(f"TRUNCATE {_DATA_TABLES} RESTART IDENTITY CASCADE")
     conn.commit()
