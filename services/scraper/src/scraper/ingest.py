@@ -1,9 +1,14 @@
-"""Pipeline de ingesta: scraper -> upsert catálogo -> append historial -> altas/bajas.
+"""Pipeline de ingesta en dos fases con detalle condicional.
 
-Todo ocurre dentro de una única transacción por ejecución (`scrape_run`).
-La detección de bajas se apoya en `last_seen_at`: los productos/variantes vistos
-en esta ejecución quedan marcados con el timestamp del run; los que no se ven
-conservan un `last_seen_at` anterior y se marcan como descatalogados (`delisted_at`).
+1. `store.list_catalog()` da una huella barata por producto (precio por color del listado).
+2. Se compara con la huella del scrape anterior (columna `product.listing_signature`):
+   - nuevo, huella cambiada o producto descatalogado que reaparece -> se pide el detalle
+     completo y se apila precio;
+   - sin cambios -> NO se pide detalle; solo se refresca `last_seen_at` (producto y variantes)
+     para que no se marque como baja.
+
+Todo ocurre en una única transacción por ejecución (`scrape_run`). Las bajas se detectan
+igual que antes: lo no visto conserva un `last_seen_at` anterior y se marca `delisted_at`.
 """
 
 from __future__ import annotations
@@ -14,13 +19,15 @@ from decimal import Decimal
 
 import psycopg
 
-from .stores.base import BaseStore, ScrapedProduct, ScrapedVariant
+from .stores.base import BaseStore, ListingEntry, ScrapedProduct, ScrapedVariant
 
 
 @dataclass
 class IngestResult:
     scrape_run_id: int
-    products_seen: int
+    products_in_catalog: int  # productos vistos en el listado
+    details_fetched: int  # productos a los que se pidió detalle (nuevos/cambiados)
+    products_unchanged: int  # productos sin cambios (ahorro de peticiones de detalle)
     variants_seen: int
     prices_recorded: int
     products_delisted: int
@@ -54,20 +61,48 @@ def _upsert_retailer(cur: psycopg.Cursor, store: BaseStore) -> int:
     return _returned_id(cur)
 
 
+def _load_existing(
+    cur: psycopg.Cursor, retailer_id: int
+) -> dict[str, tuple[int, str | None, bool]]:
+    """Estado actual por producto: retailer_product_id -> (id, huella, está_descatalogado)."""
+    cur.execute(
+        """
+        SELECT retailer_product_id, id, listing_signature, (delisted_at IS NOT NULL)
+        FROM product WHERE retailer_id = %s
+        """,
+        (retailer_id,),
+    )
+    return {row[0]: (row[1], row[2], row[3]) for row in cur.fetchall()}
+
+
+def _touch_seen(cur: psycopg.Cursor, product_id: int, run_ts: datetime) -> None:
+    """Marca producto y variantes activas como vistos en este run, sin tocar precios."""
+    cur.execute("UPDATE product SET last_seen_at = %s WHERE id = %s", (run_ts, product_id))
+    cur.execute(
+        "UPDATE variant SET last_seen_at = %s WHERE product_id = %s AND delisted_at IS NULL",
+        (run_ts, product_id),
+    )
+
+
 def _upsert_product(
-    cur: psycopg.Cursor, retailer_id: int, run_ts: datetime, product: ScrapedProduct
+    cur: psycopg.Cursor,
+    retailer_id: int,
+    run_ts: datetime,
+    product: ScrapedProduct,
+    signature: str,
 ) -> int:
     cur.execute(
         """
         INSERT INTO product (retailer_id, retailer_product_id, name, gender, section,
-                             category, url, first_seen_at, last_seen_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                             category, url, listing_signature, first_seen_at, last_seen_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (retailer_id, retailer_product_id) DO UPDATE SET
             name = EXCLUDED.name,
             gender = EXCLUDED.gender,
             section = EXCLUDED.section,
             category = EXCLUDED.category,
             url = EXCLUDED.url,
+            listing_signature = EXCLUDED.listing_signature,
             last_seen_at = EXCLUDED.last_seen_at,
             delisted_at = NULL
         RETURNING id
@@ -80,6 +115,7 @@ def _upsert_product(
             product.section,
             product.category,
             product.url,
+            signature,
             run_ts,
             run_ts,
         ),
@@ -144,6 +180,14 @@ def _record_price(
     )
 
 
+def _needs_detail(entry: ListingEntry, existing: tuple[int, str | None, bool] | None) -> bool:
+    """Pide detalle si es nuevo, si la huella del listado cambió, o si estaba descatalogado."""
+    if existing is None:
+        return True
+    _product_id, signature, is_delisted = existing
+    return is_delisted or signature != entry.signature
+
+
 def ingest(
     conn: psycopg.Connection, store: BaseStore, run_ts: datetime | None = None
 ) -> IngestResult:
@@ -157,11 +201,27 @@ def ingest(
                 (retailer_id, run_ts),
             )
             run_id = _returned_id(cur)
+            existing = _load_existing(cur, retailer_id)
 
-            products_seen = variants_seen = prices_recorded = 0
-            for product in store.discover():
-                product_id = _upsert_product(cur, retailer_id, run_ts, product)
-                products_seen += 1
+            # Fase 1: listado barato. Decidimos a quién pedir detalle y a quién solo "tocar".
+            entries = list(store.list_catalog())
+            to_fetch: list[ListingEntry] = []
+            signature_by_id: dict[str, str] = {}
+            products_unchanged = 0
+            for entry in entries:
+                if _needs_detail(entry, existing.get(entry.retailer_product_id)):
+                    to_fetch.append(entry)
+                    signature_by_id[entry.retailer_product_id] = entry.signature
+                else:
+                    _touch_seen(cur, existing[entry.retailer_product_id][0], run_ts)
+                    products_unchanged += 1
+
+            # Fase 2: detalle SOLO de nuevos/cambiados -> upsert + apilar precio.
+            details_fetched = variants_seen = prices_recorded = 0
+            for product in store.fetch_details(to_fetch):
+                details_fetched += 1
+                signature = signature_by_id.get(product.retailer_product_id, "")
+                product_id = _upsert_product(cur, retailer_id, run_ts, product, signature)
                 for variant in product.variants:
                     variant_id = _upsert_variant(cur, product_id, run_ts, variant)
                     _record_price(cur, variant_id, run_id, run_ts, variant)
@@ -195,12 +255,14 @@ def ingest(
                     products_seen = %s, variants_seen = %s
                 WHERE id = %s
                 """,
-                (products_seen, variants_seen, run_id),
+                (len(entries), variants_seen, run_id),
             )
         conn.commit()
         return IngestResult(
             scrape_run_id=run_id,
-            products_seen=products_seen,
+            products_in_catalog=len(entries),
+            details_fetched=details_fetched,
+            products_unchanged=products_unchanged,
             variants_seen=variants_seen,
             prices_recorded=prices_recorded,
             products_delisted=products_delisted,

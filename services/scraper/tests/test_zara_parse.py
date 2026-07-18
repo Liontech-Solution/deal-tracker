@@ -5,25 +5,33 @@ from __future__ import annotations
 from decimal import Decimal
 
 from scraper.ingest import _discount_pct
-from scraper.stores.zara import CATEGORIES, parse_detail_product, parse_listing_ids
+from scraper.stores.zara import CATEGORIES, parse_detail_product, parse_listing_entries
 
 from .conftest import load_fixture
 
 _CAT = CATEGORIES[0]  # niña / zapateria / zapatos
+_DOMAIN = {"gender": _CAT.gender, "section": _CAT.section, "category": _CAT.category}
 
 
-def test_parse_listing_ids_extrae_ids_estables() -> None:
+def test_parse_listing_entries_extrae_id_y_huella() -> None:
     listing = load_fixture("zara_category_2427610.json")
-    ids = parse_listing_ids(listing)
-    assert ids, "el listado debería contener productos"
+    entries = parse_listing_entries(listing, _CAT)
+    assert entries, "el listado debería contener productos"
+
+    ids = [e.retailer_product_id for e in entries]
     assert "545453620" in ids  # bailarina barefoot vista en el probe
     assert len(ids) == len(set(ids)), "no debe haber ids duplicados"
-    assert all(isinstance(i, str) for i in ids)
+
+    entry = next(e for e in entries if e.retailer_product_id == "545453620")
+    assert entry.signature, "la huella no debería estar vacía (hay precio por color)"
+    assert entry.gender == "niña"
+    # La huella es determinista: reparsear el mismo listado da la misma huella.
+    assert entry.signature == parse_listing_entries(listing, _CAT)[ids.index("545453620")].signature
 
 
 def test_parse_detail_product_construye_producto_con_variantes() -> None:
     details = load_fixture("zara_products_details_545453620.json")
-    product = parse_detail_product(details[0], _CAT)
+    product = parse_detail_product(details[0], **_DOMAIN)
 
     assert product is not None
     assert product.retailer_product_id == "545453620"
@@ -44,7 +52,7 @@ def test_parse_detail_product_construye_producto_con_variantes() -> None:
 
 def test_precios_en_euros_y_variant_id_unico() -> None:
     details = load_fixture("zara_products_details_545453620.json")
-    product = parse_detail_product(details[0], _CAT)
+    product = parse_detail_product(details[0], **_DOMAIN)
     assert product is not None
     ids = [v.retailer_variant_id for v in product.variants]
     assert len(ids) == len(set(ids)), "cada talla/color debe tener id único"

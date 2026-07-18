@@ -1,5 +1,5 @@
 """Scrapers por tienda (pluggable)."""
 
-from .base import BaseStore, ScrapedProduct, ScrapedVariant
+from .base import BaseStore, ListingEntry, ScrapedProduct, ScrapedVariant
 
-__all__ = ["BaseStore", "ScrapedProduct", "ScrapedVariant"]
+__all__ = ["BaseStore", "ListingEntry", "ScrapedProduct", "ScrapedVariant"]

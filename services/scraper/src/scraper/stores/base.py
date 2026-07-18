@@ -1,9 +1,15 @@
 """Contrato común para los scrapers por tienda (pluggable).
 
-Cada tienda implementa `BaseStore.discover()` y devuelve `ScrapedProduct`s
-normalizados. La ingesta (`ingest.py`) no sabe nada de la web concreta:
-solo consume estos dataclasses, de modo que el resto del sistema queda
-desacoplado de las particularidades (y los bloqueos) de cada tienda.
+El scrapeo se hace en **dos fases** para poder ahorrar peticiones (detalle condicional):
+
+  1. `list_catalog()` — barre las secciones y devuelve una `ListingEntry` por producto
+     con una *huella* (`signature`) barata construida con lo que se ve en el listado
+     (típicamente precio por color). Son pocas peticiones.
+  2. `fetch_details(entries)` — pide el detalle completo (tallas, stock, sku) SOLO de los
+     productos que la ingesta decide (nuevos o con la huella cambiada).
+
+Así la ingesta (`ingest.py`) compara la huella contra la última conocida en BD y evita
+la petición de detalle cuando nada ha cambiado. Los scrapers no tocan la BD: solo la red.
 """
 
 from __future__ import annotations
@@ -41,6 +47,17 @@ class ScrapedProduct:
     variants: list[ScrapedVariant]
 
 
+@dataclass(frozen=True)
+class ListingEntry:
+    """Producto tal y como aparece en el listado, con una huella para detectar cambios."""
+
+    retailer_product_id: str
+    signature: str  # huella barata (p.ej. precio por color); si no cambia, no pedimos detalle
+    gender: str | None
+    section: str | None
+    category: str | None
+
+
 @runtime_checkable
 class BaseStore(Protocol):
     """Interfaz que implementa el scraper de cada tienda."""
@@ -49,6 +66,10 @@ class BaseStore(Protocol):
     name: str
     base_url: str
 
-    def discover(self) -> Iterable[ScrapedProduct]:
-        """Recorre las secciones relevantes y produce los productos con sus variantes."""
+    def list_catalog(self) -> Iterable[ListingEntry]:
+        """Barre las secciones relevantes (pocas peticiones) y devuelve una entrada por producto."""
+        ...
+
+    def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
+        """Pide el detalle completo (tallas/precio/stock) de los productos indicados."""
         ...

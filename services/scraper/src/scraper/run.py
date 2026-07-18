@@ -37,14 +37,18 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 def _dry_run(config: Config, slug: str) -> int:
     store = get_store(slug, config)
+    entries = list(store.list_catalog())
     products = variants = 0
-    for product in store.discover():
+    for product in store.fetch_details(entries):
         products += 1
         variants += len(product.variants)
         print(
             f"  [{product.retailer_product_id}] {product.name} — {len(product.variants)} variantes"
         )
-    print(f"dry-run: {products} productos, {variants} variantes (sin escribir).")
+    print(
+        f"dry-run: {len(entries)} en catálogo, {products} con detalle, "
+        f"{variants} variantes (sin escribir)."
+    )
     return 0
 
 
@@ -66,8 +70,9 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"run #{result.scrape_run_id} OK — "
-        f"{result.products_seen} productos, {result.variants_seen} variantes, "
-        f"{result.prices_recorded} precios; "
+        f"{result.products_in_catalog} en catálogo "
+        f"({result.details_fetched} con detalle, {result.products_unchanged} sin cambios), "
+        f"{result.variants_seen} variantes, {result.prices_recorded} precios; "
         f"bajas: {result.products_delisted} productos / {result.variants_delisted} variantes"
     )
     return 0

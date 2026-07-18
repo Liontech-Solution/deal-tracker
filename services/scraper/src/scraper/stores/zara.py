@@ -4,20 +4,24 @@ Zara expone endpoints AJAX públicos que devuelven JSON, así que evitamos
 navegador (imagen ligera). Tres endpoints:
 
   - árbol de categorías:  /categories?ajax=true
-  - listado de categoría: /category/{id}/products?ajax=true   (ids de producto)
-  - detalle (con tallas):  /products-details?productIds={ids}&ajax=true
+  - listado de categoría: /category/{id}/products?ajax=true   (ids + precio por color)
+  - detalle (con tallas):  /products-details?productIds={id}&ajax=true
 
 El id estable del producto es `seo.discernProductId` (independiente de temporada);
 la variante estable es `{productId}-{colorId}-{sizeId}`.
 
-Las funciones `parse_*` son puras (JSON -> dataclasses) y se testean con fixtures;
-`ZaraStore.discover()` es la única parte que toca la red.
+El scrapeo es en dos fases (ver `stores/base.py`): `list_catalog()` (barato) construye una
+huella por producto con el precio por color del listado; `fetch_details()` solo pide el
+detalle de los productos que la ingesta marca como nuevos o cambiados.
+
+Las funciones `parse_*` son puras (JSON -> dataclasses) y se testean con fixtures.
 """
 
 from __future__ import annotations
 
+import random
 import time
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -25,14 +29,16 @@ from typing import Any
 import httpx
 
 from ..config import Config
-from .base import ScrapedProduct, ScrapedVariant
+from .base import ListingEntry, ScrapedProduct, ScrapedVariant
 
 BASE_URL = "https://www.zara.com/es/es/"
 _CATEGORY_URL = BASE_URL + "category/{cat_id}/products?ajax=true"
-_DETAILS_URL = BASE_URL + "products-details?productIds={ids}&ajax=true"
 # El endpoint de detalle solo devuelve datos para UN productId por llamada
 # (con varios ids separados por coma responde una lista vacía).
-_DETAILS_BATCH = 1
+_DETAILS_URL = BASE_URL + "products-details?productIds={product_id}&ajax=true"
+
+# Códigos que merece la pena reintentar (throttling / errores transitorios del servidor).
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 
 @dataclass(frozen=True)
@@ -62,30 +68,56 @@ def _cents(value: Any) -> Decimal | None:
     return (Decimal(int(value)) / 100).quantize(Decimal("0.01"))
 
 
-def parse_listing_ids(listing: dict[str, Any]) -> list[str]:
-    """Extrae los `discernProductId` estables de un listado, en orden y sin duplicar."""
-    ids: list[str] = []
-    seen: set[str] = set()
+def _iter_product_nodes(listing: Any) -> Iterable[dict[str, Any]]:
+    """Recorre el JSON del listado y produce cada nodo de producto (con `seo.discernProductId`)."""
 
-    def walk(node: Any) -> None:
+    def walk(node: Any) -> Iterable[dict[str, Any]]:
         if isinstance(node, dict):
             seo = node.get("seo")
             if isinstance(seo, dict) and seo.get("discernProductId"):
-                pid = str(seo["discernProductId"])
-                if pid not in seen:
-                    seen.add(pid)
-                    ids.append(pid)
+                yield node
             for v in node.values():
-                walk(v)
+                yield from walk(v)
         elif isinstance(node, list):
             for v in node:
-                walk(v)
+                yield from walk(v)
 
-    walk(listing)
-    return ids
+    yield from walk(listing)
 
 
-def parse_detail_product(entry: dict[str, Any], cat: CategoryConfig) -> ScrapedProduct | None:
+def _listing_signature(node: dict[str, Any]) -> str:
+    """Huella barata del producto en el listado: precio por color (ordenado y estable)."""
+    parts = [
+        f"{color.get('id')}:{color.get('price')}"
+        for color in node.get("detail", {}).get("colors", [])
+    ]
+    return "|".join(sorted(parts))
+
+
+def parse_listing_entries(listing: dict[str, Any], cat: CategoryConfig) -> list[ListingEntry]:
+    """Extrae una `ListingEntry` (id estable + huella) por producto, en orden y sin duplicar."""
+    entries: list[ListingEntry] = []
+    seen: set[str] = set()
+    for node in _iter_product_nodes(listing):
+        pid = str(node["seo"]["discernProductId"])
+        if pid in seen:
+            continue
+        seen.add(pid)
+        entries.append(
+            ListingEntry(
+                retailer_product_id=pid,
+                signature=_listing_signature(node),
+                gender=cat.gender,
+                section=cat.section,
+                category=cat.category,
+            )
+        )
+    return entries
+
+
+def parse_detail_product(
+    entry: dict[str, Any], *, gender: str | None, section: str | None, category: str | None
+) -> ScrapedProduct | None:
     """Convierte una entrada de `products-details` en ScrapedProduct (None si no hay variantes)."""
     seo = entry.get("seo") or {}
     pid = seo.get("discernProductId")
@@ -124,17 +156,12 @@ def parse_detail_product(entry: dict[str, Any], cat: CategoryConfig) -> ScrapedP
     return ScrapedProduct(
         retailer_product_id=pid,
         name=entry.get("name", ""),
-        gender=cat.gender,
-        section=cat.section,
-        category=cat.category,
+        gender=gender,
+        section=section,
+        category=category,
         url=url,
         variants=variants,
     )
-
-
-def _chunked(items: list[str], size: int) -> Iterator[list[str]]:
-    for i in range(0, len(items), size):
-        yield items[i : i + size]
 
 
 class ZaraStore:
@@ -155,23 +182,58 @@ class ZaraStore:
             follow_redirects=True,
         )
 
-    def _get_json(self, client: httpx.Client, url: str) -> Any:
-        if self._config.request_delay > 0:
-            time.sleep(self._config.request_delay)
-        resp = client.get(url)
-        resp.raise_for_status()
-        return resp.json()
+    def _polite_pause(self) -> None:
+        """Pausa base entre peticiones con jitter (una cadencia fija es más detectable)."""
+        base = self._config.request_delay
+        if base > 0:
+            time.sleep(base * random.uniform(0.5, 1.5))
 
-    def discover(self) -> Iterable[ScrapedProduct]:
+    def _get_json(self, client: httpx.Client, url: str) -> Any:
+        """GET con reintentos y backoff exponencial + jitter ante throttling/errores de red."""
+        retries = self._config.request_retries
+        for attempt in range(retries + 1):
+            self._polite_pause()
+            try:
+                resp = client.get(url)
+                resp.raise_for_status()
+                return resp.json()
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                if status not in _RETRYABLE_STATUS or attempt == retries:
+                    raise
+                self._backoff(attempt, retry_after=exc.response.headers.get("Retry-After"))
+            except httpx.TransportError:
+                if attempt == retries:
+                    raise
+                self._backoff(attempt)
+
+    def _backoff(self, attempt: int, retry_after: str | None = None) -> None:
+        """Espera exponencial (respeta Retry-After si viene) con jitter."""
+        wait = self._config.retry_backoff * (2**attempt)
+        if retry_after and retry_after.isdigit():
+            wait = max(wait, float(retry_after))
+        time.sleep(wait * random.uniform(0.8, 1.2))
+
+    def list_catalog(self) -> Iterable[ListingEntry]:
         emitted: set[str] = set()  # dedup entre categorías dentro de la misma ejecución
         with self._client() as client:
             for cat in self._categories:
                 listing = self._get_json(client, _CATEGORY_URL.format(cat_id=cat.category_id))
-                ids = [pid for pid in parse_listing_ids(listing) if pid not in emitted]
-                for batch in _chunked(ids, _DETAILS_BATCH):
-                    details = self._get_json(client, _DETAILS_URL.format(ids=",".join(batch)))
-                    for entry in details:
-                        product = parse_detail_product(entry, cat)
-                        if product and product.retailer_product_id not in emitted:
-                            emitted.add(product.retailer_product_id)
-                            yield product
+                for entry in parse_listing_entries(listing, cat):
+                    if entry.retailer_product_id not in emitted:
+                        emitted.add(entry.retailer_product_id)
+                        yield entry
+
+    def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
+        with self._client() as client:
+            for entry in entries:
+                url = _DETAILS_URL.format(product_id=entry.retailer_product_id)
+                for detail in self._get_json(client, url):
+                    product = parse_detail_product(
+                        detail,
+                        gender=entry.gender,
+                        section=entry.section,
+                        category=entry.category,
+                    )
+                    if product:
+                        yield product

@@ -20,7 +20,9 @@ class Config:
     database_url: str
     user_agent: str = DEFAULT_USER_AGENT
     request_timeout: float = 20.0
-    request_delay: float = 0.5  # pausa entre peticiones para no martillear la tienda
+    request_delay: float = 0.5  # pausa base entre peticiones (se le aplica jitter)
+    request_retries: int = 3  # reintentos ante 429/5xx/errores de red
+    retry_backoff: float = 1.0  # segundos base del backoff exponencial
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
@@ -35,6 +37,8 @@ class Config:
             user_agent=env.get("SCRAPER_USER_AGENT", DEFAULT_USER_AGENT),
             request_timeout=float(env.get("SCRAPER_REQUEST_TIMEOUT", "20")),
             request_delay=float(env.get("SCRAPER_REQUEST_DELAY", "0.5")),
+            request_retries=int(env.get("SCRAPER_REQUEST_RETRIES", "3")),
+            retry_backoff=float(env.get("SCRAPER_RETRY_BACKOFF", "1.0")),
         )
 
 
