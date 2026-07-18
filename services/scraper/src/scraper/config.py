@@ -23,6 +23,11 @@ class Config:
     request_delay: float = 0.5  # pausa base entre peticiones (se le aplica jitter)
     request_retries: int = 3  # reintentos ante 429/5xx/errores de red
     retry_backoff: float = 1.0  # segundos base del backoff exponencial
+    # Red de seguridad de bajas: si un ámbito con al menos `delist_min_baseline`
+    # productos activos ve caer lo observado por debajo de `delist_drop_ratio`,
+    # se omiten sus bajas (posible fallo de scraping, no retirada real).
+    delist_min_baseline: int = 5
+    delist_drop_ratio: float = 0.5
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
@@ -39,6 +44,8 @@ class Config:
             request_delay=float(env.get("SCRAPER_REQUEST_DELAY", "0.5")),
             request_retries=int(env.get("SCRAPER_REQUEST_RETRIES", "3")),
             retry_backoff=float(env.get("SCRAPER_RETRY_BACKOFF", "1.0")),
+            delist_min_baseline=int(env.get("SCRAPER_DELIST_MIN_BASELINE", "5")),
+            delist_drop_ratio=float(env.get("SCRAPER_DELIST_DROP_RATIO", "0.5")),
         )
 
 

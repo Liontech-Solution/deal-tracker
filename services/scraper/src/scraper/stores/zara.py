@@ -29,7 +29,7 @@ from typing import Any
 import httpx
 
 from ..config import Config
-from .base import ListingEntry, ScrapedProduct, ScrapedVariant
+from .base import ListingEntry, ScrapedProduct, ScrapedVariant, ScrapeScope
 
 BASE_URL = "https://www.zara.com/es/es/"
 _CATEGORY_URL = BASE_URL + "category/{cat_id}/products?ajax=true"
@@ -174,6 +174,15 @@ class ZaraStore:
     def __init__(self, config: Config, categories: list[CategoryConfig] | None = None) -> None:
         self._config = config
         self._categories = categories if categories is not None else CATEGORIES
+
+    def scopes(self) -> Iterable[ScrapeScope]:
+        # Ámbitos que se recorren, deducidos de las categorías configuradas (sin duplicar).
+        seen: list[ScrapeScope] = []
+        for cat in self._categories:
+            scope = ScrapeScope(cat.gender, cat.section, cat.category)
+            if scope not in seen:
+                seen.append(scope)
+        return seen
 
     def _client(self) -> httpx.Client:
         return httpx.Client(

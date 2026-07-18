@@ -12,11 +12,10 @@ from decimal import Decimal
 from typing import Any
 
 from scraper.ingest import ingest
-from scraper.stores.base import ListingEntry, ScrapedProduct, ScrapedVariant
+from scraper.stores.base import ListingEntry, ScrapedProduct, ScrapedVariant, ScrapeScope
 
 T1 = datetime(2026, 7, 1, 8, 0, tzinfo=UTC)
 T2 = datetime(2026, 7, 2, 8, 0, tzinfo=UTC)
-T3 = datetime(2026, 7, 3, 8, 0, tzinfo=UTC)
 
 
 class FakeStore:
@@ -26,10 +25,27 @@ class FakeStore:
     name = "Fake Store"
     base_url = "https://fake.example/"
 
-    def __init__(self, products: list[ScrapedProduct], signatures: dict[str, str]) -> None:
+    def __init__(
+        self,
+        products: list[ScrapedProduct],
+        signatures: dict[str, str],
+        scopes: list[ScrapeScope] | None = None,
+    ) -> None:
         self._by_id = {p.retailer_product_id: p for p in products}
         self._sigs = signatures
+        self._scopes = scopes
         self.detail_calls: list[str] = []
+
+    def scopes(self) -> Iterable[ScrapeScope]:
+        if self._scopes is not None:
+            return self._scopes
+        # Por defecto: ámbitos deducidos de los productos, sin duplicar.
+        out: list[ScrapeScope] = []
+        for p in self._by_id.values():
+            scope = ScrapeScope(p.gender, p.section, p.category)
+            if scope not in out:
+                out.append(scope)
+        return out
 
     def list_catalog(self) -> Iterable[ListingEntry]:
         for pid, p in self._by_id.items():
@@ -55,13 +71,20 @@ def _variant(vid: str, price: str, list_price: str | None = None) -> ScrapedVari
     )
 
 
-def _product(pid: str, name: str, variants: list[ScrapedVariant]) -> ScrapedProduct:
+def _product(
+    pid: str,
+    name: str,
+    variants: list[ScrapedVariant],
+    *,
+    gender: str = "niña",
+    category: str = "zapatos",
+) -> ScrapedProduct:
     return ScrapedProduct(
         retailer_product_id=pid,
         name=name,
-        gender="niña",
+        gender=gender,
         section="zapateria",
-        category="zapatos",
+        category=category,
         url=f"https://fake.example/p{pid}.html",
         variants=variants,
     )
@@ -181,3 +204,74 @@ def test_cambio_de_huella_fuerza_detalle_y_apila_precio(db_conn: Any) -> None:
         (T2,),
     )
     assert disc == Decimal("25.03")  # (39.95-29.95)/39.95
+
+
+def test_baja_solo_en_ambitos_escaneados(db_conn: Any) -> None:
+    """#1: si un ámbito no se recorre en la pasada, sus productos NO se dan de baja."""
+    store1 = FakeStore(
+        [
+            _product("A", "Bailarina", [_variant("A-1", "39.95")]),
+            _product("B", "Botín", [_variant("B-1", "45.00")]),
+        ],
+        signatures={"A": "a1", "B": "b1"},
+    )
+    ingest(db_conn, store1, run_ts=T1)
+
+    # Segunda pasada de OTRO ámbito (niño): A y B (niña) no se escanean -> no deben caer.
+    store2 = FakeStore(
+        [
+            _product(
+                "C", "Deportivo", [_variant("C-1", "30.00")], gender="niño", category="zapatillas"
+            )
+        ],
+        signatures={"C": "c1"},
+    )
+    result = ingest(db_conn, store2, run_ts=T2)
+
+    assert result.scanned_scopes == 1
+    assert result.products_delisted == 0
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='A'") is None
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='B'") is None
+    assert _scalar(db_conn, "SELECT count(*) FROM product WHERE retailer_product_id='C'") == 1
+
+
+def test_red_seguridad_omite_bajas_en_caida_sospechosa(db_conn: Any) -> None:
+    """#2: una caída brusca de lo observado en un ámbito omite sus bajas (posible fallo)."""
+    store1 = FakeStore(
+        [_product(f"A{i}", f"P{i}", [_variant(f"A{i}-1", "20.00")]) for i in range(4)],
+        signatures={f"A{i}": "s" for i in range(4)},
+    )
+    ingest(db_conn, store1, run_ts=T1, delist_min_baseline=3)
+
+    # Solo aparece 1 de 4 (caída del 75% > umbral): sospechoso -> no se dan bajas.
+    store2 = FakeStore(
+        [_product("A0", "P0", [_variant("A0-1", "20.00")])],
+        signatures={"A0": "s"},
+        scopes=[ScrapeScope("niña", "zapateria", "zapatos")],
+    )
+    result = ingest(db_conn, store2, run_ts=T2, delist_min_baseline=3)
+
+    assert result.skipped_scopes == 1
+    assert result.products_delisted == 0
+    assert _scalar(db_conn, "SELECT count(*) FROM product WHERE delisted_at IS NULL") == 4
+
+
+def test_baja_normal_cuando_la_caida_es_moderada(db_conn: Any) -> None:
+    """#2 (contraste): una caída moderada SÍ da de baja lo que falta."""
+    store1 = FakeStore(
+        [_product(f"A{i}", f"P{i}", [_variant(f"A{i}-1", "20.00")]) for i in range(4)],
+        signatures={f"A{i}": "s" for i in range(4)},
+    )
+    ingest(db_conn, store1, run_ts=T1, delist_min_baseline=3)
+
+    # Aparecen 3 de 4 (cae 1, dentro del umbral): A3 se da de baja con normalidad.
+    store2 = FakeStore(
+        [_product(f"A{i}", f"P{i}", [_variant(f"A{i}-1", "20.00")]) for i in range(3)],
+        signatures={f"A{i}": "s" for i in range(3)},
+        scopes=[ScrapeScope("niña", "zapateria", "zapatos")],
+    )
+    result = ingest(db_conn, store2, run_ts=T2, delist_min_baseline=3)
+
+    assert result.skipped_scopes == 0
+    assert result.products_delisted == 1
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='A3'") == T2

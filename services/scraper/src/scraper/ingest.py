@@ -13,13 +13,20 @@ igual que antes: lo no visto conserva un `last_seen_at` anterior y se marca `del
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 
 import psycopg
 
-from .stores.base import BaseStore, ListingEntry, ScrapedProduct, ScrapedVariant
+from .stores.base import BaseStore, ListingEntry, ScrapedProduct, ScrapedVariant, ScrapeScope
+
+# Umbrales por defecto de la red de seguridad de bajas (ver `_suspicious_scopes`).
+DEFAULT_DELIST_MIN_BASELINE = 5
+DEFAULT_DELIST_DROP_RATIO = 0.5
+
+_ScopeKey = tuple[str | None, str | None, str | None]
 
 
 @dataclass
@@ -32,6 +39,8 @@ class IngestResult:
     prices_recorded: int
     products_delisted: int
     variants_delisted: int
+    scanned_scopes: int  # ámbitos recorridos en esta pasada
+    skipped_scopes: int  # ámbitos con caída sospechosa: se omitieron sus bajas
 
 
 def _returned_id(cur: psycopg.Cursor) -> int:
@@ -188,8 +197,94 @@ def _needs_detail(entry: ListingEntry, existing: tuple[int, str | None, bool] | 
     return is_delisted or signature != entry.signature
 
 
+def _load_active_counts(cur: psycopg.Cursor, retailer_id: int) -> dict[_ScopeKey, int]:
+    """Población activa por ámbito ANTES de esta pasada (base para la red de seguridad)."""
+    cur.execute(
+        """
+        SELECT gender, section, category, count(*)
+        FROM product
+        WHERE retailer_id = %s AND delisted_at IS NULL
+        GROUP BY gender, section, category
+        """,
+        (retailer_id,),
+    )
+    return {(row[0], row[1], row[2]): row[3] for row in cur.fetchall()}
+
+
+def _suspicious_scopes(
+    scanned: list[ScrapeScope],
+    seen_by_scope: dict[_ScopeKey, int],
+    prior_active: dict[_ScopeKey, int],
+    min_baseline: int,
+    drop_ratio: float,
+) -> set[_ScopeKey]:
+    """Ámbitos donde lo observado cae de forma sospechosa (posible fallo, no retirada real).
+
+    Solo se consideran ámbitos con una población previa mínima (`min_baseline`) para no
+    saltar por ruido en ámbitos pequeños. Devuelve las claves cuyas bajas hay que OMITIR.
+    """
+    suspicious: set[_ScopeKey] = set()
+    for scope in scanned:
+        key = (scope.gender, scope.section, scope.category)
+        base = prior_active.get(key, 0)
+        seen = seen_by_scope.get(key, 0)
+        if base >= min_baseline and seen < base * drop_ratio:
+            suspicious.add(key)
+    return suspicious
+
+
+def _scope_conditions(scopes: list[ScrapeScope], prefix: str = "") -> tuple[str, list[str | None]]:
+    """Construye el `WHERE (... OR ...)` que acota una acción a un conjunto de ámbitos."""
+    template = (
+        f"({prefix}gender IS NOT DISTINCT FROM %s"
+        f" AND {prefix}section IS NOT DISTINCT FROM %s"
+        f" AND {prefix}category IS NOT DISTINCT FROM %s)"
+    )
+    clause = " OR ".join(template for _ in scopes)
+    params: list[str | None] = []
+    for scope in scopes:
+        params.extend((scope.gender, scope.section, scope.category))
+    return clause, params
+
+
+def _delist(
+    cur: psycopg.Cursor, retailer_id: int, run_ts: datetime, safe_scopes: list[ScrapeScope]
+) -> tuple[int, int]:
+    """Marca bajas (producto y variante) SOLO dentro de los ámbitos seguros y no vistos."""
+    if not safe_scopes:
+        return 0, 0
+    prod_clause, prod_params = _scope_conditions(safe_scopes)
+    cur.execute(
+        f"""
+        UPDATE product SET delisted_at = %s
+        WHERE retailer_id = %s AND delisted_at IS NULL AND last_seen_at < %s
+          AND ({prod_clause})
+        """,
+        [run_ts, retailer_id, run_ts, *prod_params],
+    )
+    products_delisted = cur.rowcount
+
+    var_clause, var_params = _scope_conditions(safe_scopes, prefix="p.")
+    cur.execute(
+        f"""
+        UPDATE variant v SET delisted_at = %s
+        FROM product p
+        WHERE v.product_id = p.id AND p.retailer_id = %s
+          AND v.delisted_at IS NULL AND v.last_seen_at < %s
+          AND ({var_clause})
+        """,
+        [run_ts, retailer_id, run_ts, *var_params],
+    )
+    return products_delisted, cur.rowcount
+
+
 def ingest(
-    conn: psycopg.Connection, store: BaseStore, run_ts: datetime | None = None
+    conn: psycopg.Connection,
+    store: BaseStore,
+    run_ts: datetime | None = None,
+    *,
+    delist_min_baseline: int = DEFAULT_DELIST_MIN_BASELINE,
+    delist_drop_ratio: float = DEFAULT_DELIST_DROP_RATIO,
 ) -> IngestResult:
     """Ejecuta una pasada completa del scraper y persiste el resultado. Atómico."""
     run_ts = run_ts or datetime.now(UTC)
@@ -202,6 +297,8 @@ def ingest(
             )
             run_id = _returned_id(cur)
             existing = _load_existing(cur, retailer_id)
+            prior_active = _load_active_counts(cur, retailer_id)  # baseline por ámbito
+            scanned = list(dict.fromkeys(store.scopes()))  # ámbitos recorridos, sin duplicar
 
             # Fase 1: listado barato. Decidimos a quién pedir detalle y a quién solo "tocar".
             entries = list(store.list_catalog())
@@ -228,34 +325,27 @@ def ingest(
                     variants_seen += 1
                     prices_recorded += 1
 
-            # Bajas: lo no visto en esta ejecución conserva un last_seen_at anterior.
-            cur.execute(
-                """
-                UPDATE product SET delisted_at = %s
-                WHERE retailer_id = %s AND delisted_at IS NULL AND last_seen_at < %s
-                """,
-                (run_ts, retailer_id, run_ts),
+            # Bajas acotadas: (#1) solo en ámbitos realmente escaneados y (#2) descartando
+            # los que sufren una caída sospechosa (posible fallo de scraping, no retirada real).
+            seen_by_scope: dict[_ScopeKey, int] = Counter(
+                (e.gender, e.section, e.category) for e in entries
             )
-            products_delisted = cur.rowcount
-            cur.execute(
-                """
-                UPDATE variant v SET delisted_at = %s
-                FROM product p
-                WHERE v.product_id = p.id AND p.retailer_id = %s
-                  AND v.delisted_at IS NULL AND v.last_seen_at < %s
-                """,
-                (run_ts, retailer_id, run_ts),
+            suspicious = _suspicious_scopes(
+                scanned, seen_by_scope, prior_active, delist_min_baseline, delist_drop_ratio
             )
-            variants_delisted = cur.rowcount
+            safe_scopes = [
+                s for s in scanned if (s.gender, s.section, s.category) not in suspicious
+            ]
+            products_delisted, variants_delisted = _delist(cur, retailer_id, run_ts, safe_scopes)
 
             cur.execute(
                 """
                 UPDATE scrape_run
                 SET finished_at = now(), status = 'success',
-                    products_seen = %s, variants_seen = %s
+                    products_seen = %s, variants_seen = %s, errors = %s
                 WHERE id = %s
                 """,
-                (len(entries), variants_seen, run_id),
+                (len(entries), variants_seen, len(suspicious), run_id),
             )
         conn.commit()
         return IngestResult(
@@ -267,6 +357,8 @@ def ingest(
             prices_recorded=prices_recorded,
             products_delisted=products_delisted,
             variants_delisted=variants_delisted,
+            scanned_scopes=len(scanned),
+            skipped_scopes=len(suspicious),
         )
     except Exception:
         conn.rollback()

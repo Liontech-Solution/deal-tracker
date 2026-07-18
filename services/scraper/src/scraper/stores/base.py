@@ -48,6 +48,19 @@ class ScrapedProduct:
 
 
 @dataclass(frozen=True)
+class ScrapeScope:
+    """Un ámbito del catálogo que el scraper recorre (p.ej. niña/zapateria/zapatos).
+
+    Es la unidad sobre la que se acota la detección de bajas: solo se dan de baja
+    productos de ámbitos realmente escaneados en la pasada (ver `ingest.py`).
+    """
+
+    gender: str | None
+    section: str | None
+    category: str | None
+
+
+@dataclass(frozen=True)
 class ListingEntry:
     """Producto tal y como aparece en el listado, con una huella para detectar cambios."""
 
@@ -57,6 +70,10 @@ class ListingEntry:
     section: str | None
     category: str | None
 
+    @property
+    def scope(self) -> ScrapeScope:
+        return ScrapeScope(self.gender, self.section, self.category)
+
 
 @runtime_checkable
 class BaseStore(Protocol):
@@ -65,6 +82,10 @@ class BaseStore(Protocol):
     slug: str
     name: str
     base_url: str
+
+    def scopes(self) -> Iterable[ScrapeScope]:
+        """Ámbitos del catálogo que este scraper recorre (base para acotar las bajas)."""
+        ...
 
     def list_catalog(self) -> Iterable[ListingEntry]:
         """Barre las secciones relevantes (pocas peticiones) y devuelve una entrada por producto."""

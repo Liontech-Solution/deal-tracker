@@ -66,7 +66,12 @@ def main(argv: list[str] | None = None) -> int:
             applied = apply_migrations(conn)
             if applied:
                 print(f"migraciones aplicadas: {', '.join(applied)}")
-        result = ingest(conn, store)
+        result = ingest(
+            conn,
+            store,
+            delist_min_baseline=config.delist_min_baseline,
+            delist_drop_ratio=config.delist_drop_ratio,
+        )
 
     print(
         f"run #{result.scrape_run_id} OK — "
@@ -75,6 +80,11 @@ def main(argv: list[str] | None = None) -> int:
         f"{result.variants_seen} variantes, {result.prices_recorded} precios; "
         f"bajas: {result.products_delisted} productos / {result.variants_delisted} variantes"
     )
+    if result.skipped_scopes:
+        print(
+            f"⚠ {result.skipped_scopes}/{result.scanned_scopes} ámbitos con caída sospechosa: "
+            f"bajas omitidas (posible fallo de scraping). Revisa el listado de la tienda."
+        )
     return 0
 
 

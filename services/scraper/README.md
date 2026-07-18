@@ -58,6 +58,22 @@ exponencial** ante `429`/`5xx`/errores de red (respetando `Retry-After`). Ajusta
 entorno: `SCRAPER_REQUEST_DELAY`, `SCRAPER_REQUEST_RETRIES`, `SCRAPER_RETRY_BACKOFF`,
 `SCRAPER_USER_AGENT`, `SCRAPER_REQUEST_TIMEOUT`.
 
+## Detección de bajas (acotada y con red de seguridad)
+
+Una "baja" (`delisted_at`) se detecta por ausencia: lo no visto en la pasada se da por
+descatalogado. Para que esto no genere falsos positivos:
+
+- **Acotada al ámbito escaneado** — cada tienda declara sus ámbitos `(gender, section,
+  category)` en `scopes()`. Solo se dan de baja productos de ámbitos realmente recorridos en
+  esa pasada; quitar o fallar una categoría no afecta a las demás.
+- **Red de seguridad por umbral** — si en un ámbito con al menos `SCRAPER_DELIST_MIN_BASELINE`
+  productos activos lo observado cae por debajo de `SCRAPER_DELIST_DROP_RATIO` (p.ej. una
+  categoría que devuelve 0 por un bloqueo blando), se **omiten sus bajas** y el `scrape_run`
+  queda con `errors > 0` como aviso.
+
+Pendiente (Fase 2, ver memoria del proyecto): histéresis (N pasadas sin ver antes de dar de
+baja) y confirmación activa vía endpoint de detalle antes de descatalogar.
+
 ## Añadir una tienda
 
 1. Crear `stores/<tienda>.py` con funciones `parse_*` puras + una clase que implemente
