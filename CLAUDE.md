@@ -4,7 +4,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-This is a **greenfield project** — no application code exists yet. The only content is `base.txt`, a Spanish-language product brief. There is no build/lint/test tooling, no `package.json`/`go.mod`/etc., and this directory is not yet a git repository. Update this file as the stack and commands take shape.
+**Phase 1 is in place.** This is a **polyglot monorepo**: scraping/ingestion in **Python**
+(`services/scraper`, built), user experience in **Node/TS** (`services/web`, placeholder for
+Phase 2+). The two services integrate through the **shared Postgres**, whose schema is the
+contract as neutral SQL in `db/migrations`. The `scraper` service owns writes to
+`retailer`/`product`/`variant`/`price_history`/`scrape_run`.
+
+Phase 1 delivered: the data schema, a pluggable per-store scraper interface
+(`services/scraper/src/scraper/stores/base.py`), the ingestion pipeline with new/delisted
+detection (`ingest.py`), the CLI job runner (`python -m scraper.run`), one real scraper
+(**Zara**, via public AJAX JSON endpoints), tests (parsing + ingestion), an optimized
+`Dockerfile`, and CI (`.github/workflows/scraper-ci.yml`).
+
+Deferred to Phase 2+: the `web` service (API + frontend + Keycloak + Telegram bot), more
+store scrapers, fake-discount charts, and the k8s manifests (separate repo).
+
+### Commands (services/scraper)
+
+```bash
+just setup                    # venv + editable install with dev deps
+just run                      # scrape Zara (applies migrations first)
+just dry-run                  # scrape without writing to DB
+just check                    # ruff + ruff format --check + mypy + pytest
+# or directly:
+python -m scraper.run --retailer zara --migrate
+```
+
+Config comes from the environment (`.env`, see `.env.example`): `DATABASE_URL` is required;
+`TEST_DATABASE_URL` gates the ingestion tests (skipped if unset). Docker image builds with the
+build context at the **repo root**: `docker build -f services/scraper/Dockerfile -t deal-tracker-scraper .`.
 
 ## What the product is
 

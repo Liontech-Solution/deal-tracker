@@ -1,0 +1,248 @@
+"""Scraper de Zara (niños): calzado y ropa infantil.
+
+Zara expone endpoints AJAX públicos que devuelven JSON, así que evitamos
+navegador (imagen ligera). Tres endpoints:
+
+  - árbol de categorías:  /categories?ajax=true
+  - listado de categoría: /category/{id}/products?ajax=true   (ids + precio por color)
+  - detalle (con tallas):  /products-details?productIds={id}&ajax=true
+
+El id estable del producto es `seo.discernProductId` (independiente de temporada);
+la variante estable es `{productId}-{colorId}-{sizeId}`.
+
+El scrapeo es en dos fases (ver `stores/base.py`): `list_catalog()` (barato) construye una
+huella por producto con el precio por color del listado; `fetch_details()` solo pide el
+detalle de los productos que la ingesta marca como nuevos o cambiados.
+
+Las funciones `parse_*` son puras (JSON -> dataclasses) y se testean con fixtures.
+"""
+
+from __future__ import annotations
+
+import random
+import time
+from collections.abc import Iterable
+from dataclasses import dataclass
+from decimal import Decimal
+from typing import Any
+
+import httpx
+
+from ..config import Config
+from .base import ListingEntry, ScrapedProduct, ScrapedVariant, ScrapeScope
+
+BASE_URL = "https://www.zara.com/es/es/"
+_CATEGORY_URL = BASE_URL + "category/{cat_id}/products?ajax=true"
+# El endpoint de detalle solo devuelve datos para UN productId por llamada
+# (con varios ids separados por coma responde una lista vacía).
+_DETAILS_URL = BASE_URL + "products-details?productIds={product_id}&ajax=true"
+
+# Códigos que merece la pena reintentar (throttling / errores transitorios del servidor).
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+
+@dataclass(frozen=True)
+class CategoryConfig:
+    """Mapea una categoría hoja de Zara a nuestro dominio (género/sección/categoría)."""
+
+    category_id: int
+    gender: str  # niño | niña | unisex
+    section: str  # ropa | zapateria
+    category: str  # zapatos | zapatillas | pantalones | ...
+
+
+# Subconjunto curado para la Fase 1: calzado infantil niño/niña.
+# Ampliable añadiendo entradas (el resto del código no cambia).
+CATEGORIES: list[CategoryConfig] = [
+    CategoryConfig(2427610, "niña", "zapateria", "zapatos"),
+    CategoryConfig(2427608, "niña", "zapateria", "zapatillas"),
+    CategoryConfig(2428560, "niño", "zapateria", "zapatos"),
+    CategoryConfig(2428558, "niño", "zapateria", "zapatillas"),
+]
+
+
+def _cents(value: Any) -> Decimal | None:
+    """Zara da los precios en céntimos enteros (3995 -> 39.95 €)."""
+    if value is None:
+        return None
+    return (Decimal(int(value)) / 100).quantize(Decimal("0.01"))
+
+
+def _iter_product_nodes(listing: Any) -> Iterable[dict[str, Any]]:
+    """Recorre el JSON del listado y produce cada nodo de producto (con `seo.discernProductId`)."""
+
+    def walk(node: Any) -> Iterable[dict[str, Any]]:
+        if isinstance(node, dict):
+            seo = node.get("seo")
+            if isinstance(seo, dict) and seo.get("discernProductId"):
+                yield node
+            for v in node.values():
+                yield from walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                yield from walk(v)
+
+    yield from walk(listing)
+
+
+def _listing_signature(node: dict[str, Any]) -> str:
+    """Huella barata del producto en el listado: precio por color (ordenado y estable)."""
+    parts = [
+        f"{color.get('id')}:{color.get('price')}"
+        for color in node.get("detail", {}).get("colors", [])
+    ]
+    return "|".join(sorted(parts))
+
+
+def parse_listing_entries(listing: dict[str, Any], cat: CategoryConfig) -> list[ListingEntry]:
+    """Extrae una `ListingEntry` (id estable + huella) por producto, en orden y sin duplicar."""
+    entries: list[ListingEntry] = []
+    seen: set[str] = set()
+    for node in _iter_product_nodes(listing):
+        pid = str(node["seo"]["discernProductId"])
+        if pid in seen:
+            continue
+        seen.add(pid)
+        entries.append(
+            ListingEntry(
+                retailer_product_id=pid,
+                signature=_listing_signature(node),
+                gender=cat.gender,
+                section=cat.section,
+                category=cat.category,
+            )
+        )
+    return entries
+
+
+def parse_detail_product(
+    entry: dict[str, Any], *, gender: str | None, section: str | None, category: str | None
+) -> ScrapedProduct | None:
+    """Convierte una entrada de `products-details` en ScrapedProduct (None si no hay variantes)."""
+    seo = entry.get("seo") or {}
+    pid = seo.get("discernProductId")
+    if not pid:
+        return None
+    pid = str(pid)
+    keyword = seo.get("keyword", "")
+    seo_pid = seo.get("seoProductId", "")
+    url = f"{BASE_URL}{keyword}-p{seo_pid}.html" if keyword and seo_pid else None
+
+    variants: list[ScrapedVariant] = []
+    for color in entry.get("detail", {}).get("colors", []):
+        color_id = color.get("id")
+        color_name = color.get("name")
+        color_old = color.get("oldPrice")
+        for size in color.get("sizes", []):
+            price = _cents(size.get("price"))
+            if price is None:
+                continue  # priceUnavailable: no la registramos
+            size_id = size.get("id")
+            variants.append(
+                ScrapedVariant(
+                    retailer_variant_id=f"{pid}-{color_id}-{size_id}",
+                    size=size.get("name"),
+                    color=color_name,
+                    sku=str(size["sku"]) if size.get("sku") is not None else None,
+                    price=price,
+                    list_price=_cents(size.get("oldPrice") or color_old),
+                    in_stock=size.get("availability") == "in_stock",
+                    url=url,
+                )
+            )
+
+    if not variants:
+        return None
+    return ScrapedProduct(
+        retailer_product_id=pid,
+        name=entry.get("name", ""),
+        gender=gender,
+        section=section,
+        category=category,
+        url=url,
+        variants=variants,
+    )
+
+
+class ZaraStore:
+    """Scraper de Zara. Implementa el Protocol BaseStore."""
+
+    slug = "zara"
+    name = "Zara"
+    base_url = BASE_URL
+
+    def __init__(self, config: Config, categories: list[CategoryConfig] | None = None) -> None:
+        self._config = config
+        self._categories = categories if categories is not None else CATEGORIES
+
+    def scopes(self) -> Iterable[ScrapeScope]:
+        # Ámbitos que se recorren, deducidos de las categorías configuradas (sin duplicar).
+        seen: list[ScrapeScope] = []
+        for cat in self._categories:
+            scope = ScrapeScope(cat.gender, cat.section, cat.category)
+            if scope not in seen:
+                seen.append(scope)
+        return seen
+
+    def _client(self) -> httpx.Client:
+        return httpx.Client(
+            headers={"User-Agent": self._config.user_agent, "Accept": "application/json"},
+            timeout=self._config.request_timeout,
+            follow_redirects=True,
+        )
+
+    def _polite_pause(self) -> None:
+        """Pausa base entre peticiones con jitter (una cadencia fija es más detectable)."""
+        base = self._config.request_delay
+        if base > 0:
+            time.sleep(base * random.uniform(0.5, 1.5))
+
+    def _get_json(self, client: httpx.Client, url: str) -> Any:
+        """GET con reintentos y backoff exponencial + jitter ante throttling/errores de red."""
+        retries = self._config.request_retries
+        for attempt in range(retries + 1):
+            self._polite_pause()
+            try:
+                resp = client.get(url)
+                resp.raise_for_status()
+                return resp.json()
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                if status not in _RETRYABLE_STATUS or attempt == retries:
+                    raise
+                self._backoff(attempt, retry_after=exc.response.headers.get("Retry-After"))
+            except httpx.TransportError:
+                if attempt == retries:
+                    raise
+                self._backoff(attempt)
+
+    def _backoff(self, attempt: int, retry_after: str | None = None) -> None:
+        """Espera exponencial (respeta Retry-After si viene) con jitter."""
+        wait = self._config.retry_backoff * (2**attempt)
+        if retry_after and retry_after.isdigit():
+            wait = max(wait, float(retry_after))
+        time.sleep(wait * random.uniform(0.8, 1.2))
+
+    def list_catalog(self) -> Iterable[ListingEntry]:
+        emitted: set[str] = set()  # dedup entre categorías dentro de la misma ejecución
+        with self._client() as client:
+            for cat in self._categories:
+                listing = self._get_json(client, _CATEGORY_URL.format(cat_id=cat.category_id))
+                for entry in parse_listing_entries(listing, cat):
+                    if entry.retailer_product_id not in emitted:
+                        emitted.add(entry.retailer_product_id)
+                        yield entry
+
+    def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
+        with self._client() as client:
+            for entry in entries:
+                url = _DETAILS_URL.format(product_id=entry.retailer_product_id)
+                for detail in self._get_json(client, url):
+                    product = parse_detail_product(
+                        detail,
+                        gender=entry.gender,
+                        section=entry.section,
+                        category=entry.category,
+                    )
+                    if product:
+                        yield product

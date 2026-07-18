@@ -1,0 +1,68 @@
+"""Configuración del servicio, cargada desde variables de entorno (y un .env opcional)."""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
+
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+)
+
+
+@dataclass(frozen=True)
+class Config:
+    """Parámetros de ejecución. Sin secretos hardcodeados: todo viene del entorno."""
+
+    database_url: str
+    user_agent: str = DEFAULT_USER_AGENT
+    request_timeout: float = 20.0
+    request_delay: float = 0.5  # pausa base entre peticiones (se le aplica jitter)
+    request_retries: int = 3  # reintentos ante 429/5xx/errores de red
+    retry_backoff: float = 1.0  # segundos base del backoff exponencial
+    # Red de seguridad de bajas: si un ámbito con al menos `delist_min_baseline`
+    # productos activos ve caer lo observado por debajo de `delist_drop_ratio`,
+    # se omiten sus bajas (posible fallo de scraping, no retirada real).
+    delist_min_baseline: int = 5
+    delist_drop_ratio: float = 0.5
+
+    @classmethod
+    def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
+        env = os.environ if env is None else env
+        database_url = env.get("DATABASE_URL", "")
+        if not database_url:
+            raise RuntimeError(
+                "Falta DATABASE_URL (p.ej. postgresql://user:pass@host:5432/deal_tracker)"
+            )
+        return cls(
+            database_url=database_url,
+            user_agent=env.get("SCRAPER_USER_AGENT", DEFAULT_USER_AGENT),
+            request_timeout=float(env.get("SCRAPER_REQUEST_TIMEOUT", "20")),
+            request_delay=float(env.get("SCRAPER_REQUEST_DELAY", "0.5")),
+            request_retries=int(env.get("SCRAPER_REQUEST_RETRIES", "3")),
+            retry_backoff=float(env.get("SCRAPER_RETRY_BACKOFF", "1.0")),
+            delist_min_baseline=int(env.get("SCRAPER_DELIST_MIN_BASELINE", "5")),
+            delist_drop_ratio=float(env.get("SCRAPER_DELIST_DROP_RATIO", "0.5")),
+        )
+
+
+def load_dotenv(path: str | os.PathLike[str] = ".env") -> None:
+    """Carga un .env sencillo en os.environ (sin sobrescribir lo ya definido).
+
+    Evita añadir una dependencia externa solo para dev local. No soporta
+    comillas ni multilínea: KEY=VALUE por línea, '#' para comentarios.
+    """
+    p = Path(path)
+    if not p.is_file():
+        return
+    for raw in p.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if key and key not in os.environ:
+            os.environ[key] = value.strip()
