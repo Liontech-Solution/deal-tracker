@@ -1,0 +1,15 @@
+# Contexto de build = raíz del repo. Solo entran services/scraper/{pyproject,src} y db/migrations.
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/node_modules
+services/scraper/tests
+services/web
+.git
+.github
+*.md
+.env
+.env.*

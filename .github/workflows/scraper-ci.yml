@@ -1,0 +1,54 @@
+name: scraper-ci
+
+on:
+  push:
+    branches: [main]
+    paths: ["services/scraper/**", "db/migrations/**", ".github/workflows/scraper-ci.yml"]
+  pull_request:
+    paths: ["services/scraper/**", "db/migrations/**", ".github/workflows/scraper-ci.yml"]
+
+defaults:
+  run:
+    working-directory: services/scraper
+
+jobs:
+  lint-type-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: dealtracker
+          POSTGRES_PASSWORD: dealtracker
+          POSTGRES_DB: deal_tracker_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dealtracker"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://dealtracker:dealtracker@localhost:5432/deal_tracker_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Instalar dependencias
+        run: pip install .[dev]
+      - name: Ruff (lint)
+        run: ruff check .
+      - name: Ruff (formato)
+        run: ruff format --check .
+      - name: Mypy
+        run: mypy
+      - name: Pytest (incluye ingesta contra Postgres)
+        run: pytest
+
+  build-image:
+    runs-on: ubuntu-latest
+    needs: lint-type-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build de la imagen del scraper
+        # Contexto = raíz del repo (la imagen necesita db/migrations).
+        run: docker build -f services/scraper/Dockerfile -t deal-tracker-scraper:ci .
+        working-directory: ${{ github.workspace }}
