@@ -7,11 +7,13 @@ como estáticos por el propio Nest (imagen única). El punto de integración con
 **Postgres compartida**, cuyo esquema vive en [`db/migrations`](../../db/migrations) como contrato
 SQL neutro.
 
-> **Estado**: API + catálogo público en React. Ya construido: migraciones del contrato, NestJS +
-> Drizzle, OIDC Keycloak, API de catálogo (con orden y facetas) e intereses, **SPA React** con
-> Home + Catálogo (filtros) + Detalle (gráfica de historial y etiqueta de descuento honesto),
-> Dockerfile multiarch y CI. **Diferido**: login Keycloak en el navegador, Mis seguimientos +
-> modal de aviso, Ajustes/Telegram, bot de Telegram y job de matching de ofertas.
+> **Estado**: API + SPA React con **experiencia autenticada**. Ya construido: migraciones del
+> contrato, NestJS + Drizzle, OIDC Keycloak (resource server), API de catálogo (con orden y
+> facetas) e intereses (enriquecidos), **login Keycloak en el navegador** (OIDC + PKCE con
+> `keycloak-js`), **modal de seguimiento** y página **Mis seguimientos**, Home + Catálogo
+> (filtros) + Detalle (gráfica de historial y etiqueta de descuento honesto), Dockerfile multiarch
+> y CI. **Diferido** (PR2b, se valida al desplegar): Ajustes/Telegram, bot de Telegram y job de
+> matching de ofertas (que sustituirá la heurística de descuento honesto del cliente).
 
 Este servicio es un **workspace pnpm**: la raíz es la API y [`frontend/`](frontend) es la SPA
 (Vite + React + TS). El detalle del frontend está en la sección **Frontend (SPA)** más abajo.
@@ -69,7 +71,7 @@ Config por entorno (ver [`.env.example`](.env.example)): `DATABASE_URL` (requeri
 | GET | `/catalog/products/:id` | — | Producto + variantes con su último precio. |
 | GET | `/catalog/variants/:id/price-history` | — | Serie temporal de precios (base de las gráficas). |
 | GET | `/catalog/facets` | — | Valores distintos de género/sección/categoría/talla/color y tiendas (para poblar filtros). |
-| GET | `/interests` | JWT | Intereses del usuario. |
+| GET | `/interests` | JWT | Intereses del usuario, **enriquecidos** con `retailerName`/`productName`/`variantLabel` (resueltos por id lógico cuando apuntan a un objetivo; `null` si no). |
 | POST | `/interests` | JWT | Crea un interés (por producto/variante y/o filtros + regla de aviso). |
 | DELETE | `/interests/:id` | JWT | Borra un interés propio. |
 
@@ -83,8 +85,9 @@ SPA en [`frontend/`](frontend): **Vite + React + TypeScript** (sin librería de 
 diseño "barefoot" portados a variables CSS en `src/styles/app.css`, claro/oscuro). Datos con
 **TanStack Query** contra `/api`. Fuentes self-host (`@fontsource`), iconos SVG propios, gráfica
 de historial de precios en SVG. Pantallas de esta fase: **Home**, **Catálogo** (filtros por
-sección/género/categoría/talla/color/tienda, orden, estados de carga/error/vacío, paginación) y
-**Detalle** (variantes talla/color, bloque de precio y **etiqueta de descuento honesto**).
+sección/género/categoría/talla/color/tienda, orden, estados de carga/error/vacío, paginación),
+**Detalle** (variantes talla/color, bloque de precio y **etiqueta de descuento honesto**),
+**modal de seguimiento** y **Mis seguimientos** (`/seguimientos`).
 
 ```bash
 # Dev: dos procesos. 1) API Nest, 2) SPA con proxy a /api.
@@ -94,6 +97,24 @@ pnpm frontend:dev         # SPA en http://localhost:5173 (proxy /api -> :3000)
 # Producción local (imagen única): la API sirve la SPA compilada.
 pnpm build:all && pnpm start   # todo en http://localhost:3000
 ```
+
+### Login con Keycloak (navegador)
+
+La SPA usa **`keycloak-js`** con **OIDC + PKCE** (`src/auth/keycloak.ts` + `AuthProvider`). El
+access token se adjunta como `Authorization: Bearer` en las llamadas a `/interests` y se refresca
+antes de expirar. Config por variables `VITE_*` (ver [`frontend/.env.example`](frontend/.env.example)):
+
+| Variable | Descripción |
+| --- | --- |
+| `VITE_KC_URL` | URL base de Keycloak (con barra final). |
+| `VITE_KC_REALM` | Realm. |
+| `VITE_KC_CLIENT_ID` | Client-id público de la SPA (PKCE, sin secreto). |
+
+**Modo placeholder (dev local):** si las tres variables están vacías, la auth queda
+**deshabilitada** — la app funciona como catálogo público y "Iniciar sesión"/"Seguir" muestran un
+aviso. La conexión real con Keycloak se **valida al desplegar en el cluster (namespace `dev`)**,
+donde el realm y el client existen; allí las `VITE_*` se inyectan en el build y la config del
+resource server (`KEYCLOAK_ISSUER_URL`/`KEYCLOAK_AUDIENCE`) llega como `Secret`.
 
 > **Descuento honesto**: mientras no exista el job de matching en backend, la clasificación
 > "oferta real vs precio inflado" se calcula en cliente (`src/lib/honesty.ts`) a partir del

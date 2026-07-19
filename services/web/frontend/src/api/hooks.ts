@@ -1,7 +1,15 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { apiGet } from './client';
-import type { Facets, PricePoint, ProductDetail, ProductListResult, ProductQuery } from './types';
+import { apiGet, apiGetAuth, apiSend } from './client';
+import type {
+  CreateInterestInput,
+  Facets,
+  InterestView,
+  PricePoint,
+  ProductDetail,
+  ProductListResult,
+  ProductQuery,
+} from './types';
 
 const PAGE_SIZE = 12;
 
@@ -43,5 +51,34 @@ export function usePriceHistory(variantId: number | undefined) {
     queryKey: ['price-history', variantId],
     enabled: variantId !== undefined && Number.isFinite(variantId),
     queryFn: () => apiGet<PricePoint[]>(`/catalog/variants/${variantId}/price-history`),
+  });
+}
+
+// --- Intereses (requieren sesión; el token lo adjunta el cliente HTTP) ---
+
+const INTERESTS_KEY = ['interests'];
+
+/** Lista de seguimientos del usuario. `enabled` para no pedir sin sesión. */
+export function useInterests(enabled: boolean) {
+  return useQuery({
+    queryKey: INTERESTS_KEY,
+    enabled,
+    queryFn: () => apiGetAuth<InterestView[]>('/interests'),
+  });
+}
+
+export function useCreateInterest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateInterestInput) => apiSend<InterestView>('POST', '/interests', input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: INTERESTS_KEY }),
+  });
+}
+
+export function useDeleteInterest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiSend<void>('DELETE', `/interests/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: INTERESTS_KEY }),
   });
 }

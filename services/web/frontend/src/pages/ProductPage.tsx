@@ -3,8 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { usePriceHistory, useProduct } from '../api/hooks';
 import type { VariantWithPrice } from '../api/types';
+import { useAuth } from '../auth/AuthProvider';
 import { StoreBadge } from '../components/Badges';
 import type { Stock } from '../components/Badges';
+import { FollowModal } from '../components/FollowModal';
 import { ArrowLeftIcon, BellIcon, ExternalIcon } from '../components/icons';
 import { PriceBlock } from '../components/PriceBlock';
 import { PriceHistoryChart } from '../components/PriceHistoryChart';
@@ -29,11 +31,13 @@ export function ProductPage() {
   const productId = id ? Number(id) : undefined;
   const navigate = useNavigate();
   const toast = useToast();
+  const auth = useAuth();
 
   const { data: product, isPending, isError, refetch } = useProduct(productId);
 
   const [size, setSize] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
+  const [followOpen, setFollowOpen] = useState(false);
 
   const variants = useMemo(() => product?.variants ?? [], [product]);
   const sizes = useMemo(() => [...new Set(variants.map((v) => v.size).filter((s): s is string => !!s))], [variants]);
@@ -84,6 +88,18 @@ export function ProductPage() {
 
   const colorForSize = (c: string) => variants.some((v) => v.color === c && v.size === size && available(v));
   const sizeAvailable = (s: string) => variants.some((v) => v.size === s && available(v));
+
+  const onFollow = () => {
+    if (!auth.enabled) {
+      toast('Inicio de sesión con Keycloak · disponible al desplegar');
+      return;
+    }
+    if (!auth.authenticated) {
+      auth.login();
+      return;
+    }
+    setFollowOpen(true);
+  };
 
   return (
     <section className="dt-fade" style={{ paddingTop: 18 }}>
@@ -210,7 +226,7 @@ export function ProductPage() {
 
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
             <button
-              onClick={() => toast('Inicia sesión para seguir esta variante · muy pronto')}
+              onClick={onFollow}
               className="btn btn-primary"
               style={{ flex: 1, minWidth: 180, padding: 15, fontSize: 15.5, boxShadow: 'var(--shadow-2)' }}
             >
@@ -260,6 +276,20 @@ export function ProductPage() {
           </div>
         </div>
       </div>
+
+      <FollowModal
+        open={followOpen}
+        onClose={() => setFollowOpen(false)}
+        target={{
+          productId: product.id,
+          productName: product.name,
+          variantId: current?.id,
+          variantLabel:
+            current && (current.size || current.color)
+              ? [current.size ? `Talla ${current.size}` : null, current.color].filter(Boolean).join(' · ')
+              : null,
+        }}
+      />
     </section>
   );
 }
