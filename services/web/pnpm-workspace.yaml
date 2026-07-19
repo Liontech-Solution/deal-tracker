@@ -1,0 +1,18 @@
+# Config de pnpm (pnpm 11 lee los ajustes de proyecto desde aquí, ya no del campo `pnpm`
+# de package.json). Ver también `.npmrc` (registro pinneado + minimum-release-age).
+#
+# Cadena de suministro endurecida: los scripts de ciclo de vida de las dependencias están
+# bloqueados por defecto; solo se permiten (allowBuilds) los de esta allowlist mínima y revisada.
+# - esbuild / @swc/core: solo colocan su binario nativo precompilado (los usa Vitest en tests).
+packages:
+  - '.'
+  - 'frontend'
+
+# Un único `vite` en todo el workspace: vitest (backend) y el SPA (frontend) comparten versión,
+# evitando conflictos de tipos entre dos instancias de vite en el árbol.
+overrides:
+  vite: ^5.4.8
+
+allowBuilds:
+  '@swc/core': true
+  esbuild: true

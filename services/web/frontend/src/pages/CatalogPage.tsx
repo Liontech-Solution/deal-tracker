@@ -1,0 +1,182 @@
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+
+import { useFacets, useProducts } from '../api/hooks';
+import type { ProductQuery, ProductSort } from '../api/types';
+import { FilterPanel } from '../components/FilterPanel';
+import type { CatalogFilters } from '../components/FilterPanel';
+import { CloseIcon, FilterIcon } from '../components/icons';
+import { ProductCard } from '../components/ProductCard';
+import { EmptyState, ErrorState, ProductGridSkeleton } from '../components/States';
+import { capitalize } from '../lib/format';
+
+const SORTS: Array<{ value: ProductSort; label: string }> = [
+  { value: 'ofertas', label: 'Mejores ofertas' },
+  { value: 'precio-asc', label: 'Precio: menor a mayor' },
+  { value: 'precio-desc', label: 'Precio: mayor a menor' },
+  { value: 'descuento', label: 'Mayor % de rebaja' },
+];
+
+export function CatalogPage() {
+  const [params, setParams] = useSearchParams();
+  const [drawer, setDrawer] = useState(false);
+  const facets = useFacets();
+
+  const filters: CatalogFilters = {
+    gender: params.get('gender') ?? '',
+    section: params.get('section') ?? '',
+    category: params.get('category') ?? '',
+    size: params.get('size') ?? '',
+    color: params.get('color') ?? '',
+    retailer: params.get('retailer') ?? '',
+    inStock: params.get('inStock') === 'true',
+  };
+  const sort = (params.get('sort') as ProductSort) ?? 'ofertas';
+
+  const setFilters = (patch: Partial<CatalogFilters & { sort: ProductSort }>) => {
+    const next = new URLSearchParams(params);
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === '' || v === false || v === undefined) next.delete(k);
+      else next.set(k, String(v));
+    }
+    setParams(next, { replace: true });
+  };
+
+  const query: Omit<ProductQuery, 'limit' | 'offset'> = {
+    gender: filters.gender || undefined,
+    section: filters.section || undefined,
+    category: filters.category || undefined,
+    size: filters.size || undefined,
+    color: filters.color || undefined,
+    retailer: filters.retailer || undefined,
+    inStock: filters.inStock || undefined,
+    sort,
+  };
+
+  const q = useProducts(query);
+  const items = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
+
+  // chips activos
+  const retailerName = (slug: string) => facets.data?.retailers.find((r) => r.slug === slug)?.name ?? slug;
+  const chips: Array<{ label: string; clear: () => void }> = [];
+  if (filters.gender) chips.push({ label: capitalize(filters.gender), clear: () => setFilters({ gender: '' }) });
+  if (filters.section) chips.push({ label: capitalize(filters.section), clear: () => setFilters({ section: '' }) });
+  if (filters.category) chips.push({ label: capitalize(filters.category), clear: () => setFilters({ category: '' }) });
+  if (filters.size) chips.push({ label: `Talla ${filters.size}`, clear: () => setFilters({ size: '' }) });
+  if (filters.color) chips.push({ label: capitalize(filters.color), clear: () => setFilters({ color: '' }) });
+  if (filters.retailer) chips.push({ label: retailerName(filters.retailer), clear: () => setFilters({ retailer: '' }) });
+  if (filters.inStock) chips.push({ label: 'En stock', clear: () => setFilters({ inStock: false }) });
+
+  const activeCount = chips.length;
+  const clearAll = () =>
+    setFilters({ gender: '', section: '', category: '', size: '', color: '', retailer: '', inStock: false });
+
+  return (
+    <section className="dt-fade" style={{ paddingTop: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+        <div>
+          <h1 className="serif" style={{ fontSize: 34, margin: '0 0 2px' }}>Catálogo</h1>
+          <div style={{ color: 'var(--text-muted)', fontSize: 14.5 }}>
+            {items.length}
+            {q.hasNextPage ? '+' : ''} prendas · actualizado hoy
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-pill)', padding: '6px 6px 6px 14px' }}>
+            <span style={{ fontSize: 13, color: 'var(--text-faint)', fontWeight: 700 }}>Ordenar</span>
+            <select className="select" value={sort} onChange={(e) => setFilters({ sort: e.target.value as ProductSort })}>
+              {SORTS.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+          <button className="btn btn-primary dt-filterbtn" style={{ padding: '11px 18px', fontSize: 14 }} onClick={() => setDrawer(true)}>
+            <FilterIcon size={16} />
+            Filtros
+            {activeCount > 0 && (
+              <span style={{ background: 'var(--on-accent)', color: 'var(--accent)', borderRadius: 99, fontSize: 11, padding: '1px 7px', fontWeight: 800 }}>{activeCount}</span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {chips.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+          {chips.map((c) => (
+            <button
+              key={c.label}
+              onClick={c.clear}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r-pill)', padding: '7px 10px 7px 13px', fontSize: 13, fontWeight: 700, color: 'var(--text)', cursor: 'pointer' }}
+            >
+              {c.label} <CloseIcon size={13} sw={2.6} />
+            </button>
+          ))}
+          <button onClick={clearAll} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer', padding: '7px 8px' }}>
+            Limpiar todo
+          </button>
+        </div>
+      )}
+
+      <div className="dt-catgrid" style={{ display: 'grid', gridTemplateColumns: '250px 1fr', gap: 24 }}>
+        <aside className="dt-sidebar" style={{ alignSelf: 'start', position: 'sticky', top: 132 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '4px 18px 18px' }}>
+            <FilterPanel facets={facets.data} value={filters} onChange={setFilters} />
+          </div>
+        </aside>
+
+        <div>
+          {q.isPending ? (
+            <ProductGridSkeleton count={8} />
+          ) : q.isError ? (
+            <ErrorState onRetry={() => q.refetch()} />
+          ) : items.length === 0 ? (
+            <EmptyState onClear={clearAll} />
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 16 }}>
+                {items.map((p) => (
+                  <ProductCard key={p.id} p={p} />
+                ))}
+              </div>
+              {q.hasNextPage && (
+                <div style={{ textAlign: 'center', marginTop: 32 }}>
+                  <button className="btn btn-secondary" style={{ padding: '13px 28px' }} disabled={q.isFetchingNextPage} onClick={() => q.fetchNextPage()}>
+                    {q.isFetchingNextPage ? 'Cargando…' : 'Cargar más prendas'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {drawer && (
+        <>
+          <div onClick={() => setDrawer(false)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(30,24,16,.42)', backdropFilter: 'blur(2px)' }} />
+          <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 61, background: 'var(--surface)', borderRadius: 'var(--r-xl) var(--r-xl) 0 0', maxHeight: '88vh', display: 'flex', flexDirection: 'column', animation: 'dt-slideup .28s cubic-bezier(.16,1,.3,1)', boxShadow: 'var(--shadow-3)' }}>
+            <div style={{ padding: '8px 0 4px', display: 'grid', placeItems: 'center' }}>
+              <div style={{ width: 44, height: 5, borderRadius: 99, background: 'var(--border-strong)' }} />
+            </div>
+            <div style={{ padding: '4px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div className="serif" style={{ fontSize: 22, fontWeight: 600 }}>Filtros</div>
+              <button aria-label="Cerrar" onClick={() => setDrawer(false)} className="btn-ghost" style={{ width: 40, height: 40, borderRadius: '50%', display: 'grid', placeItems: 'center' }}>
+                <CloseIcon size={18} />
+              </button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: '0 20px' }}>
+              <FilterPanel facets={facets.data} value={filters} onChange={setFilters} />
+            </div>
+            <div style={{ padding: 20, borderTop: '1px solid var(--border)', display: 'flex', gap: 10 }}>
+              {activeCount > 0 && (
+                <button className="btn btn-secondary" style={{ padding: 16 }} onClick={clearAll}>Limpiar</button>
+              )}
+              <button className="btn btn-primary" style={{ flex: 1, padding: 16, fontSize: 16 }} onClick={() => setDrawer(false)}>
+                Ver {items.length}{q.hasNextPage ? '+' : ''} prendas
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}

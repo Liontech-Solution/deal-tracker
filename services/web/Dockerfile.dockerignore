@@ -1,0 +1,20 @@
+# Ignore específico del build del servicio web (BuildKit lo usa en vez del .dockerignore raíz
+# cuando se construye con -f services/web/Dockerfile). Contexto = raíz del repo: entran
+# services/web/{src,frontend,package.json,…} y db/migrations; se excluye el resto.
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+.git
+.github
+*.md
+.env
+.env.*
+# El servicio web no necesita el scraper en su contexto.
+services/scraper
+# Artefactos de build (se generan dentro de la imagen).
+services/web/dist
+services/web/frontend/dist
