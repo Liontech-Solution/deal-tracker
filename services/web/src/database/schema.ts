@@ -93,6 +93,14 @@ export const appUser = pgTable('app_user', {
   keycloakSub: text('keycloak_sub').notNull().unique(),
   email: text('email'),
   displayName: text('display_name'),
+  // Vínculo Telegram (migración 0006). Nulos = sin vincular / sin enlace en curso.
+  telegramChatId: bigint('telegram_chat_id', { mode: 'number' }).unique(),
+  telegramUsername: text('telegram_username'),
+  telegramLinkedAt: timestamp('telegram_linked_at', { withTimezone: true }),
+  telegramLinkToken: text('telegram_link_token').unique(),
+  telegramLinkTokenExpiresAt: timestamp('telegram_link_token_expires_at', {
+    withTimezone: true,
+  }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

@@ -16,7 +16,7 @@ describe.skipIf(!TEST_DB)('migraciones', () => {
     await sql.end();
   });
 
-  it('aplica 0001–0005 y crea las tablas del contrato', async () => {
+  it('aplica 0001–0006 y crea las tablas del contrato', async () => {
     await runMigrations(sql);
     const versions = await sql<{ version: string }[]>`SELECT version FROM schema_migrations ORDER BY version`;
     const names = versions.map((v) => v.version);
@@ -27,6 +27,7 @@ describe.skipIf(!TEST_DB)('migraciones', () => {
         '0003_app_user.sql',
         '0004_interest.sql',
         '0005_notification.sql',
+        '0006_telegram_link.sql',
       ]),
     );
 
@@ -34,6 +35,19 @@ describe.skipIf(!TEST_DB)('migraciones', () => {
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name IN ('app_user', 'interest', 'notification')`;
     expect(tables.map((t) => t.table_name).sort()).toEqual(['app_user', 'interest', 'notification']);
+
+    // 0006 amplía app_user con las columnas del vínculo de Telegram.
+    const cols = await sql<{ column_name: string }[]>`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'app_user'
+        AND column_name LIKE 'telegram%'`;
+    expect(cols.map((c) => c.column_name).sort()).toEqual([
+      'telegram_chat_id',
+      'telegram_link_token',
+      'telegram_link_token_expires_at',
+      'telegram_linked_at',
+      'telegram_username',
+    ]);
   });
 
   it('es idempotente (re-ejecutar no aplica nada nuevo)', async () => {
