@@ -8,6 +8,7 @@ import type {
   ProductDetail,
   ProductListItem,
   ProductListResult,
+  RetailerFacet,
   VariantWithPrice,
 } from './catalog.types';
 import type { ProductQueryDto } from './dto/product-query.dto';
@@ -29,32 +30,51 @@ export class CatalogService {
     const retailer = q.retailer ?? null;
     const inStock = q.inStock ?? null;
 
+    // Orden traducido a SQL (whitelist en el DTO). "ofertas" = en stock primero y mayor
+    // descuento; el id como desempate estable.
+    const orderBy = {
+      'ofertas': sql`any_in_stock DESC, max_discount DESC NULLS LAST, id`,
+      'precio-asc': sql`price_from ASC NULLS LAST, id`,
+      'precio-desc': sql`price_from DESC NULLS LAST, id`,
+      'descuento': sql`max_discount DESC NULLS LAST, id`,
+    }[q.sort];
+
     const rows = await this.db.execute(sql`
       WITH latest AS (
         SELECT DISTINCT ON (ph.variant_id)
           ph.variant_id, ph.price, ph.list_price, ph.discount_pct, ph.in_stock
         FROM price_history ph
         ORDER BY ph.variant_id, ph.scraped_at DESC
+      ),
+      matched AS (
+        SELECT p.id, p.retailer_id, r.slug AS retailer_slug, r.name AS retailer_name,
+               p.retailer_product_id, p.name, p.gender, p.section, p.category, p.url,
+               v.id AS variant_id, l.price, l.list_price, l.discount_pct, l.in_stock
+        FROM product p
+        JOIN retailer r ON r.id = p.retailer_id
+        JOIN variant v ON v.product_id = p.id AND v.delisted_at IS NULL
+        JOIN latest l ON l.variant_id = v.id
+        WHERE (${gender}::text IS NULL OR p.gender = ${gender})
+          AND (${section}::text IS NULL OR p.section = ${section})
+          AND (${category}::text IS NULL OR p.category = ${category})
+          AND (${retailer}::text IS NULL OR r.slug = ${retailer})
+          AND (${size}::text IS NULL OR v.size = ${size})
+          AND (${color}::text IS NULL OR v.color = ${color})
+          AND (${inStock}::boolean IS NULL OR l.in_stock = ${inStock})
+          AND (${q.activeOnly} = false OR p.delisted_at IS NULL)
       )
-      SELECT p.id, p.retailer_id, r.slug AS retailer_slug, r.name AS retailer_name,
-             p.retailer_product_id, p.name, p.gender, p.section, p.category, p.url,
-             MIN(l.price) AS price_from,
-             BOOL_OR(l.in_stock) AS any_in_stock,
-             COUNT(v.id) AS variant_count
-      FROM product p
-      JOIN retailer r ON r.id = p.retailer_id
-      JOIN variant v ON v.product_id = p.id AND v.delisted_at IS NULL
-      JOIN latest l ON l.variant_id = v.id
-      WHERE (${gender}::text IS NULL OR p.gender = ${gender})
-        AND (${section}::text IS NULL OR p.section = ${section})
-        AND (${category}::text IS NULL OR p.category = ${category})
-        AND (${retailer}::text IS NULL OR r.slug = ${retailer})
-        AND (${size}::text IS NULL OR v.size = ${size})
-        AND (${color}::text IS NULL OR v.color = ${color})
-        AND (${inStock}::boolean IS NULL OR l.in_stock = ${inStock})
-        AND (${q.activeOnly} = false OR p.delisted_at IS NULL)
-      GROUP BY p.id, r.id
-      ORDER BY p.id
+      SELECT id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
+             name, gender, section, category, url,
+             MIN(price) AS price_from,
+             MAX(discount_pct) AS max_discount,
+             (array_agg(list_price ORDER BY in_stock DESC, price ASC))[1] AS list_from,
+             (array_agg(discount_pct ORDER BY in_stock DESC, price ASC))[1] AS discount_from,
+             BOOL_OR(in_stock) AS any_in_stock,
+             COUNT(variant_id) AS variant_count
+      FROM matched
+      GROUP BY id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
+               name, gender, section, category, url
+      ORDER BY ${orderBy}
       LIMIT ${q.limit} OFFSET ${q.offset}
     `);
 
@@ -70,6 +90,9 @@ export class CatalogService {
       category: (row.category as string | null) ?? null,
       url: (row.url as string | null) ?? null,
       priceFrom: (row.price_from as string | null) ?? null,
+      listFrom: (row.list_from as string | null) ?? null,
+      discountFrom: (row.discount_from as string | null) ?? null,
+      maxDiscount: (row.max_discount as string | null) ?? null,
       anyInStock: Boolean(row.any_in_stock),
       variantCount: Number(row.variant_count),
     }));
@@ -170,11 +193,37 @@ export class CatalogService {
       return rows.map((r) => String(r.value));
     };
 
-    const [genders, sections, categories] = await Promise.all([
+    // Tallas/colores: valores distintos entre variantes vivas de productos activos.
+    const pickVariant = async (column: 'size' | 'color'): Promise<string[]> => {
+      const rows = (await this.db.execute(sql`
+        SELECT DISTINCT ${sql.raw(`v.${column}`)} AS value
+        FROM variant v
+        JOIN product p ON p.id = v.product_id
+        WHERE ${sql.raw(`v.${column}`)} IS NOT NULL
+          AND v.delisted_at IS NULL AND p.delisted_at IS NULL
+        ORDER BY value
+      `)) as unknown as Record<string, unknown>[];
+      return rows.map((r) => String(r.value));
+    };
+
+    const pickRetailers = async (): Promise<RetailerFacet[]> => {
+      const rows = (await this.db.execute(sql`
+        SELECT DISTINCT r.slug, r.name
+        FROM retailer r
+        JOIN product p ON p.retailer_id = r.id AND p.delisted_at IS NULL
+        ORDER BY r.name
+      `)) as unknown as Record<string, unknown>[];
+      return rows.map((r) => ({ slug: String(r.slug), name: String(r.name) }));
+    };
+
+    const [genders, sections, categories, sizes, colors, retailers] = await Promise.all([
       pick('gender'),
       pick('section'),
       pick('category'),
+      pickVariant('size'),
+      pickVariant('color'),
+      pickRetailers(),
     ]);
-    return { genders, sections, categories };
+    return { genders, sections, categories, sizes, colors, retailers };
   }
 }

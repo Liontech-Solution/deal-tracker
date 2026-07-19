@@ -1,13 +1,20 @@
-# Servicio web (Node/TS) — cimientos backend
+# Servicio web (Node/TS) — API + SPA
 
 **Experiencia de usuario** de deal-tracker (Fase 2). API en **NestJS** que sirve el catálogo
 (lectura de las tablas del scraper), la gestión de **intereses** de seguimiento y la autenticación
-con **Keycloak** (OIDC, resource server). El punto de integración con el scraper es la **Postgres
-compartida**, cuyo esquema vive en [`db/migrations`](../../db/migrations) como contrato SQL neutro.
+con **Keycloak** (OIDC, resource server), **y una SPA React** (en [`frontend/`](frontend)) servida
+como estáticos por el propio Nest (imagen única). El punto de integración con el scraper es la
+**Postgres compartida**, cuyo esquema vive en [`db/migrations`](../../db/migrations) como contrato
+SQL neutro.
 
-> **Estado**: cimientos backend. Ya construido: migraciones del contrato (usuario/interés/
-> notificación), skeleton NestJS + Drizzle, OIDC Keycloak, API de catálogo e intereses, Dockerfile
-> multiarch y CI. **Diferido**: frontend React (SPA), bot de Telegram y job de matching de ofertas.
+> **Estado**: API + catálogo público en React. Ya construido: migraciones del contrato, NestJS +
+> Drizzle, OIDC Keycloak, API de catálogo (con orden y facetas) e intereses, **SPA React** con
+> Home + Catálogo (filtros) + Detalle (gráfica de historial y etiqueta de descuento honesto),
+> Dockerfile multiarch y CI. **Diferido**: login Keycloak en el navegador, Mis seguimientos +
+> modal de aviso, Ajustes/Telegram, bot de Telegram y job de matching de ofertas.
+
+Este servicio es un **workspace pnpm**: la raíz es la API y [`frontend/`](frontend) es la SPA
+(Vite + React + TS). El detalle del frontend está en la sección **Frontend (SPA)** más abajo.
 
 Reparto de responsabilidad sobre las tablas:
 
@@ -42,8 +49,11 @@ pnpm start:dev               # API en http://localhost:3000/api
 pnpm lint          # ESLint
 pnpm typecheck     # tsc --noEmit
 pnpm test          # Vitest (integración contra Postgres si TEST_DATABASE_URL está definido)
-pnpm build         # nest build -> dist/
+pnpm build         # nest build -> dist/ (solo API)
+pnpm build:all     # API + SPA (nest build + vite build de frontend)
 pnpm migrate       # aplica db/migrations/*.sql (node dist/database/migrate.js)
+pnpm frontend:dev  # server de Vite (SPA) con proxy /api -> :3000
+pnpm frontend:build# compila la SPA a frontend/dist
 pnpm audit --audit-level=high
 ```
 
@@ -55,10 +65,10 @@ Config por entorno (ver [`.env.example`](.env.example)): `DATABASE_URL` (requeri
 | Método | Ruta | Auth | Descripción |
 | --- | --- | --- | --- |
 | GET | `/health` | — | Liveness/readiness (incluye ping a la BD). |
-| GET | `/catalog/products` | — | Lista con filtros `gender, section, category, size, color, retailer, inStock, activeOnly` + `limit/offset`. |
+| GET | `/catalog/products` | — | Lista con filtros `gender, section, category, size, color, retailer, inStock, activeOnly`, orden `sort` (`ofertas`\|`precio-asc`\|`precio-desc`\|`descuento`) + `limit/offset`. Cada ítem trae `priceFrom`, `listFrom`, `discountFrom` (de la variante mejor oferta) y `maxDiscount`. |
 | GET | `/catalog/products/:id` | — | Producto + variantes con su último precio. |
 | GET | `/catalog/variants/:id/price-history` | — | Serie temporal de precios (base de las gráficas). |
-| GET | `/catalog/facets` | — | Valores distintos de género/sección/categoría (para poblar filtros). |
+| GET | `/catalog/facets` | — | Valores distintos de género/sección/categoría/talla/color y tiendas (para poblar filtros). |
 | GET | `/interests` | JWT | Intereses del usuario. |
 | POST | `/interests` | JWT | Crea un interés (por producto/variante y/o filtros + regla de aviso). |
 | DELETE | `/interests/:id` | JWT | Borra un interés propio. |
@@ -66,6 +76,28 @@ Config por entorno (ver [`.env.example`](.env.example)): `DATABASE_URL` (requeri
 El catálogo es **público** (browsing sin login); los intereses exigen un **JWT de Keycloak**
 (`Authorization: Bearer`). En la primera petición autenticada el usuario se **aprovisiona JIT** en
 `app_user` a partir del `sub` del token.
+
+## Frontend (SPA)
+
+SPA en [`frontend/`](frontend): **Vite + React + TypeScript** (sin librería de UI; tokens del
+diseño "barefoot" portados a variables CSS en `src/styles/app.css`, claro/oscuro). Datos con
+**TanStack Query** contra `/api`. Fuentes self-host (`@fontsource`), iconos SVG propios, gráfica
+de historial de precios en SVG. Pantallas de esta fase: **Home**, **Catálogo** (filtros por
+sección/género/categoría/talla/color/tienda, orden, estados de carga/error/vacío, paginación) y
+**Detalle** (variantes talla/color, bloque de precio y **etiqueta de descuento honesto**).
+
+```bash
+# Dev: dos procesos. 1) API Nest, 2) SPA con proxy a /api.
+pnpm start:dev            # API en :3000
+pnpm frontend:dev         # SPA en http://localhost:5173 (proxy /api -> :3000)
+
+# Producción local (imagen única): la API sirve la SPA compilada.
+pnpm build:all && pnpm start   # todo en http://localhost:3000
+```
+
+> **Descuento honesto**: mientras no exista el job de matching en backend, la clasificación
+> "oferta real vs precio inflado" se calcula en cliente (`src/lib/honesty.ts`) a partir del
+> historial de precios y el PVP. Está encapsulada para sustituirla por el veredicto del backend.
 
 ## Migraciones
 

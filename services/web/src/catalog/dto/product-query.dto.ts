@@ -1,5 +1,9 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+
+/** Criterios de ordenación admitidos por el catálogo. */
+export const PRODUCT_SORTS = ['ofertas', 'precio-asc', 'precio-desc', 'descuento'] as const;
+export type ProductSort = (typeof PRODUCT_SORTS)[number];
 
 /** Filtros y paginación de `GET /api/catalog/products`. Todos opcionales. */
 export class ProductQueryDto {
@@ -31,6 +35,10 @@ export class ProductQueryDto {
   @Transform(({ value }) => (value === undefined ? undefined : value === 'true' || value === true))
   @IsBoolean()
   inStock?: boolean;
+
+  @IsOptional()
+  @IsIn(PRODUCT_SORTS)
+  sort: ProductSort = 'ofertas';
 
   @IsOptional()
   @Transform(({ value }) => value === undefined || value === 'true' || value === true)

@@ -1,0 +1,286 @@
+/* ============================================================================
+   deal-tracker · sistema de diseño "barefoot"
+   Tokens portados 1:1 del diseño de Claude Design (light + dark).
+   ========================================================================== */
+:root {
+  --sand-50: #fbf7f1;
+  --sand-100: #f4ece0;
+  --sand-200: #e9dcc8;
+  --sand-300: #dcc9ac;
+  --clay-500: #c4694a;
+  --clay-600: #ae573b;
+  --clay-400: #d68a6f;
+  --sage-500: #7e9070;
+  --sage-600: #657558;
+  --sage-200: #d3dbc9;
+  --ochre-500: #b4863b;
+  --ochre-100: #f3e7cc;
+  --ink-900: #2e2a24;
+  --ink-700: #4a443b;
+  --ink-500: #726a5d;
+  --ink-400: #8e8677;
+
+  /* semantic — light (default) */
+  --bg: #fbf7f1;
+  --bg-2: #f4ece0;
+  --surface: #ffffff;
+  --surface-2: #f7f0e6;
+  --border: #e7dac6;
+  --border-strong: #d8c6ab;
+  --text: #2e2a24;
+  --text-muted: #726a5d;
+  --text-faint: #8e8677;
+  --accent: #c4694a;
+  --accent-hover: #ae573b;
+  --accent-soft: #f5e1d7;
+  --on-accent: #ffffff;
+  --good: #657558;
+  --good-soft: #e4ead9;
+  --good-text: #4c593f;
+  --warn: #b4863b;
+  --warn-soft: #f5e9cd;
+  --warn-text: #7c5c22;
+  --skel: #ede3d3;
+  --skel-2: #f6efe3;
+  --focus: #c4694a;
+  --shadow-1: 0 1px 2px rgba(60, 48, 32, 0.06), 0 1px 3px rgba(60, 48, 32, 0.05);
+  --shadow-2: 0 4px 12px rgba(60, 48, 32, 0.08), 0 2px 4px rgba(60, 48, 32, 0.05);
+  --shadow-3: 0 14px 34px rgba(60, 48, 32, 0.14), 0 4px 10px rgba(60, 48, 32, 0.07);
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 24px;
+  --r-xl: 32px;
+  --r-pill: 999px;
+
+  --font-serif: 'Newsreader', Georgia, serif;
+  --font-sans: 'Nunito Sans Variable', 'Nunito Sans', system-ui, -apple-system, sans-serif;
+}
+
+[data-theme='dark'] {
+  --bg: #211d18;
+  --bg-2: #191510;
+  --surface: #2a2620;
+  --surface-2: #322d26;
+  --border: #3b352c;
+  --border-strong: #4a4237;
+  --text: #f0e9dc;
+  --text-muted: #b6ac9b;
+  --text-faint: #8e8677;
+  --accent: #dd8163;
+  --accent-hover: #e8987e;
+  --accent-soft: #41291f;
+  --on-accent: #201712;
+  --good: #a7bb92;
+  --good-soft: #2c3524;
+  --good-text: #c4d3b0;
+  --warn: #d8ab5e;
+  --warn-soft: #3a2e17;
+  --warn-text: #e7c888;
+  --skel: #322d26;
+  --skel-2: #3a342c;
+  --focus: #dd8163;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.35);
+  --shadow-3: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+body {
+  background: var(--bg-2);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+::selection {
+  background: var(--accent-soft);
+}
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+button {
+  font-family: inherit;
+}
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+input:focus,
+select:focus {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 99px;
+  border: 2px solid var(--bg);
+}
+
+@keyframes dt-shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+@keyframes dt-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes dt-slideup {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes dt-toast {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.dt-skel {
+  background: linear-gradient(90deg, var(--skel) 25%, var(--skel-2) 37%, var(--skel) 63%);
+  background-size: 800px 100%;
+  animation: dt-shimmer 1.4s infinite linear;
+  border-radius: 8px;
+}
+.dt-fade {
+  animation: dt-fade 0.3s ease;
+}
+
+/* ---- serif display ---- */
+.serif {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* ---- buttons ---- */
+.btn {
+  border: none;
+  cursor: pointer;
+  font-weight: 800;
+  font-family: inherit;
+  border-radius: var(--r-pill);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1.5px solid var(--border-strong);
+}
+.btn-secondary:hover {
+  background: var(--surface-2);
+}
+.btn-ghost {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover {
+  border-color: var(--border-strong);
+}
+
+/* ---- product card hover ---- */
+.card-hover {
+  transition: box-shadow 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.card-hover:hover {
+  box-shadow: var(--shadow-2);
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+
+/* ---- form controls ---- */
+.select {
+  border: none;
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* ---- responsive helpers (mirror del diseño) ---- */
+.dt-bottomnav {
+  display: none;
+}
+@media (max-width: 960px) {
+  .dt-hero,
+  .dt-detail,
+  .dt-catgrid {
+    grid-template-columns: 1fr !important;
+  }
+  .dt-sidebar {
+    display: none !important;
+  }
+}
+@media (max-width: 720px) {
+  .dt-desknav,
+  .dt-searchtxt {
+    display: none !important;
+  }
+  .dt-two,
+  .dt-three {
+    grid-template-columns: 1fr !important;
+  }
+  .dt-bottomnav {
+    display: block !important;
+  }
+}
+@media (min-width: 961px) {
+  .dt-filterbtn {
+    display: none !important;
+  }
+}

@@ -4,7 +4,8 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**'],
+    // `frontend/` es un paquete del workspace con su propia config de ESLint (React).
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'frontend/**'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,

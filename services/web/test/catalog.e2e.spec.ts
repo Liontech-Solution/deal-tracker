@@ -28,8 +28,19 @@ describe.skipIf(!TEST_DB)('catálogo (e2e)', () => {
     const item = res.body.items[0];
     expect(item.name).toBe('Botas niña');
     expect(item.priceFrom).toBe('19.99');
+    expect(item.listFrom).toBe('39.99');
+    expect(item.discountFrom).toBe('50.00');
+    expect(item.maxDiscount).toBe('50.00');
     expect(item.anyInStock).toBe(true);
     expect(item.variantCount).toBe(1);
+  });
+
+  it('acepta orden por descuento y rechaza un sort inválido', async () => {
+    await request(app.getHttpServer())
+      .get('/api/catalog/products?sort=descuento')
+      .expect(200)
+      .expect((r) => expect(r.body.items).toHaveLength(1));
+    await request(app.getHttpServer()).get('/api/catalog/products?sort=nope').expect(400);
   });
 
   it('filtra por sección y respeta filtros que no casan', async () => {
@@ -66,6 +77,9 @@ describe.skipIf(!TEST_DB)('catálogo (e2e)', () => {
     expect(res.body.genders).toContain('niña');
     expect(res.body.sections).toContain('zapateria');
     expect(res.body.categories).toContain('zapatos');
+    expect(res.body.sizes).toContain('24');
+    expect(res.body.colors).toContain('rojo');
+    expect(res.body.retailers).toContainEqual({ slug: 'zara', name: 'Zara' });
   });
 
   it('404 para producto inexistente', async () => {

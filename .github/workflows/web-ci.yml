@@ -36,12 +36,18 @@ jobs:
         run: corepack enable
       - name: Instalar dependencias (lockfile congelado)
         run: pnpm install --frozen-lockfile
-      - name: ESLint
+      - name: ESLint (API)
         run: pnpm lint
-      - name: Typecheck (tsc)
+      - name: Typecheck API (tsc)
         run: pnpm typecheck
       - name: Tests (incluye integración contra Postgres)
         run: pnpm test
+      - name: ESLint (SPA)
+        run: pnpm --filter @deal-tracker/frontend lint
+      - name: Typecheck SPA (tsc)
+        run: pnpm --filter @deal-tracker/frontend typecheck
+      - name: Build SPA (vite)
+        run: pnpm --filter @deal-tracker/frontend build
       - name: Auditoría de dependencias
         # No bloqueante al principio; sirve de alerta temprana de vulnerabilidades.
         continue-on-error: true

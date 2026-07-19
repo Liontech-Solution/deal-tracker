@@ -1,4 +1,7 @@
-/** Formas de respuesta del catálogo (precios como string: dinero exacto, sin float). */
+/**
+ * Tipos espejo del contrato de `services/web/src/catalog/catalog.types.ts`.
+ * Los precios llegan como string (dinero exacto, sin float): se formatean/parsean en `lib/format`.
+ */
 
 export interface ProductListItem {
   id: number;
@@ -12,10 +15,8 @@ export interface ProductListItem {
   category: string | null;
   url: string | null;
   priceFrom: string | null;
-  /** PVP y descuento de la variante "mejor oferta" (en stock, más barata). */
   listFrom: string | null;
   discountFrom: string | null;
-  /** Mayor descuento entre las variantes del producto (para orden/badge). */
   maxDiscount: string | null;
   anyInStock: boolean;
   variantCount: number;
@@ -42,11 +43,17 @@ export interface VariantWithPrice {
   scrapedAt: string | null;
 }
 
-export interface ProductDetail
-  extends Omit<
-    ProductListItem,
-    'priceFrom' | 'listFrom' | 'discountFrom' | 'maxDiscount' | 'anyInStock' | 'variantCount'
-  > {
+export interface ProductDetail {
+  id: number;
+  retailerId: number;
+  retailerSlug: string;
+  retailerName: string;
+  retailerProductId: string;
+  name: string;
+  gender: string | null;
+  section: string | null;
+  category: string | null;
+  url: string | null;
   variants: VariantWithPrice[];
 }
 
@@ -70,4 +77,19 @@ export interface Facets {
   sizes: string[];
   colors: string[];
   retailers: RetailerFacet[];
+}
+
+export type ProductSort = 'ofertas' | 'precio-asc' | 'precio-desc' | 'descuento';
+
+export interface ProductQuery {
+  gender?: string;
+  section?: string;
+  category?: string;
+  size?: string;
+  color?: string;
+  retailer?: string;
+  inStock?: boolean;
+  sort?: ProductSort;
+  limit?: number;
+  offset?: number;
 }

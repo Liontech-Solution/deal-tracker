@@ -1,0 +1,136 @@
+import type { Facets } from '../api/types';
+import { capitalize } from '../lib/format';
+import { colorHex } from '../lib/colors';
+
+export interface CatalogFilters {
+  gender: string;
+  section: string;
+  category: string;
+  size: string;
+  color: string;
+  retailer: string;
+  inStock: boolean;
+}
+
+interface Props {
+  facets: Facets | undefined;
+  value: CatalogFilters;
+  onChange: (patch: Partial<CatalogFilters>) => void;
+}
+
+function Group({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ padding: '14px 0', borderTop: '1px solid var(--border)' }}>
+      <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 10, color: 'var(--text)' }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function Chip({ label, selected, onClick, dot }: { label: string; selected: boolean; onClick: () => void; dot?: string | null }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={selected}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 7,
+        border: '1px solid ' + (selected ? 'transparent' : 'var(--border)'),
+        background: selected ? 'var(--accent-soft)' : 'var(--surface)',
+        color: selected ? 'var(--accent)' : 'var(--text-muted)',
+        borderRadius: 'var(--r-pill)',
+        padding: dot ? '6px 12px 6px 8px' : '6px 12px',
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: 'pointer',
+      }}
+    >
+      {dot && <span style={{ width: 12, height: 12, borderRadius: '50%', background: dot, border: '1px solid var(--border-strong)', flex: 'none' }} />}
+      {label}
+    </button>
+  );
+}
+
+export function FilterPanel({ facets, value, onChange }: Props) {
+  const toggle = (key: keyof CatalogFilters, v: string) => onChange({ [key]: value[key] === v ? '' : v });
+
+  return (
+    <div>
+      {facets?.categories.length ? (
+        <Group label="Categoría">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {facets.categories.map((c) => (
+              <Chip key={c} label={capitalize(c)} selected={value.category === c} onClick={() => toggle('category', c)} />
+            ))}
+          </div>
+        </Group>
+      ) : null}
+
+      {facets?.sizes.length ? (
+        <Group label="Talla">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {facets.sizes.map((s) => (
+              <Chip key={s} label={s} selected={value.size === s} onClick={() => toggle('size', s)} />
+            ))}
+          </div>
+        </Group>
+      ) : null}
+
+      {facets?.colors.length ? (
+        <Group label="Color">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {facets.colors.map((c) => (
+              <Chip key={c} label={capitalize(c)} selected={value.color === c} onClick={() => toggle('color', c)} dot={colorHex(c)} />
+            ))}
+          </div>
+        </Group>
+      ) : null}
+
+      {facets?.retailers.length ? (
+        <Group label="Tienda">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {facets.retailers.map((r) => (
+              <Chip key={r.slug} label={r.name} selected={value.retailer === r.slug} onClick={() => toggle('retailer', r.slug)} />
+            ))}
+          </div>
+        </Group>
+      ) : null}
+
+      <Group label="Disponibilidad">
+        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer' }}>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>Solo en stock</span>
+          <button
+            role="switch"
+            aria-checked={value.inStock}
+            onClick={() => onChange({ inStock: !value.inStock })}
+            style={{
+              width: 46,
+              height: 28,
+              borderRadius: 999,
+              border: 'none',
+              cursor: 'pointer',
+              background: value.inStock ? 'var(--accent)' : 'var(--border-strong)',
+              position: 'relative',
+              transition: 'background .15s ease',
+            }}
+          >
+            <span
+              style={{
+                position: 'absolute',
+                top: 3,
+                left: value.inStock ? 21 : 3,
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: '#fff',
+                transition: 'left .15s ease',
+                boxShadow: 'var(--shadow-1)',
+              }}
+            />
+          </button>
+        </label>
+      </Group>
+    </div>
+  );
+}
