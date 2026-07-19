@@ -1,5 +1,7 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { useAuth } from '../auth/AuthProvider';
 import { FootIcon, GridIcon, HomeIcon, MoonIcon, SearchIcon, SunIcon, BellIcon } from './icons';
 import { useTheme } from './ThemeProvider';
 import { useToast } from './Toast';
@@ -50,9 +52,22 @@ export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
+  const auth = useAuth();
 
   const curSection = params.get('section') ?? '';
   const curGender = params.get('gender') ?? '';
+
+  // "Seguir": lleva a Mis seguimientos si hay sesión; si la auth está activa pero sin sesión,
+  // login; en dev local sin realm, placeholder.
+  const goFollow = () => {
+    if (!auth.enabled) {
+      toast('Inicio de sesión con Keycloak · disponible al desplegar');
+    } else if (!auth.authenticated) {
+      auth.login();
+    } else {
+      navigate('/seguimientos');
+    }
+  };
 
   const goCatalogWith = (key: 'section' | 'gender', value: string) => {
     const next = new URLSearchParams(location.pathname === '/catalogo' ? params : undefined);
@@ -128,13 +143,19 @@ export function Layout() {
             {theme === 'dark' ? <SunIcon size={19} /> : <MoonIcon size={19} />}
           </button>
 
-          <button
-            onClick={() => toast('Inicio de sesión con Keycloak · muy pronto')}
-            className="btn btn-primary"
-            style={{ padding: '11px 18px', fontSize: 14, flex: 'none' }}
-          >
-            Iniciar sesión
-          </button>
+          {auth.authenticated ? (
+            <UserMenu name={auth.user?.name ?? auth.user?.email ?? 'Cuenta'} onLogout={auth.logout} />
+          ) : (
+            <button
+              onClick={() =>
+                auth.enabled ? auth.login() : toast('Inicio de sesión con Keycloak · disponible al desplegar')
+              }
+              className="btn btn-primary"
+              style={{ padding: '11px 18px', fontSize: 14, flex: 'none' }}
+            >
+              Iniciar sesión
+            </button>
+          )}
         </div>
 
         {/* conmutador sección + género */}
@@ -204,8 +225,99 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <BottomNav onFollow={() => toast('Inicia sesión para seguir prendas · muy pronto')} onToggleTheme={toggle} theme={theme} />
+      <BottomNav onFollow={goFollow} onToggleTheme={toggle} theme={theme} />
     </div>
+  );
+}
+
+/** Menú de usuario autenticado: iniciales + desplegable con "Mis seguimientos" y "Cerrar sesión". */
+function UserMenu({ name, onLogout }: { name: string; onLogout: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const initials = name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? '')
+    .join('');
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flex: 'none' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Menú de usuario"
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: '50%',
+          border: '1px solid var(--border)',
+          background: 'var(--accent-soft)',
+          color: 'var(--accent)',
+          fontWeight: 800,
+          fontSize: 14,
+          cursor: 'pointer',
+        }}
+      >
+        {initials || '·'}
+      </button>
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 'calc(100% + 8px)',
+            minWidth: 200,
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--r-md)',
+            boxShadow: 'var(--shadow-3)',
+            padding: 6,
+            zIndex: 50,
+          }}
+        >
+          <div style={{ padding: '8px 12px', fontSize: 12.5, color: 'var(--text-faint)', fontWeight: 700, borderBottom: '1px solid var(--border)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {name}
+          </div>
+          <MenuLink to="/seguimientos" onClick={() => setOpen(false)}>
+            Mis seguimientos
+          </MenuLink>
+          <button
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
+            style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 12px', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuLink({ to, onClick, children }: { to: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <Link
+      to={to}
+      role="menuitem"
+      onClick={onClick}
+      style={{ display: 'block', padding: '10px 12px', borderRadius: 'var(--r-sm)', fontSize: 14, fontWeight: 700, color: 'var(--text)', textDecoration: 'none' }}
+    >
+      {children}
+    </Link>
   );
 }
 

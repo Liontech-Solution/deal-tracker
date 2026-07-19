@@ -1,0 +1,11 @@
+<!doctype html>
+<html>
+  <body>
+    <script>
+      // Página auxiliar del "check-sso" silencioso de keycloak-js: reenvía el resultado del
+      // login (en el fragmento de la URL) a la ventana principal por postMessage. No renderiza
+      // nada; Keycloak la carga en un iframe oculto para detectar la sesión sin redirigir.
+      parent.postMessage(location.href, location.origin);
+    </script>
+  </body>
+</html>

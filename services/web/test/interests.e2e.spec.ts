@@ -3,14 +3,16 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type postgres from 'postgres';
 
 import { makeApp, makeSql, resetSchema, seedCatalog, seedUser, TEST_DB } from './helpers';
+import type { SeedIds } from './helpers';
 
 describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
   let sql: postgres.Sql;
+  let ids: SeedIds;
 
   beforeAll(async () => {
     sql = makeSql();
     await resetSchema(sql);
-    await seedCatalog(sql);
+    ids = await seedCatalog(sql);
   });
 
   afterAll(async () => {
@@ -51,6 +53,44 @@ describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
         .get('/api/interests')
         .expect(200)
         .expect((r) => expect(r.body).toHaveLength(0));
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('enriquece la lista con nombre de producto/variante/tienda al apuntar a un objetivo', async () => {
+    const user = await seedUser(sql, 'kc-sub-enrich');
+    const app = await makeApp(user);
+    try {
+      await request(app.getHttpServer())
+        .post('/api/interests')
+        .send({ productId: ids.productId, variantId: ids.variantId })
+        .expect(201);
+
+      const listed = await request(app.getHttpServer()).get('/api/interests').expect(200);
+      expect(listed.body).toHaveLength(1);
+      const view = listed.body[0];
+      expect(view.productName).toBe('Botas niña');
+      expect(view.retailerName).toBe('Zara');
+      expect(view.variantLabel).toBe('Talla 24 · rojo');
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('un interés por filtros (sin objetivo) trae los nombres a null', async () => {
+    const user = await seedUser(sql, 'kc-sub-filter');
+    const app = await makeApp(user);
+    try {
+      await request(app.getHttpServer())
+        .post('/api/interests')
+        .send({ gender: 'niña', section: 'zapateria' })
+        .expect(201);
+      const listed = await request(app.getHttpServer()).get('/api/interests').expect(200);
+      const view = listed.body[0];
+      expect(view.productName).toBeNull();
+      expect(view.variantLabel).toBeNull();
+      expect(view.retailerName).toBeNull();
     } finally {
       await app.close();
     }
