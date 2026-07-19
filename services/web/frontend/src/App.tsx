@@ -9,6 +9,7 @@ import { CatalogPage } from './pages/CatalogPage';
 import { HomePage } from './pages/HomePage';
 import { InterestsPage } from './pages/InterestsPage';
 import { ProductPage } from './pages/ProductPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
       { path: 'catalogo', element: <CatalogPage /> },
       { path: 'producto/:id', element: <ProductPage /> },
       { path: 'seguimientos', element: <InterestsPage /> },
+      { path: 'ajustes', element: <SettingsPage /> },
     ],
   },
 ]);

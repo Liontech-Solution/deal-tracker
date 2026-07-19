@@ -9,6 +9,10 @@ export interface EnvConfig {
   KEYCLOAK_AUDIENCE: string;
   PORT: number;
   NODE_ENV: 'development' | 'test' | 'production';
+  // Usuario del bot de Telegram (sin @), para armar el deep-link t.me/<bot>?start=<token>.
+  // Opcional: si falta, la API de vínculo queda deshabilitada (503). El token del bot llega
+  // con el propio bot (PR2b-2), aquí solo hace falta el nombre para el deep-link.
+  TELEGRAM_BOT_USERNAME: string;
 }
 
 function required(env: Record<string, unknown>, key: keyof EnvConfig): string {
@@ -40,11 +44,14 @@ export function validateEnv(env: Record<string, unknown>): EnvConfig {
     throw new Error(`PORT inválido: ${portRaw}`);
   }
 
+  const telegramBotUsername = ((env.TELEGRAM_BOT_USERNAME as string) ?? '').trim().replace(/^@/, '');
+
   return {
     DATABASE_URL: required(env, 'DATABASE_URL'),
     KEYCLOAK_ISSUER_URL: issuer,
     KEYCLOAK_AUDIENCE: audience,
     PORT: port,
     NODE_ENV: nodeEnv as EnvConfig['NODE_ENV'],
+    TELEGRAM_BOT_USERNAME: telegramBotUsername,
   };
 }

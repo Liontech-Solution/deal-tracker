@@ -292,6 +292,9 @@ function UserMenu({ name, onLogout }: { name: string; onLogout: () => void }) {
           <MenuLink to="/seguimientos" onClick={() => setOpen(false)}>
             Mis seguimientos
           </MenuLink>
+          <MenuLink to="/ajustes" onClick={() => setOpen(false)}>
+            Ajustes
+          </MenuLink>
           <button
             role="menuitem"
             onClick={() => {

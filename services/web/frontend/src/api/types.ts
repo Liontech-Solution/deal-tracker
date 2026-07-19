@@ -119,6 +119,20 @@ export interface InterestView {
   variantLabel: string | null;
 }
 
+/** Estado del vínculo de Telegram (espejo de `TelegramSettingsView` del backend). */
+export interface TelegramSettingsView {
+  linked: boolean;
+  telegramUsername: string | null;
+  linkedAt: string | null;
+  pendingLink: boolean;
+}
+
+/** Resultado de iniciar un vínculo de Telegram (espejo de `TelegramLinkResult`). */
+export interface TelegramLinkResult {
+  deepLink: string;
+  expiresAt: string;
+}
+
 export type ProductSort = 'ofertas' | 'precio-asc' | 'precio-desc' | 'descuento';
 
 export interface ProductQuery {
