@@ -10,9 +10,14 @@ export interface EnvConfig {
   PORT: number;
   NODE_ENV: 'development' | 'test' | 'production';
   // Usuario del bot de Telegram (sin @), para armar el deep-link t.me/<bot>?start=<token>.
-  // Opcional: si falta, la API de vínculo queda deshabilitada (503). El token del bot llega
-  // con el propio bot (PR2b-2), aquí solo hace falta el nombre para el deep-link.
+  // Opcional: si falta, la API de vínculo queda deshabilitada (503).
   TELEGRAM_BOT_USERNAME: string;
+  // Token del bot (BotFather). Opcional: sin él no se envían avisos (no-op con log) ni se
+  // puede hacer long-polling. Se configura a partir de `qa`; en `dev` va vacío a propósito.
+  TELEGRAM_BOT_TOKEN: string;
+  // Enciende el bucle de long-polling (`getUpdates`) que canjea `/start <token>`. Apagado por
+  // defecto: `getUpdates` no admite dos consumidores, así que exige replica 1 del Deployment.
+  TELEGRAM_POLLING_ENABLED: boolean;
 }
 
 function required(env: Record<string, unknown>, key: keyof EnvConfig): string {
@@ -45,6 +50,8 @@ export function validateEnv(env: Record<string, unknown>): EnvConfig {
   }
 
   const telegramBotUsername = ((env.TELEGRAM_BOT_USERNAME as string) ?? '').trim().replace(/^@/, '');
+  const telegramBotToken = ((env.TELEGRAM_BOT_TOKEN as string) ?? '').trim();
+  const telegramPollingEnabled = ((env.TELEGRAM_POLLING_ENABLED as string) ?? '').trim() === 'true';
 
   return {
     DATABASE_URL: required(env, 'DATABASE_URL'),
@@ -53,5 +60,7 @@ export function validateEnv(env: Record<string, unknown>): EnvConfig {
     PORT: port,
     NODE_ENV: nodeEnv as EnvConfig['NODE_ENV'],
     TELEGRAM_BOT_USERNAME: telegramBotUsername,
+    TELEGRAM_BOT_TOKEN: telegramBotToken,
+    TELEGRAM_POLLING_ENABLED: telegramPollingEnabled,
   };
 }

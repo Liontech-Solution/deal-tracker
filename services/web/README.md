@@ -12,8 +12,9 @@ SQL neutro.
 > facetas) e intereses (enriquecidos), **login Keycloak en el navegador** (OIDC + PKCE con
 > `keycloak-js`), **modal de seguimiento** y página **Mis seguimientos**, Home + Catálogo
 > (filtros) + Detalle (gráfica de historial y etiqueta de descuento honesto), Dockerfile multiarch
-> y CI. **Diferido** (PR2b, se valida al desplegar): Ajustes/Telegram, bot de Telegram y job de
-> matching de ofertas (que sustituirá la heurística de descuento honesto del cliente).
+> y CI, **Ajustes/Telegram** y el **bot de Telegram** (long-polling, apagado en `dev`: se activa en
+> `qa`). **Diferido**: job de matching de ofertas (que sustituirá la heurística de descuento
+> honesto del cliente).
 
 Este servicio es un **workspace pnpm**: la raíz es la API y [`frontend/`](frontend) es la SPA
 (Vite + React + TS). El detalle del frontend está en la sección **Frontend (SPA)** más abajo.
@@ -119,6 +120,33 @@ resource server (`KEYCLOAK_ISSUER_URL`/`KEYCLOAK_AUDIENCE`) llega como `Secret`.
 > **Descuento honesto**: mientras no exista el job de matching en backend, la clasificación
 > "oferta real vs precio inflado" se calcula en cliente (`src/lib/honesty.ts`) a partir del
 > historial de precios y el PVP. Está encapsulada para sustituirla por el veredicto del backend.
+
+## Bot de Telegram
+
+El bot (`src/telegram/`) hace dos cosas muy distintas, y por eso no necesita ni proceso ni
+manifiesto propio:
+
+- **Enviar avisos** (`TelegramApiClient.sendMessage`) es una llamada HTTP saliente sin estado. La
+  usará el job de matching; no requiere ningún proceso vivo.
+- **Canjear `/start <token>`** (`TelegramPollingService`) sí necesita un bucle persistente, que
+  vive **dentro del proceso de la API** por long-polling.
+
+Es la contrapartida del deep-link que emite `POST /api/settings/telegram/link`: el usuario pulsa
+«Start», el bot recibe el token, lo cambia por su `chat_id` (un solo uso, 15 min de validez) y la
+SPA lo ve en el siguiente tick de su auto-poll. Se usa long-polling y no webhook porque `dev` no
+tiene hostname público con TLS.
+
+| Variable | Efecto |
+| --- | --- |
+| `TELEGRAM_BOT_USERNAME` | Nombre del bot (sin `@`), para el deep-link. Sin ella, `POST /link` → 503. |
+| `TELEGRAM_BOT_TOKEN` | Token de BotFather. Sin él no se envía nada: los avisos quedan en el log. |
+| `TELEGRAM_POLLING_ENABLED` | `true` enciende el bucle `getUpdates`. Apagado por defecto. |
+
+**Modo placeholder (dev):** sin `TELEGRAM_BOT_TOKEN` el bot no arranca y nada cambia de
+comportamiento. El bot **se activa a partir de `qa`**, donde el token llega como `SealedSecret`.
+
+> ⚠️ `getUpdates` no admite dos consumidores simultáneos: con `TELEGRAM_POLLING_ENABLED=true` el
+> Deployment del web debe quedarse en **replica 1**.
 
 ## Migraciones
 
