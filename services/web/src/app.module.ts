@@ -13,6 +13,7 @@ import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { InterestsModule } from './interests/interests.module';
 import { SettingsModule } from './settings/settings.module';
+import { TelegramModule } from './telegram/telegram.module';
 
 /**
  * Sirve la SPA compilada (frontend/dist) desde la misma imagen, con fallback a index.html
@@ -45,6 +46,7 @@ function staticModule(): DynamicModule[] {
     CatalogModule,
     InterestsModule,
     SettingsModule,
+    TelegramModule,
     HealthModule,
   ],
 })
