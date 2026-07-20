@@ -145,6 +145,16 @@ export const notification = pgTable(
   (t) => [unique().on(t.interestId, t.variantId, t.priceEventKey)],
 );
 
+/**
+ * Marca de agua de los jobs (migración 0007). El job de matching solo evalúa los precios de
+ * `scrape_run_id` mayores que el último procesado.
+ */
+export const jobState = pgTable('job_state', {
+  job: text('job').primaryKey(),
+  lastScrapeRunId: bigint('last_scrape_run_id', { mode: 'number' }).notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const productRelations = relations(product, ({ one, many }) => ({
   retailer: one(retailer, { fields: [product.retailerId], references: [retailer.id] }),
   variants: many(variant),
@@ -167,6 +177,7 @@ export const schema = {
   appUser,
   interest,
   notification,
+  jobState,
   productRelations,
   variantRelations,
   priceHistoryRelations,

@@ -1,0 +1,124 @@
+/**
+ * Regla de "bajada significativa" — el criterio único del producto.
+ *
+ * Función **pura** y sin dependencias: la usa el job de matching para decidir a quién avisar, y
+ * la reutilizará el catálogo para etiquetar "oferta real vs precio inflado". Que sean el mismo
+ * código es deliberado: si el catálogo dijera una cosa y el aviso otra, perderíamos la confianza
+ * del usuario, que es lo único que este producto vende.
+ *
+ * Regla (ver README §"Regla de bajada significativa"):
+ *   A) el precio es un **mínimo nuevo** dentro de `windowDays`   (solo si compareBase='recent_min')
+ *   B) el descuento contra el **PVP honesto** alcanza `minDiscountPct`
+ *
+ * El PVP honesto nunca es el precio tachado a ciegas: si la tienda declara un PVP por encima de
+ * lo que la prenda ha costado jamás, ese tachado está inflado y se usa el máximo realmente
+ * observado.
+ */
+
+/** Margen de tolerancia sobre el máximo observado antes de considerar el PVP inflado. */
+const INFLATED_LIST_MARGIN = 1.03;
+/** Coma flotante: un 20,000000001 % debe contar como 20 %. */
+const EPSILON = 1e-9;
+
+export type CompareBase = 'recent_min' | 'list_price';
+
+/** Por qué se avisó o, sobre todo, por qué no. Alimenta el log del dry-run y los tests. */
+export type DealReason =
+  | 'ok'
+  | 'sin-historico'
+  | 'no-es-minimo'
+  | 'sin-rebaja'
+  | 'descuento-insuficiente';
+
+export interface DealInput {
+  /** Precio nuevo observado. */
+  price: string | number | null;
+  /** Precio tachado que declara la tienda. Puede estar inflado; puede faltar. */
+  listPrice: string | number | null;
+  /** Mínimo de las observaciones **anteriores** dentro de la ventana del interés. */
+  recentMin: string | number | null;
+  /** Máximo de las observaciones **anteriores** (todo el histórico de la variante). */
+  maxObserved: string | number | null;
+  /** Cuántas observaciones anteriores hay. 0 = producto recién descubierto. */
+  priorPoints: number;
+  minDiscountPct: string | number;
+  compareBase: CompareBase;
+}
+
+export interface DealVerdict {
+  notify: boolean;
+  reason: DealReason;
+  /** Referencia contra la que se midió el descuento; `null` si no hay ninguna creíble. */
+  honestListPrice: number | null;
+  /** Descuento real en %, redondeado a 2 decimales. */
+  discountPct: number;
+}
+
+/**
+ * PVP creíble contra el que medir una rebaja.
+ *
+ * Devuelve `null` cuando no hay ninguno: sin histórico **no se cae de vuelta al precio tachado
+ * de la tienda**. Ese es justo el caso que delatamos, y afirmar un "-60 %" que no podemos
+ * corroborar sería repetir el engaño con nuestra voz.
+ */
+export function honestListPrice(
+  listPrice: string | number | null,
+  maxObserved: string | number | null,
+): number | null {
+  const list = num(listPrice);
+  const max = num(maxObserved);
+
+  // Sin nada observado antes, el precio tachado no es corroborable: no hay referencia.
+  if (max === null) return null;
+  // Sin precio tachado, lo que la prenda llegó a costar sí es una referencia real.
+  if (list === null) return max;
+  // Tachado por encima de lo que costó nunca -> inflado; vale lo realmente observado.
+  return list > max * INFLATED_LIST_MARGIN ? max : list;
+}
+
+/** Evalúa un precio nuevo contra los parámetros de un interés. */
+export function evaluateDeal(input: DealInput): DealVerdict {
+  const price = num(input.price);
+  const minDiscount = num(input.minDiscountPct) ?? 0;
+
+  const none = (reason: DealReason, honest: number | null = null, discount = 0): DealVerdict => ({
+    notify: false,
+    reason,
+    honestListPrice: honest,
+    discountPct: discount,
+  });
+
+  if (price === null) return none('sin-rebaja');
+
+  // Arranque en frío: una prenda descubierta ya rebajada no tiene con qué corroborarse.
+  // Guarda explícita además de la que impone `honestListPrice`, para que un refactor no la pierda.
+  if (input.priorPoints <= 0) return none('sin-historico');
+
+  const honest = honestListPrice(input.listPrice, input.maxObserved);
+  if (honest === null) return none('sin-historico');
+
+  // Condición A: solo avisamos de mínimos nuevos, no de rebajas permanentes.
+  if (input.compareBase === 'recent_min') {
+    const recentMin = num(input.recentMin);
+    if (recentMin === null) return none('sin-historico', honest);
+    if (price >= recentMin) return none('no-es-minimo', honest);
+  }
+
+  // Condición B: la rebaja contra el PVP honesto debe alcanzar el umbral del interés.
+  const discount = honest > 0 && honest > price ? round2((1 - price / honest) * 100) : 0;
+  if (discount <= 0) return none('sin-rebaja', honest);
+  if (discount + EPSILON < minDiscount) return none('descuento-insuficiente', honest, discount);
+
+  return { notify: true, reason: 'ok', honestListPrice: honest, discountPct: discount };
+}
+
+/** `numeric` de Postgres viaja como string: parsear siempre, nunca comparar lexicográficamente. */
+function num(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}

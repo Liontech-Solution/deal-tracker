@@ -15,6 +15,7 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
     "migrate": "node dist/database/migrate.js",
+    "job:matching": "node dist/jobs/matching.job.js",
     "frontend:dev": "pnpm --filter @deal-tracker/frontend dev",
     "frontend:build": "pnpm --filter @deal-tracker/frontend build",
     "lint": "eslint .",

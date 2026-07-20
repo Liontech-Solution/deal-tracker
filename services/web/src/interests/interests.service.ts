@@ -103,8 +103,11 @@ export class InterestsService {
   }
 }
 
-/** Etiqueta legible de una variante apuntada. `null` si no hay talla ni color (sin objetivo). */
-function variantLabel(size: string | null, color: string | null): string | null {
+/**
+ * Etiqueta legible de una variante apuntada. `null` si no hay talla ni color (sin objetivo).
+ * Exportada para que los avisos de Telegram nombren la variante igual que la web.
+ */
+export function variantLabel(size: string | null, color: string | null): string | null {
   const parts = [size ? `Talla ${size}` : null, color].filter((p): p is string => !!p);
   return parts.length ? parts.join(' · ') : null;
 }

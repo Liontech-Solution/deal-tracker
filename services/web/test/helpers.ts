@@ -16,8 +16,10 @@ export function makeSql(): postgres.Sql {
 /** Aplica migraciones (idempotente) y deja las tablas vacías con identidades reiniciadas. */
 export async function resetSchema(sql: postgres.Sql): Promise<void> {
   await runMigrations(sql);
+  // `job_state` incluida: si la marca de agua sobrevive a un reset, los ids reiniciados quedan
+  // por debajo de ella y el job no vería ningún lote.
   await sql.unsafe(`
-    TRUNCATE notification, interest, app_user,
+    TRUNCATE notification, interest, app_user, job_state,
              price_history, variant, product, scrape_run, retailer
     RESTART IDENTITY CASCADE
   `);

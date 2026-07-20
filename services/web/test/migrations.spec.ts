@@ -16,7 +16,7 @@ describe.skipIf(!TEST_DB)('migraciones', () => {
     await sql.end();
   });
 
-  it('aplica 0001–0006 y crea las tablas del contrato', async () => {
+  it('aplica 0001–0007 y crea las tablas del contrato', async () => {
     await runMigrations(sql);
     const versions = await sql<{ version: string }[]>`SELECT version FROM schema_migrations ORDER BY version`;
     const names = versions.map((v) => v.version);
@@ -28,13 +28,20 @@ describe.skipIf(!TEST_DB)('migraciones', () => {
         '0004_interest.sql',
         '0005_notification.sql',
         '0006_telegram_link.sql',
+        '0007_job_state.sql',
       ]),
     );
 
     const tables = await sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name IN ('app_user', 'interest', 'notification')`;
-    expect(tables.map((t) => t.table_name).sort()).toEqual(['app_user', 'interest', 'notification']);
+      WHERE table_schema = 'public'
+        AND table_name IN ('app_user', 'interest', 'notification', 'job_state')`;
+    expect(tables.map((t) => t.table_name).sort()).toEqual([
+      'app_user',
+      'interest',
+      'job_state',
+      'notification',
+    ]);
 
     // 0006 amplía app_user con las columnas del vínculo de Telegram.
     const cols = await sql<{ column_name: string }[]>`

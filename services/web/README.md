@@ -12,9 +12,9 @@ SQL neutro.
 > facetas) e intereses (enriquecidos), **login Keycloak en el navegador** (OIDC + PKCE con
 > `keycloak-js`), **modal de seguimiento** y página **Mis seguimientos**, Home + Catálogo
 > (filtros) + Detalle (gráfica de historial y etiqueta de descuento honesto), Dockerfile multiarch
-> y CI, **Ajustes/Telegram** y el **bot de Telegram** (long-polling, apagado en `dev`: se activa en
-> `qa`). **Diferido**: job de matching de ofertas (que sustituirá la heurística de descuento
-> honesto del cliente).
+> y CI, **Ajustes/Telegram**, el **bot de Telegram** (long-polling, apagado en `dev`: se activa en
+> `qa`) y el **job de matching de ofertas**. **Diferido**: exponer el veredicto de descuento honesto
+> como campo del catálogo, que sustituirá la heurística del cliente (`src/lib/honesty.ts`).
 
 Este servicio es un **workspace pnpm**: la raíz es la API y [`frontend/`](frontend) es la SPA
 (Vite + React + TS). El detalle del frontend está en la sección **Frontend (SPA)** más abajo.
@@ -55,6 +55,7 @@ pnpm test          # Vitest (integración contra Postgres si TEST_DATABASE_URL e
 pnpm build         # nest build -> dist/ (solo API)
 pnpm build:all     # API + SPA (nest build + vite build de frontend)
 pnpm migrate       # aplica db/migrations/*.sql (node dist/database/migrate.js)
+pnpm job:matching  # evalúa bajadas y avisa por Telegram (acepta --dry-run)
 pnpm frontend:dev  # server de Vite (SPA) con proxy /api -> :3000
 pnpm frontend:build# compila la SPA a frontend/dist
 pnpm audit --audit-level=high
@@ -155,12 +156,57 @@ scraper. El migrador del web (`pnpm migrate`) es un espejo del de Python: aplica
 orden y registra lo aplicado en la misma tabla `schema_migrations`, de forma **idempotente y
 compatible** (cualquiera de los dos servicios puede arrancar el esquema).
 
-## Regla de "bajada significativa" (aún solo como datos)
+## Job de matching y regla de "bajada significativa"
 
-`interest` lleva ya los parámetros del aviso (`min_discount_pct`, `compare_base`, `window_days`).
-El job de matching que los evalúa se implementará más adelante. Default previsto: avisar cuando el
-precio caiga por debajo del **mínimo reciente** en `window_days` **y** el descuento frente al
-`list_price` **real** supere `min_discount_pct` — nunca contra el precio tachado inflado.
+`pnpm job:matching` (o `node dist/jobs/matching.job.js`) evalúa los precios recién scrapeados
+contra los `interest` de los usuarios y manda **un resumen por Telegram** a quien tenga una bajada
+real. Corre como **CronJob de k3s** después del scraper, sobre la misma imagen del web.
+
+La regla (`src/matching/deal-rule.ts`, función pura) para cada precio nuevo de una variante en
+stock, siendo `prior` sus observaciones anteriores:
+
+```
+recentMin    = MIN(price) de prior dentro de window_days
+maxObservado = MAX(price) de prior
+pvpHonesto   = listPrice     si listPrice <= maxObservado * 1.03
+               maxObservado  en caso contrario   ← el precio tachado está inflado
+
+Avisa (compare_base='recent_min', el default) si:
+   A) price < recentMin                       → es un mínimo nuevo de verdad
+   B) descuento(price vs pvpHonesto) >= min_discount_pct
+
+compare_base='list_price' → solo la condición B.
+```
+
+**Nunca se mide contra el precio tachado a ciegas.** Si la tienda declara un PVP por encima de lo
+que la prenda ha costado jamás, ese tachado se descarta y vale el máximo realmente observado.
+
+> **Arranque en frío.** Una prenda **descubierta ya rebajada** no tiene con qué corroborar su PVP.
+> Ahí no se cae de vuelta al precio de la tienda: sin histórico no hay referencia, `pvpHonesto`
+> colapsa al precio actual y el descuento sale 0 — **silencio**. Anunciar un "-60 %" que no podemos
+> verificar sería repetir el engaño que este producto existe para delatar. La prenda sí avisará más
+> adelante, cuando haya subido y vuelto a bajar, que es cuando la rebaja es demostrable.
+
+### Garantías de entrega
+
+- **Incremental** por marca de agua (`job_state`, migración 0007): solo mira
+  `price_history.scrape_run_id > last_scrape_run_id`. Guardar el mayor id procesado —en vez de "el
+  último run"— recupera el hueco si una ejecución se pierde, y hay un `scrape_run` **por tienda**.
+- **Idempotente**: se reserva la fila en `notification` (UNIQUE
+  `interest_id, variant_id, price_event_key`) **antes** de enviar, así un reintento no duplica.
+- **Sin avisos perdidos**: si el envío falla se **suelta la reserva** y **no avanza la marca de
+  agua**, de modo que el siguiente intento lo reevalúa. El job sale con código ≠ 0 para que el Job
+  de k8s lo reintente. Prioriza un duplicado raro sobre un silencio permanente.
+- Quien **no tiene Telegram vinculado** no genera fila: recibirá la próxima bajada en lugar de
+  quemar el evento en el vacío.
+
+| Variable | Efecto |
+| --- | --- |
+| `DATABASE_URL` | Requerido. |
+| `TELEGRAM_BOT_TOKEN` | Sin él se **fuerza `--dry-run`**: no hay forma de avisar. |
+
+`--dry-run` registra qué avisos habría mandado y **no cambia nada** (ni `notification` ni marca de
+agua). Es lo que corre en `dev`, donde el bot está apagado.
 
 ## Endurecimiento de cadena de suministro (pnpm)
 
