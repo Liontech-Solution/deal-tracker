@@ -1,4 +1,5 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Inject, Module } from '@nestjs/common';
+import type { OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
@@ -38,4 +39,15 @@ export type Database = ReturnType<typeof drizzle<typeof schema>>;
   ],
   exports: [DRIZZLE, PG_CLIENT],
 })
-export class DatabaseModule {}
+export class DatabaseModule implements OnModuleDestroy {
+  constructor(@Inject(PG_CLIENT) private readonly client: postgres.Sql) {}
+
+  /**
+   * Cierra el pool al apagar. Imprescindible para los CLI (`src/jobs/*`): sin esto las conexiones
+   * mantienen vivo el event loop y el proceso **nunca termina** — un CronJob se quedaría colgado
+   * indefinidamente en vez de completar.
+   */
+  async onModuleDestroy(): Promise<void> {
+    await this.client.end();
+  }
+}

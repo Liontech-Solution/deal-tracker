@@ -34,14 +34,29 @@ function required(env: Record<string, unknown>, key: keyof EnvConfig): string {
  * ejercitar catálogo/health sin un realm real.
  */
 export function validateEnv(env: Record<string, unknown>): EnvConfig {
+  return validate(env, { requireAuth: true });
+}
+
+/**
+ * Validador para los CLI/jobs (`src/jobs/*`). Misma forma que `EnvConfig` pero **sin exigir
+ * `KEYCLOAK_*`**: un CronJob de matching no valida tokens de nadie, y pedirle esa config sería
+ * ruido en el manifiesto.
+ */
+export function validateJobEnv(env: Record<string, unknown>): EnvConfig {
+  return validate(env, { requireAuth: false });
+}
+
+function validate(env: Record<string, unknown>, opts: { requireAuth: boolean }): EnvConfig {
   const nodeEnv = (env.NODE_ENV as string) ?? 'development';
   if (!['development', 'test', 'production'].includes(nodeEnv)) {
     throw new Error(`NODE_ENV inválido: ${nodeEnv}`);
   }
-  const isTest = nodeEnv === 'test';
+  // Auth no es requerida en `test` (permite ejercitar catálogo/health sin realm real) ni en los
+  // jobs, que no son resource server.
+  const skipAuth = nodeEnv === 'test' || !opts.requireAuth;
 
-  const issuer = isTest ? ((env.KEYCLOAK_ISSUER_URL as string) ?? '') : required(env, 'KEYCLOAK_ISSUER_URL');
-  const audience = isTest ? ((env.KEYCLOAK_AUDIENCE as string) ?? '') : required(env, 'KEYCLOAK_AUDIENCE');
+  const issuer = skipAuth ? ((env.KEYCLOAK_ISSUER_URL as string) ?? '') : required(env, 'KEYCLOAK_ISSUER_URL');
+  const audience = skipAuth ? ((env.KEYCLOAK_AUDIENCE as string) ?? '') : required(env, 'KEYCLOAK_AUDIENCE');
 
   const portRaw = (env.PORT as string) ?? '3000';
   const port = Number.parseInt(portRaw, 10);
