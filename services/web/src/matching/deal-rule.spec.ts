@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { evaluateDeal, honestListPrice } from './deal-rule';
+import { classifyHonesty, evaluateDeal, honestListPrice } from './deal-rule';
 import type { DealInput } from './deal-rule';
 
 /**
@@ -169,6 +169,41 @@ describe('compare_base = list_price', () => {
 
     expect(verdict.notify).toBe(false);
     expect(verdict.reason).toBe('sin-historico');
+  });
+});
+
+describe('classifyHonesty · veredicto del catálogo (misma regla que el aviso)', () => {
+  it('mínimo reciente con rebaja honesta -> real', () => {
+    expect(classifyHonesty(deal())).toBe('real');
+  });
+
+  it('arranque en frío (sin observaciones previas) -> none, aunque el PVP grite -60%', () => {
+    expect(
+      classifyHonesty(deal({ priorPoints: 0, recentMin: null, maxObserved: null, listPrice: '49.99' })),
+    ).toBe('none');
+  });
+
+  it('tachado inflado sobre el máximo observado -> suspicious', () => {
+    // Está a 30 € (no es mínimo nuevo: llegó a 24 €) y la tienda enseña un tachado de 99,99 €.
+    expect(classifyHonesty(deal({ price: '30.00', listPrice: '99.99' }))).toBe('suspicious');
+  });
+
+  it('rebaja permanente con tachado creíble (no es mínimo reciente) -> suspicious', () => {
+    expect(classifyHonesty(deal({ price: '30.00' }))).toBe('suspicious');
+  });
+
+  it('sin tachado y sin rebaja real -> none', () => {
+    expect(
+      classifyHonesty(
+        deal({ price: '30.00', listPrice: '30.00', maxObserved: '39.99', recentMin: '24.00' }),
+      ),
+    ).toBe('none');
+  });
+
+  it('el umbral del catálogo es 0%: cualquier mínimo nuevo honesto cuenta como real', () => {
+    // 23,99 € sobre 39,99 € es solo un ~40%, insuficiente para un interés que pida 45%,
+    // pero para el badge del catálogo (umbral 0) es una oferta real.
+    expect(classifyHonesty(deal({ price: '23.99', minDiscountPct: '45' }))).toBe('real');
   });
 });
 

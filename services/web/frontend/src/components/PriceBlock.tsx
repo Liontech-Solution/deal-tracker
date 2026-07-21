@@ -1,7 +1,7 @@
 import { HonestyBadge, StockBadge } from './Badges';
 import type { Stock } from './Badges';
 import { AlertIcon, CheckIcon } from './icons';
-import type { Honesty } from '../lib/honesty';
+import type { Honesty } from '../api/types';
 import { discountInt, eurStr } from '../lib/format';
 
 interface Props {

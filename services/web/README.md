@@ -13,8 +13,8 @@ SQL neutro.
 > `keycloak-js`), **modal de seguimiento** y página **Mis seguimientos**, Home + Catálogo
 > (filtros) + Detalle (gráfica de historial y etiqueta de descuento honesto), Dockerfile multiarch
 > y CI, **Ajustes/Telegram**, el **bot de Telegram** (long-polling, apagado en `dev`: se activa en
-> `qa`) y el **job de matching de ofertas**. **Diferido**: exponer el veredicto de descuento honesto
-> como campo del catálogo, que sustituirá la heurística del cliente (`src/lib/honesty.ts`).
+> `qa`), el **job de matching de ofertas** y el **veredicto de descuento honesto como campo del
+> catálogo** (calculado en backend con la misma regla que el aviso — ver §"Descuento honesto").
 
 Este servicio es un **workspace pnpm**: la raíz es la API y [`frontend/`](frontend) es la SPA
 (Vite + React + TS). El detalle del frontend está en la sección **Frontend (SPA)** más abajo.
@@ -118,9 +118,14 @@ aviso. La conexión real con Keycloak se **valida al desplegar en el cluster (na
 donde el realm y el client existen; allí las `VITE_*` se inyectan en el build y la config del
 resource server (`KEYCLOAK_ISSUER_URL`/`KEYCLOAK_AUDIENCE`) llega como `Secret`.
 
-> **Descuento honesto**: mientras no exista el job de matching en backend, la clasificación
-> "oferta real vs precio inflado" se calcula en cliente (`src/lib/honesty.ts`) a partir del
-> historial de precios y el PVP. Está encapsulada para sustituirla por el veredicto del backend.
+> **Descuento honesto**: la clasificación "oferta real vs precio inflado" la calcula el **backend**
+> como campo del catálogo (`ProductListItem.honesty` y `VariantWithPrice.honesty`), reutilizando la
+> **misma función pura** que el aviso (`classifyHonesty` sobre `evaluateDeal`, en
+> [`src/matching/deal-rule.ts`](src/matching/deal-rule.ts)) — así el catálogo y el aviso de Telegram
+> nunca se contradicen. `real` = el job avisaría (mínimo reciente con rebaja honesta); `suspicious` =
+> la tienda muestra un tachado que no es una bajada real (PVP inflado o no es mínimo reciente);
+> `none` = sin tachado o **sin histórico** con el que corroborar (arranque en frío → sin etiqueta).
+> La ventana del "mínimo reciente" del catálogo es `HONESTY_WINDOW_DAYS` (90 días).
 
 ## Bot de Telegram
 
