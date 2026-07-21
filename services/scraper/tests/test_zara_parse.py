@@ -9,8 +9,15 @@ from scraper.stores.zara import CATEGORIES, parse_detail_product, parse_listing_
 
 from .conftest import load_fixture
 
-_CAT = CATEGORIES[0]  # niña / zapateria / zapatos
+# Seleccionado por atributos, no por índice: así ampliar/reordenar CATEGORIES no rompe el test.
+_CAT = next(c for c in CATEGORIES if c.section == "zapateria" and c.gender == "niña")
 _DOMAIN = {"gender": _CAT.gender, "section": _CAT.section, "category": _CAT.category}
+# Hoja de ropa (niña / pantalones) para comprobar que el parsing común también la cubre.
+_CAT_ROPA = next(
+    c
+    for c in CATEGORIES
+    if c.section == "ropa" and c.gender == "niña" and c.category == "pantalones"
+)
 
 
 def test_parse_listing_entries_extrae_id_y_huella() -> None:
@@ -27,6 +34,24 @@ def test_parse_listing_entries_extrae_id_y_huella() -> None:
     assert entry.gender == "niña"
     # La huella es determinista: reparsear el mismo listado da la misma huella.
     assert entry.signature == parse_listing_entries(listing, _CAT)[ids.index("545453620")].signature
+
+
+def test_parse_listing_entries_ropa_extrae_seccion_y_categoria() -> None:
+    """El mismo parser sirve para ropa: una hoja de ropa produce entradas con su sección/slug."""
+    listing = load_fixture("zara_category_2427327.json")  # niña / ropa / pantalones
+    entries = parse_listing_entries(listing, _CAT_ROPA)
+    assert entries, "el listado de ropa debería contener productos"
+
+    ids = [e.retailer_product_id for e in entries]
+    assert len(ids) == len(set(ids)), "no debe haber ids duplicados"
+
+    entry = entries[0]
+    assert entry.gender == "niña"
+    assert entry.section == "ropa"
+    assert entry.category == "pantalones"
+    assert entry.signature, "la huella no debería estar vacía (hay precio por color)"
+    # Determinista: reparsear el mismo listado da la misma huella.
+    assert entry.signature == parse_listing_entries(listing, _CAT_ROPA)[0].signature
 
 
 def test_parse_detail_product_construye_producto_con_variantes() -> None:
