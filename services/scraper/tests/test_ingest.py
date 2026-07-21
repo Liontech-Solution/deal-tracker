@@ -16,6 +16,8 @@ from scraper.stores.base import ListingEntry, ScrapedProduct, ScrapedVariant, Sc
 
 T1 = datetime(2026, 7, 1, 8, 0, tzinfo=UTC)
 T2 = datetime(2026, 7, 2, 8, 0, tzinfo=UTC)
+T3 = datetime(2026, 7, 3, 8, 0, tzinfo=UTC)
+T4 = datetime(2026, 7, 4, 8, 0, tzinfo=UTC)
 
 
 class FakeStore:
@@ -140,7 +142,8 @@ def test_detalle_condicional_altas_y_bajas(db_conn: Any) -> None:
         ],
         signatures={"A": "a1", "C": "c1"},
     )
-    result = ingest(db_conn, store2, run_ts=T2)
+    # `delist_min_misses=1`: aquí se comprueba el detalle condicional, no la histéresis.
+    result = ingest(db_conn, store2, run_ts=T2, delist_min_misses=1)
 
     # Detalle condicional: a A NO se le pide detalle (huella intacta); a C sí.
     assert store2.detail_calls == ["C"]
@@ -226,13 +229,84 @@ def test_baja_solo_en_ambitos_escaneados(db_conn: Any) -> None:
         ],
         signatures={"C": "c1"},
     )
-    result = ingest(db_conn, store2, run_ts=T2)
+    # Sin histéresis, para que la única razón de que A y B sobrevivan sea el ámbito.
+    result = ingest(db_conn, store2, run_ts=T2, delist_min_misses=1)
 
     assert result.scanned_scopes == 1
     assert result.products_delisted == 0
     assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='A'") is None
     assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='B'") is None
     assert _scalar(db_conn, "SELECT count(*) FROM product WHERE retailer_product_id='C'") == 1
+
+
+def _streak(conn: Any, pid: str) -> Any:
+    return _scalar(conn, "SELECT missing_streak FROM product WHERE retailer_product_id=%s", (pid,))
+
+
+def test_histeresis_no_da_de_baja_a_la_primera(db_conn: Any) -> None:
+    """#3: con umbral 2, hace falta faltar en DOS pasadas seguidas para descatalogar."""
+    store1 = FakeStore(
+        [
+            _product("A", "Bailarina", [_variant("A-1", "39.95")]),
+            _product("B", "Botín", [_variant("B-1", "45.00")]),
+        ],
+        signatures={"A": "a1", "B": "b1"},
+    )
+    ingest(db_conn, store1, run_ts=T1)
+
+    only_a = [_product("A", "Bailarina", [_variant("A-1", "39.95")])]
+    # Primera ausencia de B: sospechosa, pero no se da de baja todavía.
+    store2 = FakeStore(only_a, signatures={"A": "a1"})
+    result = ingest(db_conn, store2, run_ts=T2, delist_min_misses=2)
+
+    assert result.products_delisted == 0
+    assert result.products_missing == 1
+    assert result.variants_missing == 1
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='B'") is None
+    assert _streak(db_conn, "B") == 1
+
+    # Segunda ausencia consecutiva: ahora sí, producto y variante.
+    store3 = FakeStore(only_a, signatures={"A": "a1"})
+    result = ingest(db_conn, store3, run_ts=T3, delist_min_misses=2)
+
+    assert result.products_delisted == 1
+    assert result.variants_delisted == 1
+    assert result.products_missing == 0
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='B'") == T3
+
+    # Y si vuelve tras la baja, arranca de cero: no debe recaer a la primera ausencia.
+    store4 = FakeStore(
+        [*only_a, _product("B", "Botín", [_variant("B-1", "45.00")])],
+        signatures={"A": "a1", "B": "b1"},
+    )
+    ingest(db_conn, store4, run_ts=T4, delist_min_misses=2)
+
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='B'") is None
+    assert _streak(db_conn, "B") == 0
+
+
+def test_histeresis_se_reinicia_al_reaparecer(db_conn: Any) -> None:
+    """#3: un blip aislado no se acumula — al volver a verse, la racha se pone a cero."""
+    both = [
+        _product("A", "Bailarina", [_variant("A-1", "39.95")]),
+        _product("B", "Botín", [_variant("B-1", "45.00")]),
+    ]
+    sigs = {"A": "a1", "B": "b1"}
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    only_a = [_product("A", "Bailarina", [_variant("A-1", "39.95")])]
+    ingest(db_conn, FakeStore(only_a, signatures={"A": "a1"}), run_ts=T2)
+    assert _streak(db_conn, "B") == 1
+
+    # B reaparece con la misma huella: no se le pide detalle, pero se "toca" y resetea la racha.
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T3)
+    assert _streak(db_conn, "B") == 0
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='B'") is None
+
+    # Vuelve a faltar: cuenta como primera ausencia, no como segunda.
+    result = ingest(db_conn, FakeStore(only_a, signatures={"A": "a1"}), run_ts=T4)
+    assert result.products_delisted == 0
+    assert _streak(db_conn, "B") == 1
 
 
 def test_red_seguridad_omite_bajas_en_caida_sospechosa(db_conn: Any) -> None:
@@ -254,6 +328,8 @@ def test_red_seguridad_omite_bajas_en_caida_sospechosa(db_conn: Any) -> None:
     assert result.skipped_scopes == 1
     assert result.products_delisted == 0
     assert _scalar(db_conn, "SELECT count(*) FROM product WHERE delisted_at IS NULL") == 4
+    # Y la pasada sospechosa tampoco gasta intentos de histéresis: el contador no se mueve.
+    assert _scalar(db_conn, "SELECT max(missing_streak) FROM product") == 0
 
 
 def test_baja_normal_cuando_la_caida_es_moderada(db_conn: Any) -> None:
@@ -270,7 +346,7 @@ def test_baja_normal_cuando_la_caida_es_moderada(db_conn: Any) -> None:
         signatures={f"A{i}": "s" for i in range(3)},
         scopes=[ScrapeScope("niña", "zapateria", "zapatos")],
     )
-    result = ingest(db_conn, store2, run_ts=T2, delist_min_baseline=3)
+    result = ingest(db_conn, store2, run_ts=T2, delist_min_baseline=3, delist_min_misses=1)
 
     assert result.skipped_scopes == 0
     assert result.products_delisted == 1
