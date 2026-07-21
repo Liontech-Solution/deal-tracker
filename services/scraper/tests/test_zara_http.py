@@ -1,6 +1,11 @@
-"""Tests de la capa HTTP del scraper: reintentos + backoff ante throttling/errores."""
+"""Tests de la capa HTTP del scraper: reintentos + backoff ante throttling/errores.
+
+También el sondeo de vida (`_probe_one`) que usa la confirmación activa de bajas.
+"""
 
 from __future__ import annotations
+
+from typing import Any
 
 import httpx
 import pytest
@@ -45,3 +50,37 @@ def test_agota_reintentos_y_propaga() -> None:
     with pytest.raises(httpx.HTTPStatusError):
         store._get_json(client, "https://x/y")
     assert calls["n"] == 4  # 1 intento + 3 reintentos
+
+
+# --- #4 Confirmación activa: el endpoint de detalle como sondeo de vida ------------------
+
+
+def _probe_store(handler: Any) -> tuple[ZaraStore, httpx.Client]:
+    return ZaraStore(_CFG), httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_sondeo_lista_con_producto_es_vivo() -> None:
+    store, client = _probe_store(lambda _r: httpx.Response(200, json=[{"seo": {"id": 1}}]))
+    assert store._probe_one(client, "123") is True
+
+
+def test_sondeo_lista_vacia_es_retirado() -> None:
+    """Zara responde 200 con [] cuando ya no conoce el id: es el veredicto que buscamos."""
+    store, client = _probe_store(lambda _r: httpx.Response(200, json=[]))
+    assert store._probe_one(client, "123") is False
+
+
+def test_sondeo_404_es_retirado() -> None:
+    store, client = _probe_store(lambda _r: httpx.Response(404, text="nope"))
+    assert store._probe_one(client, "123") is False
+
+
+def test_sondeo_5xx_agotado_no_da_veredicto() -> None:
+    """Un fallo nuestro no es prueba de retirada: sin veredicto, la ingesta no da de baja."""
+    store, client = _probe_store(lambda _r: httpx.Response(503, text="nope"))
+    assert store._probe_one(client, "123") is None
+
+
+def test_sondeo_respuesta_inesperada_no_da_veredicto() -> None:
+    store, client = _probe_store(lambda _r: httpx.Response(200, json={"no": "es una lista"}))
+    assert store._probe_one(client, "123") is None

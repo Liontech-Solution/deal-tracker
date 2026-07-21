@@ -12,6 +12,7 @@ import os
 import pytest
 
 from scraper.config import Config
+from scraper.stores.base import DelistCandidate
 from scraper.stores.sfera import CategoryConfig, SferaStore
 
 _LIVE = os.environ.get("SFERA_LIVE") == "1"
@@ -35,3 +36,31 @@ def test_sfera_live_smoke() -> None:
     assert product.gender == "niña" and product.section == "zapateria"
     assert product.variants, "cada producto debería tener variantes talla/color"
     assert all(v.price > 0 for v in product.variants)
+
+
+@pytest.mark.skipif(not _LIVE, reason="smoke en vivo; define SFERA_LIVE=1 para ejecutarlo")
+def test_sfera_live_probe_alive() -> None:
+    """#4: la señal de confirmación activa sigue distinguiendo vivo de retirado.
+
+    Contrato observado en la web real: Sfera enruta la PDP por id (el slug da igual, redirige
+    al canónico) y devuelve 404 con un id que no existe. Este test es la alarma si cambia.
+    """
+    config = Config(database_url="postgresql://unused")
+    store = SferaStore(
+        config,
+        categories=[CategoryConfig("ninos/nina/zapatos", "niña", "zapateria", "zapatos")],
+    )
+    entries = list(store.list_catalog())
+    assert entries, "el listado en vivo debería traer productos"
+    live = next(store.fetch_details(entries[:1]))
+
+    verdicts = store.probe_alive(
+        [
+            DelistCandidate(live.retailer_product_id, live.url),
+            # Mismo formato de id y slug real, pero un id que Sfera no conoce.
+            DelistCandidate("A999999999", "https://www.sfera.com/es/ninos/A999999999-x/"),
+        ]
+    )
+
+    assert verdicts.get(live.retailer_product_id) is True
+    assert verdicts.get("A999999999") is False
