@@ -24,6 +24,9 @@ T1 = datetime(2026, 7, 1, 8, 0, tzinfo=UTC)
 T2 = datetime(2026, 7, 2, 8, 0, tzinfo=UTC)
 T3 = datetime(2026, 7, 3, 8, 0, tzinfo=UTC)
 T4 = datetime(2026, 7, 4, 8, 0, tzinfo=UTC)
+# Muy posterior: con estas el detalle de las pasadas anteriores ya está rancio (umbral 7 días).
+T_STALE = datetime(2026, 7, 20, 8, 0, tzinfo=UTC)
+T_STALE2 = datetime(2026, 7, 21, 8, 0, tzinfo=UTC)
 
 
 class FakeStore:
@@ -504,3 +507,97 @@ def test_tienda_sin_sondeo_mantiene_el_comportamiento(db_conn: Any) -> None:
     result = ingest(db_conn, FakeStore(_solo_a(), signatures={"A": "a1"}), run_ts=T3)
     assert result.probes_sent == 0
     assert result.products_delisted == 1
+
+
+def _last_detail(conn: Any, pid: str) -> Any:
+    return _scalar(conn, "SELECT last_detail_at FROM product WHERE retailer_product_id=%s", (pid,))
+
+
+def test_refresco_forzado_reobserva_aunque_no_cambie_nada(db_conn: Any) -> None:
+    """El detalle rancio se vuelve a pedir: es lo que hace crecer la serie de una prenda estable."""
+    store1 = FakeStore(_solo_a(), signatures={"A": "a1"})
+    ingest(db_conn, store1, run_ts=T1)
+
+    # Misma huella y mismo precio, pero 19 días después: toca volver a mirar.
+    store2 = FakeStore(_solo_a(), signatures={"A": "a1"})
+    result = ingest(db_conn, store2, run_ts=T_STALE)
+
+    assert store2.detail_calls == ["A"]
+    assert result.details_refreshed == 1
+    assert result.products_unchanged == 0
+    # La segunda observación es el punto de histórico que el aviso y la honestidad necesitaban.
+    assert _scalar(db_conn, "SELECT count(*) FROM price_history") == 2
+    assert _scalar(db_conn, "SELECT count(DISTINCT price) FROM price_history") == 1
+    assert _last_detail(db_conn, "A") == T_STALE
+
+
+def test_detalle_reciente_no_se_refresca(db_conn: Any) -> None:
+    """El ahorro del detalle condicional sigue intacto mientras la ficha no envejezca."""
+    ingest(db_conn, FakeStore(_solo_a(), signatures={"A": "a1"}), run_ts=T1)
+
+    store2 = FakeStore(_solo_a(), signatures={"A": "a1"})
+    result = ingest(db_conn, store2, run_ts=T2)  # solo 1 día: dentro del umbral
+
+    assert store2.detail_calls == []
+    assert result.details_refreshed == 0
+    assert result.products_unchanged == 1
+    assert _scalar(db_conn, "SELECT count(*) FROM price_history") == 1
+
+
+def test_refresco_desactivado_mantiene_el_comportamiento(db_conn: Any) -> None:
+    """`detail_max_age_days=0` es el escape hatch: se vuelve al detalle solo por huella."""
+    ingest(db_conn, FakeStore(_solo_a(), signatures={"A": "a1"}), run_ts=T1)
+
+    store2 = FakeStore(_solo_a(), signatures={"A": "a1"})
+    result = ingest(db_conn, store2, run_ts=T_STALE, detail_max_age_days=0)
+
+    assert store2.detail_calls == []
+    assert result.details_refreshed == 0
+    assert result.products_unchanged == 1
+
+
+def test_refresco_respeta_el_tope_y_empieza_por_lo_mas_rancio(db_conn: Any) -> None:
+    """El presupuesto por pasada reparte el coste, y la cola se sirve por antigüedad."""
+    products = [_product(pid, f"P{pid}", [_variant(f"{pid}-1", "20.00")]) for pid in "ABC"]
+    ingest(db_conn, FakeStore(products, signatures={"A": "a1", "B": "b1", "C": "c1"}), run_ts=T1)
+    # Cambios de huella que renuevan el detalle de A y B; C se queda con el de T1.
+    ingest(db_conn, FakeStore(products, signatures={"A": "a2", "B": "b1", "C": "c1"}), run_ts=T2)
+    ingest(db_conn, FakeStore(products, signatures={"A": "a2", "B": "b2", "C": "c1"}), run_ts=T3)
+    assert (_last_detail(db_conn, "A"), _last_detail(db_conn, "B")) == (T2, T3)
+
+    store = FakeStore(products, signatures={"A": "a2", "B": "b2", "C": "c1"})
+    result = ingest(db_conn, store, run_ts=T_STALE, detail_refresh_max=1)
+
+    assert store.detail_calls == ["C"]  # el más rancio primero
+    assert result.details_refreshed == 1
+    assert result.products_unchanged == 2  # A y B esperan su turno en la siguiente pasada
+
+
+def test_refresco_conserva_la_huella_y_no_encadena_refrescos(db_conn: Any) -> None:
+    """Tras refrescar, la huella sigue siendo la del listado: la pasada siguiente no repite."""
+    ingest(db_conn, FakeStore(_solo_a(), signatures={"A": "a1"}), run_ts=T1)
+    ingest(db_conn, FakeStore(_solo_a(), signatures={"A": "a1"}), run_ts=T_STALE)
+
+    assert _scalar(db_conn, "SELECT listing_signature FROM product") == "a1"
+
+    store3 = FakeStore(_solo_a(), signatures={"A": "a1"})
+    result = ingest(db_conn, store3, run_ts=T_STALE2)
+
+    assert store3.detail_calls == []
+    assert result.products_unchanged == 1
+
+
+def test_refresco_no_provoca_bajas(db_conn: Any) -> None:
+    """Refrescar no es "no haber visto": ni el producto ni sus variantes acumulan ausencia."""
+
+    def catalogo() -> list[ScrapedProduct]:
+        return [_product("A", "Bailarina", [_variant("A-1", "39.95"), _variant("A-2", "39.95")])]
+
+    ingest(db_conn, FakeStore(catalogo(), signatures={"A": "a1"}), run_ts=T1)
+    result = ingest(db_conn, FakeStore(catalogo(), signatures={"A": "a1"}), run_ts=T_STALE)
+
+    assert result.details_refreshed == 1
+    assert (result.products_delisted, result.variants_delisted) == (0, 0)
+    assert (result.products_missing, result.variants_missing) == (0, 0)
+    assert _scalar(db_conn, "SELECT max(missing_streak) FROM variant") == 0
+    assert _scalar(db_conn, "SELECT count(*) FROM variant WHERE last_seen_at=%s", (T_STALE,)) == 2

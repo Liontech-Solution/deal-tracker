@@ -53,6 +53,21 @@ El scrapeo se hace en dos fases para no martillear la tienda:
    `last_seen_at`. En una pasada sin cambios se pasa de ~1 petición por producto a
    ~1 por categoría.
 
+### Refresco periódico forzado
+
+Ese ahorro tiene un efecto que hay que compensar: una prenda de precio estable **nunca** cambia de
+huella, así que sin más no volvería a observarse jamás. Y sin re-observaciones no hay serie
+temporal: el aviso de bajada y el veredicto de "descuento honesto" exigen histórico **previo**
+—con un solo punto por variante todo el catálogo sale `none` y no se avisa de nada— y el stock por
+talla se queda congelado, porque cambia sin tocar el precio del listado.
+
+Por eso, además de nuevos y cambiados, cada pasada vuelve a pedir el detalle de los productos cuyo
+`product.last_detail_at` supera `SCRAPER_DETAIL_MAX_AGE_DAYS` (7 por defecto; **0 desactiva** el
+refresco), **los más rancios primero** y como mucho `SCRAPER_DETAIL_REFRESH_MAX` por pasada. Como
+lo refrescado estrena marca y se va al final de la cola, el barrido es round-robin y sin ráfagas.
+El coste depende de la tienda: en Zara es una petición por producto, mientras que Sfera sirve el
+detalle desde la caché del listado (gratis: ahí conviene subir el tope).
+
 Las peticiones llevan **pausa con jitter** entre ellas y **reintentos con backoff
 exponencial** ante `429`/`5xx`/errores de red (respetando `Retry-After`). Ajustable por
 entorno: `SCRAPER_REQUEST_DELAY`, `SCRAPER_REQUEST_RETRIES`, `SCRAPER_RETRY_BACKOFF`,

@@ -36,6 +36,12 @@ class Config:
     # `delist_probe_max` acota el gasto de peticiones extra por pasada.
     delist_probe: bool = True
     delist_probe_max: int = 50
+    # Refresco periódico forzado del detalle: una prenda de precio estable nunca cambia de huella
+    # de listado, así que sin esto no se volvería a observar jamás (y sin re-observaciones no hay
+    # histórico con el que corroborar un descuento, ni stock por talla al día). Se pide el detalle
+    # de lo más rancio, acotado por pasada. `detail_max_age_days=0` desactiva el refresco.
+    detail_max_age_days: int = 7
+    detail_refresh_max: int = 100
     # Navegador headless (solo tiendas que lo requieren, p.ej. Sfera tras Akamai).
     # `browser_headless=False` abre ventana real (dev con display); en el cluster/CI
     # se ejecuta headless. `browser_channel` fuerza un canal instalado (p.ej. "chrome").
@@ -63,6 +69,8 @@ class Config:
             delist_min_misses=int(env.get("SCRAPER_DELIST_MIN_MISSES", "2")),
             delist_probe=env.get("SCRAPER_DELIST_PROBE", "1") not in ("0", "false", "False"),
             delist_probe_max=int(env.get("SCRAPER_DELIST_PROBE_MAX", "50")),
+            detail_max_age_days=int(env.get("SCRAPER_DETAIL_MAX_AGE_DAYS", "7")),
+            detail_refresh_max=int(env.get("SCRAPER_DETAIL_REFRESH_MAX", "100")),
             browser_headless=env.get("SCRAPER_BROWSER_HEADLESS", "1")
             not in ("0", "false", "False"),
             browser_nav_timeout=float(env.get("SCRAPER_BROWSER_NAV_TIMEOUT", "45")),
