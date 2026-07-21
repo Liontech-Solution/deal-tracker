@@ -54,13 +54,60 @@ class CategoryConfig:
     category: str  # zapatos | zapatillas | pantalones | ...
 
 
-# Subconjunto curado para la Fase 1: calzado infantil niño/niña.
+# Subconjunto curado (niño/niña): calzado + ropa infantil. Zara separa el catálogo en dos
+# rangos de edad (6-14 años y "mini" 1½-6 años), cada uno con su propio id de categoría-hoja;
+# se incluyen ambos para máxima cobertura. Varias hojas mapean al mismo slug de dominio (p.ej.
+# jeans/leggings/pantalones -> "pantalones") para alinear el vocabulario con el de Sfera y que
+# los filtros del web unifiquen tiendas. El dedup por id de `list_catalog()` evita duplicados
+# cuando un producto aparece en dos hojas/rangos; la talla distingue el rango a nivel variante.
 # Ampliable añadiendo entradas (el resto del código no cambia).
 CATEGORIES: list[CategoryConfig] = [
+    # --- calzado (conservado desde la Fase 1) ---
     CategoryConfig(2427610, "niña", "zapateria", "zapatos"),
     CategoryConfig(2427608, "niña", "zapateria", "zapatillas"),
     CategoryConfig(2428560, "niño", "zapateria", "zapatos"),
     CategoryConfig(2428558, "niño", "zapateria", "zapatillas"),
+    # --- ropa niña (6-14 años + mini 1½-6) ---
+    CategoryConfig(2427327, "niña", "ropa", "pantalones"),  # pantalones
+    CategoryConfig(2422199, "niña", "ropa", "pantalones"),  # pantalones (mini)
+    CategoryConfig(2426261, "niña", "ropa", "pantalones"),  # jeans
+    CategoryConfig(2422112, "niña", "ropa", "pantalones"),  # jeans (mini)
+    CategoryConfig(2617641, "niña", "ropa", "pantalones"),  # leggings | chándal
+    CategoryConfig(2422135, "niña", "ropa", "pantalones"),  # leggings | chándal (mini)
+    CategoryConfig(2426140, "niña", "ropa", "camisetas"),  # camisetas
+    CategoryConfig(2422028, "niña", "ropa", "camisetas"),  # camisetas (mini)
+    CategoryConfig(2426126, "niña", "ropa", "camisetas"),  # blusas | camisas
+    CategoryConfig(2421993, "niña", "ropa", "camisetas"),  # blusas | camisas (mini)
+    CategoryConfig(2427482, "niña", "ropa", "sudaderas"),  # sudaderas
+    CategoryConfig(2426321, "niña", "ropa", "sudaderas"),  # sudaderas (mini)
+    CategoryConfig(2427411, "niña", "ropa", "sudaderas"),  # punto | crochet
+    CategoryConfig(2422257, "niña", "ropa", "sudaderas"),  # punto | crochet (mini)
+    CategoryConfig(2427560, "niña", "ropa", "vestidos"),  # vestidos | monos
+    CategoryConfig(2426391, "niña", "ropa", "vestidos"),  # vestidos | monos (mini)
+    CategoryConfig(2426231, "niña", "ropa", "vestidos"),  # faldas | bermudas
+    CategoryConfig(2422071, "niña", "ropa", "vestidos"),  # faldas | bermudas (mini)
+    CategoryConfig(2427367, "niña", "ropa", "ropa-interior"),  # pijamas
+    CategoryConfig(2422216, "niña", "ropa", "ropa-interior"),  # pijamas (mini)
+    CategoryConfig(2427530, "niña", "ropa", "ropa-interior"),  # ropa interior | calcetines
+    CategoryConfig(2426369, "niña", "ropa", "ropa-interior"),  # ropa interior | calcetines (mini)
+    # --- ropa niño (6-14 años + mini 1½-6) ---
+    CategoryConfig(2428332, "niño", "ropa", "pantalones"),  # pantalones
+    CategoryConfig(2427796, "niño", "ropa", "pantalones"),  # pantalones (mini)
+    CategoryConfig(2426737, "niño", "ropa", "pantalones"),  # jeans
+    CategoryConfig(2422737, "niño", "ropa", "pantalones"),  # jeans (mini)
+    CategoryConfig(2426543, "niño", "ropa", "pantalones"),  # bermudas
+    CategoryConfig(2422547, "niño", "ropa", "pantalones"),  # bermudas (mini)
+    CategoryConfig(2426650, "niño", "ropa", "camisetas"),  # camisetas
+    CategoryConfig(2422662, "niño", "ropa", "camisetas"),  # camisetas (mini)
+    CategoryConfig(2426636, "niño", "ropa", "camisetas"),  # camisas | sobrecamisas
+    CategoryConfig(2422647, "niño", "ropa", "camisetas"),  # camisas | sobrecamisas (mini)
+    CategoryConfig(2427929, "niño", "ropa", "sudaderas"),  # sudaderas
+    CategoryConfig(2428452, "niño", "ropa", "sudaderas"),  # sudaderas | punto (mini)
+    CategoryConfig(2427882, "niño", "ropa", "sudaderas"),  # punto | crochet
+    CategoryConfig(2428327, "niño", "ropa", "ropa-interior"),  # pijamas
+    CategoryConfig(2427842, "niño", "ropa", "ropa-interior"),  # pijamas (mini)
+    CategoryConfig(2428509, "niño", "ropa", "ropa-interior"),  # ropa interior | calcetines
+    CategoryConfig(2427980, "niño", "ropa", "ropa-interior"),  # ropa interior | calcetines (mini)
 ]
 
 
