@@ -112,6 +112,39 @@ export function evaluateDeal(input: DealInput): DealVerdict {
   return { notify: true, reason: 'ok', honestListPrice: honest, discountPct: discount };
 }
 
+/**
+ * Ventana del "mínimo reciente" para el veredicto del **catálogo** (donde no hay un interés que
+ * fije `window_days`). El detalle mostraba "el precio más bajo de los últimos meses" → 90 días.
+ */
+export const HONESTY_WINDOW_DAYS = 90;
+
+/** Etiqueta de honestidad del descuento que consume el catálogo (tarjetas y detalle). */
+export type HonestyVerdict = 'real' | 'suspicious' | 'none';
+
+/**
+ * Veredicto de "descuento honesto" para el catálogo, construido **sobre `evaluateDeal`** para que
+ * catálogo y aviso de Telegram nunca digan cosas distintas de la misma prenda.
+ *
+ *  - `real`: el job avisaría (mínimo reciente con rebaja honesta contra el PVP creíble).
+ *  - `suspicious`: la tienda muestra un tachado (`list > price`) que **no** es una bajada real —
+ *    el PVP está inflado sobre el máximo observado, o el precio no es un mínimo reciente.
+ *  - `none`: no hay tachado, o no hay histórico con el que corroborar nada (arranque en frío).
+ */
+export function classifyHonesty(input: DealInput): HonestyVerdict {
+  // Arranque en frío: una prenda sin observaciones previas no tiene con qué corroborarse.
+  if (input.priorPoints <= 0) return 'none';
+
+  const verdict = evaluateDeal({ ...input, minDiscountPct: 0, compareBase: 'recent_min' });
+  if (verdict.reason === 'sin-historico') return 'none';
+  if (verdict.notify) return 'real';
+
+  // No es una bajada real; si la tienda enseña un tachado, ese descuento es el que delatamos.
+  const price = num(input.price);
+  const list = num(input.listPrice);
+  const storeShowsMarkdown = price !== null && list !== null && list > price;
+  return storeShowsMarkdown ? 'suspicious' : 'none';
+}
+
 /** `numeric` de Postgres viaja como string: parsear siempre, nunca comparar lexicográficamente. */
 function num(value: string | number | null | undefined): number | null {
   if (value === null || value === undefined) return null;

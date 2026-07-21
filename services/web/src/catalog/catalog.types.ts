@@ -1,5 +1,7 @@
 /** Formas de respuesta del catálogo (precios como string: dinero exacto, sin float). */
 
+import type { HonestyVerdict } from '../matching/deal-rule';
+
 export interface ProductListItem {
   id: number;
   retailerId: number;
@@ -17,6 +19,8 @@ export interface ProductListItem {
   discountFrom: string | null;
   /** Mayor descuento entre las variantes del producto (para orden/badge). */
   maxDiscount: string | null;
+  /** Veredicto de descuento honesto de la variante "mejor oferta" (misma regla que el aviso). */
+  honesty: HonestyVerdict;
   anyInStock: boolean;
   variantCount: number;
 }
@@ -40,12 +44,20 @@ export interface VariantWithPrice {
   discountPct: string | null;
   inStock: boolean | null;
   scrapedAt: string | null;
+  /** Veredicto de descuento honesto de esta variante (misma regla que el aviso). */
+  honesty: HonestyVerdict;
 }
 
 export interface ProductDetail
   extends Omit<
     ProductListItem,
-    'priceFrom' | 'listFrom' | 'discountFrom' | 'maxDiscount' | 'anyInStock' | 'variantCount'
+    | 'priceFrom'
+    | 'listFrom'
+    | 'discountFrom'
+    | 'maxDiscount'
+    | 'honesty'
+    | 'anyInStock'
+    | 'variantCount'
   > {
   variants: VariantWithPrice[];
 }

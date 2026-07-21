@@ -3,6 +3,9 @@
  * Los precios llegan como string (dinero exacto, sin float): se formatean/parsean en `lib/format`.
  */
 
+/** Veredicto de descuento honesto (espejo de `HonestyVerdict` del backend). Lo calcula el catálogo. */
+export type Honesty = 'real' | 'suspicious' | 'none';
+
 export interface ProductListItem {
   id: number;
   retailerId: number;
@@ -18,6 +21,7 @@ export interface ProductListItem {
   listFrom: string | null;
   discountFrom: string | null;
   maxDiscount: string | null;
+  honesty: Honesty;
   anyInStock: boolean;
   variantCount: number;
 }
@@ -41,6 +45,7 @@ export interface VariantWithPrice {
   discountPct: string | null;
   inStock: boolean | null;
   scrapedAt: string | null;
+  honesty: Honesty;
 }
 
 export interface ProductDetail {

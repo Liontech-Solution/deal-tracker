@@ -5,14 +5,13 @@ import { BellIcon } from './icons';
 import { useToast } from './Toast';
 import type { ProductListItem } from '../api/types';
 import { discountInt, eurStr } from '../lib/format';
-import { honestyFromLatest } from '../lib/honesty';
 import { sectionBg, stripeBg } from '../lib/section';
 
 export function ProductCard({ p }: { p: ProductListItem }) {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const honesty = honestyFromLatest(p.priceFrom, p.listFrom, p.discountFrom);
+  const honesty = p.honesty;
   const suspicious = honesty === 'suspicious';
   const price = eurStr(p.priceFrom);
   const list = eurStr(p.listFrom);

@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 
 import { Database, DRIZZLE } from '../database/database.module';
+import { classifyHonesty, HONESTY_WINDOW_DAYS } from '../matching/deal-rule';
 import type {
   Facets,
   PricePoint,
@@ -42,18 +43,31 @@ export class CatalogService {
     const rows = await this.db.execute(sql`
       WITH latest AS (
         SELECT DISTINCT ON (ph.variant_id)
-          ph.variant_id, ph.price, ph.list_price, ph.discount_pct, ph.in_stock
+          ph.variant_id, ph.price, ph.list_price, ph.discount_pct, ph.in_stock, ph.scraped_at
         FROM price_history ph
         ORDER BY ph.variant_id, ph.scraped_at DESC
+      ),
+      stats AS (
+        SELECT l.variant_id,
+               MIN(h.price) FILTER (
+                 WHERE h.scraped_at >= l.scraped_at - make_interval(days => ${HONESTY_WINDOW_DAYS})
+               ) AS recent_min,
+               MAX(h.price) AS max_observed,
+               COUNT(*)     AS prior_points
+        FROM latest l
+        JOIN price_history h ON h.variant_id = l.variant_id AND h.scraped_at < l.scraped_at
+        GROUP BY l.variant_id
       ),
       matched AS (
         SELECT p.id, p.retailer_id, r.slug AS retailer_slug, r.name AS retailer_name,
                p.retailer_product_id, p.name, p.gender, p.section, p.category, p.url,
-               v.id AS variant_id, l.price, l.list_price, l.discount_pct, l.in_stock
+               v.id AS variant_id, l.price, l.list_price, l.discount_pct, l.in_stock,
+               s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points
         FROM product p
         JOIN retailer r ON r.id = p.retailer_id
         JOIN variant v ON v.product_id = p.id AND v.delisted_at IS NULL
         JOIN latest l ON l.variant_id = v.id
+        LEFT JOIN stats s ON s.variant_id = v.id
         WHERE (${gender}::text IS NULL OR p.gender = ${gender})
           AND (${section}::text IS NULL OR p.section = ${section})
           AND (${category}::text IS NULL OR p.category = ${category})
@@ -69,6 +83,12 @@ export class CatalogService {
              MAX(discount_pct) AS max_discount,
              (array_agg(list_price ORDER BY in_stock DESC, price ASC))[1] AS list_from,
              (array_agg(discount_pct ORDER BY in_stock DESC, price ASC))[1] AS discount_from,
+             -- Estadísticos de la MISMA variante "mejor oferta" que list_from/discount_from,
+             -- para clasificar la honestidad de la oferta que se muestra en la tarjeta.
+             (array_agg(price ORDER BY in_stock DESC, price ASC))[1] AS price_repr,
+             (array_agg(recent_min ORDER BY in_stock DESC, price ASC))[1] AS recent_min_repr,
+             (array_agg(max_observed ORDER BY in_stock DESC, price ASC))[1] AS max_observed_repr,
+             (array_agg(prior_points ORDER BY in_stock DESC, price ASC))[1] AS prior_points_repr,
              BOOL_OR(in_stock) AS any_in_stock,
              COUNT(variant_id) AS variant_count
       FROM matched
@@ -93,6 +113,15 @@ export class CatalogService {
       listFrom: (row.list_from as string | null) ?? null,
       discountFrom: (row.discount_from as string | null) ?? null,
       maxDiscount: (row.max_discount as string | null) ?? null,
+      honesty: classifyHonesty({
+        price: (row.price_repr as string | null) ?? null,
+        listPrice: (row.list_from as string | null) ?? null,
+        recentMin: (row.recent_min_repr as string | null) ?? null,
+        maxObserved: (row.max_observed_repr as string | null) ?? null,
+        priorPoints: Number(row.prior_points_repr ?? 0),
+        minDiscountPct: 0,
+        compareBase: 'recent_min',
+      }),
       anyInStock: Boolean(row.any_in_stock),
       variantCount: Number(row.variant_count),
     }));
@@ -119,11 +148,24 @@ export class CatalogService {
           ph.variant_id, ph.price, ph.list_price, ph.discount_pct, ph.in_stock, ph.scraped_at
         FROM price_history ph
         ORDER BY ph.variant_id, ph.scraped_at DESC
+      ),
+      stats AS (
+        SELECT l.variant_id,
+               MIN(h.price) FILTER (
+                 WHERE h.scraped_at >= l.scraped_at - make_interval(days => ${HONESTY_WINDOW_DAYS})
+               ) AS recent_min,
+               MAX(h.price) AS max_observed,
+               COUNT(*)     AS prior_points
+        FROM latest l
+        JOIN price_history h ON h.variant_id = l.variant_id AND h.scraped_at < l.scraped_at
+        GROUP BY l.variant_id
       )
       SELECT v.id, v.retailer_variant_id, v.size, v.color, v.sku, v.url, v.delisted_at,
-             l.price, l.list_price, l.discount_pct, l.in_stock, l.scraped_at
+             l.price, l.list_price, l.discount_pct, l.in_stock, l.scraped_at,
+             s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points
       FROM variant v
       LEFT JOIN latest l ON l.variant_id = v.id
+      LEFT JOIN stats s ON s.variant_id = v.id
       WHERE v.product_id = ${id}
       ORDER BY v.id
     `)) as unknown as Record<string, unknown>[];
@@ -141,6 +183,15 @@ export class CatalogService {
       discountPct: (row.discount_pct as string | null) ?? null,
       inStock: row.in_stock == null ? null : Boolean(row.in_stock),
       scrapedAt: row.scraped_at ? new Date(row.scraped_at as string).toISOString() : null,
+      honesty: classifyHonesty({
+        price: (row.price as string | null) ?? null,
+        listPrice: (row.list_price as string | null) ?? null,
+        recentMin: (row.recent_min as string | null) ?? null,
+        maxObserved: (row.max_observed as string | null) ?? null,
+        priorPoints: Number(row.prior_points ?? 0),
+        minDiscountPct: 0,
+        compareBase: 'recent_min',
+      }),
     }));
 
     return {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { usePriceHistory, useProduct } from '../api/hooks';
-import type { VariantWithPrice } from '../api/types';
+import type { Honesty, VariantWithPrice } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import { StoreBadge } from '../components/Badges';
 import type { Stock } from '../components/Badges';
@@ -14,8 +14,6 @@ import { ProductGridSkeleton, ErrorState } from '../components/States';
 import { useToast } from '../components/Toast';
 import { colorHex } from '../lib/colors';
 import { capitalize } from '../lib/format';
-import { honestyFromHistory, honestyFromLatest } from '../lib/honesty';
-import type { Honesty } from '../lib/honesty';
 import { sectionBg, stripeBg } from '../lib/section';
 
 function stockOf(v: VariantWithPrice): Stock {
@@ -80,11 +78,7 @@ export function ProductPage() {
     );
   }
 
-  const honesty: Honesty = history.data
-    ? honestyFromHistory(history.data)
-    : current
-      ? honestyFromLatest(current.price, current.listPrice, current.discountPct)
-      : 'none';
+  const honesty: Honesty = current?.honesty ?? 'none';
 
   const colorForSize = (c: string) => variants.some((v) => v.color === c && v.size === size && available(v));
   const sizeAvailable = (s: string) => variants.some((v) => v.size === s && available(v));
