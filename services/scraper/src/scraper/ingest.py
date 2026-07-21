@@ -7,8 +7,9 @@
    - sin cambios -> NO se pide detalle; solo se refresca `last_seen_at` (producto y variantes)
      para que no se marque como baja.
 
-Todo ocurre en una única transacción por ejecución (`scrape_run`). Las bajas se detectan
-igual que antes: lo no visto conserva un `last_seen_at` anterior y se marca `delisted_at`.
+Todo ocurre en una única transacción por ejecución (`scrape_run`). Las bajas se detectan por
+ausencia: lo no visto conserva un `last_seen_at` anterior, suma una pasada a `missing_streak`
+y solo se marca `delisted_at` tras N pasadas consecutivas sin verlo (histéresis).
 """
 
 from __future__ import annotations
@@ -25,6 +26,8 @@ from .stores.base import BaseStore, ListingEntry, ScrapedProduct, ScrapedVariant
 # Umbrales por defecto de la red de seguridad de bajas (ver `_suspicious_scopes`).
 DEFAULT_DELIST_MIN_BASELINE = 5
 DEFAULT_DELIST_DROP_RATIO = 0.5
+# Histéresis: pasadas consecutivas sin ver antes de dar de baja (ver `_advance_missing`).
+DEFAULT_DELIST_MIN_MISSES = 2
 
 _ScopeKey = tuple[str | None, str | None, str | None]
 
@@ -39,14 +42,16 @@ class IngestResult:
     prices_recorded: int
     products_delisted: int
     variants_delisted: int
+    products_missing: int  # ausentes que aún no llegan al umbral de histéresis
+    variants_missing: int
     scanned_scopes: int  # ámbitos recorridos en esta pasada
     skipped_scopes: int  # ámbitos con caída sospechosa: se omitieron sus bajas
 
 
-def _returned_id(cur: psycopg.Cursor) -> int:
-    """Devuelve el id de una cláusula RETURNING como int (tipado estricto)."""
+def _scalar_int(cur: psycopg.Cursor) -> int:
+    """Devuelve como int la única columna de la fila leída (RETURNING id, count(*), ...)."""
     row = cur.fetchone()
-    assert row is not None, "se esperaba una fila RETURNING"
+    assert row is not None, "se esperaba una fila"
     return int(row[0])
 
 
@@ -67,7 +72,7 @@ def _upsert_retailer(cur: psycopg.Cursor, store: BaseStore) -> int:
         """,
         (store.slug, store.name, store.base_url),
     )
-    return _returned_id(cur)
+    return _scalar_int(cur)
 
 
 def _load_existing(
@@ -129,7 +134,7 @@ def _upsert_product(
             run_ts,
         ),
     )
-    return _returned_id(cur)
+    return _scalar_int(cur)
 
 
 def _upsert_variant(
@@ -160,7 +165,7 @@ def _upsert_variant(
             run_ts,
         ),
     )
-    return _returned_id(cur)
+    return _scalar_int(cur)
 
 
 def _record_price(
@@ -247,10 +252,88 @@ def _scope_conditions(scopes: list[ScrapeScope], prefix: str = "") -> tuple[str,
     return clause, params
 
 
-def _delist(
-    cur: psycopg.Cursor, retailer_id: int, run_ts: datetime, safe_scopes: list[ScrapeScope]
+def _reset_missing(cur: psycopg.Cursor, retailer_id: int, run_ts: datetime) -> None:
+    """Pone a cero la racha de lo visto en esta pasada, sea cual sea su ámbito.
+
+    Haber sido visto es evidencia positiva: no se acota por ámbito ni por sospecha.
+    """
+    cur.execute(
+        """
+        UPDATE product SET missing_streak = 0
+        WHERE retailer_id = %s AND last_seen_at = %s AND missing_streak <> 0
+        """,
+        (retailer_id, run_ts),
+    )
+    cur.execute(
+        """
+        UPDATE variant v SET missing_streak = 0
+        FROM product p
+        WHERE v.product_id = p.id AND p.retailer_id = %s
+          AND v.last_seen_at = %s AND v.missing_streak <> 0
+        """,
+        (retailer_id, run_ts),
+    )
+
+
+def _advance_missing(
+    cur: psycopg.Cursor,
+    retailer_id: int,
+    run_ts: datetime,
+    safe_scopes: list[ScrapeScope],
+    min_misses: int,
 ) -> tuple[int, int]:
-    """Marca bajas (producto y variante) SOLO dentro de los ámbitos seguros y no vistos."""
+    """Suma una pasada sin ver a lo ausente dentro de los ámbitos seguros.
+
+    Un ámbito no escaneado o sospechoso NO avanza el contador: una pasada fallida no
+    debe gastar intentos. Devuelve cuántos productos/variantes quedan ausentes pero aún
+    por debajo del umbral (los que sí lo alcanzan los da de baja `_delist`).
+    """
+    if not safe_scopes:
+        return 0, 0
+    prod_clause, prod_params = _scope_conditions(safe_scopes)
+    cur.execute(
+        f"""
+        WITH bumped AS (
+            UPDATE product SET missing_streak = missing_streak + 1
+            WHERE retailer_id = %s AND delisted_at IS NULL AND last_seen_at < %s
+              AND ({prod_clause})
+            RETURNING missing_streak
+        )
+        SELECT count(*) FROM bumped WHERE missing_streak < %s
+        """,
+        [retailer_id, run_ts, *prod_params, min_misses],
+    )
+    products_missing = _scalar_int(cur)
+
+    var_clause, var_params = _scope_conditions(safe_scopes, prefix="p.")
+    cur.execute(
+        f"""
+        WITH bumped AS (
+            UPDATE variant v SET missing_streak = v.missing_streak + 1
+            FROM product p
+            WHERE v.product_id = p.id AND p.retailer_id = %s
+              AND v.delisted_at IS NULL AND v.last_seen_at < %s
+              AND ({var_clause})
+            RETURNING v.missing_streak
+        )
+        SELECT count(*) FROM bumped WHERE missing_streak < %s
+        """,
+        [retailer_id, run_ts, *var_params, min_misses],
+    )
+    return products_missing, _scalar_int(cur)
+
+
+def _delist(
+    cur: psycopg.Cursor,
+    retailer_id: int,
+    run_ts: datetime,
+    safe_scopes: list[ScrapeScope],
+    min_misses: int,
+) -> tuple[int, int]:
+    """Marca bajas (producto y variante) SOLO dentro de los ámbitos seguros y no vistos.
+
+    Con histéresis: hace falta llevar `min_misses` pasadas consecutivas sin aparecer.
+    """
     if not safe_scopes:
         return 0, 0
     prod_clause, prod_params = _scope_conditions(safe_scopes)
@@ -258,9 +341,9 @@ def _delist(
         f"""
         UPDATE product SET delisted_at = %s
         WHERE retailer_id = %s AND delisted_at IS NULL AND last_seen_at < %s
-          AND ({prod_clause})
+          AND missing_streak >= %s AND ({prod_clause})
         """,
-        [run_ts, retailer_id, run_ts, *prod_params],
+        [run_ts, retailer_id, run_ts, min_misses, *prod_params],
     )
     products_delisted = cur.rowcount
 
@@ -271,9 +354,9 @@ def _delist(
         FROM product p
         WHERE v.product_id = p.id AND p.retailer_id = %s
           AND v.delisted_at IS NULL AND v.last_seen_at < %s
-          AND ({var_clause})
+          AND v.missing_streak >= %s AND ({var_clause})
         """,
-        [run_ts, retailer_id, run_ts, *var_params],
+        [run_ts, retailer_id, run_ts, min_misses, *var_params],
     )
     return products_delisted, cur.rowcount
 
@@ -285,6 +368,7 @@ def ingest(
     *,
     delist_min_baseline: int = DEFAULT_DELIST_MIN_BASELINE,
     delist_drop_ratio: float = DEFAULT_DELIST_DROP_RATIO,
+    delist_min_misses: int = DEFAULT_DELIST_MIN_MISSES,
 ) -> IngestResult:
     """Ejecuta una pasada completa del scraper y persiste el resultado. Atómico."""
     run_ts = run_ts or datetime.now(UTC)
@@ -295,7 +379,7 @@ def ingest(
                 "INSERT INTO scrape_run (retailer_id, started_at) VALUES (%s, %s) RETURNING id",
                 (retailer_id, run_ts),
             )
-            run_id = _returned_id(cur)
+            run_id = _scalar_int(cur)
             existing = _load_existing(cur, retailer_id)
             prior_active = _load_active_counts(cur, retailer_id)  # baseline por ámbito
             scanned = list(dict.fromkeys(store.scopes()))  # ámbitos recorridos, sin duplicar
@@ -336,7 +420,14 @@ def ingest(
             safe_scopes = [
                 s for s in scanned if (s.gender, s.section, s.category) not in suspicious
             ]
-            products_delisted, variants_delisted = _delist(cur, retailer_id, run_ts, safe_scopes)
+            # (#3) Histéresis: la ausencia suma una pasada y solo da de baja al llegar al umbral.
+            _reset_missing(cur, retailer_id, run_ts)
+            products_missing, variants_missing = _advance_missing(
+                cur, retailer_id, run_ts, safe_scopes, delist_min_misses
+            )
+            products_delisted, variants_delisted = _delist(
+                cur, retailer_id, run_ts, safe_scopes, delist_min_misses
+            )
 
             cur.execute(
                 """
@@ -357,6 +448,8 @@ def ingest(
             prices_recorded=prices_recorded,
             products_delisted=products_delisted,
             variants_delisted=variants_delisted,
+            products_missing=products_missing,
+            variants_missing=variants_missing,
             scanned_scopes=len(scanned),
             skipped_scopes=len(suspicious),
         )

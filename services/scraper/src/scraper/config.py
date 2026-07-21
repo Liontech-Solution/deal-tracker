@@ -28,6 +28,9 @@ class Config:
     # se omiten sus bajas (posible fallo de scraping, no retirada real).
     delist_min_baseline: int = 5
     delist_drop_ratio: float = 0.5
+    # Histéresis: pasadas consecutivas sin ver un producto/variante antes de darlo de
+    # baja. Con 1 se descataloga a la primera ausencia (comportamiento sin histéresis).
+    delist_min_misses: int = 2
     # Navegador headless (solo tiendas que lo requieren, p.ej. Sfera tras Akamai).
     # `browser_headless=False` abre ventana real (dev con display); en el cluster/CI
     # se ejecuta headless. `browser_channel` fuerza un canal instalado (p.ej. "chrome").
@@ -52,6 +55,7 @@ class Config:
             retry_backoff=float(env.get("SCRAPER_RETRY_BACKOFF", "1.0")),
             delist_min_baseline=int(env.get("SCRAPER_DELIST_MIN_BASELINE", "5")),
             delist_drop_ratio=float(env.get("SCRAPER_DELIST_DROP_RATIO", "0.5")),
+            delist_min_misses=int(env.get("SCRAPER_DELIST_MIN_MISSES", "2")),
             browser_headless=env.get("SCRAPER_BROWSER_HEADLESS", "1")
             not in ("0", "false", "False"),
             browser_nav_timeout=float(env.get("SCRAPER_BROWSER_NAV_TIMEOUT", "45")),

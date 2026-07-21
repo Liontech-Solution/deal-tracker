@@ -71,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
             store,
             delist_min_baseline=config.delist_min_baseline,
             delist_drop_ratio=config.delist_drop_ratio,
+            delist_min_misses=config.delist_min_misses,
         )
 
     print(
@@ -80,6 +81,11 @@ def main(argv: list[str] | None = None) -> int:
         f"{result.variants_seen} variantes, {result.prices_recorded} precios; "
         f"bajas: {result.products_delisted} productos / {result.variants_delisted} variantes"
     )
+    if result.products_missing or result.variants_missing:
+        print(
+            f"ausentes pendientes de confirmar (histéresis, umbral {config.delist_min_misses}): "
+            f"{result.products_missing} productos / {result.variants_missing} variantes"
+        )
     if result.skipped_scopes:
         print(
             f"⚠ {result.skipped_scopes}/{result.scanned_scopes} ámbitos con caída sospechosa: "

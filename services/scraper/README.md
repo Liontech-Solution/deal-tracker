@@ -70,9 +70,14 @@ descatalogado. Para que esto no genere falsos positivos:
   productos activos lo observado cae por debajo de `SCRAPER_DELIST_DROP_RATIO` (p.ej. una
   categoría que devuelve 0 por un bloqueo blando), se **omiten sus bajas** y el `scrape_run`
   queda con `errors > 0` como aviso.
+- **Histéresis** — no se da de baja a la primera: cada ausencia suma una pasada a
+  `product.missing_streak` / `variant.missing_streak` y solo se marca `delisted_at` al llegar a
+  `SCRAPER_DELIST_MIN_MISSES` (2 por defecto; 1 = comportamiento sin histéresis). Volver a verse
+  reinicia el contador, y una pasada de ámbito sospechoso **no** lo avanza, así que un fallo
+  puntual no gasta intentos. El resumen del job imprime los ausentes pendientes de confirmar.
 
-Pendiente (Fase 2, ver memoria del proyecto): histéresis (N pasadas sin ver antes de dar de
-baja) y confirmación activa vía endpoint de detalle antes de descatalogar.
+Pendiente (ver memoria del proyecto): confirmación activa vía endpoint de detalle antes de
+descatalogar (404/vacío → baja real; 200 → sigue vendiéndose).
 
 ## Añadir una tienda
 
