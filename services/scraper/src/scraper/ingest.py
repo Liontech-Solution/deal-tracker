@@ -6,6 +6,11 @@
      completo y se apila precio;
    - sin cambios -> NO se pide detalle; solo se refresca `last_seen_at` (producto y variantes)
      para que no se marque como baja.
+3. A eso se suma un **refresco periódico forzado**: una prenda de precio estable nunca cambia de
+   huella, así que sin esto no se volvería a observar jamás. Sin re-observaciones no hay serie
+   temporal con la que corroborar un descuento (el veredicto de honestidad y el aviso exigen
+   histórico previo) y el stock por talla se queda congelado. Lo más rancio según
+   `product.last_detail_at` vuelve a pedirse, acotado por un presupuesto por pasada.
 
 Todo ocurre en una única transacción por ejecución (`scrape_run`). Las bajas se detectan por
 ausencia: lo no visto conserva un `last_seen_at` anterior, suma una pasada a `missing_streak`
@@ -18,7 +23,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import psycopg
@@ -40,15 +45,23 @@ DEFAULT_DELIST_DROP_RATIO = 0.5
 DEFAULT_DELIST_MIN_MISSES = 2
 # Confirmación activa: tope de sondeos por pasada (ver `_confirm_candidates`).
 DEFAULT_DELIST_PROBE_MAX = 50
+# Refresco forzado: edad a partir de la cual un detalle se considera rancio, y tope de
+# refrescos por pasada (ver `_stale_refreshes`).
+DEFAULT_DETAIL_MAX_AGE_DAYS = 7
+DEFAULT_DETAIL_REFRESH_MAX = 100
 
 _ScopeKey = tuple[str | None, str | None, str | None]
+
+# Orden de "nunca se le pidió detalle" al elegir a quién refrescar: lo más rancio que hay.
+_NEVER = datetime.min.replace(tzinfo=UTC)
 
 
 @dataclass
 class IngestResult:
     scrape_run_id: int
     products_in_catalog: int  # productos vistos en el listado
-    details_fetched: int  # productos a los que se pidió detalle (nuevos/cambiados)
+    details_fetched: int  # productos a los que se pidió detalle (nuevos/cambiados/rancios)
+    details_refreshed: int  # de los anteriores, los pedidos solo por antigüedad del detalle
     products_unchanged: int  # productos sin cambios (ahorro de peticiones de detalle)
     variants_seen: int
     prices_recorded: int
@@ -91,18 +104,32 @@ def _upsert_retailer(cur: psycopg.Cursor, store: BaseStore) -> int:
     return _scalar_int(cur)
 
 
-def _load_existing(
-    cur: psycopg.Cursor, retailer_id: int
-) -> dict[str, tuple[int, str | None, bool]]:
-    """Estado actual por producto: retailer_product_id -> (id, huella, está_descatalogado)."""
+@dataclass(frozen=True)
+class _ExistingProduct:
+    """Lo que ya sabemos de un producto antes de la pasada (decide si se le pide detalle)."""
+
+    id: int
+    signature: str | None
+    delisted: bool
+    last_detail_at: datetime | None  # None = nunca se le pidió detalle (o pre-migración 0009)
+
+
+def _load_existing(cur: psycopg.Cursor, retailer_id: int) -> dict[str, _ExistingProduct]:
+    """Estado actual por producto, indexado por `retailer_product_id`."""
     cur.execute(
         """
-        SELECT retailer_product_id, id, listing_signature, (delisted_at IS NOT NULL)
+        SELECT retailer_product_id, id, listing_signature, (delisted_at IS NOT NULL),
+               last_detail_at
         FROM product WHERE retailer_id = %s
         """,
         (retailer_id,),
     )
-    return {row[0]: (row[1], row[2], row[3]) for row in cur.fetchall()}
+    return {
+        row[0]: _ExistingProduct(
+            id=row[1], signature=row[2], delisted=row[3], last_detail_at=row[4]
+        )
+        for row in cur.fetchall()
+    }
 
 
 def _touch_seen(cur: psycopg.Cursor, product_id: int, run_ts: datetime) -> None:
@@ -124,8 +151,9 @@ def _upsert_product(
     cur.execute(
         """
         INSERT INTO product (retailer_id, retailer_product_id, name, gender, section,
-                             category, url, listing_signature, first_seen_at, last_seen_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                             category, url, listing_signature, first_seen_at, last_seen_at,
+                             last_detail_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (retailer_id, retailer_product_id) DO UPDATE SET
             name = EXCLUDED.name,
             gender = EXCLUDED.gender,
@@ -134,6 +162,7 @@ def _upsert_product(
             url = EXCLUDED.url,
             listing_signature = EXCLUDED.listing_signature,
             last_seen_at = EXCLUDED.last_seen_at,
+            last_detail_at = EXCLUDED.last_detail_at,
             delisted_at = NULL
         RETURNING id
         """,
@@ -148,6 +177,7 @@ def _upsert_product(
             signature,
             run_ts,
             run_ts,
+            run_ts,  # por aquí pasa todo producto al que se le pidió el detalle
         ),
     )
     return _scalar_int(cur)
@@ -210,12 +240,36 @@ def _record_price(
     )
 
 
-def _needs_detail(entry: ListingEntry, existing: tuple[int, str | None, bool] | None) -> bool:
+def _needs_detail(entry: ListingEntry, existing: _ExistingProduct | None) -> bool:
     """Pide detalle si es nuevo, si la huella del listado cambió, o si estaba descatalogado."""
     if existing is None:
         return True
-    _product_id, signature, is_delisted = existing
-    return is_delisted or signature != entry.signature
+    return existing.delisted or existing.signature != entry.signature
+
+
+def _stale_refreshes(
+    candidates: list[tuple[ListingEntry, _ExistingProduct]],
+    run_ts: datetime,
+    max_age_days: int,
+    refresh_max: int,
+) -> set[str]:
+    """De los productos sin cambios, cuáles toca refrescar igualmente por antigüedad.
+
+    Se eligen los **más rancios primero** y se recorta al presupuesto de la pasada: lo refrescado
+    estrena `last_detail_at` y se va al final de la cola, así que pasadas sucesivas barren el
+    catálogo en round-robin sin ráfagas. Con `max_age_days = 0` no se refresca nada (escape hatch).
+    """
+    if max_age_days <= 0 or refresh_max <= 0:
+        return set()
+    cutoff = run_ts - timedelta(days=max_age_days)
+    stale = [
+        (existing.last_detail_at, entry.retailer_product_id)
+        for entry, existing in candidates
+        if existing.last_detail_at is None or existing.last_detail_at < cutoff
+    ]
+    # `None` es lo más rancio posible: nunca se le pidió el detalle (o es de antes de la 0009).
+    stale.sort(key=lambda item: item[0] or _NEVER)
+    return {product_id for _, product_id in stale[:refresh_max]}
 
 
 def _load_active_counts(cur: psycopg.Cursor, retailer_id: int) -> dict[_ScopeKey, int]:
@@ -490,6 +544,8 @@ def ingest(
     delist_min_misses: int = DEFAULT_DELIST_MIN_MISSES,
     delist_probe: bool = True,
     delist_probe_max: int = DEFAULT_DELIST_PROBE_MAX,
+    detail_max_age_days: int = DEFAULT_DETAIL_MAX_AGE_DAYS,
+    detail_refresh_max: int = DEFAULT_DETAIL_REFRESH_MAX,
 ) -> IngestResult:
     """Ejecuta una pasada completa del scraper y persiste el resultado. Atómico."""
     run_ts = run_ts or datetime.now(UTC)
@@ -509,16 +565,33 @@ def ingest(
             entries = list(store.list_catalog())
             to_fetch: list[ListingEntry] = []
             signature_by_id: dict[str, str] = {}
-            products_unchanged = 0
+            unchanged: list[tuple[ListingEntry, _ExistingProduct]] = []
             for entry in entries:
-                if _needs_detail(entry, existing.get(entry.retailer_product_id)):
+                prior = existing.get(entry.retailer_product_id)
+                if _needs_detail(entry, prior):
                     to_fetch.append(entry)
                     signature_by_id[entry.retailer_product_id] = entry.signature
                 else:
-                    _touch_seen(cur, existing[entry.retailer_product_id][0], run_ts)
+                    assert prior is not None  # _needs_detail ya devolvió True si no existía
+                    unchanged.append((entry, prior))
+
+            # Refresco forzado: los sin cambios con el detalle más rancio se piden igualmente,
+            # porque su huella no va a cambiar nunca sola y sin re-observaciones no hay serie.
+            to_refresh = _stale_refreshes(
+                unchanged, run_ts, detail_max_age_days, detail_refresh_max
+            )
+            products_unchanged = 0
+            for entry, prior in unchanged:
+                if entry.retailer_product_id in to_refresh:
+                    to_fetch.append(entry)
+                    # Con su huella ACTUAL: escribir otra cosa haría que la pasada siguiente la
+                    # viera cambiada y volviese a pedir el detalle de todo, en bucle.
+                    signature_by_id[entry.retailer_product_id] = entry.signature
+                else:
+                    _touch_seen(cur, prior.id, run_ts)
                     products_unchanged += 1
 
-            # Fase 2: detalle SOLO de nuevos/cambiados -> upsert + apilar precio.
+            # Fase 2: detalle de nuevos/cambiados/rancios -> upsert + apilar precio.
             details_fetched = variants_seen = prices_recorded = 0
             for product in store.fetch_details(to_fetch):
                 details_fetched += 1
@@ -574,6 +647,7 @@ def ingest(
             scrape_run_id=run_id,
             products_in_catalog=len(entries),
             details_fetched=details_fetched,
+            details_refreshed=len(to_refresh),
             products_unchanged=products_unchanged,
             variants_seen=variants_seen,
             prices_recorded=prices_recorded,

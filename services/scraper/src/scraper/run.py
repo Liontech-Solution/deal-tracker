@@ -74,6 +74,8 @@ def main(argv: list[str] | None = None) -> int:
             delist_min_misses=config.delist_min_misses,
             delist_probe=config.delist_probe,
             delist_probe_max=config.delist_probe_max,
+            detail_max_age_days=config.detail_max_age_days,
+            detail_refresh_max=config.detail_refresh_max,
         )
 
     print(
@@ -83,6 +85,11 @@ def main(argv: list[str] | None = None) -> int:
         f"{result.variants_seen} variantes, {result.prices_recorded} precios; "
         f"bajas: {result.products_delisted} productos / {result.variants_delisted} variantes"
     )
+    if result.details_refreshed:
+        print(
+            f"refresco forzado: {result.details_refreshed} productos con el detalle rancio "
+            f"(> {config.detail_max_age_days} días) vueltos a observar"
+        )
     if result.products_missing or result.variants_missing:
         print(
             f"ausentes pendientes de confirmar (histéresis, umbral {config.delist_min_misses}): "
