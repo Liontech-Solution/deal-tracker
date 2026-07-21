@@ -1,0 +1,1930 @@
+{
+ "success": true,
+ "data": {
+  "paginatedDatalayer": {
+   "page": {
+    "brand": "Multi Brand",
+    "system": "Firefly",
+    "hierarchy": [
+     "Niños",
+     "Niño"
+    ],
+    "current_page": 1,
+    "items_per_page": 12,
+    "sorting": "Recomendados",
+    "sub_type": "categories",
+    "total_pages": 20,
+    "total_products": 230,
+    "type": "plp_standard_4"
+   },
+   "products": [
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Camisetas y polos"
+     ],
+     "code_a": "A200974138",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602357804",
+     "hierarchy": [
+      "ninos",
+      "nino"
+     ],
+     "id": "001015811718640",
+     "media": {
+      "count": 1
+     },
+     "name": "Camiseta estampada universitaria",
+     "price": {
+      "currency": "EUR",
+      "discount": 0,
+      "discount_percent": 0,
+      "f_price": 5.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015811718640004",
+     "store_id": "0090",
+     "group_by": "Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 1
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Camisetas y polos"
+     ],
+     "code_a": "A200974117",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602357668",
+     "hierarchy": [
+      "ninos",
+      "nino"
+     ],
+     "id": "001015811718624",
+     "media": {
+      "count": 1
+     },
+     "name": "Camiseta estampada universitaria",
+     "price": {
+      "currency": "EUR",
+      "discount": 0,
+      "discount_percent": 0,
+      "f_price": 5.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015811718624004",
+     "store_id": "0090",
+     "group_by": "Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 2
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Camisetas y polos"
+     ],
+     "code_a": "A200974202",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602435007",
+     "hierarchy": [
+      "ninos",
+      "nino"
+     ],
+     "id": "001015811718830",
+     "media": {
+      "count": 1
+     },
+     "name": "Camiseta breakfast",
+     "price": {
+      "currency": "EUR",
+      "discount": 0,
+      "discount_percent": 0,
+      "f_price": 7.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015811718830004",
+     "store_id": "0090",
+     "group_by": "Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 3
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Camisetas y polos"
+     ],
+     "code_a": "A200974201",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602434925",
+     "hierarchy": [
+      "ninos",
+      "nino"
+     ],
+     "id": "001015811718822",
+     "media": {
+      "count": 1
+     },
+     "name": "Camiseta hamburguesa",
+     "price": {
+      "currency": "EUR",
+      "discount": 0,
+      "discount_percent": 0,
+      "f_price": 7.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015811718822004",
+     "store_id": "0090",
+     "group_by": "Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 4
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Camisetas y polos"
+     ],
+     "code_a": "A200974115",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602357941",
+     "hierarchy": [
+      "ninos",
+      "nino"
+     ],
+     "id": "001015811718665",
+     "media": {
+      "count": 1
+     },
+     "name": "Camiseta básica rayas",
+     "price": {
+      "currency": "EUR",
+      "discount": 0,
+      "discount_percent": 0,
+      "f_price": 5.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015811718665004",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 5
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Camisetas y polos"
+     ],
+     "code_a": "A200974111",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602358856",
+     "hierarchy": [
+      "ninos",
+      "nino"
+     ],
+     "id": "001015813704127",
+     "media": {
+      "count": 1
+     },
+     "name": "Polo básico",
+     "price": {
+      "currency": "EUR",
+      "discount": 0,
+      "discount_percent": 0,
+      "f_price": 7.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015813704127004",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 6
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Vaqueros"
+     ],
+     "code_a": "A200973786",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602365151",
+     "hierarchy": [
+      "ninos",
+      "nino"
+     ],
+     "id": "001015800503490",
+     "media": {
+      "count": 1
+     },
+     "name": "Denim básico 5 bolsillos",
+     "price": {
+      "currency": "EUR",
+      "discount": 0,
+      "discount_percent": 0,
+      "f_price": 15.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015800503490004",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 7
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Camisetas y polos"
+     ],
+     "code_a": "A200974195",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602358290",
+     "hierarchy": [
+      "ninos",
+      "nino"
+     ],
+     "id": "001015813704093",
+     "media": {
+      "count": 1
+     },
+     "name": "Polo básico",
+     "price": {
+      "currency": "EUR",
+      "discount": 0,
+      "discount_percent": 0,
+      "f_price": 7.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015813704093004",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 8
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Camisas"
+     ],
+     "code_a": "A200973615",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602364901",
+     "hierarchy": [
+      "ninos",
+      "nino"
+     ],
+     "id": "001015805303805",
+     "media": {
+      "count": 1
+     },
+     "name": "Camisa oxford lisa",
+     "price": {
+      "currency": "EUR",
+      "discount": 0,
+      "discount_percent": 0,
+      "f_price": 15.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015805303805004",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 9
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Vaqueros"
+     ],
+     "code_a": "A200973644",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602364727",
+     "hierarchy": [
+      "ninos",
+      "nino"
+     ],
+     "id": "001015800503482",
+     "media": {
+      "count": 1
+     },
+     "name": "Denim básico 5 bolsillos",
+     "price": {
+      "currency": "EUR",
+      "discount": 0,
+      "discount_percent": 0,
+      "f_price": 15.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015800503482004",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 10
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Camisas"
+     ],
+     "code_a": "A200973841",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602365335",
+     "hierarchy": [
+      "ninos",
+      "nino"
+     ],
+     "id": "001015805303813",
+     "media": {
+      "count": 1
+     },
+     "name": "Camisa oxford rayas",
+     "price": {
+      "currency": "EUR",
+      "discount": 0,
+      "discount_percent": 0,
+      "f_price": 15.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015805303813004",
+     "store_id": "0090",
+     "group_by": "Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 11
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Pantalones"
+     ],
+     "code_a": "A200973616",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602366189",
+     "hierarchy": [
+      "ninos",
+      "nino"
+     ],
+     "id": "001015803206539",
+     "media": {
+      "count": 1
+     },
+     "name": "Pantalón terry básico",
+     "price": {
+      "currency": "EUR",
+      "discount": 0,
+      "discount_percent": 0,
+      "f_price": 7.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015803206539004",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 12
+    }
+   ]
+  },
+  "title": "Niño (Niños) | Sfera España",
+  "products": [
+   {
+    "_base_url": "https://www.sfera.com/es/ninos/A200974138-camiseta-estampada-universitaria/?parentCategoryId=5002.54352690027",
+    "_canonical": "https://www.sfera.com/es/ninos/A200974138-camiseta-estampada-universitaria/?parentCategoryId=5002.54352690027",
+    "_is_collection": false,
+    "_is_edig": false,
+    "_my_colors": [
+     {
+      "common_sku": "001015811718640",
+      "eciCommonReference": "001015811718640",
+      "hideColor": false,
+      "is_favorite": false,
+      "preselected": true,
+      "title": "Azul marino",
+      "not_available": false,
+      "company": "001",
+      "showPrice": false,
+      "hasDoubleSize": false,
+      "variants": [
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410910004",
+        "eciReference": "001015811718640004",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357804",
+        "id": "001015811718640004",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718640004",
+        "skuForSimilarImages": "001015811718640004",
+        "status": "ADD",
+        "stockReference": "001015811718640004:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "4-5 años - Medida 4-5 años",
+         "valueMain": "4-5 años/4-5 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718640004",
+        "sales_reference": "001015811718640004:001:DVD"
+       },
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410910005",
+        "eciReference": "001015811718640005",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357811",
+        "id": "001015811718640005",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718640005",
+        "skuForSimilarImages": "001015811718640005",
+        "status": "ADD",
+        "stockReference": "001015811718640005:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "5-6 años - Medida 5-6 años",
+         "valueMain": "5-6 años/5-6 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718640005",
+        "sales_reference": "001015811718640005:001:DVD"
+       },
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410910006",
+        "eciReference": "001015811718640006",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357828",
+        "id": "001015811718640006",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718640006",
+        "skuForSimilarImages": "001015811718640006",
+        "status": "ADD",
+        "stockReference": "001015811718640006:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "6-7 años - Medida 6-7 años",
+         "valueMain": "6-7 años/6-7 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718640006",
+        "sales_reference": "001015811718640006:001:DVD"
+       },
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410910007",
+        "eciReference": "001015811718640007",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357835",
+        "id": "001015811718640007",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718640007",
+        "skuForSimilarImages": "001015811718640007",
+        "status": "ADD",
+        "stockReference": "001015811718640007:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "7-8 años - Medida 7-8 años",
+         "valueMain": "7-8 años/7-8 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718640007",
+        "sales_reference": "001015811718640007:001:DVD"
+       },
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410910009",
+        "eciReference": "001015811718640009",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357842",
+        "id": "001015811718640009",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718640009",
+        "skuForSimilarImages": "001015811718640009",
+        "status": "ADD",
+        "stockReference": "001015811718640009:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "9-10 años - Medida 9-10 años",
+         "valueMain": "9-10 años/9-10 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718640009",
+        "sales_reference": "001015811718640009:001:DVD"
+       },
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410910011",
+        "eciReference": "001015811718640011",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357859",
+        "id": "001015811718640011",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718640011",
+        "skuForSimilarImages": "001015811718640011",
+        "status": "ADD",
+        "stockReference": "001015811718640011:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "11-12 años - Medida 11-12 años",
+         "valueMain": "11-12 años/11-12 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718640011",
+        "sales_reference": "001015811718640011:001:DVD"
+       },
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410910013",
+        "eciReference": "001015811718640013",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357866",
+        "id": "001015811718640013",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718640013",
+        "skuForSimilarImages": "001015811718640013",
+        "status": "ADD",
+        "stockReference": "001015811718640013:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "13-14 años - Medida 13-14 años",
+         "valueMain": "13-14 años/13-14 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718640013",
+        "sales_reference": "001015811718640013:001:DVD"
+       }
+      ],
+      "hasPriceRange": false
+     }
+    ],
+    "_status": "ADD",
+    "_uri": "/es/ninos/A200974138-camiseta-estampada-universitaria/?parentCategoryId=5002.54352690027",
+    "badges": {
+     "express": false,
+     "new": false,
+     "exclusive": false,
+     "eci_exclusive": false,
+     "coming_soon": false,
+     "express_delivery": false
+    },
+    "brand": {
+     "name": "Sfera",
+     "slug": "sfera",
+     "value": "2307390056"
+    },
+    "categories": [
+     {
+      "identifier": "5002.54072473027",
+      "id": "5002.54072473027",
+      "name": "Niños"
+     },
+     {
+      "identifier": "5002.54352690027",
+      "id": "5002.54352690027",
+      "name": "Niño"
+     }
+    ],
+    "id": "A200974138",
+    "objectId": "001_001015811718640004",
+    "isSoldBy": false,
+    "provider": [
+     {
+      "name": "El Corte Ingles, S.A.",
+      "provider_id": "001",
+      "type": "eci"
+     }
+    ],
+    "showUnits": false,
+    "isGiftCard": false,
+    "store_id": "0090",
+    "title": "Camiseta estampada universitaria",
+    "vendors": {
+     "BazaarVoice": {
+      "hasBazaarVoice": true,
+      "url": "https://apps.bazaarvoice.com/deployments/elcorteingles/main_site/production/es_ES/bv.js",
+      "seo": {
+       "url": "https://seo.bazaarvoice.com/elcorteingles-53b99fca72c2d55df98dab8d68aa6190/Main_Site-es_ES/reviews/product"
+      }
+     },
+     "FlixMedia": {
+      "hasFlixMedia": false
+     },
+     "RichRelevance": {
+      "hasRichRelevance": false
+     },
+     "SimilarImages": {
+      "hasSimilarImages": false
+     },
+     "LoadBee": {
+      "hasLoadBee": false
+     },
+     "Revieve": {
+      "hasRevieve": false
+     },
+     "Usizy": {
+      "active": false
+     },
+     "XSell": {
+      "hasXSell": false
+     },
+     "RetailMedia": {
+      "hasRetailMedia": false
+     },
+     "AdobeTarget": {
+      "hasAdobeTarget": true,
+      "url": "https://www.sfera.com",
+      "endpoint": "https://edge.adobedc.net/ee/irl1/v2/interact?dataStreamId=f221a9de-5877-476d-a8dc-e7aede85526a"
+     }
+    },
+    "group_by": "Talla",
+    "isOcio": false,
+    "isTicketsProduct": false,
+    "_image_css_classes": "",
+    "promotional_actions": [],
+    "hierarchy": [
+     "ninos",
+     "nino"
+    ]
+   },
+   {
+    "_base_url": "https://www.sfera.com/es/ninos/A200974117-camiseta-estampada-universitaria/?parentCategoryId=5002.54352690027",
+    "_canonical": "https://www.sfera.com/es/ninos/A200974117-camiseta-estampada-universitaria/?parentCategoryId=5002.54352690027",
+    "_is_collection": false,
+    "_is_edig": false,
+    "_my_colors": [
+     {
+      "common_sku": "001015811718624",
+      "eciCommonReference": "001015811718624",
+      "hideColor": false,
+      "is_favorite": false,
+      "preselected": true,
+      "title": "Gris claro",
+      "not_available": false,
+      "company": "001",
+      "showPrice": false,
+      "hasDoubleSize": false,
+      "variants": [
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410740004",
+        "eciReference": "001015811718624004",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357668",
+        "id": "001015811718624004",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718624004",
+        "skuForSimilarImages": "001015811718624004",
+        "status": "ADD",
+        "stockReference": "001015811718624004:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "4-5 años - Medida 4-5 años",
+         "valueMain": "4-5 años/4-5 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718624004",
+        "sales_reference": "001015811718624004:001:DVD"
+       },
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410740005",
+        "eciReference": "001015811718624005",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357675",
+        "id": "001015811718624005",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718624005",
+        "skuForSimilarImages": "001015811718624005",
+        "status": "ADD",
+        "stockReference": "001015811718624005:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "5-6 años - Medida 5-6 años",
+         "valueMain": "5-6 años/5-6 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718624005",
+        "sales_reference": "001015811718624005:001:DVD"
+       },
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410740006",
+        "eciReference": "001015811718624006",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357682",
+        "id": "001015811718624006",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718624006",
+        "skuForSimilarImages": "001015811718624006",
+        "status": "ADD",
+        "stockReference": "001015811718624006:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "6-7 años - Medida 6-7 años",
+         "valueMain": "6-7 años/6-7 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718624006",
+        "sales_reference": "001015811718624006:001:DVD"
+       },
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410740007",
+        "eciReference": "001015811718624007",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357699",
+        "id": "001015811718624007",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718624007",
+        "skuForSimilarImages": "001015811718624007",
+        "status": "ADD",
+        "stockReference": "001015811718624007:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "7-8 años - Medida 7-8 años",
+         "valueMain": "7-8 años/7-8 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718624007",
+        "sales_reference": "001015811718624007:001:DVD"
+       },
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410740009",
+        "eciReference": "001015811718624009",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357705",
+        "id": "001015811718624009",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718624009",
+        "skuForSimilarImages": "001015811718624009",
+        "status": "ADD",
+        "stockReference": "001015811718624009:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "9-10 años - Medida 9-10 años",
+         "valueMain": "9-10 años/9-10 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718624009",
+        "sales_reference": "001015811718624009:001:DVD"
+       },
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410740011",
+        "eciReference": "001015811718624011",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357712",
+        "id": "001015811718624011",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718624011",
+        "skuForSimilarImages": "001015811718624011",
+        "status": "ADD",
+        "stockReference": "001015811718624011:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "11-12 años - Medida 11-12 años",
+         "valueMain": "11-12 años/11-12 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718624011",
+        "sales_reference": "001015811718624011:001:DVD"
+       },
+       {
+        "price": 5.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590410740013",
+        "eciReference": "001015811718624013",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602357729",
+        "id": "001015811718624013",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718624013",
+        "skuForSimilarImages": "001015811718624013",
+        "status": "ADD",
+        "stockReference": "001015811718624013:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 5.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "13-14 años - Medida 13-14 años",
+         "valueMain": "13-14 años/13-14 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718624013",
+        "sales_reference": "001015811718624013:001:DVD"
+       }
+      ],
+      "hasPriceRange": false
+     }
+    ],
+    "_status": "ADD",
+    "_uri": "/es/ninos/A200974117-camiseta-estampada-universitaria/?parentCategoryId=5002.54352690027",
+    "badges": {
+     "express": false,
+     "new": false,
+     "exclusive": false,
+     "eci_exclusive": false,
+     "coming_soon": false,
+     "express_delivery": false
+    },
+    "brand": {
+     "name": "Sfera",
+     "slug": "sfera",
+     "value": "2307390056"
+    },
+    "categories": [
+     {
+      "identifier": "5002.54072473027",
+      "id": "5002.54072473027",
+      "name": "Niños"
+     },
+     {
+      "identifier": "5002.54352690027",
+      "id": "5002.54352690027",
+      "name": "Niño"
+     }
+    ],
+    "id": "A200974117",
+    "objectId": "001_001015811718624004",
+    "isSoldBy": false,
+    "provider": [
+     {
+      "name": "El Corte Ingles, S.A.",
+      "provider_id": "001",
+      "type": "eci"
+     }
+    ],
+    "showUnits": false,
+    "isGiftCard": false,
+    "store_id": "0090",
+    "title": "Camiseta estampada universitaria",
+    "vendors": {
+     "BazaarVoice": {
+      "hasBazaarVoice": true,
+      "url": "https://apps.bazaarvoice.com/deployments/elcorteingles/main_site/production/es_ES/bv.js",
+      "seo": {
+       "url": "https://seo.bazaarvoice.com/elcorteingles-53b99fca72c2d55df98dab8d68aa6190/Main_Site-es_ES/reviews/product"
+      }
+     },
+     "FlixMedia": {
+      "hasFlixMedia": false
+     },
+     "RichRelevance": {
+      "hasRichRelevance": false
+     },
+     "SimilarImages": {
+      "hasSimilarImages": false
+     },
+     "LoadBee": {
+      "hasLoadBee": false
+     },
+     "Revieve": {
+      "hasRevieve": false
+     },
+     "Usizy": {
+      "active": false
+     },
+     "XSell": {
+      "hasXSell": false
+     },
+     "RetailMedia": {
+      "hasRetailMedia": false
+     },
+     "AdobeTarget": {
+      "hasAdobeTarget": true,
+      "url": "https://www.sfera.com",
+      "endpoint": "https://edge.adobedc.net/ee/irl1/v2/interact?dataStreamId=f221a9de-5877-476d-a8dc-e7aede85526a"
+     }
+    },
+    "group_by": "Talla",
+    "isOcio": false,
+    "isTicketsProduct": false,
+    "_image_css_classes": "",
+    "promotional_actions": [],
+    "hierarchy": [
+     "ninos",
+     "nino"
+    ]
+   },
+   {
+    "_base_url": "https://www.sfera.com/es/ninos/A200974202-camiseta-breakfast/?parentCategoryId=5002.54352690027",
+    "_canonical": "https://www.sfera.com/es/ninos/A200974202-camiseta-breakfast/?parentCategoryId=5002.54352690027",
+    "_is_collection": false,
+    "_is_edig": false,
+    "_my_colors": [
+     {
+      "common_sku": "001015811718830",
+      "eciCommonReference": "001015811718830",
+      "hideColor": false,
+      "is_favorite": false,
+      "preselected": true,
+      "title": "Burdeos",
+      "not_available": false,
+      "company": "001",
+      "showPrice": false,
+      "hasDoubleSize": false,
+      "variants": [
+       {
+        "price": 7.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590761610004",
+        "eciReference": "001015811718830004",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602435007",
+        "id": "001015811718830004",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718830004",
+        "skuForSimilarImages": "001015811718830004",
+        "status": "ADD",
+        "stockReference": "001015811718830004:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 7.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "4-5 años - Medida 4-5 años",
+         "valueMain": "4-5 años/4-5 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718830004",
+        "sales_reference": "001015811718830004:001:DVD"
+       },
+       {
+        "price": 7.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590761610005",
+        "eciReference": "001015811718830005",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602435052",
+        "id": "001015811718830005",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718830005",
+        "skuForSimilarImages": "001015811718830005",
+        "status": "ADD",
+        "stockReference": "001015811718830005:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 7.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "5-6 años - Medida 5-6 años",
+         "valueMain": "5-6 años/5-6 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718830005",
+        "sales_reference": "001015811718830005:001:DVD"
+       },
+       {
+        "price": 7.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590761610006",
+        "eciReference": "001015811718830006",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602435076",
+        "id": "001015811718830006",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718830006",
+        "skuForSimilarImages": "001015811718830006",
+        "status": "ADD",
+        "stockReference": "001015811718830006:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 7.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "6-7 años - Medida 6-7 años",
+         "valueMain": "6-7 años/6-7 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718830006",
+        "sales_reference": "001015811718830006:001:DVD"
+       },
+       {
+        "price": 7.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590761610007",
+        "eciReference": "001015811718830007",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602435090",
+        "id": "001015811718830007",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718830007",
+        "skuForSimilarImages": "001015811718830007",
+        "status": "ADD",
+        "stockReference": "001015811718830007:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 7.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "7-8 años - Medida 7-8 años",
+         "valueMain": "7-8 años/7-8 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718830007",
+        "sales_reference": "001015811718830007:001:DVD"
+       },
+       {
+        "price": 7.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590761610009",
+        "eciReference": "001015811718830009",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602435106",
+        "id": "001015811718830009",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718830009",
+        "skuForSimilarImages": "001015811718830009",
+        "status": "ADD",
+        "stockReference": "001015811718830009:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 7.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "9-10 años - Medida 9-10 años",
+         "valueMain": "9-10 años/9-10 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718830009",
+        "sales_reference": "001015811718830009:001:DVD"
+       },
+       {
+        "price": 7.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590761610011",
+        "eciReference": "001015811718830011",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602435113",
+        "id": "001015811718830011",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718830011",
+        "skuForSimilarImages": "001015811718830011",
+        "status": "ADD",
+        "stockReference": "001015811718830011:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 7.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "11-12 años - Medida 11-12 años",
+         "valueMain": "11-12 años/11-12 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718830011",
+        "sales_reference": "001015811718830011:001:DVD"
+       },
+       {
+        "price": 7.99,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001590761610013",
+        "eciReference": "001015811718830013",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602435120",
+        "id": "001015811718830013",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001015811718830013",
+        "skuForSimilarImages": "001015811718830013",
+        "status": "ADD",
+        "stockReference": "001015811718830013:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 7.99,
+         "title": "Talla",
+         "fullTitle": "Talla/Medida",
+         "value": "13-14 años - Medida 13-14 años",
+         "valueMain": "13-14 años/13-14 años",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001015811718830013",
+        "sales_reference": "001015811718830013:001:DVD"
+       }
+      ],
+      "hasPriceRange": false
+     }
+    ],
+    "_status": "ADD",
+    "_uri": "/es/ninos/A200974202-camiseta-breakfast/?parentCategoryId=5002.54352690027",
+    "badges": {
+     "express": false,
+     "new": false,
+     "exclusive": false,
+     "eci_exclusive": false,
+     "coming_soon": false,
+     "express_delivery": false
+    },
+    "brand": {
+     "name": "Sfera",
+     "slug": "sfera",
+     "value": "2307390056"
+    },
+    "categories": [
+     {
+      "identifier": "5002.54072473027",
+      "id": "5002.54072473027",
+      "name": "Niños"
+     },
+     {
+      "identifier": "5002.54352690027",
+      "id": "5002.54352690027",
+      "name": "Niño"
+     }
+    ],
+    "id": "A200974202",
+    "objectId": "001_001015811718830004",
+    "isSoldBy": false,
+    "provider": [
+     {
+      "name": "El Corte Ingles, S.A.",
+      "provider_id": "001",
+      "type": "eci"
+     }
+    ],
+    "showUnits": false,
+    "isGiftCard": false,
+    "store_id": "0090",
+    "title": "Camiseta breakfast",
+    "vendors": {
+     "BazaarVoice": {
+      "hasBazaarVoice": true,
+      "url": "https://apps.bazaarvoice.com/deployments/elcorteingles/main_site/production/es_ES/bv.js",
+      "seo": {
+       "url": "https://seo.bazaarvoice.com/elcorteingles-53b99fca72c2d55df98dab8d68aa6190/Main_Site-es_ES/reviews/product"
+      }
+     },
+     "FlixMedia": {
+      "hasFlixMedia": false
+     },
+     "RichRelevance": {
+      "hasRichRelevance": false
+     },
+     "SimilarImages": {
+      "hasSimilarImages": false
+     },
+     "LoadBee": {
+      "hasLoadBee": false
+     },
+     "Revieve": {
+      "hasRevieve": false
+     },
+     "Usizy": {
+      "active": false
+     },
+     "XSell": {
+      "hasXSell": false
+     },
+     "RetailMedia": {
+      "hasRetailMedia": false
+     },
+     "AdobeTarget": {
+      "hasAdobeTarget": true,
+      "url": "https://www.sfera.com",
+      "endpoint": "https://edge.adobedc.net/ee/irl1/v2/interact?dataStreamId=f221a9de-5877-476d-a8dc-e7aede85526a"
+     }
+    },
+    "group_by": "Talla",
+    "isOcio": false,
+    "isTicketsProduct": false,
+    "_image_css_classes": "",
+    "promotional_actions": [],
+    "hierarchy": [
+     "ninos",
+     "nino"
+    ]
+   }
+  ],
+  "pagination": {
+   "_current": 1,
+   "_total": 20,
+   "itemsPerPage": 12,
+   "count": 230,
+   "standard_count": 230,
+   "express_count": 0
+  },
+  "_sortings": [
+   {
+    "key": "featuredDesc",
+    "description": "Recomendados",
+    "is_default": true
+   },
+   {
+    "key": "priceAsc",
+    "description": "Precio de menor a mayor"
+   },
+   {
+    "key": "priceDesc",
+    "description": "Precio de mayor a menor"
+   },
+   {
+    "key": "bestSellerQtyDesc",
+    "description": "Más vendidos"
+   },
+   {
+    "key": "discountPerDesc",
+    "description": "% Descuento"
+   },
+   {
+    "key": "newInAsc",
+    "description": "Novedades"
+   }
+  ],
+  "_selected_sorting": {
+   "key": "featuredDesc",
+   "description": "Recomendados",
+   "is_default": true
+  },
+  "placements": {
+   "band": {
+    "id": "696a26b23f224fc524e7cfbb",
+    "name": "MOD / SFERA / BANDA / REBAJAS",
+    "compositions": [
+     {
+      "padding": false,
+      "id": "6a329c5d96e2235ab2ad3a7f",
+      "name": "MOD / SFERA / BANDA / REBAJAS / JUNIO 26 ok",
+      "layout": [
+       {
+        "any": 12
+       }
+      ],
+      "artworks": [
+       [
+        {
+         "artwork": {
+          "id": "6a329c4796e2235ab2ad3a7a",
+          "name": "MOD / SFERA / BANDA / REBAJAS / JUNIO 26 ok",
+          "analytics_name": "",
+          "type": "band_vue",
+          "settings": {
+           "is_standard_color": true,
+           "multi_band": [
+            {
+             "title": "RECOGIDA EN TIENDA GRATIS",
+             "alternative_text": "RECOGIDA EN TIENDA GRATIS"
+            },
+            {
+             "title": "3as REBAJAS HASTA -50%",
+             "alternative_text": "3as REBAJAS HASTA -50%"
+            }
+           ]
+          },
+          "default_locale": "es_ES",
+          "contribution": "",
+          "cdp_segments": [],
+          "segments": [],
+          "is_carousel": false,
+          "sheet_id": "696a26b23f224fc524e7cfbb",
+          "composition_id": "6a329c5d96e2235ab2ad3a7f",
+          "sticker_info": null,
+          "placement": "band"
+         },
+         "layer_settings": {}
+        }
+       ]
+      ],
+      "stickers": [
+       null
+      ],
+      "margin": {
+       "top": false,
+       "bottom": false
+      },
+      "destinations": [],
+      "is_carousel": false,
+      "flat_rate": false,
+      "background": {
+       "color": null,
+       "picture": null,
+       "type_background": "none"
+      },
+      "same_height": false,
+      "mobile_carousel": false,
+      "type": "default",
+      "padding_composition": false,
+      "segments": [],
+      "cdp_segments": [],
+      "header": null,
+      "lastUpdate": 1784634337903,
+      "artworkSegments": [],
+      "controlArtworkSegments": false
+     }
+    ],
+    "sheet_type": "normal",
+    "trigger": "6981b6a7f5aaa2cb950a1649",
+    "template": "others",
+    "placement_name": "band",
+    "placement_position": {},
+    "html": ""
+   }
+  },
+  "_delivery_facet": {
+   "delivery": {
+    "default": [],
+    "additional": []
+   },
+   "collect": {
+    "default": [],
+    "additional": []
+   }
+  },
+  "filters": {
+   "_filters": [],
+   "_menubar": [],
+   "_filters_trail": []
+  }
+ }
+}

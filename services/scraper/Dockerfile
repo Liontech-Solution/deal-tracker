@@ -20,14 +20,21 @@ FROM python:3.13-slim AS runtime
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
-    SCRAPER_MIGRATIONS_DIR=/app/db/migrations
+    SCRAPER_MIGRATIONS_DIR=/app/db/migrations \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
 WORKDIR /app
 
 COPY --from=build /opt/venv /opt/venv
 # Migraciones (contrato de esquema) para poder aplicarlas desde el propio job.
 COPY db/migrations /app/db/migrations
 
-RUN useradd --create-home --uid 10001 appuser
+# Navegador headless para tiendas tras Akamai (p.ej. Sfera). `--with-deps` trae las libs
+# de sistema que Chromium necesita; solo el navegador, no todos. Engorda la imagen ~+400 MB
+# (coste asumido). El binario se instala en PLAYWRIGHT_BROWSERS_PATH, legible por appuser.
+RUN playwright install --with-deps chromium
+
+RUN useradd --create-home --uid 10001 appuser \
+    && chown -R appuser:appuser /opt/pw-browsers
 USER appuser
 
 # Comprobación de sanidad: el paquete importa correctamente.

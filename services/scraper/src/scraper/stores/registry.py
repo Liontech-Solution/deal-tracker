@@ -6,11 +6,13 @@ from collections.abc import Callable
 
 from ..config import Config
 from .base import BaseStore
+from .sfera import SferaStore
 from .zara import ZaraStore
 
 # slug -> factoría que construye el scraper con la config.
 _STORES: dict[str, Callable[[Config], BaseStore]] = {
     ZaraStore.slug: ZaraStore,
+    SferaStore.slug: SferaStore,
 }
 
 

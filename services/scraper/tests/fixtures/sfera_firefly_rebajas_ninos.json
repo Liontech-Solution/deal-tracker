@@ -1,0 +1,1290 @@
+{
+ "success": true,
+ "data": {
+  "paginatedDatalayer": {
+   "page": {
+    "brand": "Multi Brand",
+    "system": "Firefly",
+    "hierarchy": [
+     "Niños",
+     "Rebajas"
+    ],
+    "current_page": 1,
+    "items_per_page": 12,
+    "sorting": "Novedades",
+    "sub_type": "searchfilter",
+    "total_pages": 47,
+    "total_products": 562,
+    "type": "plp_standard_4"
+   },
+   "products": [
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Bebé niña",
+      "Blusas y camisetas"
+     ],
+     "code_a": "A56581456",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8434804228384",
+     "hierarchy": [
+      "ninos"
+     ],
+     "id": "001089950716707",
+     "media": {
+      "count": 1
+     },
+     "name": "Camiseta pajarito",
+     "price": {
+      "currency": "EUR",
+      "discount": 4,
+      "discount_percent": 50,
+      "f_price": 3.99,
+      "o_price": 7.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001089950716707006",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 1
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Bebé niña",
+      "Vestidos y faldas"
+     ],
+     "code_a": "A56863742",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602048320",
+     "hierarchy": [
+      "ninos"
+     ],
+     "id": "001089988408228",
+     "media": {
+      "count": 1
+     },
+     "name": "Vestido tejido arrugado",
+     "price": {
+      "currency": "EUR",
+      "discount": 8,
+      "discount_percent": 50,
+      "f_price": 7.99,
+      "o_price": 15.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001089988408228006",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 2
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Bebé niña",
+      "Blusas y camisetas"
+     ],
+     "code_a": "A56581404",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8434804228148",
+     "hierarchy": [
+      "ninos"
+     ],
+     "id": "001089950716673",
+     "media": {
+      "count": 1
+     },
+     "name": "Camiseta gatito",
+     "price": {
+      "currency": "EUR",
+      "discount": 4,
+      "discount_percent": 50,
+      "f_price": 3.99,
+      "o_price": 7.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001089950716673009",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 3
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niña",
+      "Camisetas"
+     ],
+     "code_a": "A57460622",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602190661",
+     "hierarchy": [
+      "ninos"
+     ],
+     "id": "001058550723736",
+     "media": {
+      "count": 1
+     },
+     "name": "Camiseta rib asimétrica",
+     "price": {
+      "currency": "EUR",
+      "discount": 4,
+      "discount_percent": 50,
+      "f_price": 3.99,
+      "o_price": 7.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001058550723736013",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 4
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niña",
+      "Vestidos y monos"
+     ],
+     "code_a": "A57492408",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602199879",
+     "hierarchy": [
+      "ninos"
+     ],
+     "id": "001058578002808",
+     "media": {
+      "count": 1
+     },
+     "name": "Mono liso textura",
+     "price": {
+      "currency": "EUR",
+      "discount": 7,
+      "discount_percent": 54,
+      "f_price": 5.99,
+      "o_price": 12.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001058578002808004",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 5
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niña",
+      "Shorts y bermudas"
+     ],
+     "code_a": "A57460255",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602188873",
+     "hierarchy": [
+      "ninos"
+     ],
+     "id": "001058570305381",
+     "media": {
+      "count": 1
+     },
+     "name": "Short textura flor",
+     "price": {
+      "currency": "EUR",
+      "discount": 4,
+      "discount_percent": 50,
+      "f_price": 3.99,
+      "o_price": 7.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001058570305381009",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 6
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Shorts y bermudas"
+     ],
+     "code_a": "A56544331",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8434804155338",
+     "hierarchy": [
+      "ninos"
+     ],
+     "id": "001015800202143",
+     "media": {
+      "count": 1
+     },
+     "name": "Bermuda algodón rústico",
+     "price": {
+      "currency": "EUR",
+      "discount": 10,
+      "discount_percent": 55,
+      "f_price": 7.99,
+      "o_price": 17.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015800202143005",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 7
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Camisas"
+     ],
+     "code_a": "A56585869",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8434804246388",
+     "hierarchy": [
+      "ninos"
+     ],
+     "id": "001015805303714",
+     "media": {
+      "count": 1
+     },
+     "name": "Camisa paradise",
+     "price": {
+      "currency": "EUR",
+      "discount": 10,
+      "discount_percent": 55,
+      "f_price": 7.99,
+      "o_price": 17.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015805303714004",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 8
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niño",
+      "Camisas"
+     ],
+     "code_a": "A56585873",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8434804246463",
+     "hierarchy": [
+      "ninos"
+     ],
+     "id": "001015805303722",
+     "media": {
+      "count": 1
+     },
+     "name": "Camisa bordado",
+     "price": {
+      "currency": "EUR",
+      "discount": 5,
+      "discount_percent": 27,
+      "f_price": 12.99,
+      "o_price": 17.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001015805303722005",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 9
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Bebé niño",
+      "Camisetas"
+     ],
+     "code_a": "A57009760",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602094587",
+     "hierarchy": [
+      "ninos"
+     ],
+     "id": "001086411710246",
+     "media": {
+      "count": 1
+     },
+     "name": "Camiseta estampado playa",
+     "price": {
+      "currency": "EUR",
+      "discount": 4,
+      "discount_percent": 50,
+      "f_price": 3.99,
+      "o_price": 7.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001086411710246024",
+     "store_id": "0090",
+     "group_by": "Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 10
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Bebé niña",
+      "Punto y jerséis"
+     ],
+     "code_a": "A57311298",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602162590",
+     "hierarchy": [
+      "ninos"
+     ],
+     "id": "001089960007006",
+     "media": {
+      "count": 1
+     },
+     "name": "Chaqueta desagujada",
+     "price": {
+      "currency": "EUR",
+      "discount": 9,
+      "discount_percent": 50,
+      "f_price": 8.99,
+      "o_price": 17.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001089960007006001",
+     "store_id": "0090",
+     "group_by": "Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 11
+    },
+    {
+     "brand": "Sfera",
+     "category": [
+      "Sfera España",
+      "Niños",
+      "Niña",
+      "Camisetas"
+     ],
+     "code_a": "A57259270",
+     "eci_provider": "El Corte Inglés",
+     "gtin": "8447602149874",
+     "hierarchy": [
+      "ninos"
+     ],
+     "id": "001058552607101",
+     "media": {
+      "count": 1
+     },
+     "name": "Top tricot fantasía",
+     "price": {
+      "currency": "EUR",
+      "discount": 6,
+      "discount_percent": 37,
+      "f_price": 9.99,
+      "o_price": 15.99
+     },
+     "quantity": 1,
+     "status": "ADD",
+     "variant": "001058552607101004",
+     "store_id": "0090",
+     "group_by": "Color > Talla",
+     "customization": {
+      "available": 0
+     },
+     "badges": {
+      "coming_soon": false,
+      "eci_exclusive": false,
+      "exclusive": false,
+      "express": false,
+      "express_delivery": false,
+      "new": false
+     },
+     "position": 12
+    }
+   ]
+  },
+  "title": "Rebajas Niños · Sfera",
+  "products": [
+   {
+    "_base_url": "https://www.sfera.com/es/ninos/A56581456-camiseta-pajarito/?parentCategoryId=5002.54072473027",
+    "_canonical": "https://www.sfera.com/es/ninos/A56581456-camiseta-pajarito/?parentCategoryId=5002.54072473027",
+    "_is_collection": false,
+    "_is_edig": false,
+    "_my_colors": [
+     {
+      "common_sku": "001089950716707",
+      "eciCommonReference": "001089950716707",
+      "hideColor": false,
+      "is_favorite": false,
+      "preselected": true,
+      "title": "Blanco",
+      "not_available": false,
+      "company": "001",
+      "showPrice": false,
+      "hasDoubleSize": false,
+      "variants": [
+       {
+        "price": 7.99,
+        "sale_price": 3.99,
+        "discount": 50,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001582836840006",
+        "eciReference": "001089950716707006",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8434804228384",
+        "id": "001089950716707006",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001089950716707006",
+        "skuForSimilarImages": "001089950716707006",
+        "status": "ADD",
+        "stockReference": "001089950716707006:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 7.99,
+         "sale_price": 3.99,
+         "discount": 50,
+         "title": "Talla",
+         "fullTitle": "Talla",
+         "value": "6-9 meses",
+         "valueMain": "6-9 meses",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001089950716707006",
+        "sales_reference": "001089950716707006:001:DVD"
+       },
+       {
+        "price": 7.99,
+        "sale_price": 3.99,
+        "discount": 50,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001582836840009",
+        "eciReference": "001089950716707009",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8434804228452",
+        "id": "001089950716707009",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001089950716707009",
+        "skuForSimilarImages": "001089950716707009",
+        "status": "ADD",
+        "stockReference": "001089950716707009:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 7.99,
+         "sale_price": 3.99,
+         "discount": 50,
+         "title": "Talla",
+         "fullTitle": "Talla",
+         "value": "9-12 meses",
+         "valueMain": "9-12 meses",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001089950716707009",
+        "sales_reference": "001089950716707009:001:DVD"
+       }
+      ],
+      "hasPriceRange": false
+     }
+    ],
+    "_status": "ADD",
+    "_uri": "/es/ninos/A56581456-camiseta-pajarito/?parentCategoryId=5002.54072473027",
+    "badges": {
+     "express": false,
+     "new": false,
+     "exclusive": false,
+     "eci_exclusive": false,
+     "coming_soon": false,
+     "express_delivery": false
+    },
+    "brand": {
+     "name": "Sfera",
+     "slug": "sfera",
+     "value": "2307390056"
+    },
+    "categories": [
+     {
+      "identifier": "5002.54072473027",
+      "id": "5002.54072473027",
+      "name": "Niños"
+     }
+    ],
+    "id": "A56581456",
+    "objectId": "001_001089950716707006",
+    "isSoldBy": false,
+    "provider": [
+     {
+      "name": "El Corte Ingles, S.A.",
+      "provider_id": "001",
+      "type": "eci"
+     }
+    ],
+    "showUnits": false,
+    "isGiftCard": false,
+    "store_id": "0090",
+    "title": "Camiseta pajarito",
+    "vendors": {
+     "BazaarVoice": {
+      "hasBazaarVoice": true,
+      "url": "https://apps.bazaarvoice.com/deployments/elcorteingles/main_site/production/es_ES/bv.js",
+      "seo": {
+       "url": "https://seo.bazaarvoice.com/elcorteingles-53b99fca72c2d55df98dab8d68aa6190/Main_Site-es_ES/reviews/product"
+      }
+     },
+     "FlixMedia": {
+      "hasFlixMedia": false
+     },
+     "RichRelevance": {
+      "hasRichRelevance": false
+     },
+     "SimilarImages": {
+      "hasSimilarImages": false
+     },
+     "LoadBee": {
+      "hasLoadBee": false
+     },
+     "Revieve": {
+      "hasRevieve": false
+     },
+     "Usizy": {
+      "active": false
+     },
+     "XSell": {
+      "hasXSell": false
+     },
+     "RetailMedia": {
+      "hasRetailMedia": false
+     },
+     "AdobeTarget": {
+      "hasAdobeTarget": true,
+      "url": "https://www.sfera.com",
+      "endpoint": "https://edge.adobedc.net/ee/irl1/v2/interact?dataStreamId=f221a9de-5877-476d-a8dc-e7aede85526a"
+     }
+    },
+    "group_by": "Color > Talla",
+    "isOcio": false,
+    "isTicketsProduct": false,
+    "_image_css_classes": "",
+    "promotional_actions": [],
+    "hierarchy": [
+     "ninos"
+    ]
+   },
+   {
+    "_base_url": "https://www.sfera.com/es/ninos/A56863742-vestido-tejido-arrugado/?parentCategoryId=5002.54072473027",
+    "_canonical": "https://www.sfera.com/es/ninos/A56863742-vestido-tejido-arrugado/?parentCategoryId=5002.54072473027",
+    "_is_collection": false,
+    "_is_edig": false,
+    "_my_colors": [
+     {
+      "common_sku": "001089988408228",
+      "eciCommonReference": "001089988408228",
+      "hideColor": false,
+      "is_favorite": false,
+      "preselected": true,
+      "title": "Lavanda",
+      "not_available": false,
+      "company": "001",
+      "showPrice": false,
+      "hasDoubleSize": false,
+      "variants": [
+       {
+        "price": 15.99,
+        "sale_price": 7.99,
+        "discount": 50,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001584232840006",
+        "eciReference": "001089988408228006",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602048320",
+        "id": "001089988408228006",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001089988408228006",
+        "skuForSimilarImages": "001089988408228006",
+        "status": "ADD",
+        "stockReference": "001089988408228006:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 15.99,
+         "sale_price": 7.99,
+         "discount": 50,
+         "title": "Talla",
+         "fullTitle": "Talla",
+         "value": "6-9 meses",
+         "valueMain": "6-9 meses",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001089988408228006",
+        "sales_reference": "001089988408228006:001:DVD"
+       },
+       {
+        "price": 15.99,
+        "sale_price": 7.99,
+        "discount": 50,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001584232840012",
+        "eciReference": "001089988408228012",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8447602048351",
+        "id": "001089988408228012",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001089988408228012",
+        "skuForSimilarImages": "001089988408228012",
+        "status": "ADD",
+        "stockReference": "001089988408228012:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 15.99,
+         "sale_price": 7.99,
+         "discount": 50,
+         "title": "Talla",
+         "fullTitle": "Talla",
+         "value": "12-18 meses",
+         "valueMain": "12-18 meses",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001089988408228012",
+        "sales_reference": "001089988408228012:001:DVD"
+       }
+      ],
+      "hasPriceRange": false
+     }
+    ],
+    "_status": "ADD",
+    "_uri": "/es/ninos/A56863742-vestido-tejido-arrugado/?parentCategoryId=5002.54072473027",
+    "badges": {
+     "express": false,
+     "new": false,
+     "exclusive": false,
+     "eci_exclusive": false,
+     "coming_soon": false,
+     "express_delivery": false
+    },
+    "brand": {
+     "name": "Sfera",
+     "slug": "sfera",
+     "value": "2307390056"
+    },
+    "categories": [
+     {
+      "identifier": "5002.54072473027",
+      "id": "5002.54072473027",
+      "name": "Niños"
+     }
+    ],
+    "id": "A56863742",
+    "objectId": "001_001089988408228006",
+    "isSoldBy": false,
+    "provider": [
+     {
+      "name": "El Corte Ingles, S.A.",
+      "provider_id": "001",
+      "type": "eci"
+     }
+    ],
+    "showUnits": false,
+    "isGiftCard": false,
+    "store_id": "0090",
+    "title": "Vestido tejido arrugado",
+    "vendors": {
+     "BazaarVoice": {
+      "hasBazaarVoice": true,
+      "url": "https://apps.bazaarvoice.com/deployments/elcorteingles/main_site/production/es_ES/bv.js",
+      "seo": {
+       "url": "https://seo.bazaarvoice.com/elcorteingles-53b99fca72c2d55df98dab8d68aa6190/Main_Site-es_ES/reviews/product"
+      }
+     },
+     "FlixMedia": {
+      "hasFlixMedia": false
+     },
+     "RichRelevance": {
+      "hasRichRelevance": false
+     },
+     "SimilarImages": {
+      "hasSimilarImages": false
+     },
+     "LoadBee": {
+      "hasLoadBee": false
+     },
+     "Revieve": {
+      "hasRevieve": false
+     },
+     "Usizy": {
+      "active": false
+     },
+     "XSell": {
+      "hasXSell": false
+     },
+     "RetailMedia": {
+      "hasRetailMedia": false
+     },
+     "AdobeTarget": {
+      "hasAdobeTarget": true,
+      "url": "https://www.sfera.com",
+      "endpoint": "https://edge.adobedc.net/ee/irl1/v2/interact?dataStreamId=f221a9de-5877-476d-a8dc-e7aede85526a"
+     }
+    },
+    "group_by": "Color > Talla",
+    "isOcio": false,
+    "isTicketsProduct": false,
+    "_image_css_classes": "",
+    "promotional_actions": [],
+    "hierarchy": [
+     "ninos"
+    ]
+   },
+   {
+    "_base_url": "https://www.sfera.com/es/ninos/A56581404-camiseta-gatito/?parentCategoryId=5002.54072473027",
+    "_canonical": "https://www.sfera.com/es/ninos/A56581404-camiseta-gatito/?parentCategoryId=5002.54072473027",
+    "_is_collection": false,
+    "_is_edig": false,
+    "_my_colors": [
+     {
+      "common_sku": "001089950716673",
+      "eciCommonReference": "001089950716673",
+      "hideColor": false,
+      "is_favorite": false,
+      "preselected": true,
+      "title": "Blanco",
+      "not_available": false,
+      "company": "001",
+      "showPrice": false,
+      "hasDoubleSize": false,
+      "variants": [
+       {
+        "price": 7.99,
+        "sale_price": 3.99,
+        "discount": 50,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001582836750009",
+        "eciReference": "001089950716673009",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8434804228148",
+        "id": "001089950716673009",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001089950716673009",
+        "skuForSimilarImages": "001089950716673009",
+        "status": "ADD",
+        "stockReference": "001089950716673009:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 7.99,
+         "sale_price": 3.99,
+         "discount": 50,
+         "title": "Talla",
+         "fullTitle": "Talla",
+         "value": "9-12 meses",
+         "valueMain": "9-12 meses",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001089950716673009",
+        "sales_reference": "001089950716673009:001:DVD"
+       },
+       {
+        "price": 7.99,
+        "sale_price": 3.99,
+        "discount": 50,
+        "add_to_cart": "ADD",
+        "eci_unique_code": "000001582836750018",
+        "eciReference": "001089950716673018",
+        "flags": {
+         "coming_soon": false,
+         "eci_exclusive": false,
+         "express_delivery": false,
+         "internet_exclusive": false,
+         "new": false,
+         "sustainability": false
+        },
+        "gtin": "8434804228179",
+        "id": "001089950716673018",
+        "isLinkToPdp": false,
+        "isMarketplace": false,
+        "origin": "DVD",
+        "providers": [],
+        "seller": "001",
+        "sku_promo_badge_data": {},
+        "all_promos": [],
+        "sku": "001089950716673018",
+        "skuForSimilarImages": "001089950716673018",
+        "status": "ADD",
+        "stockReference": "001089950716673018:eci",
+        "type": "Talla",
+        "variant": {
+         "price": 7.99,
+         "sale_price": 3.99,
+         "discount": 50,
+         "title": "Talla",
+         "fullTitle": "Talla",
+         "value": "18-24 meses",
+         "valueMain": "18-24 meses",
+         "valueManufacturer": "",
+         "unique": false,
+         "empty": false
+        },
+        "nutritionalInfo": [],
+        "additionalInformation": {},
+        "isCustomizedFromWPC": false,
+        "objectId": "001_001089950716673018",
+        "sales_reference": "001089950716673018:001:DVD"
+       }
+      ],
+      "hasPriceRange": false
+     }
+    ],
+    "_status": "ADD",
+    "_uri": "/es/ninos/A56581404-camiseta-gatito/?parentCategoryId=5002.54072473027",
+    "badges": {
+     "express": false,
+     "new": false,
+     "exclusive": false,
+     "eci_exclusive": false,
+     "coming_soon": false,
+     "express_delivery": false
+    },
+    "brand": {
+     "name": "Sfera",
+     "slug": "sfera",
+     "value": "2307390056"
+    },
+    "categories": [
+     {
+      "identifier": "5002.54072473027",
+      "id": "5002.54072473027",
+      "name": "Niños"
+     }
+    ],
+    "id": "A56581404",
+    "objectId": "001_001089950716673009",
+    "isSoldBy": false,
+    "provider": [
+     {
+      "name": "El Corte Ingles, S.A.",
+      "provider_id": "001",
+      "type": "eci"
+     }
+    ],
+    "showUnits": false,
+    "isGiftCard": false,
+    "store_id": "0090",
+    "title": "Camiseta gatito",
+    "vendors": {
+     "BazaarVoice": {
+      "hasBazaarVoice": true,
+      "url": "https://apps.bazaarvoice.com/deployments/elcorteingles/main_site/production/es_ES/bv.js",
+      "seo": {
+       "url": "https://seo.bazaarvoice.com/elcorteingles-53b99fca72c2d55df98dab8d68aa6190/Main_Site-es_ES/reviews/product"
+      }
+     },
+     "FlixMedia": {
+      "hasFlixMedia": false
+     },
+     "RichRelevance": {
+      "hasRichRelevance": false
+     },
+     "SimilarImages": {
+      "hasSimilarImages": false
+     },
+     "LoadBee": {
+      "hasLoadBee": false
+     },
+     "Revieve": {
+      "hasRevieve": false
+     },
+     "Usizy": {
+      "active": false
+     },
+     "XSell": {
+      "hasXSell": false
+     },
+     "RetailMedia": {
+      "hasRetailMedia": false
+     },
+     "AdobeTarget": {
+      "hasAdobeTarget": true,
+      "url": "https://www.sfera.com",
+      "endpoint": "https://edge.adobedc.net/ee/irl1/v2/interact?dataStreamId=f221a9de-5877-476d-a8dc-e7aede85526a"
+     }
+    },
+    "group_by": "Color > Talla",
+    "isOcio": false,
+    "isTicketsProduct": false,
+    "_image_css_classes": "",
+    "promotional_actions": [],
+    "hierarchy": [
+     "ninos"
+    ]
+   }
+  ],
+  "pagination": {
+   "_current": 1,
+   "_total": 47,
+   "itemsPerPage": 12,
+   "count": 562,
+   "standard_count": 562,
+   "express_count": 0
+  },
+  "_sortings": [
+   {
+    "key": "featuredDesc",
+    "description": "Recomendados",
+    "is_default": true
+   },
+   {
+    "key": "priceAsc",
+    "description": "Precio de menor a mayor"
+   },
+   {
+    "key": "priceDesc",
+    "description": "Precio de mayor a menor"
+   },
+   {
+    "key": "bestSellerQtyDesc",
+    "description": "Más vendidos"
+   },
+   {
+    "key": "discountPerDesc",
+    "description": "% Descuento"
+   },
+   {
+    "key": "newInAsc",
+    "description": "Novedades"
+   }
+  ],
+  "_selected_sorting": {
+   "key": "newInAsc",
+   "description": "Novedades"
+  },
+  "placements": {
+   "band": {
+    "id": "696a26b23f224fc524e7cfbb",
+    "name": "MOD / SFERA / BANDA / REBAJAS",
+    "compositions": [
+     {
+      "padding": false,
+      "id": "6a329c5d96e2235ab2ad3a7f",
+      "name": "MOD / SFERA / BANDA / REBAJAS / JUNIO 26 ok",
+      "layout": [
+       {
+        "any": 12
+       }
+      ],
+      "artworks": [
+       [
+        {
+         "artwork": {
+          "id": "6a329c4796e2235ab2ad3a7a",
+          "name": "MOD / SFERA / BANDA / REBAJAS / JUNIO 26 ok",
+          "analytics_name": "",
+          "type": "band_vue",
+          "settings": {
+           "is_standard_color": true,
+           "multi_band": [
+            {
+             "title": "RECOGIDA EN TIENDA GRATIS",
+             "alternative_text": "RECOGIDA EN TIENDA GRATIS"
+            },
+            {
+             "title": "3as REBAJAS HASTA -50%",
+             "alternative_text": "3as REBAJAS HASTA -50%"
+            }
+           ]
+          },
+          "default_locale": "es_ES",
+          "contribution": "",
+          "cdp_segments": [],
+          "segments": [],
+          "is_carousel": false,
+          "sheet_id": "696a26b23f224fc524e7cfbb",
+          "composition_id": "6a329c5d96e2235ab2ad3a7f",
+          "sticker_info": null,
+          "placement": "band"
+         },
+         "layer_settings": {}
+        }
+       ]
+      ],
+      "stickers": [
+       null
+      ],
+      "margin": {
+       "top": false,
+       "bottom": false
+      },
+      "destinations": [],
+      "is_carousel": false,
+      "flat_rate": false,
+      "background": {
+       "color": null,
+       "picture": null,
+       "type_background": "none"
+      },
+      "same_height": false,
+      "mobile_carousel": false,
+      "type": "default",
+      "padding_composition": false,
+      "segments": [],
+      "cdp_segments": [],
+      "header": null,
+      "lastUpdate": 1784634447541,
+      "artworkSegments": [],
+      "controlArtworkSegments": false
+     }
+    ],
+    "sheet_type": "normal",
+    "trigger": "6981b6a7f5aaa2cb950a1649",
+    "template": "others",
+    "placement_name": "band",
+    "placement_position": {},
+    "html": ""
+   }
+  },
+  "_delivery_facet": {
+   "delivery": {
+    "default": [],
+    "additional": []
+   },
+   "collect": {
+    "default": [],
+    "additional": []
+   }
+  },
+  "filters": {
+   "_filters": [],
+   "_menubar": [],
+   "_filters_trail": []
+  }
+ }
+}
