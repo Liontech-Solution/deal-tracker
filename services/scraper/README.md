@@ -75,9 +75,16 @@ descatalogado. Para que esto no genere falsos positivos:
   `SCRAPER_DELIST_MIN_MISSES` (2 por defecto; 1 = comportamiento sin histéresis). Volver a verse
   reinicia el contador, y una pasada de ámbito sospechoso **no** lo avanza, así que un fallo
   puntual no gasta intentos. El resumen del job imprime los ausentes pendientes de confirmar.
-
-Pendiente (ver memoria del proyecto): confirmación activa vía endpoint de detalle antes de
-descatalogar (404/vacío → baja real; 200 → sigue vendiéndose).
+- **Confirmación activa** — antes de descatalogar se le **pregunta a la tienda** por el producto
+  (`SupportsAliveProbe.probe_alive`, capacidad opcional por tienda). Solo se da de baja lo
+  confirmado como retirado: un veredicto "sigue a la venta" pone la racha a cero (típicamente
+  un producto que se movió de categoría) y **la falta de veredicto** (bloqueo, error de red, o
+  candidatos que exceden `SCRAPER_DELIST_PROBE_MAX`) deja la baja para otra pasada y suma a
+  `errors`. Se desactiva con `SCRAPER_DELIST_PROBE=0` (vuelve a la baja por histéresis).
+  - **Zara**: el endpoint de detalle responde 200 con lista vacía si ya no conoce el id.
+  - **Sfera**: `firefly/stock` prueba que sigue comprable (barato, sin renderizar); si no, la
+    PDP decide, porque enruta por id y da **404** con uno que ya no existe (un producto
+    agotado pero vivo responde 200).
 
 ## Añadir una tienda
 
@@ -85,6 +92,8 @@ descatalogar (404/vacío → baja real; 200 → sigue vendiéndose).
    `BaseStore` (`slug`, `name`, `base_url`, `list_catalog()`, `fetch_details()`).
 2. Registrarla en `stores/registry.py`.
 3. Guardar respuestas reales como fixtures en `tests/fixtures/` y testear el parsing.
+4. Opcional pero recomendado: implementar `probe_alive()` (`SupportsAliveProbe`) si la tienda
+   sabe responder por un producto suelto — es lo que evita falsas bajas.
 
 ## Docker
 

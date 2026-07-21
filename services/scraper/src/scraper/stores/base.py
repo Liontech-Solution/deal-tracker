@@ -10,11 +10,14 @@ El scrapeo se hace en **dos fases** para poder ahorrar peticiones (detalle condi
 
 Así la ingesta (`ingest.py`) compara la huella contra la última conocida en BD y evita
 la petición de detalle cuando nada ha cambiado. Los scrapers no tocan la BD: solo la red.
+
+Opcionalmente una tienda puede implementar `SupportsAliveProbe` (confirmación activa antes
+de dar de baja); las que no puedan lo omiten y la ingesta se queda con la histéresis.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
@@ -75,6 +78,14 @@ class ListingEntry:
         return ScrapeScope(self.gender, self.section, self.category)
 
 
+@dataclass(frozen=True)
+class DelistCandidate:
+    """Producto que la ingesta está a punto de dar de baja y quiere confirmar antes."""
+
+    retailer_product_id: str
+    url: str | None  # `product.url` en BD: hay tiendas que solo pueden sondear por URL
+
+
 @runtime_checkable
 class BaseStore(Protocol):
     """Interfaz que implementa el scraper de cada tienda."""
@@ -93,4 +104,23 @@ class BaseStore(Protocol):
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
         """Pide el detalle completo (tallas/precio/stock) de los productos indicados."""
+        ...
+
+
+@runtime_checkable
+class SupportsAliveProbe(Protocol):
+    """Capacidad OPCIONAL: confirmar de forma activa si un producto sigue a la venta.
+
+    Las bajas se detectan por ausencia en el listado, que es una señal indirecta (un bloqueo
+    o una reestructura de categorías la falsean). Si la tienda permite preguntar por un
+    producto concreto, la ingesta la usa como veredicto final antes de descatalogar.
+    """
+
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
+        """Sondea los candidatos: retailer_product_id -> sigue a la venta.
+
+        Tres estados con dos valores: `True` (vivo), `False` (retirado) y **ausente del
+        mapa** = no concluyente (fallo de red, bloqueo, respuesta ambigua). La ingesta es
+        conservadora: solo da de baja lo confirmado como retirado.
+        """
         ...

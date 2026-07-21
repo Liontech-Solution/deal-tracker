@@ -14,6 +14,9 @@ El scrapeo es en dos fases (ver `stores/base.py`): `list_catalog()` (barato) con
 huella por producto con el precio por color del listado; `fetch_details()` solo pide el
 detalle de los productos que la ingesta marca como nuevos o cambiados.
 
+El mismo endpoint de detalle sirve de **confirmación activa** antes de dar de baja
+(`probe_alive`): con un id que Zara ya no conoce responde 200 con una lista vacía.
+
 Las funciones `parse_*` son puras (JSON -> dataclasses) y se testean con fixtures.
 """
 
@@ -21,7 +24,7 @@ from __future__ import annotations
 
 import random
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -29,7 +32,7 @@ from typing import Any
 import httpx
 
 from ..config import Config
-from .base import ListingEntry, ScrapedProduct, ScrapedVariant, ScrapeScope
+from .base import DelistCandidate, ListingEntry, ScrapedProduct, ScrapedVariant, ScrapeScope
 
 BASE_URL = "https://www.zara.com/es/es/"
 _CATEGORY_URL = BASE_URL + "category/{cat_id}/products?ajax=true"
@@ -232,6 +235,31 @@ class ZaraStore:
                     if entry.retailer_product_id not in emitted:
                         emitted.add(entry.retailer_product_id)
                         yield entry
+
+    def _probe_one(self, client: httpx.Client, product_id: str) -> bool | None:
+        """¿Sigue a la venta? True/False; None si la tienda no da una respuesta utilizable."""
+        url = _DETAILS_URL.format(product_id=product_id)
+        try:
+            detail = self._get_json(client, url)
+        except httpx.HTTPStatusError as exc:
+            # 404 es un veredicto ("ese producto ya no existe"); el resto, tras agotar los
+            # reintentos, es un fallo nuestro: no vale como prueba de retirada.
+            return False if exc.response.status_code == 404 else None
+        except (httpx.TransportError, ValueError):  # red caída o respuesta no-JSON
+            return None
+        if not isinstance(detail, list):
+            return None  # forma inesperada: no arriesgamos una baja con esto
+        return bool(detail)  # lista vacía = Zara ya no conoce ese id
+
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
+        """Confirmación activa (ver `stores.base.SupportsAliveProbe`): un GET por candidato."""
+        verdicts: dict[str, bool] = {}
+        with self._client() as client:
+            for candidate in candidates:
+                verdict = self._probe_one(client, candidate.retailer_product_id)
+                if verdict is not None:  # sin veredicto -> se omite del mapa
+                    verdicts[candidate.retailer_product_id] = verdict
+        return verdicts
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
         with self._client() as client:

@@ -9,25 +9,37 @@
 
 Todo ocurre en una única transacción por ejecución (`scrape_run`). Las bajas se detectan por
 ausencia: lo no visto conserva un `last_seen_at` anterior, suma una pasada a `missing_streak`
-y solo se marca `delisted_at` tras N pasadas consecutivas sin verlo (histéresis).
+y solo se marca `delisted_at` tras N pasadas consecutivas sin verlo (histéresis). Si la tienda
+sabe responder por un producto concreto (`SupportsAliveProbe`), antes de descatalogar se le
+pregunta directamente y solo se da de baja lo confirmado como retirado.
 """
 
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 
 import psycopg
 
-from .stores.base import BaseStore, ListingEntry, ScrapedProduct, ScrapedVariant, ScrapeScope
+from .stores.base import (
+    BaseStore,
+    DelistCandidate,
+    ListingEntry,
+    ScrapedProduct,
+    ScrapedVariant,
+    ScrapeScope,
+    SupportsAliveProbe,
+)
 
 # Umbrales por defecto de la red de seguridad de bajas (ver `_suspicious_scopes`).
 DEFAULT_DELIST_MIN_BASELINE = 5
 DEFAULT_DELIST_DROP_RATIO = 0.5
 # Histéresis: pasadas consecutivas sin ver antes de dar de baja (ver `_advance_missing`).
 DEFAULT_DELIST_MIN_MISSES = 2
+# Confirmación activa: tope de sondeos por pasada (ver `_confirm_candidates`).
+DEFAULT_DELIST_PROBE_MAX = 50
 
 _ScopeKey = tuple[str | None, str | None, str | None]
 
@@ -46,6 +58,10 @@ class IngestResult:
     variants_missing: int
     scanned_scopes: int  # ámbitos recorridos en esta pasada
     skipped_scopes: int  # ámbitos con caída sospechosa: se omitieron sus bajas
+    probes_sent: int  # candidatos a baja sondeados (confirmación activa)
+    probes_alive: int  # el sondeo los encontró vivos: rescatados, no se dan de baja
+    probes_dead: int  # el sondeo confirmó la retirada
+    probes_unresolved: int  # sin veredicto (fallo, respuesta ambigua o fuera del tope)
 
 
 def _scalar_int(cur: psycopg.Cursor) -> int:
@@ -323,16 +339,119 @@ def _advance_missing(
     return products_missing, _scalar_int(cur)
 
 
+@dataclass
+class ProbeOutcome:
+    """Resultado de la confirmación activa de una pasada (ver `_confirm_candidates`)."""
+
+    sent: int = 0
+    alive: int = 0
+    dead: int = 0
+    unresolved: int = 0
+    blocked_ids: list[int] = field(default_factory=list)  # `product.id` que NO se dan de baja
+
+
+def _load_delist_candidates(
+    cur: psycopg.Cursor,
+    retailer_id: int,
+    run_ts: datetime,
+    safe_scopes: list[ScrapeScope],
+    min_misses: int,
+) -> list[tuple[int, str, str | None]]:
+    """Los que `_delist` descatalogaría en esta pasada, con el más ausente primero."""
+    clause, params = _scope_conditions(safe_scopes)
+    cur.execute(
+        f"""
+        SELECT id, retailer_product_id, url
+        FROM product
+        WHERE retailer_id = %s AND delisted_at IS NULL AND last_seen_at < %s
+          AND missing_streak >= %s AND ({clause})
+        ORDER BY missing_streak DESC, id
+        """,
+        [retailer_id, run_ts, min_misses, *params],
+    )
+    return [(row[0], row[1], row[2]) for row in cur.fetchall()]
+
+
+def _rescue(cur: psycopg.Cursor, product_ids: list[int]) -> None:
+    """Pone a cero la racha de los confirmados vivos (producto y sus variantes).
+
+    Al desaparecer del listado el producto entero, no hay evidencia de que sus tallas se
+    retiraran: se rescatan también las variantes. Con la racha a cero quedan por debajo del
+    umbral y `_delist` ya no los toca.
+    """
+    if not product_ids:
+        return
+    cur.execute("UPDATE product SET missing_streak = 0 WHERE id = ANY(%s::int[])", (product_ids,))
+    cur.execute(
+        "UPDATE variant SET missing_streak = 0 WHERE product_id = ANY(%s::int[])", (product_ids,)
+    )
+
+
+def _confirm_candidates(
+    cur: psycopg.Cursor,
+    store: BaseStore,
+    retailer_id: int,
+    run_ts: datetime,
+    safe_scopes: list[ScrapeScope],
+    min_misses: int,
+    max_probes: int,
+) -> ProbeOutcome:
+    """(#4) Pregunta a la tienda por los candidatos a baja antes de descatalogarlos.
+
+    Solo se da de baja lo confirmado como retirado: sin veredicto (fallo de red, bloqueo,
+    o candidatos que se salen del tope de sondeos) el producto queda bloqueado para esta
+    pasada, conserva su racha y se reintenta en la siguiente.
+    """
+    if not safe_scopes or max_probes <= 0 or not isinstance(store, SupportsAliveProbe):
+        return ProbeOutcome()
+
+    candidates = _load_delist_candidates(cur, retailer_id, run_ts, safe_scopes, min_misses)
+    if not candidates:
+        return ProbeOutcome()
+
+    # Lo que no cabe en el tope se queda sin sondear: tampoco se da de baja (se reintenta).
+    over_cap = candidates[max_probes:]
+    candidates = candidates[:max_probes]
+    outcome = ProbeOutcome(
+        sent=len(candidates),
+        unresolved=len(over_cap),
+        blocked_ids=[product_id for product_id, _pid, _url in over_cap],
+    )
+
+    try:
+        verdicts = store.probe_alive(
+            DelistCandidate(retailer_product_id=pid, url=url) for _id, pid, url in candidates
+        )
+    except Exception:  # un sondeo roto no debe tumbar la ingesta: todo queda sin veredicto
+        verdicts = {}
+
+    alive_ids: list[int] = []
+    for product_id, retailer_product_id, _url in candidates:
+        verdict = verdicts.get(retailer_product_id)
+        if verdict is True:
+            alive_ids.append(product_id)
+            outcome.alive += 1
+        elif verdict is False:
+            outcome.dead += 1
+        else:  # no concluyente: ni se rescata ni se da de baja
+            outcome.blocked_ids.append(product_id)
+            outcome.unresolved += 1
+    _rescue(cur, alive_ids)
+    return outcome
+
+
 def _delist(
     cur: psycopg.Cursor,
     retailer_id: int,
     run_ts: datetime,
     safe_scopes: list[ScrapeScope],
     min_misses: int,
+    blocked_ids: list[int],
 ) -> tuple[int, int]:
     """Marca bajas (producto y variante) SOLO dentro de los ámbitos seguros y no vistos.
 
-    Con histéresis: hace falta llevar `min_misses` pasadas consecutivas sin aparecer.
+    Con histéresis: hace falta llevar `min_misses` pasadas consecutivas sin aparecer. Los
+    `blocked_ids` son productos cuyo sondeo no fue concluyente: se dejan para otra pasada.
     """
     if not safe_scopes:
         return 0, 0
@@ -341,9 +460,9 @@ def _delist(
         f"""
         UPDATE product SET delisted_at = %s
         WHERE retailer_id = %s AND delisted_at IS NULL AND last_seen_at < %s
-          AND missing_streak >= %s AND ({prod_clause})
+          AND missing_streak >= %s AND NOT (id = ANY(%s::int[])) AND ({prod_clause})
         """,
-        [run_ts, retailer_id, run_ts, min_misses, *prod_params],
+        [run_ts, retailer_id, run_ts, min_misses, blocked_ids, *prod_params],
     )
     products_delisted = cur.rowcount
 
@@ -354,9 +473,9 @@ def _delist(
         FROM product p
         WHERE v.product_id = p.id AND p.retailer_id = %s
           AND v.delisted_at IS NULL AND v.last_seen_at < %s
-          AND v.missing_streak >= %s AND ({var_clause})
+          AND v.missing_streak >= %s AND NOT (p.id = ANY(%s::int[])) AND ({var_clause})
         """,
-        [run_ts, retailer_id, run_ts, min_misses, *var_params],
+        [run_ts, retailer_id, run_ts, min_misses, blocked_ids, *var_params],
     )
     return products_delisted, cur.rowcount
 
@@ -369,6 +488,8 @@ def ingest(
     delist_min_baseline: int = DEFAULT_DELIST_MIN_BASELINE,
     delist_drop_ratio: float = DEFAULT_DELIST_DROP_RATIO,
     delist_min_misses: int = DEFAULT_DELIST_MIN_MISSES,
+    delist_probe: bool = True,
+    delist_probe_max: int = DEFAULT_DELIST_PROBE_MAX,
 ) -> IngestResult:
     """Ejecuta una pasada completa del scraper y persiste el resultado. Atómico."""
     run_ts = run_ts or datetime.now(UTC)
@@ -425,8 +546,18 @@ def ingest(
             products_missing, variants_missing = _advance_missing(
                 cur, retailer_id, run_ts, safe_scopes, delist_min_misses
             )
+            # (#4) Confirmación activa: se pregunta a la tienda por los que iban a caer.
+            probe = _confirm_candidates(
+                cur,
+                store,
+                retailer_id,
+                run_ts,
+                safe_scopes,
+                delist_min_misses,
+                delist_probe_max if delist_probe else 0,
+            )
             products_delisted, variants_delisted = _delist(
-                cur, retailer_id, run_ts, safe_scopes, delist_min_misses
+                cur, retailer_id, run_ts, safe_scopes, delist_min_misses, probe.blocked_ids
             )
 
             cur.execute(
@@ -436,7 +567,7 @@ def ingest(
                     products_seen = %s, variants_seen = %s, errors = %s
                 WHERE id = %s
                 """,
-                (len(entries), variants_seen, len(suspicious), run_id),
+                (len(entries), variants_seen, len(suspicious) + probe.unresolved, run_id),
             )
         conn.commit()
         return IngestResult(
@@ -452,6 +583,10 @@ def ingest(
             variants_missing=variants_missing,
             scanned_scopes=len(scanned),
             skipped_scopes=len(suspicious),
+            probes_sent=probe.sent,
+            probes_alive=probe.alive,
+            probes_dead=probe.dead,
+            probes_unresolved=probe.unresolved,
         )
     except Exception:
         conn.rollback()

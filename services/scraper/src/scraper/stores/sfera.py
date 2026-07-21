@@ -13,6 +13,12 @@ El listado ya trae el detalle completo (colores + tallas + precios), así que **
 petición por producto**: `list_catalog()` recorre y cachea los productos, y `fetch_details()`
 los devuelve desde caché (respetando el "detalle condicional" de la ingesta vía la huella).
 
+Para la **confirmación activa** antes de dar de baja (`probe_alive`) hay dos señales, de más
+barata a más concluyente: el endpoint de stock por id (`firefly/stock`, JSON) prueba que el
+producto sigue comprable si lo lista en `data.ADD`; y si no, la PDP resuelve la duda, porque
+Sfera enruta por id y devuelve **404** para un id que ya no existe (el slug de la URL da igual:
+redirige al canónico). Un producto agotado pero vivo sale de `ADD` y su PDP responde 200.
+
 Id estable de producto: `id` (p.ej. "A200974138"). Id estable de variante: el `sku` de la
 talla (p.ej. "001015811718640004"). Las funciones `parse_*` son puras (JSON -> dataclasses) y
 se testean con fixtures capturados de la API real.
@@ -20,13 +26,13 @@ se testean con fixtures capturados de la API real.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
 from ..config import Config
-from .base import ListingEntry, ScrapedProduct, ScrapedVariant, ScrapeScope
+from .base import DelistCandidate, ListingEntry, ScrapedProduct, ScrapedVariant, ScrapeScope
 from .browser import BrowserSession
 
 BASE_ROOT = "https://www.sfera.com/es"
@@ -35,6 +41,8 @@ _SEED_URL = BASE_ROOT + "/{category_path}/"
 _FIREFLY_URL = (
     BASE_ROOT + "/api/sfera-es/firefly/products_list/{category_path}/{page}/?showDimensions=none"
 )
+# Stock por id de producto: sondeo barato (JSON, sin renderizar) para la confirmación activa.
+_STOCK_URL = BASE_ROOT + "/api/sfera-es/firefly/stock/2/?products={product_id}"
 
 # Tope de guarda por si `_total` viniera anómalo (evita un bucle desbocado).
 _MAX_PAGES = 200
@@ -186,6 +194,19 @@ def parse_products(products: list[dict[str, Any]], cat: CategoryConfig) -> list[
     return out
 
 
+def stock_lists_available(payload: dict[str, Any], product_id: str) -> bool:
+    """¿El endpoint de stock declara el producto comprable ahora mismo (`data.ADD`)?
+
+    Es una prueba POSITIVA: si está en `ADD`, sigue a la venta. Lo contrario no prueba nada,
+    porque un producto agotado pero vivo también sale de `ADD` (`status: not_available`).
+    """
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        return False
+    add = data.get("ADD")
+    return isinstance(add, list) and product_id in add
+
+
 def product_signature(product: ScrapedProduct) -> str:
     """Huella barata del producto: precio efectivo por variante (ordenada y estable)."""
     return "|".join(sorted(f"{v.retailer_variant_id}:{v.price}" for v in product.variants))
@@ -198,9 +219,16 @@ class SferaStore:
     name = "Sfera"
     base_url = BASE_URL
 
-    def __init__(self, config: Config, categories: list[CategoryConfig] | None = None) -> None:
+    def __init__(
+        self,
+        config: Config,
+        categories: list[CategoryConfig] | None = None,
+        session_factory: Callable[[], BrowserSession] | None = None,
+    ) -> None:
         self._config = config
         self._categories = categories if categories is not None else CATEGORIES
+        # Costura para los tests: por defecto abre un Chromium real.
+        self._session_factory = session_factory or (lambda: BrowserSession(config))
         self._cache: dict[str, ScrapedProduct] = {}  # rellenado por list_catalog()
 
     def scopes(self) -> Iterable[ScrapeScope]:
@@ -232,7 +260,7 @@ class SferaStore:
 
     def list_catalog(self) -> Iterable[ListingEntry]:
         self._cache = {}
-        with BrowserSession(self._config) as session:
+        with self._session_factory() as session:
             for cat in self._categories:
                 for product in self._iter_category(session, cat):
                     pid = product.retailer_product_id
@@ -253,3 +281,46 @@ class SferaStore:
             product = self._cache.get(entry.retailer_product_id)
             if product is not None:
                 yield product
+
+    def _seed_url(self) -> str:
+        """Página de documento con la que sembrar cookies antes de tocar las APIs."""
+        if not self._categories:
+            return BASE_URL
+        return _SEED_URL.format(category_path=self._categories[0].category_path)
+
+    def _probe_one(self, session: BrowserSession, candidate: DelistCandidate) -> bool | None:
+        """¿Sigue a la venta? True/False; None si no hay respuesta utilizable."""
+        pid = candidate.retailer_product_id
+        try:
+            payload = session.get_json(_STOCK_URL.format(product_id=pid))
+            if isinstance(payload, dict) and stock_lists_available(payload, pid):
+                return True  # comprable: vivo seguro, y sin gastar una navegación
+        except Exception:
+            pass  # sin atajo: lo resuelve la PDP
+
+        # Agotado y retirado se parecen en el stock, pero no en la PDP: el id retirado da 404.
+        if not candidate.url:
+            return None
+        try:
+            status = session.goto(candidate.url)
+        except Exception:  # timeout / error de navegación: no es prueba de nada
+            return None
+        if status in (404, 410):
+            return False
+        # 200 = la ficha existe (aunque esté agotada). Otros códigos (403 de Akamai, 5xx)
+        # son problema nuestro, no del producto: sin veredicto.
+        return True if status == 200 else None
+
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
+        """Confirmación activa (ver `stores.base.SupportsAliveProbe`)."""
+        pending = list(candidates)
+        if not pending:
+            return {}
+        verdicts: dict[str, bool] = {}
+        with self._session_factory() as session:
+            session.goto(self._seed_url())  # siembra las cookies de Akamai del origen
+            for candidate in pending:
+                verdict = self._probe_one(session, candidate)
+                if verdict is not None:  # sin veredicto -> se omite del mapa
+                    verdicts[candidate.retailer_product_id] = verdict
+        return verdicts

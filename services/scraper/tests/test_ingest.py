@@ -6,13 +6,19 @@ Cubre: upsert de catálogo, apilado de historial, detección de altas/bajas y el
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
 from scraper.ingest import ingest
-from scraper.stores.base import ListingEntry, ScrapedProduct, ScrapedVariant, ScrapeScope
+from scraper.stores.base import (
+    DelistCandidate,
+    ListingEntry,
+    ScrapedProduct,
+    ScrapedVariant,
+    ScrapeScope,
+)
 
 T1 = datetime(2026, 7, 1, 8, 0, tzinfo=UTC)
 T2 = datetime(2026, 7, 2, 8, 0, tzinfo=UTC)
@@ -59,6 +65,39 @@ class FakeStore:
             product = self._by_id.get(e.retailer_product_id)
             if product is not None:
                 yield product
+
+
+class ProbingFakeStore(FakeStore):
+    """Como `FakeStore`, pero además confirma bajas (implementa `SupportsAliveProbe`).
+
+    `verdicts` mapea id -> sigue a la venta; lo que no esté no da veredicto. Con `explode`
+    el sondeo entero revienta (bloqueo de la tienda).
+    """
+
+    def __init__(
+        self,
+        products: list[ScrapedProduct],
+        signatures: dict[str, str],
+        verdicts: dict[str, bool],
+        *,
+        scopes: list[ScrapeScope] | None = None,
+        explode: bool = False,
+    ) -> None:
+        super().__init__(products, signatures, scopes)
+        self._verdicts = verdicts
+        self._explode = explode
+        self.probed: list[str] = []
+
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
+        if self._explode:
+            raise RuntimeError("tienda bloqueada")
+        out: dict[str, bool] = {}
+        for candidate in candidates:
+            self.probed.append(candidate.retailer_product_id)
+            verdict = self._verdicts.get(candidate.retailer_product_id)
+            if verdict is not None:
+                out[candidate.retailer_product_id] = verdict
+        return out
 
 
 def _variant(vid: str, price: str, list_price: str | None = None) -> ScrapedVariant:
@@ -351,3 +390,117 @@ def test_baja_normal_cuando_la_caida_es_moderada(db_conn: Any) -> None:
     assert result.skipped_scopes == 0
     assert result.products_delisted == 1
     assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='A3'") == T2
+
+
+# --- #4 Confirmación activa -------------------------------------------------------------
+
+
+def _dos_productos() -> tuple[list[ScrapedProduct], dict[str, str]]:
+    both = [
+        _product("A", "Bailarina", [_variant("A-1", "39.95")]),
+        _product("B", "Botín", [_variant("B-1", "45.00")]),
+    ]
+    return both, {"A": "a1", "B": "b1"}
+
+
+def _solo_a() -> list[ScrapedProduct]:
+    return [_product("A", "Bailarina", [_variant("A-1", "39.95")])]
+
+
+def test_sondeo_rescata_al_que_sigue_a_la_venta(db_conn: Any) -> None:
+    """#4: si la tienda confirma que B sigue vivo (se movió de categoría), no se da de baja."""
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={"B": True})
+    result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    assert store.probed == ["B"]
+    assert (result.probes_sent, result.probes_alive, result.probes_dead) == (1, 1, 0)
+    assert result.products_delisted == 0
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='B'") is None
+    # Rescatado del todo: producto y variantes vuelven a racha cero, sin bajas colgando.
+    assert _streak(db_conn, "B") == 0
+    assert _scalar(db_conn, "SELECT count(*) FROM variant WHERE delisted_at IS NOT NULL") == 0
+    assert _scalar(db_conn, "SELECT max(missing_streak) FROM variant") == 0
+
+
+def test_sondeo_confirma_la_retirada_y_da_de_baja(db_conn: Any) -> None:
+    """#4 (contraste): confirmada la retirada, la baja sigue su curso normal."""
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={"B": False})
+    result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    assert (result.probes_sent, result.probes_alive, result.probes_dead) == (1, 0, 1)
+    assert result.products_delisted == 1
+    assert result.variants_delisted == 1
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='B'") == T2
+
+
+def test_sondeo_sin_veredicto_no_da_de_baja(db_conn: Any) -> None:
+    """#4: sin confirmación (tienda bloqueada) no se descataloga; la racha se conserva."""
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={}, explode=True)
+    result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    assert result.probes_unresolved == 1
+    assert result.products_delisted == 0
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='B'") is None
+    assert _streak(db_conn, "B") == 1  # no se rescata: sigue siendo candidato en la siguiente
+    # El fallo se ve en el run para que la monitorización lo cace.
+    assert _scalar(db_conn, "SELECT errors FROM scrape_run WHERE id = %s", (result.scrape_run_id,))
+
+
+def test_sondeo_respeta_el_tope_y_no_da_de_baja_lo_no_sondeado(db_conn: Any) -> None:
+    """#4: el tope acota las peticiones; lo que se queda fuera espera a otra pasada."""
+    products = [_product(f"A{i}", f"P{i}", [_variant(f"A{i}-1", "20.00")]) for i in range(3)]
+    sigs = {f"A{i}": "s" for i in range(3)}
+    ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
+
+    # Faltan A1 y A2 (caída moderada: la red de seguridad no salta) y solo cabe un sondeo.
+    store = ProbingFakeStore(
+        [products[0]],
+        signatures={"A0": "s"},
+        verdicts={"A1": False, "A2": False},
+        scopes=[ScrapeScope("niña", "zapateria", "zapatos")],
+    )
+    result = ingest(
+        db_conn, store, run_ts=T2, delist_min_baseline=5, delist_min_misses=1, delist_probe_max=1
+    )
+
+    assert len(store.probed) == 1
+    assert result.probes_sent == 1
+    assert result.probes_unresolved == 1  # el que no cupo
+    assert result.products_delisted == 1  # solo el confirmado
+    assert _scalar(db_conn, "SELECT count(*) FROM product WHERE delisted_at IS NULL") == 2
+
+
+def test_sondeo_desactivado_vuelve_a_la_histeresis(db_conn: Any) -> None:
+    """#4: con `delist_probe=False` se descataloga por ausencia, sin preguntar a la tienda."""
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={"B": True})
+    result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1, delist_probe=False)
+
+    assert store.probed == []
+    assert result.probes_sent == 0
+    assert result.products_delisted == 1
+
+
+def test_tienda_sin_sondeo_mantiene_el_comportamiento(db_conn: Any) -> None:
+    """#4: la capacidad es opcional; quien no la implementa da de baja por histéresis."""
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    result = ingest(db_conn, FakeStore(_solo_a(), signatures={"A": "a1"}), run_ts=T2)
+    assert result.probes_sent == 0
+    assert result.products_delisted == 0  # aún no llega al umbral de histéresis (2)
+
+    result = ingest(db_conn, FakeStore(_solo_a(), signatures={"A": "a1"}), run_ts=T3)
+    assert result.probes_sent == 0
+    assert result.products_delisted == 1

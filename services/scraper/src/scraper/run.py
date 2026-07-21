@@ -72,6 +72,8 @@ def main(argv: list[str] | None = None) -> int:
             delist_min_baseline=config.delist_min_baseline,
             delist_drop_ratio=config.delist_drop_ratio,
             delist_min_misses=config.delist_min_misses,
+            delist_probe=config.delist_probe,
+            delist_probe_max=config.delist_probe_max,
         )
 
     print(
@@ -85,6 +87,12 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"ausentes pendientes de confirmar (histéresis, umbral {config.delist_min_misses}): "
             f"{result.products_missing} productos / {result.variants_missing} variantes"
+        )
+    if result.probes_sent or result.probes_unresolved:
+        print(
+            f"confirmación activa: {result.probes_sent} sondeos "
+            f"({result.probes_alive} siguen a la venta, {result.probes_dead} retirados, "
+            f"{result.probes_unresolved} sin confirmar: se reintentan)"
         )
     if result.skipped_scopes:
         print(
