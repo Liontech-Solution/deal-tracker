@@ -4,9 +4,14 @@ import { sectionBg, stripeBg } from '../lib/section';
 
 /**
  * Foto de producto servida directamente desde el CDN de la tienda (hotlink): sin proxy ni
- * almacenamiento propio, que en un cluster de Raspberry Pi no compensa. Si no hay URL —Sfera
- * todavía no la da, y las fichas de Zara la estrenan según se les vuelve a pedir el detalle— o
- * la carga falla, se cae al placeholder de rayas del diseño, que es lo que se veía antes.
+ * almacenamiento propio, que en un cluster de Raspberry Pi no compensa. Si no hay URL —las
+ * fichas ya guardadas la estrenan según se les vuelve a pedir el detalle— o la carga falla, se
+ * cae al placeholder de rayas del diseño.
+ *
+ * `width` es una petición, no una garantía: el CDN de Zara la atiende vía `&w=`, pero el de
+ * Sfera (El Corte Inglés) lleva el tamaño en su propio query y lo ignora, así que ahí manda el
+ * ancho que el scraper dejó guardado. Por eso el `objectFit: cover` y el `aspectRatio` fijo:
+ * el hueco se ve igual venga la foto al ancho pedido o no.
  */
 export function ProductImage({
   src,

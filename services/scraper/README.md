@@ -112,8 +112,12 @@ descatalogado. Para que esto no genere falsos positivos:
 5. Opcional: rellenar `ScrapedProduct.image_url` (foto primaria) si la tienda la expone en algo
    que ya se pide. Se guarda en `product.image_url` y el web la sirve por hotlink al CDN de la
    tienda. Si se deja a `None`, la ficha se pinta con el placeholder del diseño y **no se borra**
-   la foto que hubiera (el upsert hace `COALESCE`). Hecho en Zara (viene en el detalle);
-   pendiente en Sfera, que no la trae en el JSON de listado.
+   la foto que hubiera (el upsert hace `COALESCE`). Hecho en Zara (viene en el detalle) y en
+   Sfera (`image.sources.big` del propio listado). Antes de guardar la URL conviene comprobar
+   en vivo que el CDN **no tiene antihotlink** (200 sin `Referer` y con `Referer` de tercero) y
+   con qué parámetro se le pide el ancho: no es el mismo en las dos tiendas — Zara acepta `&w=`
+   y el de El Corte Inglés lo ignora (lleva el tamaño en `impolicy=Resize&width=...`), así que
+   ahí el ancho que se guarda es el definitivo.
 
 ## Docker
 

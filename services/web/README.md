@@ -92,11 +92,16 @@ sección/género/categoría/talla/color/tienda, orden, estados de carga/error/va
 **modal de seguimiento** y **Mis seguimientos** (`/seguimientos`).
 
 **Fotos de producto** (`components/ProductImage.tsx`): se sirven por **hotlink** al CDN de la
-tienda desde `product.image_url` (`imageUrl` en la API), pidiendo el ancho que hace falta
-(`&w=563` en la tarjeta, `&w=1024` en el detalle: la foto completa pesa ~124 KB y a 563 px baja a
-~10 KB). Sin proxy ni almacenamiento propio: el tráfico de imágenes no pasa por el pod. Si el
-producto aún no tiene foto —Sfera todavía no la da— o la carga falla, se cae al placeholder de
-rayas del diseño (`lib/section.ts`).
+tienda desde `product.image_url` (`imageUrl` en la API). Sin proxy ni almacenamiento propio: el
+tráfico de imágenes no pasa por el pod. Si el producto aún no tiene foto —las fichas ya
+guardadas la estrenan según el scraper les vuelve a pedir el detalle— o la carga falla, se cae
+al placeholder de rayas del diseño (`lib/section.ts`).
+
+El `&w=` que se añade (`563` en la tarjeta, `1024` en el detalle) es una **petición, no una
+garantía**: el CDN de Zara la atiende y ahorra lo suyo (124 KB → ~10 KB), pero el de Sfera (El
+Corte Inglés) lleva el tamaño en su propio query y lo ignora, así que ahí manda el ancho que el
+scraper dejó guardado (516×640, ~16 KB). Por eso el `aspectRatio` fijo con `objectFit: cover`:
+el hueco se ve igual venga la foto al ancho pedido o no.
 
 ```bash
 # Dev: dos procesos. 1) API Nest, 2) SPA con proxy a /api.

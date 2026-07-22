@@ -9,9 +9,10 @@ página de categoría (siembra cookies) y luego pide la API de listado `firefly/
   GET /es/api/sfera-es/firefly/products_list/{category_path}/{page}/?showDimensions=none
   -> {"success": true, "data": {"products": [...], "pagination": {"_current","_total",...}}}
 
-El listado ya trae el detalle completo (colores + tallas + precios), así que **no hay 2ª
-petición por producto**: `list_catalog()` recorre y cachea los productos, y `fetch_details()`
-los devuelve desde caché (respetando el "detalle condicional" de la ingesta vía la huella).
+El listado ya trae el detalle completo (colores + tallas + precios + **foto**), así que **no
+hay 2ª petición por producto**: `list_catalog()` recorre y cachea los productos, y
+`fetch_details()` los devuelve desde caché (respetando el "detalle condicional" de la
+ingesta vía la huella).
 
 Para la **confirmación activa** antes de dar de baja (`probe_alive`) hay dos señales, de más
 barata a más concluyente: el endpoint de stock por id (`firefly/stock`, JSON) prueba que el
@@ -116,6 +117,38 @@ def _variant_prices(variant: dict[str, Any]) -> tuple[Decimal | None, Decimal | 
     return price, None
 
 
+def _usable_image(url: Any) -> bool:
+    """¿Es una URL de foto aprovechable? Descarta el marcador `no-image.png` de la tienda."""
+    return isinstance(url, str) and url.startswith("http") and "no-image" not in url
+
+
+def _primary_image(product: dict[str, Any]) -> str | None:
+    """URL de la foto principal: la que la propia tienda elige para su tarjeta.
+
+    Viene en `image.sources` (`big` = 516x640, ~16 KB) sobre el CDN de El Corte Inglés. Ojo
+    con dos cosas: `default_image` NO vale —es el marcador `no-image.png` de la tienda, y
+    para eso preferimos nuestro placeholder—, y ese CDN **ignora** el `&w=` que sí acepta
+    Zara (el tamaño va en `impolicy=Resize&width=...`), así que el ancho que se guarda aquí
+    es el definitivo. Por eso se prefiere `big`, que es el que encaja con la tarjeta.
+    """
+    image = product.get("image")
+    if isinstance(image, dict):
+        sources = image.get("sources")
+        if isinstance(sources, dict):
+            for key in ("big", "medium", "small"):
+                if _usable_image(sources.get(key)):
+                    return str(sources[key])
+        if _usable_image(image.get("default_source")):
+            return str(image["default_source"])
+    # Respaldo: la foto del primer color visible (en todo lo observado es la misma URL).
+    for color in product.get("_my_colors", []):
+        if color.get("hideColor"):
+            continue
+        if _usable_image(color.get("image")):
+            return str(color["image"])
+    return None
+
+
 def _product_url(product: dict[str, Any]) -> str | None:
     """URL absoluta del producto a partir de `_canonical` (absoluta) o `_uri` (relativa)."""
     canonical = product.get("_canonical")
@@ -189,6 +222,7 @@ def parse_products(products: list[dict[str, Any]], cat: CategoryConfig) -> list[
                 category=cat.category,
                 url=url,
                 variants=variants,
+                image_url=_primary_image(product),
             )
         )
     return out
