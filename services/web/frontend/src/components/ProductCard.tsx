@@ -2,10 +2,10 @@ import { useNavigate } from 'react-router-dom';
 
 import { HonestyBadge, StockBadge, StoreBadge } from './Badges';
 import { BellIcon } from './icons';
+import { ProductImage } from './ProductImage';
 import { useToast } from './Toast';
 import type { ProductListItem } from '../api/types';
 import { discountInt, eurStr } from '../lib/format';
-import { sectionBg, stripeBg } from '../lib/section';
 
 export function ProductCard({ p }: { p: ProductListItem }) {
   const navigate = useNavigate();
@@ -32,28 +32,7 @@ export function ProductCard({ p }: { p: ProductListItem }) {
       }}
     >
       <div style={{ position: 'relative' }}>
-        <div
-          style={{
-            aspectRatio: '1',
-            background: stripeBg(sectionBg(p.section)),
-            display: 'grid',
-            placeItems: 'center',
-          }}
-        >
-          <span
-            style={{
-              fontSize: 10.5,
-              color: 'var(--ink-500)',
-              background: 'var(--surface)',
-              padding: '4px 9px',
-              borderRadius: 99,
-              border: '1px solid var(--border)',
-              fontWeight: 700,
-            }}
-          >
-            FOTO
-          </span>
-        </div>
+        <ProductImage src={p.imageUrl} alt={p.name} section={p.section} width={563} />
         {honesty !== 'none' && (
           <div style={{ position: 'absolute', top: 10, left: 10 }}>
             <HonestyBadge kind={honesty} />

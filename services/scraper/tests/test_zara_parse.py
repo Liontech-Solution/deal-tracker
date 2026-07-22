@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from decimal import Decimal
 
 from scraper.ingest import _discount_pct
@@ -73,6 +74,32 @@ def test_parse_detail_product_construye_producto_con_variantes() -> None:
     assert v.size is not None
     assert v.sku is not None
     assert isinstance(v.in_stock, bool)
+
+
+def test_parse_detail_product_extrae_foto_primaria() -> None:
+    """La foto solo está en el detalle (el `xmedia` del listado viene vacío)."""
+    details = load_fixture("zara_products_details_545453620.json")
+    product = parse_detail_product(details[0], **_DOMAIN)
+
+    assert product is not None
+    assert product.image_url is not None
+    # `deliveryUrl` (jpg plano), no el hermano `url` con la plantilla `&w={width}`.
+    assert product.image_url.startswith("https://static.zara.net/")
+    assert "{width}" not in product.image_url
+    assert ".jpg" in product.image_url
+
+
+def test_parse_detail_product_sin_xmedia_no_revienta() -> None:
+    """Un producto sin imágenes es un producto válido sin foto, no un fallo de parseo."""
+    details = load_fixture("zara_products_details_545453620.json")
+    entry = deepcopy(details[0])
+    for color in entry["detail"]["colors"]:
+        color["xmedia"] = []
+
+    product = parse_detail_product(entry, **_DOMAIN)
+    assert product is not None
+    assert product.image_url is None
+    assert product.variants, "quitar las fotos no debe afectar a las variantes"
 
 
 def test_precios_en_euros_y_variant_id_unico() -> None:

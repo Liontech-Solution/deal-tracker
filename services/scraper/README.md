@@ -109,6 +109,11 @@ descatalogado. Para que esto no genere falsos positivos:
 3. Guardar respuestas reales como fixtures en `tests/fixtures/` y testear el parsing.
 4. Opcional pero recomendado: implementar `probe_alive()` (`SupportsAliveProbe`) si la tienda
    sabe responder por un producto suelto — es lo que evita falsas bajas.
+5. Opcional: rellenar `ScrapedProduct.image_url` (foto primaria) si la tienda la expone en algo
+   que ya se pide. Se guarda en `product.image_url` y el web la sirve por hotlink al CDN de la
+   tienda. Si se deja a `None`, la ficha se pinta con el placeholder del diseño y **no se borra**
+   la foto que hubiera (el upsert hace `COALESCE`). Hecho en Zara (viene en el detalle);
+   pendiente en Sfera, que no la trae en el JSON de listado.
 
 ## Docker
 

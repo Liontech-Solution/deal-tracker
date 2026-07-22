@@ -10,11 +10,11 @@ import { FollowModal } from '../components/FollowModal';
 import { ArrowLeftIcon, BellIcon, ExternalIcon } from '../components/icons';
 import { PriceBlock } from '../components/PriceBlock';
 import { PriceHistoryChart } from '../components/PriceHistoryChart';
+import { ProductImage } from '../components/ProductImage';
 import { ProductGridSkeleton, ErrorState } from '../components/States';
 import { useToast } from '../components/Toast';
 import { colorHex } from '../lib/colors';
 import { capitalize } from '../lib/format';
-import { sectionBg, stripeBg } from '../lib/section';
 
 function stockOf(v: VariantWithPrice): Stock {
   if (v.delisted) return 'descatalogado';
@@ -108,11 +108,7 @@ export function ProductPage() {
         {/* galería */}
         <div>
           <div style={{ borderRadius: 'var(--r-lg)', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface)' }}>
-            <div style={{ aspectRatio: '1', background: stripeBg(sectionBg(product.section), 16), display: 'grid', placeItems: 'center' }}>
-              <span style={{ fontSize: 12, color: 'var(--ink-500)', background: 'var(--surface)', padding: '6px 12px', borderRadius: 99, border: '1px solid var(--border)', fontWeight: 700 }}>
-                FOTO · {product.name}
-              </span>
-            </div>
+            <ProductImage src={product.imageUrl} alt={product.name} section={product.section} width={1024} />
           </div>
         </div>
 

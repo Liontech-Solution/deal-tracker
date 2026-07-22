@@ -31,6 +31,9 @@ export interface SeedIds {
   variantId: number;
 }
 
+/** Foto del producto sembrado (hotlink al CDN de la tienda, como la que guarda el scraper). */
+export const SEED_IMAGE_URL = 'https://static.example/p/ZARA-1.jpg?ts=1';
+
 /** Siembra un catálogo mínimo: 1 tienda, 1 producto (niña/zapatería/zapatos), 1 variante con precio. */
 export async function seedCatalog(sql: postgres.Sql): Promise<SeedIds> {
   const [r] = await sql<{ id: number }[]>`
@@ -38,8 +41,10 @@ export async function seedCatalog(sql: postgres.Sql): Promise<SeedIds> {
     VALUES ('zara', 'Zara', 'https://www.zara.com')
     RETURNING id`;
   const [p] = await sql<{ id: number }[]>`
-    INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category, url)
-    VALUES (${r.id}, 'ZARA-1', 'Botas niña', 'niña', 'zapateria', 'zapatos', 'https://x/1')
+    INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category, url,
+                         image_url)
+    VALUES (${r.id}, 'ZARA-1', 'Botas niña', 'niña', 'zapateria', 'zapatos', 'https://x/1',
+            ${SEED_IMAGE_URL})
     RETURNING id`;
   const [v] = await sql<{ id: number }[]>`
     INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)

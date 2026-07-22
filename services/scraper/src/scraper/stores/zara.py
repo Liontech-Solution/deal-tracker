@@ -144,6 +144,23 @@ def _listing_signature(node: dict[str, Any]) -> str:
     return "|".join(sorted(parts))
 
 
+def _primary_image(entry: dict[str, Any]) -> str | None:
+    """URL de la foto primaria: primera imagen del primer color del detalle.
+
+    Solo está en el detalle: el `xmedia` que trae el listado viene vacío. Se prefiere
+    `extraInfo.deliveryUrl` (jpg plano) al `url` hermano, que lleva la plantilla `&w={width}`;
+    el ancho lo decide quien la pinta.
+    """
+    for color in entry.get("detail", {}).get("colors", []):
+        for media in color.get("xmedia") or []:
+            if media.get("type") != "image":
+                continue
+            url = (media.get("extraInfo") or {}).get("deliveryUrl")
+            if url:
+                return str(url)
+    return None
+
+
 def parse_listing_entries(listing: dict[str, Any], cat: CategoryConfig) -> list[ListingEntry]:
     """Extrae una `ListingEntry` (id estable + huella) por producto, en orden y sin duplicar."""
     entries: list[ListingEntry] = []
@@ -211,6 +228,7 @@ def parse_detail_product(
         category=category,
         url=url,
         variants=variants,
+        image_url=_primary_image(entry),
     )
 
 

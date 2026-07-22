@@ -48,6 +48,9 @@ class ScrapedProduct:
     category: str | None  # pantalones | camisetas | zapatos | ...
     url: str | None
     variants: list[ScrapedVariant]
+    # Foto primaria (la del primer color). Opcional: hay tiendas que no la exponen en lo que ya
+    # pedimos, y una ficha sin foto vale más que una petición extra por producto.
+    image_url: str | None = None
 
 
 @dataclass(frozen=True)

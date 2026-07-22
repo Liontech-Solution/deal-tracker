@@ -17,6 +17,7 @@ export interface ProductListItem {
   section: string | null;
   category: string | null;
   url: string | null;
+  imageUrl: string | null;
   priceFrom: string | null;
   listFrom: string | null;
   discountFrom: string | null;
@@ -59,6 +60,7 @@ export interface ProductDetail {
   section: string | null;
   category: string | null;
   url: string | null;
+  imageUrl: string | null;
   variants: VariantWithPrice[];
 }
 

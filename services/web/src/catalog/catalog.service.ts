@@ -61,6 +61,7 @@ export class CatalogService {
       matched AS (
         SELECT p.id, p.retailer_id, r.slug AS retailer_slug, r.name AS retailer_name,
                p.retailer_product_id, p.name, p.gender, p.section, p.category, p.url,
+               p.image_url,
                v.id AS variant_id, l.price, l.list_price, l.discount_pct, l.in_stock,
                s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points
         FROM product p
@@ -78,7 +79,7 @@ export class CatalogService {
           AND (${q.activeOnly} = false OR p.delisted_at IS NULL)
       )
       SELECT id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
-             name, gender, section, category, url,
+             name, gender, section, category, url, image_url,
              MIN(price) AS price_from,
              MAX(discount_pct) AS max_discount,
              (array_agg(list_price ORDER BY in_stock DESC, price ASC))[1] AS list_from,
@@ -93,7 +94,7 @@ export class CatalogService {
              COUNT(variant_id) AS variant_count
       FROM matched
       GROUP BY id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
-               name, gender, section, category, url
+               name, gender, section, category, url, image_url
       ORDER BY ${orderBy}
       LIMIT ${q.limit} OFFSET ${q.offset}
     `);
@@ -109,6 +110,7 @@ export class CatalogService {
       section: (row.section as string | null) ?? null,
       category: (row.category as string | null) ?? null,
       url: (row.url as string | null) ?? null,
+      imageUrl: (row.image_url as string | null) ?? null,
       priceFrom: (row.price_from as string | null) ?? null,
       listFrom: (row.list_from as string | null) ?? null,
       discountFrom: (row.discount_from as string | null) ?? null,
@@ -132,7 +134,8 @@ export class CatalogService {
   async getProduct(id: number): Promise<ProductDetail> {
     const [head] = (await this.db.execute(sql`
       SELECT p.id, p.retailer_id, r.slug AS retailer_slug, r.name AS retailer_name,
-             p.retailer_product_id, p.name, p.gender, p.section, p.category, p.url
+             p.retailer_product_id, p.name, p.gender, p.section, p.category, p.url,
+             p.image_url
       FROM product p
       JOIN retailer r ON r.id = p.retailer_id
       WHERE p.id = ${id}
@@ -205,6 +208,7 @@ export class CatalogService {
       section: (head.section as string | null) ?? null,
       category: (head.category as string | null) ?? null,
       url: (head.url as string | null) ?? null,
+      imageUrl: (head.image_url as string | null) ?? null,
       variants,
     };
   }

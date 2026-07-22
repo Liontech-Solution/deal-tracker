@@ -91,6 +91,13 @@ sección/género/categoría/talla/color/tienda, orden, estados de carga/error/va
 **Detalle** (variantes talla/color, bloque de precio y **etiqueta de descuento honesto**),
 **modal de seguimiento** y **Mis seguimientos** (`/seguimientos`).
 
+**Fotos de producto** (`components/ProductImage.tsx`): se sirven por **hotlink** al CDN de la
+tienda desde `product.image_url` (`imageUrl` en la API), pidiendo el ancho que hace falta
+(`&w=563` en la tarjeta, `&w=1024` en el detalle: la foto completa pesa ~124 KB y a 563 px baja a
+~10 KB). Sin proxy ni almacenamiento propio: el tráfico de imágenes no pasa por el pod. Si el
+producto aún no tiene foto —Sfera todavía no la da— o la carga falla, se cae al placeholder de
+rayas del diseño (`lib/section.ts`).
+
 ```bash
 # Dev: dos procesos. 1) API Nest, 2) SPA con proxy a /api.
 pnpm start:dev            # API en :3000
