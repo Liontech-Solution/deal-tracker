@@ -37,6 +37,14 @@ def test_sfera_live_smoke() -> None:
     assert product.variants, "cada producto debería tener variantes talla/color"
     assert all(v.price > 0 for v in product.variants)
 
+    # La foto llega en el mismo payload del listado (sin peticiones extra). Es un campo
+    # opcional de la tienda, así que se comprueba la forma de lo que llegue, no que llegue:
+    # si Sfera vuelve a dejar de servirlo, el aviso debe ser este test, no un catálogo vacío.
+    con_foto = [p for p in products if p.image_url]
+    assert con_foto, "hoy Sfera sirve la foto en el listado; si esto falla, revisar #19"
+    assert all(p.image_url and p.image_url.startswith("https://") for p in con_foto)
+    assert all(p.image_url and "no-image" not in p.image_url for p in con_foto)
+
 
 @pytest.mark.skipif(not _LIVE, reason="smoke en vivo; define SFERA_LIVE=1 para ejecutarlo")
 def test_sfera_live_probe_alive() -> None:
