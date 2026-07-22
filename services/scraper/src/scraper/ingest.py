@@ -151,15 +151,18 @@ def _upsert_product(
     cur.execute(
         """
         INSERT INTO product (retailer_id, retailer_product_id, name, gender, section,
-                             category, url, listing_signature, first_seen_at, last_seen_at,
-                             last_detail_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                             category, url, image_url, listing_signature, first_seen_at,
+                             last_seen_at, last_detail_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (retailer_id, retailer_product_id) DO UPDATE SET
             name = EXCLUDED.name,
             gender = EXCLUDED.gender,
             section = EXCLUDED.section,
             category = EXCLUDED.category,
             url = EXCLUDED.url,
+            -- COALESCE y no EXCLUDED a secas: una tienda que aún no sepa dar foto (o un fallo
+            -- puntual de parseo) no debe dejar sin imagen una ficha que ya la tenía.
+            image_url = COALESCE(EXCLUDED.image_url, product.image_url),
             listing_signature = EXCLUDED.listing_signature,
             last_seen_at = EXCLUDED.last_seen_at,
             last_detail_at = EXCLUDED.last_detail_at,
@@ -174,6 +177,7 @@ def _upsert_product(
             product.section,
             product.category,
             product.url,
+            product.image_url,
             signature,
             run_ts,
             run_ts,

@@ -13,6 +13,8 @@ export interface ProductListItem {
   section: string | null;
   category: string | null;
   url: string | null;
+  /** Foto primaria del producto en el CDN de la tienda (`null` si aún no se conoce). */
+  imageUrl: string | null;
   priceFrom: string | null;
   /** PVP y descuento de la variante "mejor oferta" (en stock, más barata). */
   listFrom: string | null;

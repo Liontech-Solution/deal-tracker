@@ -122,6 +122,7 @@ def _product(
     *,
     gender: str = "niña",
     category: str = "zapatos",
+    image_url: str | None = None,
 ) -> ScrapedProduct:
     return ScrapedProduct(
         retailer_product_id=pid,
@@ -131,6 +132,7 @@ def _product(
         category=category,
         url=f"https://fake.example/p{pid}.html",
         variants=variants,
+        image_url=image_url,
     )
 
 
@@ -601,3 +603,41 @@ def test_refresco_no_provoca_bajas(db_conn: Any) -> None:
     assert (result.products_missing, result.variants_missing) == (0, 0)
     assert _scalar(db_conn, "SELECT max(missing_streak) FROM variant") == 0
     assert _scalar(db_conn, "SELECT count(*) FROM variant WHERE last_seen_at=%s", (T_STALE,)) == 2
+
+
+IMG = "https://static.example/p/A-1.jpg?ts=1"
+
+
+def test_foto_se_persiste_y_se_actualiza(db_conn: Any) -> None:
+    """La foto primaria entra con el detalle y se actualiza cuando la tienda cambia la suya."""
+    store1 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], image_url=IMG)],
+        signatures={"A": "a1"},
+    )
+    ingest(db_conn, store1, run_ts=T1)
+    assert _scalar(db_conn, "SELECT image_url FROM product") == IMG
+
+    otra = "https://static.example/p/A-2.jpg?ts=2"
+    store2 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "34.95")], image_url=otra)],
+        signatures={"A": "a2"},  # huella distinta -> se vuelve a pedir el detalle
+    )
+    ingest(db_conn, store2, run_ts=T2)
+    assert _scalar(db_conn, "SELECT image_url FROM product") == otra
+
+
+def test_pasada_sin_foto_no_borra_la_que_habia(db_conn: Any) -> None:
+    """Una tienda que aún no da foto (o un parseo fallido) no debe dejar la ficha sin imagen."""
+    store1 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], image_url=IMG)],
+        signatures={"A": "a1"},
+    )
+    ingest(db_conn, store1, run_ts=T1)
+
+    store2 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "34.95")], image_url=None)],
+        signatures={"A": "a2"},
+    )
+    ingest(db_conn, store2, run_ts=T2)
+
+    assert _scalar(db_conn, "SELECT image_url FROM product") == IMG

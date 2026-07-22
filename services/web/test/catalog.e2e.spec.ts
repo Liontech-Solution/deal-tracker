@@ -3,7 +3,15 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type postgres from 'postgres';
 
-import { makeApp, makeSql, resetSchema, seedCatalog, TEST_DB, type SeedIds } from './helpers';
+import {
+  makeApp,
+  makeSql,
+  resetSchema,
+  seedCatalog,
+  SEED_IMAGE_URL,
+  TEST_DB,
+  type SeedIds,
+} from './helpers';
 
 describe.skipIf(!TEST_DB)('catálogo (e2e)', () => {
   let sql: postgres.Sql;
@@ -35,6 +43,26 @@ describe.skipIf(!TEST_DB)('catálogo (e2e)', () => {
     expect(item.honesty).toBe('real');
     expect(item.anyInStock).toBe(true);
     expect(item.variantCount).toBe(1);
+  });
+
+  it('sirve la foto del producto en la lista y en el detalle', async () => {
+    const list = await request(app.getHttpServer()).get('/api/catalog/products').expect(200);
+    expect(list.body.items[0].imageUrl).toBe(SEED_IMAGE_URL);
+
+    const detail = await request(app.getHttpServer())
+      .get(`/api/catalog/products/${ids.productId}`)
+      .expect(200);
+    expect(detail.body.imageUrl).toBe(SEED_IMAGE_URL);
+  });
+
+  it('devuelve imageUrl null cuando el producto aún no tiene foto', async () => {
+    await sql`UPDATE product SET image_url = NULL WHERE id = ${ids.productId}`;
+    try {
+      const res = await request(app.getHttpServer()).get('/api/catalog/products').expect(200);
+      expect(res.body.items[0].imageUrl).toBeNull();
+    } finally {
+      await sql`UPDATE product SET image_url = ${SEED_IMAGE_URL} WHERE id = ${ids.productId}`;
+    }
   });
 
   it('acepta orden por descuento y rechaza un sort inválido', async () => {

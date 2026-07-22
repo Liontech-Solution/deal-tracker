@@ -45,6 +45,7 @@ export const product = pgTable(
     section: text('section'),
     category: text('category'),
     url: text('url'),
+    imageUrl: text('image_url'),
     listingSignature: text('listing_signature'),
     firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),

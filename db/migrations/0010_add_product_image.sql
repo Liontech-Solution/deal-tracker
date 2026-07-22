@@ -1,0 +1,13 @@
+-- Foto de producto. Un catálogo de ropa infantil sin imágenes no sirve como escaparate: la SPA
+-- reservaba el hueco pero lo pintaba con un placeholder de rayas. El dato ya viajaba en lo que
+-- scrapeamos (en Zara, dentro del detalle que ya pedimos) y se descartaba, así que poblarlo no
+-- cuesta ni una petición extra.
+--
+-- A nivel de PRODUCTO, no de variante: el modelo no tiene entidad "color" (el color es atributo
+-- de `variant`), así que una foto por color se duplicaría entre todas las tallas de ese color.
+-- Se guarda la del primer color = foto primaria.
+--
+-- Sin backfill posible: el dato nunca se guardó. Las fichas existentes arrancan en NULL (la SPA
+-- cae al placeholder de siempre) y estrenan imagen según el refresco forzado del detalle
+-- (`last_detail_at`, migración 0009) las vuelva a pedir.
+ALTER TABLE product ADD COLUMN image_url TEXT;
