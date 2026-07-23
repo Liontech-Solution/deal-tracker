@@ -32,8 +32,8 @@ jobs:
       # Kustomization de dev (fuente de "lo que corre dev") y de QA (destino del auto-bump).
       # La ruta de QA la fija el repo de manifiestos (ver k3s-local-apps-manifests#32): el bump
       # tolera que aún no exista (loguea y salta) para no romper el release.
-      DEV_KUSTOMIZATION: gitops/deal-tracker/kustomization.yaml
-      QA_KUSTOMIZATION: gitops/deal-tracker-qa/kustomization.yaml
+      DEV_KUSTOMIZATION: gitops/deal-tracker/overlays/dev/kustomization.yaml
+      QA_KUSTOMIZATION: gitops/deal-tracker/overlays/qa/kustomization.yaml
     steps:
       - name: Validar que se lanza desde main
         run: |
