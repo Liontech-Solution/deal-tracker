@@ -104,7 +104,8 @@ jobs:
           packages: deal-tracker-web
           token: ${{ secrets.GITHUB_TOKEN }}
           keep-n-tagged: 10
-          exclude-tags: latest
+          # Protege 'latest' y los tags de release semver (v*) que consume QA/prod de la poda.
+          exclude-tags: latest,v*
           delete-untagged: true
 
   # Bump GitOps: reescribe images[].newTag de deal-tracker-web en el repo de manifiestos
@@ -128,7 +129,7 @@ jobs:
           NEW_TAG: ${{ needs.image.outputs.deploytag }}
           IMG_NAME: ghcr.io/liontech-solution/deal-tracker-web
         with:
-          cmd: yq -i '(.images[] | select(.name == strenv(IMG_NAME)).newTag) = strenv(NEW_TAG)' gitops/deal-tracker/kustomization.yaml
+          cmd: yq -i '(.images[] | select(.name == strenv(IMG_NAME)).newTag) = strenv(NEW_TAG)' gitops/deal-tracker/overlays/dev/kustomization.yaml
       - name: Commit y push al repo de manifiestos
         working-directory: gitops
         env:
@@ -137,6 +138,6 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add deal-tracker/kustomization.yaml
+          git add deal-tracker/overlays/dev/kustomization.yaml
           git commit -m "chore: deal-tracker-web ${NEW_TAG}" || { echo "sin cambios"; exit 0; }
           git push
