@@ -1,0 +1,145 @@
+name: release-qa
+
+# Promoción a QA por versión semver. NO reconstruye: toma los sha-<7> que dev corre hoy (leídos
+# del repo de manifiestos) y les añade el tag vX.Y.Z al MISMO digest con `imagetools create`
+# (multiarch, sin rebuild). Luego crea un GitHub Release (prerelease) y auto-bumpea el overlay de
+# QA en el repo de manifiestos → ArgoCD QA sincroniza. El gate humano es lanzar este workflow.
+#
+# "Build once, promote many": el artefacto de QA es exactamente el que dev ya observó.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión semver a publicar (p.ej. v0.1.0)"
+        required: true
+        type: string
+
+concurrency:
+  group: release-qa
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: promote dev → QA (vX.Y.Z)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # crear tag + GitHub Release
+      packages: write # re-etiquetar imágenes en GHCR
+    env:
+      WEB_IMAGE: ghcr.io/liontech-solution/deal-tracker-web
+      SCRAPER_IMAGE: ghcr.io/liontech-solution/deal-tracker-scraper
+      # Kustomization de dev (fuente de "lo que corre dev") y de QA (destino del auto-bump).
+      # La ruta de QA la fija el repo de manifiestos (ver k3s-local-apps-manifests#32): el bump
+      # tolera que aún no exista (loguea y salta) para no romper el release.
+      DEV_KUSTOMIZATION: gitops/deal-tracker/kustomization.yaml
+      QA_KUSTOMIZATION: gitops/deal-tracker-qa/kustomization.yaml
+    steps:
+      - name: Validar que se lanza desde main
+        run: |
+          set -euo pipefail
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::release-qa solo se lanza desde main (ref actual: ${{ github.ref }})"
+            exit 1
+          fi
+
+      - name: Validar formato de versión (semver vX.Y.Z)
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if ! echo "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Versión inválida: '$VERSION'. Formato esperado: vX.Y.Z (p.ej. v0.1.0)"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Checkout repo de manifiestos (GitOps)
+        uses: actions/checkout@v5
+        with:
+          repository: juanjocop/k3s-local-apps-manifests
+          token: ${{ secrets.GITOPS_PAT }}
+          path: gitops
+
+      - name: Descubrir qué corre dev (sha-<7> por imagen)
+        # yq (mikefarah v4) viene preinstalado en los runners ubuntu-latest.
+        run: |
+          set -euo pipefail
+          web_sha=$(WEB_IMAGE="$WEB_IMAGE" yq '.images[] | select(.name == strenv(WEB_IMAGE)).newTag' "$DEV_KUSTOMIZATION")
+          scraper_sha=$(SCRAPER_IMAGE="$SCRAPER_IMAGE" yq '.images[] | select(.name == strenv(SCRAPER_IMAGE)).newTag' "$DEV_KUSTOMIZATION")
+          if [ -z "$web_sha" ] || [ "$web_sha" = "null" ] || [ -z "$scraper_sha" ] || [ "$scraper_sha" = "null" ]; then
+            echo "::error::No pude leer los newTag de dev (web='$web_sha' scraper='$scraper_sha') en $DEV_KUSTOMIZATION"
+            exit 1
+          fi
+          echo "WEB_SHA=$web_sha" >> "$GITHUB_ENV"
+          echo "SCRAPER_SHA=$scraper_sha" >> "$GITHUB_ENV"
+          echo "dev corre → web=$web_sha, scraper=$scraper_sha"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promocionar imágenes (añadir vX.Y.Z al mismo digest)
+        run: |
+          set -euo pipefail
+          promote() {
+            local image="$1" sha="$2"
+            echo "::group::$image  $sha → $VERSION"
+            # Gate: el digest de origen tiene que existir (si no, CI aún no lo publicó).
+            if ! docker buildx imagetools inspect "$image:$sha" >/dev/null 2>&1; then
+              echo "::error::No existe $image:$sha en GHCR — ¿ha terminado el CI de ese commit?"
+              exit 1
+            fi
+            # Copia la manifest list multiarch por digest: sin pull ni rebuild.
+            docker buildx imagetools create --tag "$image:$VERSION" "$image:$sha"
+            echo "::endgroup::"
+          }
+          promote "$WEB_IMAGE" "$WEB_SHA"
+          promote "$SCRAPER_IMAGE" "$SCRAPER_SHA"
+
+      - name: Crear GitHub Release (prerelease)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          notes=$(cat <<EOF
+          Release de QA (prerelease). Promocionado desde los artefactos que **dev** corría, sin rebuild.
+
+          | imagen | digest de origen | tag publicado |
+          |---|---|---|
+          | \`$WEB_IMAGE\` | \`$WEB_SHA\` | \`$VERSION\` |
+          | \`$SCRAPER_IMAGE\` | \`$SCRAPER_SHA\` | \`$VERSION\` |
+
+          Commit de referencia: ${{ github.sha }}
+          EOF
+          )
+          gh release create "$VERSION" \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "$VERSION" \
+            --prerelease \
+            --notes "$notes"
+
+      - name: Auto-bump del overlay de QA (si existe)
+        run: |
+          set -euo pipefail
+          if [ ! -f "$QA_KUSTOMIZATION" ]; then
+            echo "::warning::$QA_KUSTOMIZATION aún no existe — salto el bump de QA. Créalo en el repo de manifiestos (k3s-local-apps-manifests#32) y el próximo release lo bumpeará."
+            exit 0
+          fi
+          # yq (mikefarah) preinstalado en el runner. Reescribe el newTag de ambas imágenes.
+          WEB_IMAGE="$WEB_IMAGE" VERSION="$VERSION" yq -i \
+            '(.images[] | select(.name == strenv(WEB_IMAGE)).newTag) = strenv(VERSION)' "$QA_KUSTOMIZATION"
+          SCRAPER_IMAGE="$SCRAPER_IMAGE" VERSION="$VERSION" yq -i \
+            '(.images[] | select(.name == strenv(SCRAPER_IMAGE)).newTag) = strenv(VERSION)' "$QA_KUSTOMIZATION"
+          cd gitops
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${QA_KUSTOMIZATION#gitops/}"
+          git commit -m "chore(qa): deal-tracker $VERSION" || { echo "sin cambios"; exit 0; }
+          git push

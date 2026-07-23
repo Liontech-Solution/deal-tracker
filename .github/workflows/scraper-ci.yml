@@ -94,7 +94,8 @@ jobs:
           packages: deal-tracker-scraper
           token: ${{ secrets.GITHUB_TOKEN }}
           keep-n-tagged: 10
-          exclude-tags: latest
+          # Protege 'latest' y los tags de release semver (v*) que consume QA/prod de la poda.
+          exclude-tags: latest,v*
           delete-untagged: true
 
   # Bump GitOps: reescribe images[].newTag de deal-tracker-scraper en el repo de manifiestos
