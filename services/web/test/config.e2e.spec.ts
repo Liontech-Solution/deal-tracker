@@ -1,6 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { makeApp, TEST_DB } from './helpers';
 
@@ -8,6 +8,11 @@ import { makeApp, TEST_DB } from './helpers';
  * `GET /api/config` es el endpoint que la SPA lee al arrancar para saber si hay login. Se ejercita
  * **sin `Authorization`** a propósito: tiene que ser público, porque el navegador lo necesita antes
  * de poder autenticarse.
+ *
+ * Cada escenario hace `vi.resetModules()` antes de levantar la app: `ConfigModule.forRoot()` valida
+ * el entorno **al evaluarse `app.module.ts`**, y `makeApp()` lo carga con un `import()` dinámico que
+ * el registro de módulos cachea. Sin el reset, el segundo escenario reutilizaría la config
+ * congelada por el primero.
  */
 describe.skipIf(!TEST_DB)('config pública (e2e)', () => {
   describe('sin Keycloak configurado', () => {
@@ -17,6 +22,7 @@ describe.skipIf(!TEST_DB)('config pública (e2e)', () => {
     beforeAll(async () => {
       delete process.env.KEYCLOAK_ISSUER_URL;
       delete process.env.KEYCLOAK_CLIENT_ID;
+      vi.resetModules();
       app = await makeApp();
     });
 
@@ -45,6 +51,7 @@ describe.skipIf(!TEST_DB)('config pública (e2e)', () => {
       // Sin KEYCLOAK_CLIENT_ID: se comprueba el fallback a la audiencia.
       delete process.env.KEYCLOAK_CLIENT_ID;
       process.env.KEYCLOAK_AUDIENCE = 'deal-tracker-web';
+      vi.resetModules();
       app = await makeApp();
     });
 
