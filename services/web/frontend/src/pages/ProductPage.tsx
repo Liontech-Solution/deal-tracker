@@ -84,6 +84,8 @@ export function ProductPage() {
   const sizeAvailable = (s: string) => variants.some((v) => v.size === s && available(v));
 
   const onFollow = () => {
+    // Hasta que `/api/config` no resuelve, `enabled` no es concluyente (ver AuthProvider).
+    if (!auth.ready) return;
     if (!auth.enabled) {
       toast('Inicio de sesión con Keycloak · disponible al desplegar');
       return;

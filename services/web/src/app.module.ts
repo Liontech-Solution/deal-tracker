@@ -9,6 +9,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { validateEnv } from './config/configuration';
+import { PublicConfigModule } from './config/public-config.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { InterestsModule } from './interests/interests.module';
@@ -43,6 +44,7 @@ function staticModule(): DynamicModule[] {
     ...staticModule(),
     DatabaseModule,
     AuthModule,
+    PublicConfigModule,
     CatalogModule,
     InterestsModule,
     SettingsModule,

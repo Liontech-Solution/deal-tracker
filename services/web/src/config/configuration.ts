@@ -7,6 +7,10 @@ export interface EnvConfig {
   DATABASE_URL: string;
   KEYCLOAK_ISSUER_URL: string;
   KEYCLOAK_AUDIENCE: string;
+  // Client-id público de la SPA que expone `GET /api/config`. Opcional: si falta cae en
+  // `KEYCLOAK_AUDIENCE`, que en nuestros realms ya vale el propio client-id — así el login se
+  // enciende por entorno sin añadir nada a los manifiestos.
+  KEYCLOAK_CLIENT_ID: string;
   PORT: number;
   NODE_ENV: 'development' | 'test' | 'production';
   // Usuario del bot de Telegram (sin @), para armar el deep-link t.me/<bot>?start=<token>.
@@ -57,6 +61,8 @@ function validate(env: Record<string, unknown>, opts: { requireAuth: boolean }):
 
   const issuer = skipAuth ? ((env.KEYCLOAK_ISSUER_URL as string) ?? '') : required(env, 'KEYCLOAK_ISSUER_URL');
   const audience = skipAuth ? ((env.KEYCLOAK_AUDIENCE as string) ?? '') : required(env, 'KEYCLOAK_AUDIENCE');
+  // Nunca requerida: sin ella, el client-id que publica `/api/config` es la audiencia.
+  const clientId = ((env.KEYCLOAK_CLIENT_ID as string) ?? '').trim() || audience;
 
   const portRaw = (env.PORT as string) ?? '3000';
   const port = Number.parseInt(portRaw, 10);
@@ -72,6 +78,7 @@ function validate(env: Record<string, unknown>, opts: { requireAuth: boolean }):
     DATABASE_URL: required(env, 'DATABASE_URL'),
     KEYCLOAK_ISSUER_URL: issuer,
     KEYCLOAK_AUDIENCE: audience,
+    KEYCLOAK_CLIENT_ID: clientId,
     PORT: port,
     NODE_ENV: nodeEnv as EnvConfig['NODE_ENV'],
     TELEGRAM_BOT_USERNAME: telegramBotUsername,
