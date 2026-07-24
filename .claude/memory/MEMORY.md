@@ -1,0 +1,2 @@
+- [kubeconfig-location](kubeconfig-location.md) — kubeconfig en `~/.kube/k3slocal.yaml` (symlink desde `config`); dos equipos, sin `argocd` CLI
+- [memoria-en-repo](memoria-en-repo.md) — la memoria se versiona en `.claude/memory/`; cada equipo necesita el symlink desde `~/.claude`
