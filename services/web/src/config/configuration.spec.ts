@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateEnv, validateJobEnv } from './configuration';
+import { isAuthConfigured, validateEnv, validateJobEnv } from './configuration';
 
 const base = {
   NODE_ENV: 'production',
@@ -31,5 +31,24 @@ describe('validateEnv · client-id de Keycloak', () => {
       DATABASE_URL: base.DATABASE_URL,
     });
     expect(KEYCLOAK_CLIENT_ID).toBe('');
+  });
+});
+
+describe('entorno sin Keycloak', () => {
+  const sinAuth = { NODE_ENV: 'production', DATABASE_URL: base.DATABASE_URL };
+
+  it('arranca sin ninguna KEYCLOAK_* (dev no se conecta a Keycloak)', () => {
+    // Regresión: antes esto lanzaba "Falta la variable de entorno requerida", lo que impedía
+    // desplegar un entorno que simplemente no usa auth.
+    expect(() => validateEnv(sinAuth)).not.toThrow();
+    const cfg = validateEnv(sinAuth);
+    expect(cfg.KEYCLOAK_ISSUER_URL).toBe('');
+    expect(cfg.KEYCLOAK_CLIENT_ID).toBe('');
+  });
+
+  it('isAuthConfigured distingue el entorno con y sin issuer', () => {
+    expect(isAuthConfigured(sinAuth)).toBe(false);
+    expect(isAuthConfigured({ KEYCLOAK_ISSUER_URL: '   ' })).toBe(false);
+    expect(isAuthConfigured(base)).toBe(true);
   });
 });
