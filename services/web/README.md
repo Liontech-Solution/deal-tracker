@@ -131,10 +131,20 @@ antes de expirar.
 Gracias a esto **una única imagen sirve para dev/qa/prod**: el login se enciende según el entorno
 en el que corre el pod, sin rebuild ni variables `VITE_*`.
 
-**Modo placeholder (dev local):** si `/api/config` devuelve los tres campos a `null` — o la llamada
-falla — la auth queda **deshabilitada**: la app funciona como catálogo público y "Iniciar
-sesión"/"Seguir" muestran un aviso. El flujo real de login se **valida en QA**, donde el realm, el
-client y el hostname público existen de verdad.
+### La auth es opcional por entorno
+
+**`KEYCLOAK_ISSUER_URL` es el interruptor.** Un entorno que no se conecta a Keycloak no define
+ninguna `KEYCLOAK_*` y arranca igual — no es un fallo de configuración, es una decisión:
+
+- No se registra la estrategia JWT (`AuthModule`), así que no se monta un validador contra un JWKS
+  inexistente.
+- `GET /api/config` publica los tres campos a `null` → la SPA queda como **catálogo público** y
+  "Iniciar sesión"/"Seguir" muestran un aviso en vez de redirigir.
+- Los endpoints de usuario (`/interests`, `/settings/*`) responden **401**, no 500.
+- El arranque **avisa por log** de que la auth va apagada, para no depurar a ciegas.
+
+Hoy es el caso de **`dev`**, que no usa Keycloak; **`qa`** sí lo trae y es donde se valida el login
+real, con su realm, su client y su hostname público.
 
 > **Descuento honesto**: la clasificación "oferta real vs precio inflado" la calcula el **backend**
 > como campo del catálogo (`ProductListItem.honesty` y `VariantWithPrice.honesty`), reutilizando la
