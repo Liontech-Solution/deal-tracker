@@ -62,7 +62,8 @@ pnpm audit --audit-level=high
 ```
 
 Config por entorno (ver [`.env.example`](.env.example)): `DATABASE_URL` (requerido),
-`KEYCLOAK_ISSUER_URL`, `KEYCLOAK_AUDIENCE`, `PORT`, `WEB_MIGRATIONS_DIR`.
+`KEYCLOAK_ISSUER_URL`, `KEYCLOAK_AUDIENCE`, `KEYCLOAK_CLIENT_ID` (opcional), `PORT`,
+`WEB_MIGRATIONS_DIR`.
 
 ## API (prefijo `/api`)
 
@@ -116,19 +117,24 @@ pnpm build:all && pnpm start   # todo en http://localhost:3000
 
 La SPA usa **`keycloak-js`** con **OIDC + PKCE** (`src/auth/keycloak.ts` + `AuthProvider`). El
 access token se adjunta como `Authorization: Bearer` en las llamadas a `/interests` y se refresca
-antes de expirar. Config por variables `VITE_*` (ver [`frontend/.env.example`](frontend/.env.example)):
+antes de expirar.
 
-| Variable | Descripción |
+**La config OIDC se resuelve en runtime, no en el build.** Al arrancar, la SPA pide
+**`GET /api/config`** (público, `src/config/public-config.controller.ts`), que deriva
+`{ url, realm, clientId }` de las variables que el proceso ya tiene:
+
+| Variable (API) | Uso |
 | --- | --- |
-| `VITE_KC_URL` | URL base de Keycloak (con barra final). |
-| `VITE_KC_REALM` | Realm. |
-| `VITE_KC_CLIENT_ID` | Client-id público de la SPA (PKCE, sin secreto). |
+| `KEYCLOAK_ISSUER_URL` | Se parte en `url` + `realm` (tiene la forma `<url>/realms/<realm>`). |
+| `KEYCLOAK_CLIENT_ID` | Client-id público de la SPA. **Opcional**: si falta, se usa `KEYCLOAK_AUDIENCE`. |
 
-**Modo placeholder (dev local):** si las tres variables están vacías, la auth queda
-**deshabilitada** — la app funciona como catálogo público y "Iniciar sesión"/"Seguir" muestran un
-aviso. La conexión real con Keycloak se **valida al desplegar en el cluster (namespace `dev`)**,
-donde el realm y el client existen; allí las `VITE_*` se inyectan en el build y la config del
-resource server (`KEYCLOAK_ISSUER_URL`/`KEYCLOAK_AUDIENCE`) llega como `Secret`.
+Gracias a esto **una única imagen sirve para dev/qa/prod**: el login se enciende según el entorno
+en el que corre el pod, sin rebuild ni variables `VITE_*`.
+
+**Modo placeholder (dev local):** si `/api/config` devuelve los tres campos a `null` — o la llamada
+falla — la auth queda **deshabilitada**: la app funciona como catálogo público y "Iniciar
+sesión"/"Seguir" muestran un aviso. El flujo real de login se **valida en QA**, donde el realm, el
+client y el hostname público existen de verdad.
 
 > **Descuento honesto**: la clasificación "oferta real vs precio inflado" la calcula el **backend**
 > como campo del catálogo (`ProductListItem.honesty` y `VariantWithPrice.honesty`), reutilizando la

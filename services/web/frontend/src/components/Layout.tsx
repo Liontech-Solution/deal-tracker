@@ -60,6 +60,9 @@ export function Layout() {
   // "Seguir": lleva a Mis seguimientos si hay sesión; si la auth está activa pero sin sesión,
   // login; en dev local sin realm, placeholder.
   const goFollow = () => {
+    // La config llega por red: hasta que no está resuelta, `enabled` no es concluyente y
+    // mostrar el placeholder sería mentir.
+    if (!auth.ready) return;
     if (!auth.enabled) {
       toast('Inicio de sesión con Keycloak · disponible al desplegar');
     } else if (!auth.authenticated) {
@@ -150,6 +153,7 @@ export function Layout() {
               onClick={() =>
                 auth.enabled ? auth.login() : toast('Inicio de sesión con Keycloak · disponible al desplegar')
               }
+              disabled={!auth.ready}
               className="btn btn-primary"
               style={{ padding: '11px 18px', fontSize: 14, flex: 'none' }}
             >

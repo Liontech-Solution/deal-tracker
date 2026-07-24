@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { setTokenGetter } from '../api/client';
-import { authEnabled, getFreshToken, initKeycloak, keycloak } from './keycloak';
+import { bootstrapAuth, getFreshToken, getKeycloak } from './keycloak';
 
 export interface AuthUser {
   name: string | null;
@@ -10,9 +10,12 @@ export interface AuthUser {
 }
 
 export interface AuthContextValue {
-  /** `false` en dev local sin realm: la UI ofrece placeholder en vez de login real. */
+  /**
+   * `false` en dev local sin realm: la UI ofrece placeholder en vez de login real. Solo es
+   * concluyente cuando `ready` es `true` — antes aún no se sabe si hay auth.
+   */
   enabled: boolean;
-  /** `true` cuando Keycloak ha terminado de comprobar la sesión (o auth deshabilitada). */
+  /** `true` cuando se ha resuelto `/api/config` y Keycloak ha comprobado la sesión. */
   ready: boolean;
   authenticated: boolean;
   user: AuthUser | null;
@@ -23,7 +26,10 @@ export interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(!authEnabled);
+  // La config llega por red (`/api/config`), así que nada se sabe de forma síncrona: se arranca
+  // "no listo" y sin auth, y `bootstrapAuth()` fija el estado real.
+  const [enabled, setEnabled] = useState(false);
+  const [ready, setReady] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
 
@@ -33,17 +39,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const kc = keycloak;
-    if (!authEnabled || !kc) return;
     let cancelled = false;
-    void initKeycloak().then((ok) => {
+    void bootstrapAuth().then(({ enabled: on, authenticated: authed }) => {
       if (cancelled) return;
-      setAuthenticated(Boolean(ok && kc.authenticated));
-      const claims = kc.tokenParsed as
+      const kc = getKeycloak();
+      setEnabled(on);
+      setAuthenticated(authed);
+      const claims = kc?.tokenParsed as
         | { name?: string; preferred_username?: string; email?: string }
         | undefined;
       setUser(
-        kc.authenticated
+        authed
           ? { name: claims?.name ?? claims?.preferred_username ?? null, email: claims?.email ?? null }
           : null,
       );
@@ -56,14 +62,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      enabled: authEnabled,
+      enabled,
       ready,
       authenticated,
       user,
-      login: () => keycloak?.login({ redirectUri: window.location.href }),
-      logout: () => keycloak?.logout({ redirectUri: window.location.origin }),
+      login: () => getKeycloak()?.login({ redirectUri: window.location.href }),
+      logout: () => getKeycloak()?.logout({ redirectUri: window.location.origin }),
     }),
-    [ready, authenticated, user],
+    [enabled, ready, authenticated, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
