@@ -157,7 +157,6 @@ def test_parse_products_construye_galeria_por_color() -> None:
         por_color[img.color].append(img)
 
     for fotos in por_color.values():
-        assert [img.position for img in fotos] == list(range(len(fotos)))
         for img in fotos:
             assert img.url.startswith("https://dam.elcorteingles.es/producto/")
             # Se guarda `big`: el CDN de ECI ignora el `&w=` del frontend, así que el ancho

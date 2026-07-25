@@ -120,8 +120,7 @@ def test_parse_detail_product_construye_galeria_por_color() -> None:
     (fotos,) = por_color.values()
     assert len(fotos) == 8  # once en el payload, recortadas a _MAX_IMAGES_PER_COLOR
 
-    # `position` es 0..n-1 dentro del color y respeta el orden de la tienda.
-    assert [img.position for img in fotos] == list(range(len(fotos)))
+    # El orden de la lista ES el de la galería (la posición la numera la ingesta).
     assert all(u.startswith("https://static.zara.net/") for u in (img.url for img in fotos))
     assert all("{width}" not in img.url for img in fotos)
     # La foto de tarjeta sale de la galería: una sola fuente de verdad.

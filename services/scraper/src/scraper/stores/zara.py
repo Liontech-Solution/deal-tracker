@@ -238,10 +238,7 @@ def parse_detail_product(
             )
         if len(variants) == variants_before:
             continue  # color sin ninguna talla con precio: sus fotos quedarían huérfanas
-        images.extend(
-            ScrapedImage(color=color_name, position=i, url=u)
-            for i, u in enumerate(_color_image_urls(color))
-        )
+        images.extend(ScrapedImage(color=color_name, url=u) for u in _color_image_urls(color))
 
     if not variants:
         return None

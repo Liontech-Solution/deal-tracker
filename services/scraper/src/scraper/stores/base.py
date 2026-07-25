@@ -30,10 +30,16 @@ class ScrapedImage:
     `color` debe salir del MISMO campo que alimenta `ScrapedVariant.color`: es la clave por la
     que la ficha empareja foto y precio, y si los dos nombres se desalinean el emparejamiento
     falla en silencio. Un color sin variantes utilizables no debe aportar fotos.
+
+    **El orden de la lista es el orden de la galería**; la posición dentro de cada color la
+    asigna la ingesta. No es un detalle cosmético: una tienda puede exponer dos colores distintos
+    con el MISMO nombre (visto en Lefties, dos "MARRON" con ids distintos), y si cada scraper
+    numerase por su cuenta las dos series arrancarían en 0 y chocarían. Numerando en un único
+    sitio, por nombre de color, ese caso se resuelve solo — que es además lo que la ficha quiere,
+    porque agrupa por nombre y para el usuario esos dos marrones son el mismo color.
     """
 
     color: str | None  # None = foto que no se puede atribuir a un color concreto
-    position: int  # orden dentro del color; 0 = la que representa a ese color
     url: str
 
 

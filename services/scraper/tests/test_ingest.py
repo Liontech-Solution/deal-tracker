@@ -649,9 +649,9 @@ def test_pasada_sin_foto_no_borra_la_que_habia(db_conn: Any) -> None:
 # --- galería de fotos por color -------------------------------------------------------------
 
 _GALERIA = [
-    ScrapedImage(color="Negro", position=0, url="https://static.example/p/A-negro-0.jpg"),
-    ScrapedImage(color="Negro", position=1, url="https://static.example/p/A-negro-1.jpg"),
-    ScrapedImage(color="Rosa", position=0, url="https://static.example/p/A-rosa-0.jpg"),
+    ScrapedImage(color="Negro", url="https://static.example/p/A-negro-0.jpg"),
+    ScrapedImage(color="Negro", url="https://static.example/p/A-negro-1.jpg"),
+    ScrapedImage(color="Rosa", url="https://static.example/p/A-rosa-0.jpg"),
 ]
 
 
@@ -691,7 +691,7 @@ def test_galeria_nueva_reemplaza_entera_a_la_anterior(db_conn: Any) -> None:
     )
     ingest(db_conn, store1, run_ts=T1)
 
-    solo_negro = [ScrapedImage(color="Negro", position=0, url="https://static.example/p/nueva.jpg")]
+    solo_negro = [ScrapedImage(color="Negro", url="https://static.example/p/nueva.jpg")]
     store2 = FakeStore(
         [_product("A", "Bailarina", [_variant("A-1", "34.95")], images=solo_negro)],
         signatures={"A": "a2"},
@@ -741,3 +741,30 @@ def test_la_galeria_se_clava_con_el_color_de_las_variantes(db_conn: Any) -> None
         """,
     )
     assert huerfanas == 0
+
+
+def test_dos_colores_con_el_mismo_nombre_no_chocan(db_conn: Any) -> None:
+    """Caso real de Lefties: dos colores distintos de la tienda con el MISMO nombre.
+
+    Si cada scraper numerase por su cuenta, las dos series arrancarían en 0 y violarían el UNIQUE
+    de `product_image`. Como la posición la asigna la ingesta por nombre de color, se fusionan en
+    una sola galería — que es además lo que la ficha quiere, porque agrupa por nombre y para el
+    usuario esos dos marrones son el mismo color.
+    """
+    galeria = [
+        ScrapedImage(color="Marrón", url="https://static.example/p/marron-a.jpg"),
+        ScrapedImage(color="Marrón", url="https://static.example/p/marron-b.jpg"),
+        # ...y aquí la tienda cambia al segundo color, que se llama igual:
+        ScrapedImage(color="Marrón", url="https://static.example/p/marron-c.jpg"),
+    ]
+    store = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], images=galeria)],
+        signatures={"A": "a1"},
+    )
+    ingest(db_conn, store, run_ts=T1)
+
+    assert _galeria(db_conn) == [
+        ("Marrón", 0, "https://static.example/p/marron-a.jpg"),
+        ("Marrón", 1, "https://static.example/p/marron-b.jpg"),
+        ("Marrón", 2, "https://static.example/p/marron-c.jpg"),
+    ]
