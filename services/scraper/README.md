@@ -15,8 +15,11 @@ src/scraper/
   ingest.py            # pipeline: upsert catálogo -> append historial -> altas/bajas
   run.py               # CLI del job (python -m scraper.run)
   stores/
-    base.py            # contrato: BaseStore (list_catalog/fetch_details), ListingEntry, ScrapedProduct, ScrapedVariant
-    zara.py            # primer scraper real (endpoints AJAX JSON de Zara)
+    base.py            # contrato: BaseStore (list_catalog/fetch_details), ListingEntry, ScrapedProduct, ScrapedVariant, ScrapedImage
+    browser.py         # navegador headless (Playwright) para las tiendas tras Akamai
+    zara.py            # Zara (endpoints AJAX JSON, httpx puro)
+    sfera.py           # Sfera (SFCC "firefly", vía navegador)
+    lefties.py         # Lefties (Inditex `itxrest`, vía navegador)
     registry.py        # slug -> scraper
 tests/                 # parsing (fixtures reales) + ingesta (Postgres)
 ```
@@ -100,6 +103,8 @@ descatalogado. Para que esto no genere falsos positivos:
   - **Sfera**: `firefly/stock` prueba que sigue comprable (barato, sin renderizar); si no, la
     PDP decide, porque enruta por id y da **404** con uno que ya no existe (un producto
     agotado pero vivo responde 200).
+  - **Lefties**: el mismo `productsArray` del detalle responde `_ERR_PRODUCT_NOT_FOUND` para un
+    id que ya no existe, y admite varios ids por llamada: el sondeo sale casi gratis.
 
 ## Añadir una tienda
 
