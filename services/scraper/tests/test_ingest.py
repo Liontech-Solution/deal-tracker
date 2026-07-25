@@ -15,6 +15,7 @@ from scraper.ingest import ingest
 from scraper.stores.base import (
     DelistCandidate,
     ListingEntry,
+    ScrapedImage,
     ScrapedProduct,
     ScrapedVariant,
     ScrapeScope,
@@ -123,6 +124,7 @@ def _product(
     gender: str = "niña",
     category: str = "zapatos",
     image_url: str | None = None,
+    images: list[ScrapedImage] | None = None,
 ) -> ScrapedProduct:
     return ScrapedProduct(
         retailer_product_id=pid,
@@ -133,6 +135,7 @@ def _product(
         url=f"https://fake.example/p{pid}.html",
         variants=variants,
         image_url=image_url,
+        images=images or [],
     )
 
 
@@ -641,3 +644,127 @@ def test_pasada_sin_foto_no_borra_la_que_habia(db_conn: Any) -> None:
     ingest(db_conn, store2, run_ts=T2)
 
     assert _scalar(db_conn, "SELECT image_url FROM product") == IMG
+
+
+# --- galería de fotos por color -------------------------------------------------------------
+
+_GALERIA = [
+    ScrapedImage(color="Negro", url="https://static.example/p/A-negro-0.jpg"),
+    ScrapedImage(color="Negro", url="https://static.example/p/A-negro-1.jpg"),
+    ScrapedImage(color="Rosa", url="https://static.example/p/A-rosa-0.jpg"),
+]
+
+
+def _galeria(conn: Any) -> list[tuple[Any, ...]]:
+    with conn.cursor() as cur:
+        cur.execute("SELECT color, position, url FROM product_image ORDER BY color, position")
+        return cur.fetchall()
+
+
+def test_galeria_se_persiste_y_la_segunda_pasada_es_idempotente(db_conn: Any) -> None:
+    store1 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], images=_GALERIA)],
+        signatures={"A": "a1"},
+    )
+    ingest(db_conn, store1, run_ts=T1)
+    assert _galeria(db_conn) == [
+        ("Negro", 0, "https://static.example/p/A-negro-0.jpg"),
+        ("Negro", 1, "https://static.example/p/A-negro-1.jpg"),
+        ("Rosa", 0, "https://static.example/p/A-rosa-0.jpg"),
+    ]
+
+    # Huella cambiada -> se vuelve a pedir el detalle y a reemplazar la galería: mismo contenido,
+    # sin duplicar (el reemplazo es DELETE + INSERT, no un INSERT ciego).
+    store2 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "34.95")], images=_GALERIA)],
+        signatures={"A": "a2"},
+    )
+    ingest(db_conn, store2, run_ts=T2)
+    assert _scalar(db_conn, "SELECT count(*) FROM product_image") == 3
+
+
+def test_galeria_nueva_reemplaza_entera_a_la_anterior(db_conn: Any) -> None:
+    """La tienda retira un color: sus fotos deben desaparecer, no fusionarse con las nuevas."""
+    store1 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], images=_GALERIA)],
+        signatures={"A": "a1"},
+    )
+    ingest(db_conn, store1, run_ts=T1)
+
+    solo_negro = [ScrapedImage(color="Negro", url="https://static.example/p/nueva.jpg")]
+    store2 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "34.95")], images=solo_negro)],
+        signatures={"A": "a2"},
+    )
+    ingest(db_conn, store2, run_ts=T2)
+
+    assert _galeria(db_conn) == [("Negro", 0, "https://static.example/p/nueva.jpg")]
+
+
+def test_pasada_sin_galeria_no_borra_la_que_habia(db_conn: Any) -> None:
+    """Mismo criterio que `image_url`: lista vacía = "esta pasada no sabe de fotos", no "no hay"."""
+    store1 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], images=_GALERIA)],
+        signatures={"A": "a1"},
+    )
+    ingest(db_conn, store1, run_ts=T1)
+
+    store2 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "34.95")], images=[])],
+        signatures={"A": "a2"},
+    )
+    ingest(db_conn, store2, run_ts=T2)
+
+    assert _scalar(db_conn, "SELECT count(*) FROM product_image") == 3
+
+
+def test_la_galeria_se_clava_con_el_color_de_las_variantes(db_conn: Any) -> None:
+    """La invariante que sostiene el emparejamiento foto<->precio, comprobada ya en BD.
+
+    Es el mismo SQL que se usa para verificar una pasada real: cero fotos con un color que
+    ninguna variante del producto tenga.
+    """
+    store = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], images=_GALERIA[:2])],
+        signatures={"A": "a1"},
+    )
+    ingest(db_conn, store, run_ts=T1)
+
+    huerfanas = _scalar(
+        db_conn,
+        """
+        SELECT count(*) FROM product_image i
+        WHERE i.color IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM variant v WHERE v.product_id = i.product_id AND v.color = i.color
+          )
+        """,
+    )
+    assert huerfanas == 0
+
+
+def test_dos_colores_con_el_mismo_nombre_no_chocan(db_conn: Any) -> None:
+    """Caso real de Lefties: dos colores distintos de la tienda con el MISMO nombre.
+
+    Si cada scraper numerase por su cuenta, las dos series arrancarían en 0 y violarían el UNIQUE
+    de `product_image`. Como la posición la asigna la ingesta por nombre de color, se fusionan en
+    una sola galería — que es además lo que la ficha quiere, porque agrupa por nombre y para el
+    usuario esos dos marrones son el mismo color.
+    """
+    galeria = [
+        ScrapedImage(color="Marrón", url="https://static.example/p/marron-a.jpg"),
+        ScrapedImage(color="Marrón", url="https://static.example/p/marron-b.jpg"),
+        # ...y aquí la tienda cambia al segundo color, que se llama igual:
+        ScrapedImage(color="Marrón", url="https://static.example/p/marron-c.jpg"),
+    ]
+    store = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], images=galeria)],
+        signatures={"A": "a1"},
+    )
+    ingest(db_conn, store, run_ts=T1)
+
+    assert _galeria(db_conn) == [
+        ("Marrón", 0, "https://static.example/p/marron-a.jpg"),
+        ("Marrón", 1, "https://static.example/p/marron-b.jpg"),
+        ("Marrón", 2, "https://static.example/p/marron-c.jpg"),
+    ]

@@ -33,7 +33,14 @@ from decimal import Decimal
 from typing import Any
 
 from ..config import Config
-from .base import DelistCandidate, ListingEntry, ScrapedProduct, ScrapedVariant, ScrapeScope
+from .base import (
+    DelistCandidate,
+    ListingEntry,
+    ScrapedImage,
+    ScrapedProduct,
+    ScrapedVariant,
+    ScrapeScope,
+)
 from .browser import BrowserSession
 
 BASE_ROOT = "https://www.sfera.com/es"
@@ -47,6 +54,9 @@ _STOCK_URL = BASE_ROOT + "/api/sfera-es/firefly/stock/2/?products={product_id}"
 
 # Tope de guarda por si `_total` viniera anómalo (evita un bucle desbocado).
 _MAX_PAGES = 200
+
+# Tope de fotos que guardamos por color (mismo criterio que en Zara: una galería de catálogo).
+_MAX_IMAGES_PER_COLOR = 8
 
 
 @dataclass(frozen=True)
@@ -122,24 +132,55 @@ def _usable_image(url: Any) -> bool:
     return isinstance(url, str) and url.startswith("http") and "no-image" not in url
 
 
-def _primary_image(product: dict[str, Any]) -> str | None:
-    """URL de la foto principal: la que la propia tienda elige para su tarjeta.
+def _source_url(image: Any) -> str | None:
+    """URL aprovechable de un objeto imagen de Sfera (`{ratio, sources: {small|medium|big|zoom}}`).
 
-    Viene en `image.sources` (`big` = 516x640, ~16 KB) sobre el CDN de El Corte Inglés. Ojo
-    con dos cosas: `default_image` NO vale —es el marcador `no-image.png` de la tienda, y
-    para eso preferimos nuestro placeholder—, y ese CDN **ignora** el `&w=` que sí acepta
-    Zara (el tamaño va en `impolicy=Resize&width=...`), así que el ancho que se guarda aquí
-    es el definitivo. Por eso se prefiere `big`, que es el que encaja con la tarjeta.
+    Se prefiere `big` (516x640, ~16 KB) porque el CDN de El Corte Inglés **ignora** el `&w=` que
+    sí acepta Zara —el tamaño va en su propio `impolicy=Resize&width=...`—, así que el ancho que
+    se guarda aquí es el definitivo, y `big` es el que encaja con la tarjeta (`zoom` son 64 KB).
+    `default_source` NO vale: es el marcador `no-image.png` de la tienda, y para eso preferimos
+    nuestro placeholder; lo filtra `_usable_image`.
     """
-    image = product.get("image")
-    if isinstance(image, dict):
-        sources = image.get("sources")
-        if isinstance(sources, dict):
-            for key in ("big", "medium", "small"):
-                if _usable_image(sources.get(key)):
-                    return str(sources[key])
-        if _usable_image(image.get("default_source")):
-            return str(image["default_source"])
+    if not isinstance(image, dict):
+        return str(image) if _usable_image(image) else None
+    sources = image.get("sources")
+    if isinstance(sources, dict):
+        for key in ("big", "medium", "small"):
+            if _usable_image(sources.get(key)):
+                return str(sources[key])
+    if _usable_image(image.get("default_source")):
+        return str(image["default_source"])
+    return None
+
+
+def _color_image_urls(color: dict[str, Any]) -> list[str]:
+    """URLs de las fotos de UN color, en el orden que las da la tienda.
+
+    Vienen en `all_images` del propio listado firefly: **cero peticiones nuevas**. `thumbnail_url`
+    queda fuera a propósito — es la muestra de color (un png de la carta), no una foto de la
+    prenda. Respaldo a `image` (URL plana) para un color que no traiga `all_images`.
+    """
+    urls: list[str] = []
+    all_images = color.get("all_images")
+    if isinstance(all_images, list):
+        for entry in all_images:
+            url = _source_url(entry)
+            if url:
+                urls.append(url)
+            if len(urls) == _MAX_IMAGES_PER_COLOR:
+                break
+    if not urls:
+        fallback = _source_url(color.get("image"))
+        if fallback:
+            urls.append(fallback)
+    return urls
+
+
+def _primary_image(product: dict[str, Any]) -> str | None:
+    """Foto que la propia tienda elige para su tarjeta. Respaldo cuando no hay galería."""
+    direct = _source_url(product.get("image"))
+    if direct:
+        return direct
     # Respaldo: la foto del primer color visible (en todo lo observado es la misma URL).
     for color in product.get("_my_colors", []):
         if color.get("hideColor"):
@@ -186,11 +227,16 @@ def parse_products(products: list[dict[str, Any]], cat: CategoryConfig) -> list[
         if not pid:
             continue
         url = _product_url(product)
+        # Variantes e imágenes, en la MISMA pasada por `_my_colors` y leyendo el nombre del color
+        # de un único sitio (`color["title"]`): es la clave con la que la ficha empareja foto y
+        # precio, y sacarla en dos recorridos distintos es justo como se desalinean.
         variants: list[ScrapedVariant] = []
+        images: list[ScrapedImage] = []
         for color in product.get("_my_colors", []):
             if color.get("hideColor"):
                 continue  # color oculto por la tienda: no lo registramos
             color_name = color.get("title")
+            variants_before = len(variants)
             for variant in color.get("variants", []):
                 price, list_price = _variant_prices(variant)
                 if price is None:
@@ -211,6 +257,9 @@ def parse_products(products: list[dict[str, Any]], cat: CategoryConfig) -> list[
                         url=url,
                     )
                 )
+            if len(variants) == variants_before:
+                continue  # color sin ninguna talla con precio: sus fotos quedarían huérfanas
+            images.extend(ScrapedImage(color=color_name, url=u) for u in _color_image_urls(color))
         if not variants:
             continue
         out.append(
@@ -222,7 +271,10 @@ def parse_products(products: list[dict[str, Any]], cat: CategoryConfig) -> list[
                 category=cat.category,
                 url=url,
                 variants=variants,
-                image_url=_primary_image(product),
+                # Se prefiere la galería para que la foto de tarjeta sea de un color conocido; si
+                # esta pasada no trae galería (fixture antiguo sin media), la elección de la tienda.
+                image_url=images[0].url if images else _primary_image(product),
+                images=images,
             )
         )
     return out

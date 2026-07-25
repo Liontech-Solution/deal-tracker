@@ -109,15 +109,32 @@ descatalogado. Para que esto no genere falsos positivos:
 3. Guardar respuestas reales como fixtures en `tests/fixtures/` y testear el parsing.
 4. Opcional pero recomendado: implementar `probe_alive()` (`SupportsAliveProbe`) si la tienda
    sabe responder por un producto suelto — es lo que evita falsas bajas.
-5. Opcional: rellenar `ScrapedProduct.image_url` (foto primaria) si la tienda la expone en algo
-   que ya se pide. Se guarda en `product.image_url` y el web la sirve por hotlink al CDN de la
-   tienda. Si se deja a `None`, la ficha se pinta con el placeholder del diseño y **no se borra**
-   la foto que hubiera (el upsert hace `COALESCE`). Hecho en Zara (viene en el detalle) y en
-   Sfera (`image.sources.big` del propio listado). Antes de guardar la URL conviene comprobar
-   en vivo que el CDN **no tiene antihotlink** (200 sin `Referer` y con `Referer` de tercero) y
-   con qué parámetro se le pide el ancho: no es el mismo en las dos tiendas — Zara acepta `&w=`
-   y el de El Corte Inglés lo ignora (lleva el tamaño en `impolicy=Resize&width=...`), así que
-   ahí el ancho que se guarda es el definitivo.
+5. Opcional: rellenar `ScrapedProduct.images` (galería por color) si la tienda las expone en algo
+   que ya se pide. Se guardan en `product_image` (una fila por foto, con el color y su posición) y
+   `image_url` sale de la primera, para no tener dos fuentes de verdad. Hecho en Zara
+   (`detail.colors[].xmedia[]`, hasta 8 por color) y en Sfera (`_my_colors[].all_images[]`, del
+   propio listado). Si se deja vacía, la ficha se pinta con el placeholder del diseño y **no se
+   borra** lo que hubiera: una lista vacía significa "esta pasada no sabe de fotos", no "este
+   producto se quedó sin fotos" (mismo criterio que el `COALESCE` de `image_url`).
+
+   **Regla que no se puede saltar:** el `color` de cada foto tiene que salir del **mismo campo**
+   que el `color` de las variantes, y en el mismo recorrido. Es la clave con la que la ficha
+   empareja foto y precio —el precio cuelga de la variante, que es talla+color— y si los dos
+   nombres se desalinean el emparejamiento falla en silencio: se enseñaría la foto de un color con
+   el precio de otro. Un color que no produzca ninguna variante utilizable no debe aportar fotos.
+   Los tests de parseo de cada tienda fijan la invariante (`{color de foto} ⊆ {color de variante}`)
+   y hay un SQL para comprobarlo sobre una pasada real:
+
+   ```sql
+   SELECT count(*) FROM product_image i
+   WHERE i.color IS NOT NULL AND NOT EXISTS (
+     SELECT 1 FROM variant v WHERE v.product_id = i.product_id AND v.color = i.color);  -- debe dar 0
+   ```
+
+   Antes de guardar la URL conviene comprobar en vivo que el CDN **no tiene antihotlink** (200 sin
+   `Referer` y con `Referer` de tercero) y con qué parámetro se le pide el ancho: no es el mismo en
+   las dos tiendas — Zara acepta `&w=` y el de El Corte Inglés lo ignora (lleva el tamaño en
+   `impolicy=Resize&width=...`), así que ahí el ancho que se guarda es el definitivo.
 
 ## Docker
 

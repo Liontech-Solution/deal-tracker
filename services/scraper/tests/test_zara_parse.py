@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from copy import deepcopy
 from decimal import Decimal
 
 from scraper.ingest import _discount_pct
+from scraper.stores.base import ScrapedImage
 from scraper.stores.zara import CATEGORIES, parse_detail_product, parse_listing_entries
 
 from .conftest import load_fixture
@@ -99,7 +101,69 @@ def test_parse_detail_product_sin_xmedia_no_revienta() -> None:
     product = parse_detail_product(entry, **_DOMAIN)
     assert product is not None
     assert product.image_url is None
+    assert product.images == []
     assert product.variants, "quitar las fotos no debe afectar a las variantes"
+
+
+def test_parse_detail_product_construye_galeria_por_color() -> None:
+    """La galería sale del MISMO recorrido de colores que las variantes."""
+    details = load_fixture("zara_products_details_545453620.json")
+    product = parse_detail_product(details[0], **_DOMAIN)
+    assert product is not None
+    assert product.images, "el detalle trae xmedia: debería haber galería"
+
+    # El fixture da once imágenes para su único color; se recorta al tope de galería.
+    por_color: dict[str | None, list[ScrapedImage]] = defaultdict(list)
+    for img in product.images:
+        por_color[img.color].append(img)
+    assert len(por_color) == 1
+    (fotos,) = por_color.values()
+    assert len(fotos) == 8  # once en el payload, recortadas a _MAX_IMAGES_PER_COLOR
+
+    # El orden de la lista ES el de la galería (la posición la numera la ingesta).
+    assert all(u.startswith("https://static.zara.net/") for u in (img.url for img in fotos))
+    assert all("{width}" not in img.url for img in fotos)
+    # La foto de tarjeta sale de la galería: una sola fuente de verdad.
+    assert product.image_url == product.images[0].url
+
+
+def test_galeria_y_variantes_comparten_el_nombre_de_color() -> None:
+    """Invariante que sostiene el emparejamiento foto<->precio de la ficha.
+
+    Las fotos se clavan por el TEXTO del color contra `variant.color`. Si el parseo sacara ese
+    nombre de dos sitios distintos, el emparejamiento fallaría en silencio: la ficha enseñaría la
+    foto de un color con el precio de otro. Aquí se fija que no puede pasar.
+    """
+    details = load_fixture("zara_products_details_545453620.json")
+    product = parse_detail_product(details[0], **_DOMAIN)
+    assert product is not None
+
+    colores_variante = {v.color for v in product.variants}
+    colores_foto = {img.color for img in product.images}
+    assert colores_foto <= colores_variante
+
+
+def test_color_sin_tallas_con_precio_no_aporta_fotos() -> None:
+    """Un color sin variantes utilizables dejaría fotos huérfanas: no se registran.
+
+    Es el otro lado de la invariante anterior. Se sintetiza un 2º color (el fixture solo trae
+    uno) con todas sus tallas a `priceUnavailable`: aporta cero variantes, luego debe aportar
+    cero fotos, o la ficha ofrecería un color que no tiene precio que enseñar.
+    """
+    details = load_fixture("zara_products_details_545453620.json")
+    entry = deepcopy(details[0])
+    (vivo,) = entry["detail"]["colors"]
+    muerto = deepcopy(vivo)
+    muerto["id"], muerto["name"] = "999", "Fantasma"
+    for size in muerto["sizes"]:
+        size["price"] = None
+    entry["detail"]["colors"] = [vivo, muerto]
+
+    product = parse_detail_product(entry, **_DOMAIN)
+    assert product is not None
+    assert "Fantasma" not in {v.color for v in product.variants}
+    assert "Fantasma" not in {img.color for img in product.images}
+    assert {img.color for img in product.images} <= {v.color for v in product.variants}
 
 
 def test_precios_en_euros_y_variant_id_unico() -> None:

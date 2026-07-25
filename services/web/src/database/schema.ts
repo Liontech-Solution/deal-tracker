@@ -54,6 +54,26 @@ export const product = pgTable(
   (t) => [unique().on(t.retailerId, t.retailerProductId)],
 );
 
+/**
+ * Galería de fotos, agrupada por color. `color` guarda el MISMO texto que `variant.color`: es la
+ * clave con la que la ficha empareja la foto con el precio (el precio cuelga de la variante, y la
+ * variante es talla+color, así que en muchas tiendas el color cambia el precio). `position` 0 es
+ * la foto que representa a ese color.
+ */
+export const productImage = pgTable(
+  'product_image',
+  {
+    id: bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
+    productId: bigint('product_id', { mode: 'number' })
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
+    color: text('color'),
+    position: integer('position').notNull(),
+    url: text('url').notNull(),
+  },
+  (t) => [unique().on(t.productId, t.color, t.position)],
+);
+
 export const variant = pgTable(
   'variant',
   {
@@ -159,6 +179,11 @@ export const jobState = pgTable('job_state', {
 export const productRelations = relations(product, ({ one, many }) => ({
   retailer: one(retailer, { fields: [product.retailerId], references: [retailer.id] }),
   variants: many(variant),
+  images: many(productImage),
+}));
+
+export const productImageRelations = relations(productImage, ({ one }) => ({
+  product: one(product, { fields: [productImage.productId], references: [product.id] }),
 }));
 
 export const variantRelations = relations(variant, ({ one, many }) => ({
@@ -173,6 +198,7 @@ export const priceHistoryRelations = relations(priceHistory, ({ one }) => ({
 export const schema = {
   retailer,
   product,
+  productImage,
   variant,
   priceHistory,
   appUser,
@@ -180,6 +206,7 @@ export const schema = {
   notification,
   jobState,
   productRelations,
+  productImageRelations,
   variantRelations,
   priceHistoryRelations,
 };

@@ -13,8 +13,14 @@ export interface ProductListItem {
   section: string | null;
   category: string | null;
   url: string | null;
-  /** Foto primaria del producto en el CDN de la tienda (`null` si aún no se conoce). */
+  /** Foto del producto en el CDN de la tienda (`null` si aún no se conoce). */
   imageUrl: string | null;
+  /**
+   * Color de la variante "mejor oferta", la MISMA de la que salen `listFrom`/`discountFrom`/
+   * `honesty`. La tarjeta lo necesita para que la foto que enseña sea la del color cuyo precio
+   * enseña: sin esto puede pintar la foto de un color con el precio de otro.
+   */
+  colorRepr: string | null;
   priceFrom: string | null;
   /** PVP y descuento de la variante "mejor oferta" (en stock, más barata). */
   listFrom: string | null;
@@ -50,9 +56,16 @@ export interface VariantWithPrice {
   honesty: HonestyVerdict;
 }
 
+/** Una foto de la galería, atribuida al color que retrata (`null` = sin color atribuible). */
+export interface ProductImageRef {
+  color: string | null;
+  url: string;
+}
+
 export interface ProductDetail
   extends Omit<
     ProductListItem,
+    | 'colorRepr'
     | 'priceFrom'
     | 'listFrom'
     | 'discountFrom'
@@ -62,6 +75,8 @@ export interface ProductDetail
     | 'variantCount'
   > {
   variants: VariantWithPrice[];
+  /** Galería ordenada por color y posición. La ficha filtra por el color seleccionado. */
+  images: ProductImageRef[];
 }
 
 export interface PricePoint {

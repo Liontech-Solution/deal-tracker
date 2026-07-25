@@ -20,7 +20,7 @@ export async function resetSchema(sql: postgres.Sql): Promise<void> {
   // por debajo de ella y el job no vería ningún lote.
   await sql.unsafe(`
     TRUNCATE notification, interest, app_user, job_state,
-             price_history, variant, product, scrape_run, retailer
+             price_history, product_image, variant, product, scrape_run, retailer
     RESTART IDENTITY CASCADE
   `);
 }

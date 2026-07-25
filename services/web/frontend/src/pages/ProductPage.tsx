@@ -61,6 +61,26 @@ export function ProductPage() {
     );
   }, [variants, size, color]);
 
+  /**
+   * Fotos del color seleccionado. Esto es lo que mantiene coherentes foto y precio: el precio
+   * cuelga de la variante (talla+color), así que al cambiar de color cambia `current` —y con él
+   * el precio— y la galería tiene que moverse con él. Cadena de respaldo para catálogos a medio
+   * poblar: fotos del color -> fotos sin color atribuible -> la foto suelta del producto.
+   */
+  const gallery = useMemo(() => {
+    const images = product?.images ?? [];
+    const ofColor = images.filter((i) => i.color === color);
+    const usable = ofColor.length ? ofColor : images.filter((i) => i.color === null);
+    if (usable.length) return usable.map((i) => i.url);
+    return product?.imageUrl ? [product.imageUrl] : [];
+  }, [product, color]);
+
+  // Al cambiar de color la miniatura activa vuelve a la primera: el índice del color anterior no
+  // significa nada en el nuevo (y puede no existir).
+  const [shot, setShot] = useState(0);
+  useEffect(() => setShot(0), [color]);
+  const heroSrc = gallery[shot] ?? gallery[0] ?? null;
+
   const history = usePriceHistory(current?.id);
 
   if (isPending) {
@@ -110,8 +130,27 @@ export function ProductPage() {
         {/* galería */}
         <div>
           <div style={{ borderRadius: 'var(--r-lg)', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface)' }}>
-            <ProductImage src={product.imageUrl} alt={product.name} section={product.section} width={1024} />
+            <ProductImage src={heroSrc} alt={product.name} section={product.section} width={1024} />
           </div>
+          {gallery.length > 1 && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, overflowX: 'auto', paddingBottom: 4 }}>
+              {gallery.map((url, i) => (
+                <button
+                  key={url}
+                  onClick={() => setShot(i)}
+                  aria-label={`Foto ${i + 1} de ${gallery.length}`}
+                  aria-current={i === shot}
+                  style={{
+                    flex: '0 0 auto', width: 68, padding: 0, cursor: 'pointer', borderRadius: 'var(--r-sm)',
+                    overflow: 'hidden', background: 'none',
+                    border: `2px solid ${i === shot ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
+                >
+                  <ProductImage src={url} alt="" section={product.section} width={160} />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* info */}

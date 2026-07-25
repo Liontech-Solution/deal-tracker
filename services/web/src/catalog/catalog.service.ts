@@ -7,6 +7,7 @@ import type {
   Facets,
   PricePoint,
   ProductDetail,
+  ProductImageRef,
   ProductListItem,
   ProductListResult,
   RetailerFacet,
@@ -62,7 +63,7 @@ export class CatalogService {
         SELECT p.id, p.retailer_id, r.slug AS retailer_slug, r.name AS retailer_name,
                p.retailer_product_id, p.name, p.gender, p.section, p.category, p.url,
                p.image_url,
-               v.id AS variant_id, l.price, l.list_price, l.discount_pct, l.in_stock,
+               v.id AS variant_id, v.color, l.price, l.list_price, l.discount_pct, l.in_stock,
                s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points
         FROM product p
         JOIN retailer r ON r.id = p.retailer_id
@@ -90,6 +91,10 @@ export class CatalogService {
              (array_agg(recent_min ORDER BY in_stock DESC, price ASC))[1] AS recent_min_repr,
              (array_agg(max_observed ORDER BY in_stock DESC, price ASC))[1] AS max_observed_repr,
              (array_agg(prior_points ORDER BY in_stock DESC, price ASC))[1] AS prior_points_repr,
+             -- ...y su COLOR, para que la foto de la tarjeta sea la de ese mismo color y no la de
+             -- otro cualquiera: el precio cuelga de la variante (talla+color), así que enseñar la
+             -- foto del "primer color" junto al precio de la variante más barata puede mezclar.
+             (array_agg(color ORDER BY in_stock DESC, price ASC))[1] AS color_repr,
              BOOL_OR(in_stock) AS any_in_stock,
              COUNT(variant_id) AS variant_count
       FROM matched
@@ -111,6 +116,7 @@ export class CatalogService {
       category: (row.category as string | null) ?? null,
       url: (row.url as string | null) ?? null,
       imageUrl: (row.image_url as string | null) ?? null,
+      colorRepr: (row.color_repr as string | null) ?? null,
       priceFrom: (row.price_from as string | null) ?? null,
       listFrom: (row.list_from as string | null) ?? null,
       discountFrom: (row.discount_from as string | null) ?? null,
@@ -128,7 +134,41 @@ export class CatalogService {
       variantCount: Number(row.variant_count),
     }));
 
+    await this.applyReprImages(items);
     return { items, limit: q.limit, offset: q.offset };
+  }
+
+  /**
+   * Sustituye `imageUrl` por la foto del color de la variante "mejor oferta", cuando la hay.
+   *
+   * Va en una segunda consulta y no como JOIN dentro de la query grande a propósito: aquí está
+   * acotada a los productos de UNA página (`limit`), mientras que dentro de `matched` se pagaría
+   * por cada fila variante×precio de todo el catálogo filtrado. `product.image_url` sigue siendo
+   * el respaldo para las fichas que aún no tienen galería (la estrenan con el refresco del detalle).
+   */
+  private async applyReprImages(items: ProductListItem[]): Promise<void> {
+    const wanted = items.filter((it) => it.colorRepr !== null);
+    if (wanted.length === 0) return;
+
+    // Dos trampas juntas al pasar arrays: `sql.param()` es obligatorio, porque un array suelto en
+    // una plantilla de drizzle se expande a N parámetros sueltos (`$1, $2`) y el cast a `bigint[]`
+    // se queja de literal malformado; y los ids van como TEXTO, porque postgres.js no sabe
+    // serializar un array de números (falla en el Bind). Postgres los castea sin problema.
+    const ids = wanted.map((it) => String(it.id));
+    const colors = wanted.map((it) => it.colorRepr as string);
+    const rows = (await this.db.execute(sql`
+      SELECT i.product_id, i.url
+      FROM unnest(${sql.param(ids)}::bigint[], ${sql.param(colors)}::text[])
+             AS want(product_id, color)
+      JOIN product_image i
+        ON i.product_id = want.product_id AND i.color = want.color AND i.position = 0
+    `)) as unknown as Record<string, unknown>[];
+
+    const byProduct = new Map(rows.map((r) => [Number(r.product_id), String(r.url)]));
+    for (const item of items) {
+      const url = byProduct.get(item.id);
+      if (url) item.imageUrl = url;
+    }
   }
 
   async getProduct(id: number): Promise<ProductDetail> {
@@ -197,6 +237,21 @@ export class CatalogService {
       }),
     }));
 
+    // Galería completa: la ficha la filtra por el color seleccionado, para que la foto cambie a
+    // la vez que el precio. `color NULLS FIRST` deja delante las fotos sin color atribuible, que
+    // son las que sirven de respaldo cuando el color elegido no tiene ninguna.
+    const imageRows = (await this.db.execute(sql`
+      SELECT color, url
+      FROM product_image
+      WHERE product_id = ${id}
+      ORDER BY color NULLS FIRST, position
+    `)) as unknown as Record<string, unknown>[];
+
+    const images: ProductImageRef[] = imageRows.map((row) => ({
+      color: (row.color as string | null) ?? null,
+      url: String(row.url),
+    }));
+
     return {
       id: Number(head.id),
       retailerId: Number(head.retailer_id),
@@ -210,6 +265,7 @@ export class CatalogService {
       url: (head.url as string | null) ?? null,
       imageUrl: (head.image_url as string | null) ?? null,
       variants,
+      images,
     };
   }
 

@@ -18,9 +18,29 @@ de dar de baja); las que no puedan lo omiten y la ingesta se queda con la histé
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
+
+
+@dataclass(frozen=True)
+class ScrapedImage:
+    """Una foto del producto, atribuida al color que retrata.
+
+    `color` debe salir del MISMO campo que alimenta `ScrapedVariant.color`: es la clave por la
+    que la ficha empareja foto y precio, y si los dos nombres se desalinean el emparejamiento
+    falla en silencio. Un color sin variantes utilizables no debe aportar fotos.
+
+    **El orden de la lista es el orden de la galería**; la posición dentro de cada color la
+    asigna la ingesta. No es un detalle cosmético: una tienda puede exponer dos colores distintos
+    con el MISMO nombre (visto en Lefties, dos "MARRON" con ids distintos), y si cada scraper
+    numerase por su cuenta las dos series arrancarían en 0 y chocarían. Numerando en un único
+    sitio, por nombre de color, ese caso se resuelve solo — que es además lo que la ficha quiere,
+    porque agrupa por nombre y para el usuario esos dos marrones son el mismo color.
+    """
+
+    color: str | None  # None = foto que no se puede atribuir a un color concreto
+    url: str
 
 
 @dataclass(frozen=True)
@@ -51,6 +71,10 @@ class ScrapedProduct:
     # Foto primaria (la del primer color). Opcional: hay tiendas que no la exponen en lo que ya
     # pedimos, y una ficha sin foto vale más que una petición extra por producto.
     image_url: str | None = None
+    # Galería completa, agrupada por color. Opcional igual que `image_url`: una tienda que no sepa
+    # darla sigue siendo válida. Vacía NO significa "este producto no tiene fotos", significa "esta
+    # pasada no trae información de fotos" — por eso la ingesta no borra la galería previa con ella.
+    images: list[ScrapedImage] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
