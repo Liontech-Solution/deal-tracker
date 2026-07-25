@@ -12,11 +12,15 @@ degrada a `image_url = None` en vez de romperse.
 
 from __future__ import annotations
 
+from collections import defaultdict
+from copy import deepcopy
 from decimal import Decimal
 
 from scraper.ingest import _discount_pct
+from scraper.stores.base import ScrapedImage
 from scraper.stores.sfera import (
     CategoryConfig,
+    _color_image_urls,
     _primary_image,
     pagination_of,
     parse_products,
@@ -134,6 +138,82 @@ def test_parse_products_sin_campo_de_imagen_no_rompe() -> None:
     products = parse_products(products_of(payload), _NINO)
     assert products, "debería parsear productos aunque no haya media"
     assert all(p.image_url is None for p in products)
+    # Galería vacía, que NO es lo mismo que "este producto no tiene fotos": la ingesta la
+    # interpreta como "esta pasada no sabe de fotos" y por eso no borra la que hubiera.
+    assert all(p.images == [] for p in products)
+
+
+def test_parse_products_construye_galeria_por_color() -> None:
+    """La galería sale del listado firefly (`all_images`): cero peticiones nuevas."""
+    payload = load_fixture("sfera_firefly_ninos_nino_media.json")
+    products = parse_products(products_of(payload), _NINO)
+    assert products
+
+    product = next(p for p in products if p.retailer_product_id == "A200974138")
+    assert product.images, "el color trae all_images: debería haber galería"
+
+    por_color: dict[str | None, list[ScrapedImage]] = defaultdict(list)
+    for img in product.images:
+        por_color[img.color].append(img)
+
+    for fotos in por_color.values():
+        assert [img.position for img in fotos] == list(range(len(fotos)))
+        for img in fotos:
+            assert img.url.startswith("https://dam.elcorteingles.es/producto/")
+            # Se guarda `big`: el CDN de ECI ignora el `&w=` del frontend, así que el ancho
+            # que se persiste aquí es el que se acaba sirviendo.
+            assert "width=516" in img.url
+            assert "no-image" not in img.url
+            # La muestra de color (`thumbnail_url`, un png de la carta) no es foto de prenda.
+            assert not img.url.endswith(".png")
+
+    # La foto de tarjeta sale de la galería: una sola fuente de verdad.
+    assert product.image_url == product.images[0].url
+
+
+def test_galeria_y_variantes_comparten_el_nombre_de_color() -> None:
+    """Invariante que sostiene el emparejamiento foto<->precio de la ficha.
+
+    Las fotos se clavan por el TEXTO del color contra `variant.color`. Sacar ese nombre de dos
+    sitios distintos haría que la ficha enseñara la foto de un color con el precio de otro.
+    """
+    payload = load_fixture("sfera_firefly_ninos_nino_media.json")
+    for product in parse_products(products_of(payload), _NINO):
+        colores_variante = {v.color for v in product.variants}
+        assert {img.color for img in product.images} <= colores_variante
+
+
+def test_color_oculto_no_aporta_fotos() -> None:
+    """Un `hideColor` no genera variantes, así que tampoco puede aportar fotos."""
+    payload = load_fixture("sfera_firefly_ninos_nino_media.json")
+    raw = products_of(payload)
+    producto = next(p for p in raw if p["id"] == "A200974138")
+    fantasma = deepcopy(producto["_my_colors"][0])
+    fantasma["hideColor"] = True
+    fantasma["title"] = "Fantasma"
+    producto["_my_colors"] = [*producto["_my_colors"], fantasma]
+
+    product = next(p for p in parse_products(raw, _NINO) if p.retailer_product_id == "A200974138")
+    assert "Fantasma" not in {img.color for img in product.images}
+    assert {img.color for img in product.images} <= {v.color for v in product.variants}
+
+
+def test_color_image_urls_modos_de_fallo() -> None:
+    """`all_images` ausente/inservible: respaldo a `image`, y nunca el marcador de la tienda."""
+    big = "https://dam.elcorteingles.es/producto/www-1-s0.jpg?impolicy=Resize&width=516"
+
+    # Sin `all_images` se cae al `image` plano del color.
+    assert _color_image_urls({"image": big}) == [big]
+    # `all_images` manda sobre `image` cuando lo hay.
+    assert _color_image_urls({"all_images": [{"sources": {"big": big}}], "image": _NO_IMAGE}) == [
+        big
+    ]
+    # El marcador `no-image.png` no cuela por ninguna vía.
+    assert _color_image_urls({"all_images": [{"sources": {"big": _NO_IMAGE}}]}) == []
+    assert _color_image_urls({}) == []
+    # Tope por color: la cola son detalles de tejido que no aportan a una galería.
+    muchas = {"all_images": [{"sources": {"big": f"{big}&n={i}"}} for i in range(20)]}
+    assert len(_color_image_urls(muchas)) == 8
 
 
 def test_product_signature_determinista_y_sensible_al_precio() -> None:

@@ -18,6 +18,8 @@ export interface ProductListItem {
   category: string | null;
   url: string | null;
   imageUrl: string | null;
+  /** Color de la variante cuyo precio muestra la tarjeta: `imageUrl` ya viene resuelta a ese color. */
+  colorRepr: string | null;
   priceFrom: string | null;
   listFrom: string | null;
   discountFrom: string | null;
@@ -49,6 +51,12 @@ export interface VariantWithPrice {
   honesty: Honesty;
 }
 
+/** Una foto de la galería, atribuida al color que retrata (`null` = sin color atribuible). */
+export interface ProductImageRef {
+  color: string | null;
+  url: string;
+}
+
 export interface ProductDetail {
   id: number;
   retailerId: number;
@@ -62,6 +70,8 @@ export interface ProductDetail {
   url: string | null;
   imageUrl: string | null;
   variants: VariantWithPrice[];
+  /** Galería ordenada por color y posición. La ficha la filtra por el color seleccionado. */
+  images: ProductImageRef[];
 }
 
 export interface PricePoint {

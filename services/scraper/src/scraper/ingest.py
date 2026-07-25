@@ -22,6 +22,7 @@ pregunta directamente y solo se da de baja lo confirmado como retirado.
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -32,6 +33,7 @@ from .stores.base import (
     BaseStore,
     DelistCandidate,
     ListingEntry,
+    ScrapedImage,
     ScrapedProduct,
     ScrapedVariant,
     ScrapeScope,
@@ -185,6 +187,30 @@ def _upsert_product(
         ),
     )
     return _scalar_int(cur)
+
+
+def _replace_product_images(
+    cur: psycopg.Cursor, product_id: int, images: Sequence[ScrapedImage]
+) -> None:
+    """Deja la galería del producto igual a `images`. Con `images` vacío NO toca nada.
+
+    Ese "no toca nada" es deliberado y es la misma filosofía que el
+    `COALESCE(EXCLUDED.image_url, product.image_url)` del upsert: una lista vacía significa "esta
+    pasada no trae información de fotos" (tienda que aún no sabe darlas, parseo que falla, campo
+    que la tienda deja de servir), no "este producto se quedó sin fotos". Borrar ahí dejaría la
+    ficha pelada por un fallo transitorio.
+
+    Cuando sí viene con contenido se reemplaza entera en vez de fusionar: es lo que hace que
+    desaparezcan las fotos de un color que la tienda ha retirado. Va dentro de la transacción
+    atómica de la pasada, así que o entra todo o no entra nada.
+    """
+    if not images:
+        return
+    cur.execute("DELETE FROM product_image WHERE product_id = %s", (product_id,))
+    cur.executemany(
+        "INSERT INTO product_image (product_id, color, position, url) VALUES (%s, %s, %s, %s)",
+        [(product_id, img.color, img.position, img.url) for img in images],
+    )
 
 
 def _upsert_variant(
@@ -601,6 +627,7 @@ def ingest(
                 details_fetched += 1
                 signature = signature_by_id.get(product.retailer_product_id, "")
                 product_id = _upsert_product(cur, retailer_id, run_ts, product, signature)
+                _replace_product_images(cur, product_id, product.images)
                 for variant in product.variants:
                     variant_id = _upsert_variant(cur, product_id, run_ts, variant)
                     _record_price(cur, variant_id, run_id, run_ts, variant)

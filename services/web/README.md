@@ -93,10 +93,22 @@ sección/género/categoría/talla/color/tienda, orden, estados de carga/error/va
 **modal de seguimiento** y **Mis seguimientos** (`/seguimientos`).
 
 **Fotos de producto** (`components/ProductImage.tsx`): se sirven por **hotlink** al CDN de la
-tienda desde `product.image_url` (`imageUrl` en la API). Sin proxy ni almacenamiento propio: el
-tráfico de imágenes no pasa por el pod. Si el producto aún no tiene foto —las fichas ya
-guardadas la estrenan según el scraper les vuelve a pedir el detalle— o la carga falla, se cae
-al placeholder de rayas del diseño (`lib/section.ts`).
+tienda. Sin proxy ni almacenamiento propio: el tráfico de imágenes no pasa por el pod. Si el
+producto aún no tiene foto —las fichas ya guardadas la estrenan según el scraper les vuelve a
+pedir el detalle— o la carga falla, se cae al placeholder de rayas del diseño (`lib/section.ts`).
+
+**Galería por color, y por qué importa.** El precio cuelga de la *variante*, que es talla+color,
+así que en muchas tiendas el color cambia el precio. Enseñar una foto fija junto a un precio que
+se mueve mezcla colores: la ficha dejaba elegir color, cambiaba el precio y la foto se quedaba
+quieta. Las fotos viven en `product_image` (color + posición) y las dos vistas se mantienen
+coherentes por sitios distintos:
+
+- **Ficha** (`ProductPage`): `images` filtradas por el color seleccionado, con respaldo a las
+  fotos sin color y luego a `imageUrl`. Al cambiar de color se mueven foto y precio a la vez.
+- **Tarjeta** (`ProductCard`): no filtra nada — el backend ya le manda en `imageUrl` la foto del
+  color de la variante "mejor oferta" (`colorRepr`), la misma de la que salen `listFrom`,
+  `discountFrom` y `honesty`. Se resuelve en una consulta aparte acotada a la página, no como
+  JOIN dentro de la query grande del catálogo.
 
 El `&w=` que se añade (`563` en la tarjeta, `1024` en el detalle) es una **petición, no una
 garantía**: el CDN de Zara la atiende y ahorra lo suyo (124 KB → ~10 KB), pero el de Sfera (El

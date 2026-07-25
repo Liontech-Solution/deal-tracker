@@ -182,3 +182,91 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
     expect(byName.get('Recién visto')).toBe('none');
   });
 });
+
+describe.skipIf(!TEST_DB)('galería por color · coherencia foto↔precio (e2e)', () => {
+  let sql: postgres.Sql;
+  let app: INestApplication;
+  let productId: number;
+
+  const ROSA_0 = 'https://static.example/p/rosa-0.jpg';
+  const ROSA_1 = 'https://static.example/p/rosa-1.jpg';
+  const NEGRO_0 = 'https://static.example/p/negro-0.jpg';
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    const [r] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('zara', 'Zara', 'https://www.zara.com') RETURNING id`;
+
+    // Producto de DOS colores a precios distintos. `image_url` (la foto suelta de siempre) apunta
+    // al rosa, pero la variante más barata en stock es la negra: es justo el caso en el que la
+    // tarjeta enseñaba la foto de un color con el precio de otro.
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category, url,
+                           image_url)
+      VALUES (${r.id}, 'ZARA-2', 'Bailarina', 'niña', 'zapateria', 'zapatos', 'https://x/2',
+              ${ROSA_0})
+      RETURNING id`;
+    productId = p.id;
+
+    for (const [rvid, color, price] of [
+      ['ZARA-2-24-rosa', 'Rosa', 39.95],
+      ['ZARA-2-24-negro', 'Negro', 24.95],
+    ] as const) {
+      const [v] = await sql<{ id: number }[]>`
+        INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+        VALUES (${p.id}, ${rvid}, '24', ${color}, ${rvid}) RETURNING id`;
+      await sql`
+        INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+        VALUES (${v.id}, ${price}, 39.95, 0, true, now())`;
+    }
+
+    await sql`
+      INSERT INTO product_image (product_id, color, position, url)
+      VALUES (${p.id}, 'Rosa', 0, ${ROSA_0}),
+             (${p.id}, 'Rosa', 1, ${ROSA_1}),
+             (${p.id}, 'Negro', 0, ${NEGRO_0})`;
+
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  it('la tarjeta sirve la foto del color cuyo precio muestra', async () => {
+    const res = await request(app.getHttpServer()).get('/api/catalog/products').expect(200);
+    const item = res.body.items[0];
+    // El precio mostrado es el de la variante negra (la más barata en stock)...
+    expect(item.priceFrom).toBe('24.95');
+    expect(item.colorRepr).toBe('Negro');
+    // ...así que la foto tiene que ser la negra, no la del `product.image_url` (rosa).
+    expect(item.imageUrl).toBe(NEGRO_0);
+  });
+
+  it('el detalle devuelve la galería agrupada por color y ordenada por posición', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/api/catalog/products/${productId}`)
+      .expect(200);
+    expect(res.body.images).toEqual([
+      { color: 'Negro', url: NEGRO_0 },
+      { color: 'Rosa', url: ROSA_0 },
+      { color: 'Rosa', url: ROSA_1 },
+    ]);
+  });
+
+  it('cae a product.image_url cuando el color representativo no tiene foto', async () => {
+    await sql`DELETE FROM product_image WHERE color = 'Negro'`;
+    try {
+      const res = await request(app.getHttpServer()).get('/api/catalog/products').expect(200);
+      expect(res.body.items[0].colorRepr).toBe('Negro');
+      expect(res.body.items[0].imageUrl).toBe(ROSA_0); // el respaldo de siempre, no un hueco
+    } finally {
+      await sql`
+        INSERT INTO product_image (product_id, color, position, url)
+        VALUES (${productId}, 'Negro', 0, ${NEGRO_0})`;
+    }
+  });
+});

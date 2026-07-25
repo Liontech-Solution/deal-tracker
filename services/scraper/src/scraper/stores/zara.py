@@ -32,7 +32,14 @@ from typing import Any
 import httpx
 
 from ..config import Config
-from .base import DelistCandidate, ListingEntry, ScrapedProduct, ScrapedVariant, ScrapeScope
+from .base import (
+    DelistCandidate,
+    ListingEntry,
+    ScrapedImage,
+    ScrapedProduct,
+    ScrapedVariant,
+    ScrapeScope,
+)
 
 BASE_URL = "https://www.zara.com/es/es/"
 _CATEGORY_URL = BASE_URL + "category/{cat_id}/products?ajax=true"
@@ -42,6 +49,10 @@ _DETAILS_URL = BASE_URL + "products-details?productIds={product_id}&ajax=true"
 
 # Códigos que merece la pena reintentar (throttling / errores transitorios del servidor).
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+# Tope de fotos que guardamos por color: Zara da hasta once y la cola son detalles de tejido que
+# no aportan a una galería de catálogo.
+_MAX_IMAGES_PER_COLOR = 8
 
 
 @dataclass(frozen=True)
@@ -144,21 +155,24 @@ def _listing_signature(node: dict[str, Any]) -> str:
     return "|".join(sorted(parts))
 
 
-def _primary_image(entry: dict[str, Any]) -> str | None:
-    """URL de la foto primaria: primera imagen del primer color del detalle.
+def _color_image_urls(color: dict[str, Any]) -> list[str]:
+    """URLs de las fotos de UN color del detalle, en el orden que las da la tienda.
 
-    Solo está en el detalle: el `xmedia` que trae el listado viene vacío. Se prefiere
+    Solo están en el detalle: el `xmedia` que trae el listado viene vacío. Se prefiere
     `extraInfo.deliveryUrl` (jpg plano) al `url` hermano, que lleva la plantilla `&w={width}`;
-    el ancho lo decide quien la pinta.
+    el ancho lo decide quien la pinta. Se recorta a `_MAX_IMAGES_PER_COLOR`: Zara llega a dar
+    once por color (detalles de tejido, la prenda en percha...) y la cola no aporta.
     """
-    for color in entry.get("detail", {}).get("colors", []):
-        for media in color.get("xmedia") or []:
-            if media.get("type") != "image":
-                continue
-            url = (media.get("extraInfo") or {}).get("deliveryUrl")
-            if url:
-                return str(url)
-    return None
+    urls: list[str] = []
+    for media in color.get("xmedia") or []:
+        if media.get("type") != "image":
+            continue
+        url = (media.get("extraInfo") or {}).get("deliveryUrl")
+        if url:
+            urls.append(str(url))
+        if len(urls) == _MAX_IMAGES_PER_COLOR:
+            break
+    return urls
 
 
 def parse_listing_entries(listing: dict[str, Any], cat: CategoryConfig) -> list[ListingEntry]:
@@ -195,11 +209,16 @@ def parse_detail_product(
     seo_pid = seo.get("seoProductId", "")
     url = f"{BASE_URL}{keyword}-p{seo_pid}.html" if keyword and seo_pid else None
 
+    # Variantes e imágenes se construyen en la MISMA pasada por `colors`, leyendo el nombre del
+    # color de un único sitio (`color["name"]`): es la clave con la que la ficha empareja la foto
+    # con el precio, y sacarla en dos recorridos distintos es justo como se desalinean.
     variants: list[ScrapedVariant] = []
+    images: list[ScrapedImage] = []
     for color in entry.get("detail", {}).get("colors", []):
         color_id = color.get("id")
         color_name = color.get("name")
         color_old = color.get("oldPrice")
+        variants_before = len(variants)
         for size in color.get("sizes", []):
             price = _cents(size.get("price"))
             if price is None:
@@ -217,6 +236,12 @@ def parse_detail_product(
                     url=url,
                 )
             )
+        if len(variants) == variants_before:
+            continue  # color sin ninguna talla con precio: sus fotos quedarían huérfanas
+        images.extend(
+            ScrapedImage(color=color_name, position=i, url=u)
+            for i, u in enumerate(_color_image_urls(color))
+        )
 
     if not variants:
         return None
@@ -228,7 +253,9 @@ def parse_detail_product(
         category=category,
         url=url,
         variants=variants,
-        image_url=_primary_image(entry),
+        # La foto de tarjeta sale de la propia galería, para no tener dos fuentes de verdad.
+        image_url=images[0].url if images else None,
+        images=images,
     )
 
 

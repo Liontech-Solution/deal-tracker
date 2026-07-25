@@ -18,9 +18,23 @@ de dar de baja); las que no puedan lo omiten y la ingesta se queda con la histé
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
+
+
+@dataclass(frozen=True)
+class ScrapedImage:
+    """Una foto del producto, atribuida al color que retrata.
+
+    `color` debe salir del MISMO campo que alimenta `ScrapedVariant.color`: es la clave por la
+    que la ficha empareja foto y precio, y si los dos nombres se desalinean el emparejamiento
+    falla en silencio. Un color sin variantes utilizables no debe aportar fotos.
+    """
+
+    color: str | None  # None = foto que no se puede atribuir a un color concreto
+    position: int  # orden dentro del color; 0 = la que representa a ese color
+    url: str
 
 
 @dataclass(frozen=True)
@@ -51,6 +65,10 @@ class ScrapedProduct:
     # Foto primaria (la del primer color). Opcional: hay tiendas que no la exponen en lo que ya
     # pedimos, y una ficha sin foto vale más que una petición extra por producto.
     image_url: str | None = None
+    # Galería completa, agrupada por color. Opcional igual que `image_url`: una tienda que no sepa
+    # darla sigue siendo válida. Vacía NO significa "este producto no tiene fotos", significa "esta
+    # pasada no trae información de fotos" — por eso la ingesta no borra la galería previa con ella.
+    images: list[ScrapedImage] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
