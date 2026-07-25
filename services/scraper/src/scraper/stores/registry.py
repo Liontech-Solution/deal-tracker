@@ -6,6 +6,7 @@ from collections.abc import Callable
 
 from ..config import Config
 from .base import BaseStore
+from .lefties import LeftiesStore
 from .sfera import SferaStore
 from .zara import ZaraStore
 
@@ -13,6 +14,7 @@ from .zara import ZaraStore
 _STORES: dict[str, Callable[[Config], BaseStore]] = {
     ZaraStore.slug: ZaraStore,
     SferaStore.slug: SferaStore,
+    LeftiesStore.slug: LeftiesStore,
 }
 
 
