@@ -133,10 +133,13 @@ describe.skipIf(!TEST_DB)('catálogo (e2e)', () => {
     expect(await search('nina')).toEqual(['Botas niña']); // tecleado sin la ñ
   });
 
-  it('exige todas las palabras, en cualquier orden, y busca también en la categoría', async () => {
+  it('exige todas las palabras, en cualquier orden, y busca en categoría y género', async () => {
     expect(await search('botas nina')).toEqual(['Botas niña']);
     expect(await search('nina botas')).toEqual(['Botas niña']);
     expect(await search('zapatos')).toEqual(['Botas niña']); // categoría
+    // El género no está en el nombre que da la tienda, pero es como la gente teclea.
+    expect(await search('zapatos nina')).toEqual(['Botas niña']);
+    expect(await search('zapatos nino')).toEqual([]);
     expect(await search('botas vestido')).toEqual([]); // una palabra no casa -> nada
   });
 

@@ -10,7 +10,7 @@ export type ProductSort = (typeof PRODUCT_SORTS)[number];
 
 /** Filtros y paginación de `GET /api/catalog/products`. Todos opcionales. */
 export class ProductQueryDto {
-  /** Búsqueda por texto libre sobre nombre y categoría. Insensible a mayúsculas y acentos. */
+  /** Búsqueda libre sobre nombre, categoría y género. Insensible a mayúsculas y acentos. */
   @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()

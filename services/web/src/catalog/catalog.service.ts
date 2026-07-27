@@ -64,11 +64,14 @@ export class CatalogService {
     const inStock = q.inStock ?? null;
     const onlyDeals = q.onlyDeals ?? null;
 
-    // Búsqueda por texto: cada palabra debe aparecer en el nombre o la categoría, en cualquier
-    // orden ("botas niña" y "niña botas" encuentran lo mismo). `position()` en vez de `LIKE` para
-    // no tener que escapar los comodines de lo que teclee el usuario.
+    // Búsqueda por texto: cada palabra debe aparecer en el nombre, la categoría o el género, en
+    // cualquier orden ("botas niña" y "niña botas" encuentran lo mismo). El género entra porque es
+    // como la gente teclea ("botas niña"), y los nombres que dan las tiendas casi nunca lo llevan.
+    // `position()` en vez de `LIKE` para no tener que escapar los comodines de lo que se teclee.
     const terms = (q.q ?? '').split(/\s+/).filter(Boolean);
-    const haystack = fold(sql`p.name || ' ' || coalesce(p.category, '')`);
+    const haystack = fold(
+      sql`p.name || ' ' || coalesce(p.category, '') || ' ' || coalesce(p.gender, '')`,
+    );
     const search = terms.length
       ? sql.join(
           terms.map((t) => sql`position(${fold(sql`${t}`)} in ${haystack}) > 0`),

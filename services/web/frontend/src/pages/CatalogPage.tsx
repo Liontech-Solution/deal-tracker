@@ -11,7 +11,7 @@ import { EmptyState, ErrorState, ProductGridSkeleton } from '../components/State
 import { capitalize } from '../lib/format';
 
 const SORTS: Array<{ value: ProductSort; label: string }> = [
-  { value: 'ofertas', label: 'Mejores ofertas' },
+  { value: 'ofertas', label: 'Mejores ofertas reales' },
   { value: 'precio-asc', label: 'Precio: menor a mayor' },
   { value: 'precio-desc', label: 'Precio: mayor a menor' },
   { value: 'descuento', label: 'Mayor % de rebaja' },
@@ -30,10 +30,12 @@ export function CatalogPage() {
     color: params.get('color') ?? '',
     retailer: params.get('retailer') ?? '',
     inStock: params.get('inStock') === 'true',
+    onlyDeals: params.get('onlyDeals') === 'true',
   };
+  const search = params.get('q') ?? '';
   const sort = (params.get('sort') as ProductSort) ?? 'ofertas';
 
-  const setFilters = (patch: Partial<CatalogFilters & { sort: ProductSort }>) => {
+  const setFilters = (patch: Partial<CatalogFilters & { sort: ProductSort; q: string }>) => {
     const next = new URLSearchParams(params);
     for (const [k, v] of Object.entries(patch)) {
       if (v === '' || v === false || v === undefined) next.delete(k);
@@ -43,6 +45,7 @@ export function CatalogPage() {
   };
 
   const query: Omit<ProductQuery, 'limit' | 'offset'> = {
+    q: search || undefined,
     gender: filters.gender || undefined,
     section: filters.section || undefined,
     category: filters.category || undefined,
@@ -50,6 +53,7 @@ export function CatalogPage() {
     color: filters.color || undefined,
     retailer: filters.retailer || undefined,
     inStock: filters.inStock || undefined,
+    onlyDeals: filters.onlyDeals || undefined,
     sort,
   };
 
@@ -59,6 +63,10 @@ export function CatalogPage() {
   // chips activos
   const retailerName = (slug: string) => facets.data?.retailers.find((r) => r.slug === slug)?.name ?? slug;
   const chips: Array<{ label: string; clear: () => void }> = [];
+  // El término de búsqueda también es un filtro puesto: se quita desde aquí, y el campo de la
+  // cabecera se vacía solo porque lee la URL.
+  if (search) chips.push({ label: `«${search}»`, clear: () => setFilters({ q: '' }) });
+  if (filters.onlyDeals) chips.push({ label: 'Solo ofertas reales', clear: () => setFilters({ onlyDeals: false }) });
   if (filters.gender) chips.push({ label: capitalize(filters.gender), clear: () => setFilters({ gender: '' }) });
   if (filters.section) chips.push({ label: capitalize(filters.section), clear: () => setFilters({ section: '' }) });
   if (filters.category) chips.push({ label: capitalize(filters.category), clear: () => setFilters({ category: '' }) });
@@ -69,19 +77,31 @@ export function CatalogPage() {
 
   const activeCount = chips.length;
   const clearAll = () =>
-    setFilters({ gender: '', section: '', category: '', size: '', color: '', retailer: '', inStock: false });
+    setFilters({
+      q: '',
+      gender: '',
+      section: '',
+      category: '',
+      size: '',
+      color: '',
+      retailer: '',
+      inStock: false,
+      onlyDeals: false,
+    });
 
   return (
     <section className="dt-fade" style={{ paddingTop: 24 }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
         <div>
-          <h1 className="serif" style={{ fontSize: 34, margin: '0 0 2px' }}>Catálogo</h1>
+          <h1 className="serif" style={{ fontSize: 34, margin: '0 0 2px' }}>
+            {search ? `«${search}»` : 'Catálogo'}
+          </h1>
           <div style={{ color: 'var(--text-muted)', fontSize: 14.5 }}>
             {items.length}
-            {q.hasNextPage ? '+' : ''} prendas · actualizado hoy
+            {q.hasNextPage ? '+' : ''} {items.length === 1 && !q.hasNextPage ? 'prenda' : 'prendas'}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-pill)', padding: '6px 6px 6px 14px' }}>
             <span style={{ fontSize: 13, color: 'var(--text-faint)', fontWeight: 700 }}>Ordenar</span>
             <select className="select" value={sort} onChange={(e) => setFilters({ sort: e.target.value as ProductSort })}>
@@ -118,7 +138,8 @@ export function CatalogPage() {
       )}
 
       <div className="dt-catgrid" style={{ display: 'grid', gridTemplateColumns: '250px 1fr', gap: 24 }}>
-        <aside className="dt-sidebar" style={{ alignSelf: 'start', position: 'sticky', top: 132 }}>
+        {/* 76 = alto de la cabecera, que desde el rediseño es de una sola fila. */}
+        <aside className="dt-sidebar" style={{ alignSelf: 'start', position: 'sticky', top: 76 }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '4px 18px 18px' }}>
             <FilterPanel facets={facets.data} value={filters} onChange={setFilters} />
           </div>

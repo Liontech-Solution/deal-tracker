@@ -24,15 +24,20 @@ export function useFacets() {
   });
 }
 
-/** Catálogo paginado con "cargar más" (offset). `query` no incluye limit/offset. */
-export function useProducts(query: Omit<ProductQuery, 'limit' | 'offset'>) {
+/**
+ * Catálogo paginado con "cargar más" (offset). `query` no incluye limit/offset.
+ *
+ * `pageSize` es para quien enseña una tira corta y no pagina (la home y sus ofertas del día): pedir
+ * 12 para pintar 4 sería traerse el triple de lo que se ve.
+ */
+export function useProducts(query: Omit<ProductQuery, 'limit' | 'offset'>, pageSize = PAGE_SIZE) {
   return useInfiniteQuery({
-    queryKey: ['products', query],
+    queryKey: ['products', query, pageSize],
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
       apiGet<ProductListResult>('/catalog/products', {
         ...query,
-        limit: PAGE_SIZE,
+        limit: pageSize,
         offset: pageParam,
       }),
     getNextPageParam: (lastPage) =>
