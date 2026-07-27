@@ -267,9 +267,24 @@ select:focus {
   }
 }
 @media (max-width: 720px) {
-  .dt-desknav,
-  .dt-searchtxt {
+  /* La nav de escritorio (Inicio/Ropa/Zapatería) la cubre la barra inferior. */
+  .dt-desknav {
     display: none !important;
+  }
+  /* El buscador es el único que hay, así que no se esconde: baja a su propia línea a lo ancho.
+     Estrujarlo en la misma fila desbordaba la cabecera y se comía el botón de sesión. */
+  .dt-search {
+    order: 10;
+    flex: 1 0 100% !important;
+    max-width: none !important;
+  }
+  /* Para que logo + tema + sesión quepan en la primera línea y el buscador se quede solo en la
+     segunda, en vez de repartirse en tres. */
+  .dt-headerbar {
+    gap: 8px !important;
+  }
+  .dt-login {
+    padding: 11px 14px !important;
   }
   .dt-two,
   .dt-three {

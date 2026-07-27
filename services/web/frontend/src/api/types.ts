@@ -153,6 +153,8 @@ export interface TelegramLinkResult {
 export type ProductSort = 'ofertas' | 'precio-asc' | 'precio-desc' | 'descuento';
 
 export interface ProductQuery {
+  /** Búsqueda libre sobre nombre, categoría y género. */
+  q?: string;
   gender?: string;
   section?: string;
   category?: string;
@@ -160,6 +162,8 @@ export interface ProductQuery {
   color?: string;
   retailer?: string;
   inStock?: boolean;
+  /** Solo ofertas reales (mínimo nuevo con rebaja honesta), no cualquier rebaja declarada. */
+  onlyDeals?: boolean;
   sort?: ProductSort;
   limit?: number;
   offset?: number;

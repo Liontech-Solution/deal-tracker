@@ -10,6 +10,7 @@ export interface CatalogFilters {
   color: string;
   retailer: string;
   inStock: boolean;
+  onlyDeals: boolean;
 }
 
 interface Props {
@@ -52,11 +53,61 @@ function Chip({ label, selected, onClick, dot }: { label: string; selected: bool
   );
 }
 
+function Switch({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer' }}>
+      <span style={{ fontSize: 14, fontWeight: 700 }}>{label}</span>
+      <button
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        style={{
+          width: 46,
+          height: 28,
+          borderRadius: 999,
+          border: 'none',
+          cursor: 'pointer',
+          background: checked ? 'var(--accent)' : 'var(--border-strong)',
+          position: 'relative',
+          transition: 'background .15s ease',
+          flex: 'none',
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: 3,
+            left: checked ? 21 : 3,
+            width: 22,
+            height: 22,
+            borderRadius: '50%',
+            background: '#fff',
+            transition: 'left .15s ease',
+            boxShadow: 'var(--shadow-1)',
+          }}
+        />
+      </button>
+    </label>
+  );
+}
+
 export function FilterPanel({ facets, value, onChange }: Props) {
   const toggle = (key: keyof CatalogFilters, v: string) => onChange({ [key]: value[key] === v ? '' : v });
 
   return (
     <div>
+      {/* El género vivía en una barra de pestañas de la cabecera, pegada a la de sección y
+          confundiéndose con ella. Es un filtro como talla o color, así que va donde están todos. */}
+      {facets?.genders.length ? (
+        <Group label="Para">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {facets.genders.map((g) => (
+              <Chip key={g} label={capitalize(g)} selected={value.gender === g} onClick={() => toggle('gender', g)} />
+            ))}
+          </div>
+        </Group>
+      ) : null}
+
       {facets?.categories.length ? (
         <Group label="Categoría">
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -97,39 +148,24 @@ export function FilterPanel({ facets, value, onChange }: Props) {
         </Group>
       ) : null}
 
+      <Group label="Ofertas">
+        <Switch
+          label="Solo ofertas reales"
+          checked={value.onlyDeals}
+          onChange={(v) => onChange({ onlyDeals: v })}
+        />
+        <div style={{ fontSize: 12.5, color: 'var(--text-faint)', marginTop: 8, lineHeight: 1.45 }}>
+          Deja solo lo que ha bajado de verdad respecto a su mínimo reciente. Apagado, el catálogo
+          se ve entero con las ofertas primero.
+        </div>
+      </Group>
+
       <Group label="Disponibilidad">
-        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer' }}>
-          <span style={{ fontSize: 14, fontWeight: 700 }}>Solo en stock</span>
-          <button
-            role="switch"
-            aria-checked={value.inStock}
-            onClick={() => onChange({ inStock: !value.inStock })}
-            style={{
-              width: 46,
-              height: 28,
-              borderRadius: 999,
-              border: 'none',
-              cursor: 'pointer',
-              background: value.inStock ? 'var(--accent)' : 'var(--border-strong)',
-              position: 'relative',
-              transition: 'background .15s ease',
-            }}
-          >
-            <span
-              style={{
-                position: 'absolute',
-                top: 3,
-                left: value.inStock ? 21 : 3,
-                width: 22,
-                height: 22,
-                borderRadius: '50%',
-                background: '#fff',
-                transition: 'left .15s ease',
-                boxShadow: 'var(--shadow-1)',
-              }}
-            />
-          </button>
-        </label>
+        <Switch
+          label="Solo en stock"
+          checked={value.inStock}
+          onChange={(v) => onChange({ inStock: v })}
+        />
       </Group>
     </div>
   );

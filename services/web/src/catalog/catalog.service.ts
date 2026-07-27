@@ -1,8 +1,9 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 
 import { Database, DRIZZLE } from '../database/database.module';
 import { classifyHonesty, HONESTY_WINDOW_DAYS } from '../matching/deal-rule';
+import { honestDiscountSql, isRealDealSql, type DealSqlColumns } from '../matching/deal-rule.sql';
 import type {
   Facets,
   PricePoint,
@@ -14,6 +15,36 @@ import type {
   VariantWithPrice,
 } from './catalog.types';
 import type { ProductQueryDto } from './dto/product-query.dto';
+
+/**
+ * Columnas de la variante "mejor oferta" ya agregada, contra las que se evalúa la honestidad en
+ * SQL. Son exactamente las mismas que se le pasan a `classifyHonesty` más abajo (`list_from`
+ * incluido): si aquí se colara otra columna, el filtro y la etiqueta hablarían de precios distintos.
+ */
+const DEAL_COLUMNS: DealSqlColumns = {
+  price: sql`price_repr`,
+  listPrice: sql`list_from`,
+  recentMin: sql`recent_min_repr`,
+  maxObserved: sql`max_observed_repr`,
+  priorPoints: sql`prior_points_repr`,
+};
+
+/**
+ * Plegado de texto para buscar sin distinguir mayúsculas ni acentos.
+ *
+ * A propósito **sin `unaccent` ni `pg_trgm`**: ambas exigen `CREATE EXTENSION`, que en la Postgres
+ * HA del cluster no está garantizado para el usuario de la aplicación, y no merece la pena atar el
+ * arranque del servicio a un privilegio que puede no estar. `translate()` es estándar, `IMMUTABLE`
+ * y cubre el castellano, que es todo el idioma del catálogo.
+ *
+ * Sin índice: el catálogo son unos pocos miles de productos y la consulta ya recorre `price_history`
+ * entero en la CTE `latest`, así que el plegado no es el cuello de botella. Si algún día lo fuera,
+ * la salida es `pg_trgm` + índice GIN sobre esta misma expresión.
+ */
+function fold(expr: SQL): SQL {
+  return sql`translate(lower((${expr})::text),
+    'áàäâãéèëêíìïîóòöôõúùüûñç', 'aaaaaeeeeiiiiooooouuuunc')`;
+}
 
 /**
  * Lectura del catálogo (tablas que escribe el scraper). "Último precio" por variante se
@@ -31,11 +62,30 @@ export class CatalogService {
     const color = q.color ?? null;
     const retailer = q.retailer ?? null;
     const inStock = q.inStock ?? null;
+    const onlyDeals = q.onlyDeals ?? null;
 
-    // Orden traducido a SQL (whitelist en el DTO). "ofertas" = en stock primero y mayor
-    // descuento; el id como desempate estable.
+    // Búsqueda por texto: cada palabra debe aparecer en el nombre, la categoría o el género, en
+    // cualquier orden ("botas niña" y "niña botas" encuentran lo mismo). El género entra porque es
+    // como la gente teclea ("botas niña"), y los nombres que dan las tiendas casi nunca lo llevan.
+    // `position()` en vez de `LIKE` para no tener que escapar los comodines de lo que se teclee.
+    const terms = (q.q ?? '').split(/\s+/).filter(Boolean);
+    const haystack = fold(
+      sql`p.name || ' ' || coalesce(p.category, '') || ' ' || coalesce(p.gender, '')`,
+    );
+    const search = terms.length
+      ? sql.join(
+          terms.map((t) => sql`position(${fold(sql`${t}`)} in ${haystack}) > 0`),
+          sql` AND `,
+        )
+      : sql`TRUE`;
+
+    // Orden traducido a SQL (whitelist en el DTO). "ofertas" = la oferta **real** primero, después
+    // stock, y el descuento honesto (contra el PVP creíble) como criterio; el `discount_pct` que
+    // declara la tienda queda de mero desempate porque es justo el dato del que desconfiamos.
+    // El id, desempate estable para que la paginación por offset no repita ni se salte filas.
     const orderBy = {
-      'ofertas': sql`any_in_stock DESC, max_discount DESC NULLS LAST, id`,
+      'ofertas': sql`is_real_deal DESC, any_in_stock DESC, honest_discount DESC NULLS LAST,
+                     max_discount DESC NULLS LAST, id`,
       'precio-asc': sql`price_from ASC NULLS LAST, id`,
       'precio-desc': sql`price_from DESC NULLS LAST, id`,
       'descuento': sql`max_discount DESC NULLS LAST, id`,
@@ -78,28 +128,42 @@ export class CatalogService {
           AND (${color}::text IS NULL OR v.color = ${color})
           AND (${inStock}::boolean IS NULL OR l.in_stock = ${inStock})
           AND (${q.activeOnly} = false OR p.delisted_at IS NULL)
+          AND ${search}
+      ),
+      agg AS (
+        SELECT id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
+               name, gender, section, category, url, image_url,
+               MIN(price) AS price_from,
+               MAX(discount_pct) AS max_discount,
+               (array_agg(list_price ORDER BY in_stock DESC, price ASC))[1] AS list_from,
+               (array_agg(discount_pct ORDER BY in_stock DESC, price ASC))[1] AS discount_from,
+               -- Estadísticos de la MISMA variante "mejor oferta" que list_from/discount_from,
+               -- para clasificar la honestidad de la oferta que se muestra en la tarjeta.
+               (array_agg(price ORDER BY in_stock DESC, price ASC))[1] AS price_repr,
+               (array_agg(recent_min ORDER BY in_stock DESC, price ASC))[1] AS recent_min_repr,
+               (array_agg(max_observed ORDER BY in_stock DESC, price ASC))[1] AS max_observed_repr,
+               (array_agg(prior_points ORDER BY in_stock DESC, price ASC))[1] AS prior_points_repr,
+               -- ...y su COLOR, para que la foto de la tarjeta sea la de ese mismo color y no la de
+               -- otro cualquiera: el precio cuelga de la variante (talla+color), así que enseñar la
+               -- foto del "primer color" junto al precio de la variante más barata puede mezclar.
+               (array_agg(color ORDER BY in_stock DESC, price ASC))[1] AS color_repr,
+               BOOL_OR(in_stock) AS any_in_stock,
+               COUNT(variant_id) AS variant_count
+        FROM matched
+        GROUP BY id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
+                 name, gender, section, category, url, image_url
+      ),
+      -- La honestidad se decide sobre las columnas *_repr, que solo existen tras el GROUP BY, así
+      -- que va en su propia CTE: desde aquí ya se puede filtrar y ordenar por ella antes del
+      -- LIMIT, que es justo lo que el TypeScript, evaluado sobre la página ya recortada, no puede.
+      scored AS (
+        SELECT agg.*,
+               ${isRealDealSql(DEAL_COLUMNS)}   AS is_real_deal,
+               ${honestDiscountSql(DEAL_COLUMNS)} AS honest_discount
+        FROM agg
       )
-      SELECT id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
-             name, gender, section, category, url, image_url,
-             MIN(price) AS price_from,
-             MAX(discount_pct) AS max_discount,
-             (array_agg(list_price ORDER BY in_stock DESC, price ASC))[1] AS list_from,
-             (array_agg(discount_pct ORDER BY in_stock DESC, price ASC))[1] AS discount_from,
-             -- Estadísticos de la MISMA variante "mejor oferta" que list_from/discount_from,
-             -- para clasificar la honestidad de la oferta que se muestra en la tarjeta.
-             (array_agg(price ORDER BY in_stock DESC, price ASC))[1] AS price_repr,
-             (array_agg(recent_min ORDER BY in_stock DESC, price ASC))[1] AS recent_min_repr,
-             (array_agg(max_observed ORDER BY in_stock DESC, price ASC))[1] AS max_observed_repr,
-             (array_agg(prior_points ORDER BY in_stock DESC, price ASC))[1] AS prior_points_repr,
-             -- ...y su COLOR, para que la foto de la tarjeta sea la de ese mismo color y no la de
-             -- otro cualquiera: el precio cuelga de la variante (talla+color), así que enseñar la
-             -- foto del "primer color" junto al precio de la variante más barata puede mezclar.
-             (array_agg(color ORDER BY in_stock DESC, price ASC))[1] AS color_repr,
-             BOOL_OR(in_stock) AS any_in_stock,
-             COUNT(variant_id) AS variant_count
-      FROM matched
-      GROUP BY id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
-               name, gender, section, category, url, image_url
+      SELECT * FROM scored
+      WHERE (${onlyDeals}::boolean IS NOT TRUE OR is_real_deal)
       ORDER BY ${orderBy}
       LIMIT ${q.limit} OFFSET ${q.offset}
     `);
