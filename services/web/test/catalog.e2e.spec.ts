@@ -116,6 +116,44 @@ describe.skipIf(!TEST_DB)('catálogo (e2e)', () => {
   it('404 para producto inexistente', async () => {
     await request(app.getHttpServer()).get('/api/catalog/products/999999').expect(404);
   });
+
+  // Búsqueda por texto (#28). El producto sembrado es 'Botas niña' con categoría 'zapatos', así que
+  // sirve tal cual para el caso que importa en castellano: encontrarlo tecleando sin acentos.
+  const search = async (q: string) => {
+    const res = await request(app.getHttpServer())
+      .get(`/api/catalog/products?q=${encodeURIComponent(q)}`)
+      .expect(200);
+    return res.body.items.map((i: { name: string }) => i.name);
+  };
+
+  it('busca por nombre sin distinguir mayúsculas ni acentos', async () => {
+    expect(await search('botas')).toEqual(['Botas niña']);
+    expect(await search('BOTAS')).toEqual(['Botas niña']);
+    expect(await search('niña')).toEqual(['Botas niña']);
+    expect(await search('nina')).toEqual(['Botas niña']); // tecleado sin la ñ
+  });
+
+  it('exige todas las palabras, en cualquier orden, y busca también en la categoría', async () => {
+    expect(await search('botas nina')).toEqual(['Botas niña']);
+    expect(await search('nina botas')).toEqual(['Botas niña']);
+    expect(await search('zapatos')).toEqual(['Botas niña']); // categoría
+    expect(await search('botas vestido')).toEqual([]); // una palabra no casa -> nada
+  });
+
+  it('no encuentra lo que no hay y no interpreta comodines', async () => {
+    expect(await search('vestido')).toEqual([]);
+    // Con LIKE, un '%' suelto devolvería el catálogo entero; con position() es texto y ya está.
+    expect(await search('%')).toEqual([]);
+    expect(await search('_')).toEqual([]);
+    // Cadena vacía = sin filtro, no "sin resultados".
+    expect(await search('   ')).toEqual(['Botas niña']);
+  });
+
+  it('rechaza un término de búsqueda desmedido', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/catalog/products?q=${'a'.repeat(81)}`)
+      .expect(400);
+  });
 });
 
 describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', () => {
@@ -126,7 +164,7 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
   async function seedProduct(
     retailerId: number,
     name: string,
-    history: { price: number; list: number | null; daysAgo: number }[],
+    history: { price: number; list: number | null; daysAgo: number; discount?: number }[],
   ): Promise<void> {
     const [p] = await sql<{ id: number }[]>`
       INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category, url)
@@ -138,8 +176,9 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
       RETURNING id`;
     for (const h of history) {
       await sql`
-        INSERT INTO price_history (variant_id, price, list_price, in_stock, scraped_at)
-        VALUES (${v.id}, ${h.price}, ${h.list}, true, now() - make_interval(days => ${h.daysAgo}))`;
+        INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+        VALUES (${v.id}, ${h.price}, ${h.list}, ${h.discount ?? null}, true,
+                now() - make_interval(days => ${h.daysAgo}))`;
     }
   }
 
@@ -150,19 +189,25 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
       INSERT INTO retailer (slug, name, base_url)
       VALUES ('zara', 'Zara', 'https://www.zara.com') RETURNING id`;
 
-    // Oferta real: mínimo nuevo sobre un PVP creíble.
+    // Oferta real: mínimo nuevo sobre un PVP creíble. La tienda declara un 50 %.
     await seedProduct(r.id, 'Oferta real', [
       { price: 40, list: 39.99, daysAgo: 2 },
-      { price: 19.99, list: 39.99, daysAgo: 0 },
+      { price: 19.99, list: 39.99, daysAgo: 0, discount: 50 },
     ]);
     // Precio inflado: el precio actual NO es un mínimo reciente (ya estuvo a 15 €) y la tienda
-    // enseña un tachado de 49,99 € -> descuento que no podemos corroborar.
+    // enseña un tachado de 49,99 € con un 64 % -> descuento que no podemos corroborar, y a la vez
+    // el mayor `discount_pct` declarado del catálogo: el caso que el orden tiene que degradar.
     await seedProduct(r.id, 'Precio inflado', [
       { price: 15, list: 15, daysAgo: 3 },
-      { price: 18, list: 49.99, daysAgo: 0 },
+      { price: 18, list: 49.99, daysAgo: 0, discount: 64 },
     ]);
     // Recién visto: una sola observación, ya rebajada -> sin histórico no afirmamos nada.
-    await seedProduct(r.id, 'Recién visto', [{ price: 12, list: 30, daysAgo: 0 }]);
+    await seedProduct(r.id, 'Recién visto', [{ price: 12, list: 30, daysAgo: 0, discount: 60 }]);
+    // Sin rebaja: histórico plano y sin tachado. Ni oferta ni engaño.
+    await seedProduct(r.id, 'Sin rebaja', [
+      { price: 25, list: null, daysAgo: 4 },
+      { price: 25, list: null, daysAgo: 0 },
+    ]);
 
     app = await makeApp();
   });
@@ -180,6 +225,54 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
     expect(byName.get('Oferta real')).toBe('real');
     expect(byName.get('Precio inflado')).toBe('suspicious');
     expect(byName.get('Recién visto')).toBe('none');
+    expect(byName.get('Sin rebaja')).toBe('none');
+  });
+
+  /**
+   * El test que vigila el espejo: `onlyDeals` y el orden se deciden en SQL
+   * (`matching/deal-rule.sql.ts`), pero la etiqueta `honesty` la sigue calculando `classifyHonesty`
+   * en TypeScript. Si los dos lados se separan, esto rompe — que es justo para lo que está.
+   */
+  it('«solo ofertas» devuelve exactamente los productos etiquetados como oferta real', async () => {
+    const todos = await request(app.getHttpServer()).get('/api/catalog/products').expect(200);
+    const realesSegunTs = todos.body.items
+      .filter((i: { honesty: string }) => i.honesty === 'real')
+      .map((i: { name: string }) => i.name)
+      .sort();
+
+    const soloOfertas = await request(app.getHttpServer())
+      .get('/api/catalog/products?onlyDeals=true')
+      .expect(200);
+    const realesSegunSql = soloOfertas.body.items.map((i: { name: string }) => i.name).sort();
+
+    expect(realesSegunSql).toEqual(realesSegunTs);
+    expect(realesSegunSql).toEqual(['Oferta real']); // y no es una comparación de dos listas vacías
+    expect(
+      soloOfertas.body.items.every((i: { honesty: string }) => i.honesty === 'real'),
+    ).toBe(true);
+  });
+
+  it('sin «solo ofertas» el catálogo sigue mostrándolo todo', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/catalog/products?onlyDeals=false')
+      .expect(200);
+    expect(res.body.items).toHaveLength(4);
+  });
+
+  it('sort=ofertas antepone la oferta real al mayor descuento declarado por la tienda', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/catalog/products?sort=ofertas')
+      .expect(200);
+    const nombres = res.body.items.map((i: { name: string }) => i.name);
+    // 'Precio inflado' declara un 64 % frente al 50 % de 'Oferta real': con el orden viejo
+    // (max_discount) iría primero. Lo honesto manda.
+    expect(nombres[0]).toBe('Oferta real');
+    expect(nombres.indexOf('Oferta real')).toBeLessThan(nombres.indexOf('Precio inflado'));
+    // 'descuento' sigue siendo el orden por el % que declara la tienda, para quien lo pida explícito.
+    const porDescuento = await request(app.getHttpServer())
+      .get('/api/catalog/products?sort=descuento')
+      .expect(200);
+    expect(porDescuento.body.items[0].name).toBe('Precio inflado');
   });
 });
 
