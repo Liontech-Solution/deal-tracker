@@ -6,16 +6,14 @@ import { FootIcon, GridIcon, HomeIcon, MoonIcon, SearchIcon, SunIcon, BellIcon }
 import { useTheme } from './ThemeProvider';
 import { useToast } from './Toast';
 
-const SECTIONS: Array<{ label: string; value: string }> = [
-  { label: 'Todas', value: '' },
-  { label: 'Ropa', value: 'ropa' },
-  { label: 'Zapatería', value: 'zapateria' },
-];
-const GENDERS: Array<{ label: string; value: string }> = [
-  { label: 'Todos', value: '' },
-  { label: 'Niño', value: 'niño' },
-  { label: 'Niña', value: 'niña' },
-  { label: 'Unisex', value: 'unisex' },
+/**
+ * Sección = navegación, no filtro. Antes vivía en una barra de pestañas pegada debajo de otra de
+ * género, con dos "Todos/Todas" contiguos que nadie sabía distinguir. Ahora es un eje de la nav
+ * principal, y el género bajó al panel de filtros con el resto (talla, color, tienda).
+ */
+const SECTION_NAV: Array<{ label: string; section: string }> = [
+  { label: 'Ropa', section: 'ropa' },
+  { label: 'Zapatería', section: 'zapateria' },
 ];
 
 function Logo() {
@@ -54,8 +52,9 @@ export function Layout() {
   const [params] = useSearchParams();
   const auth = useAuth();
 
+  const inCatalog = location.pathname === '/catalogo';
   const curSection = params.get('section') ?? '';
-  const curGender = params.get('gender') ?? '';
+  const curQuery = params.get('q') ?? '';
 
   // "Seguir": lleva a Mis seguimientos si hay sesión; si la auth está activa pero sin sesión,
   // login; en dev local sin realm, placeholder.
@@ -70,13 +69,6 @@ export function Layout() {
     } else {
       navigate('/seguimientos');
     }
-  };
-
-  const goCatalogWith = (key: 'section' | 'gender', value: string) => {
-    const next = new URLSearchParams(location.pathname === '/catalogo' ? params : undefined);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    navigate(`/catalogo?${next.toString()}`);
   };
 
   const navBtn = (active: boolean): React.CSSProperties => ({
@@ -103,39 +95,28 @@ export function Layout() {
           borderBottom: '1px solid var(--border)',
         }}
       >
-        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        {/* `flexWrap` para el móvil: ahí el buscador salta a su propia línea (ver `.dt-search` en
+            app.css) en vez de estrujar el resto de la cabecera hasta desbordarla. */}
+        <div className="dt-headerbar" style={{ maxWidth: 1180, margin: '0 auto', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <Logo />
           <nav className="dt-desknav" aria-label="Principal" style={{ display: 'flex', gap: 2, marginLeft: 8 }}>
             <Link to="/" style={navBtn(location.pathname === '/')}>
               Inicio
             </Link>
-            <Link to="/catalogo" style={navBtn(location.pathname === '/catalogo')}>
-              Catálogo
-            </Link>
+            {SECTION_NAV.map((s) => (
+              <Link
+                key={s.section}
+                to={`/catalogo?section=${s.section}`}
+                style={navBtn(inCatalog && curSection === s.section)}
+              >
+                {s.label}
+              </Link>
+            ))}
           </nav>
 
           <div style={{ flex: 1 }} />
 
-          <button
-            onClick={() => navigate('/catalogo')}
-            aria-label="Buscar"
-            className="btn-ghost"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              borderRadius: 'var(--r-pill)',
-              padding: '8px 14px',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              minHeight: 44,
-            }}
-          >
-            <SearchIcon size={17} />
-            <span className="dt-searchtxt" style={{ fontSize: 14 }}>
-              Buscar prendas…
-            </span>
-          </button>
+          <SearchBox value={curQuery} inCatalog={inCatalog} params={params} />
 
           <button
             onClick={toggle}
@@ -154,74 +135,12 @@ export function Layout() {
                 auth.enabled ? auth.login() : toast('Inicio de sesión con Keycloak · disponible al desplegar')
               }
               disabled={!auth.ready}
-              className="btn btn-primary"
+              className="btn btn-primary dt-login"
               style={{ padding: '11px 18px', fontSize: 14, flex: 'none' }}
             >
               Iniciar sesión
             </button>
           )}
-        </div>
-
-        {/* conmutador sección + género */}
-        <div style={{ borderTop: '1px solid var(--border)', background: 'color-mix(in srgb,var(--bg) 60%,transparent)' }}>
-          <div style={{ maxWidth: 1180, margin: '0 auto', padding: '9px 16px', display: 'flex', gap: 14, alignItems: 'center', overflowX: 'auto' }}>
-            <div
-              role="tablist"
-              aria-label="Sección"
-              style={{ display: 'flex', gap: 4, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-pill)', padding: 4, flex: 'none' }}
-            >
-              {SECTIONS.map((s) => {
-                const sel = curSection === s.value;
-                return (
-                  <button
-                    key={s.label}
-                    role="tab"
-                    aria-selected={sel}
-                    onClick={() => goCatalogWith('section', s.value)}
-                    style={{
-                      border: 'none',
-                      cursor: 'pointer',
-                      borderRadius: 'var(--r-pill)',
-                      padding: '7px 15px',
-                      fontSize: 13.5,
-                      fontWeight: 800,
-                      background: sel ? 'var(--surface)' : 'transparent',
-                      color: sel ? 'var(--text)' : 'var(--text-muted)',
-                      boxShadow: sel ? 'var(--shadow-1)' : 'none',
-                    }}
-                  >
-                    {s.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ width: 1, height: 26, background: 'var(--border)', flex: 'none' }} />
-            <div role="tablist" aria-label="Género" style={{ display: 'flex', gap: 6, flex: 'none' }}>
-              {GENDERS.map((g) => {
-                const sel = curGender === g.value;
-                return (
-                  <button
-                    key={g.label}
-                    role="tab"
-                    aria-selected={sel}
-                    onClick={() => goCatalogWith('gender', g.value)}
-                    style={{
-                      border: '1px solid ' + (sel ? 'transparent' : 'var(--border)'),
-                      cursor: 'pointer',
-                      borderRadius: 'var(--r-pill)',
-                      padding: '7px 14px',
-                      fontSize: 13.5,
-                      fontWeight: 700,
-                      background: sel ? 'var(--accent-soft)' : 'var(--surface)',
-                      color: sel ? 'var(--accent)' : 'var(--text-muted)',
-                    }}
-                  >
-                    {g.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </header>
 
@@ -231,6 +150,90 @@ export function Layout() {
 
       <BottomNav onFollow={goFollow} onToggleTheme={toggle} theme={theme} />
     </div>
+  );
+}
+
+/**
+ * El buscador del producto, y el único que hay.
+ *
+ * Antes esto era un botón «Buscar prendas…» que solo hacía `navigate('/catalogo')`: no existía
+ * ningún campo de texto en toda la aplicación. Vive en la cabecera y no en el catálogo para que
+ * buscar sea posible desde cualquier página sin duplicar el control.
+ *
+ * La URL es la fuente de verdad (`?q=`): así un resultado se comparte tal cual, el botón atrás
+ * funciona y el chip «quitar» del catálogo vacía este campo sin que haya que coordinarlos.
+ */
+function SearchBox({
+  value,
+  inCatalog,
+  params,
+}: {
+  value: string;
+  inCatalog: boolean;
+  params: URLSearchParams;
+}) {
+  const navigate = useNavigate();
+  const [text, setText] = useState(value);
+
+  useEffect(() => setText(value), [value]);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Desde el catálogo se conservan los filtros ya puestos; desde fuera se empieza limpio.
+    const next = new URLSearchParams(inCatalog ? params : undefined);
+    const q = text.trim();
+    if (q) next.set('q', q);
+    else next.delete('q');
+    navigate(`/catalogo?${next.toString()}`);
+  };
+
+  return (
+    <form
+      onSubmit={submit}
+      role="search"
+      className="dt-search"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        flex: '1 1 180px',
+        minWidth: 0,
+        maxWidth: 320,
+        background: 'var(--surface-2)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--r-pill)',
+        padding: '0 6px 0 12px',
+        minHeight: 44,
+      }}
+    >
+      <button
+        type="submit"
+        aria-label="Buscar"
+        className="btn-ghost"
+        style={{ display: 'grid', placeItems: 'center', padding: 4, borderRadius: '50%', color: 'var(--text-muted)', flex: 'none' }}
+      >
+        <SearchIcon size={17} />
+      </button>
+      <input
+        type="search"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="¿Qué estás buscando?"
+        aria-label="Buscar prendas"
+        maxLength={80}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          border: 'none',
+          background: 'none',
+          outline: 'none',
+          fontSize: 14,
+          fontFamily: 'inherit',
+          color: 'var(--text)',
+          padding: '10px 6px 10px 0',
+        }}
+      />
+    </form>
   );
 }
 

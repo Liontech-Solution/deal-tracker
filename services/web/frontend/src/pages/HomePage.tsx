@@ -1,10 +1,12 @@
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { HonestyBadge } from '../components/Badges';
-import { ArrowRightIcon, CheckIcon, ZapIcon } from '../components/icons';
-import { PriceBlock } from '../components/PriceBlock';
+import { ArrowRightIcon, CheckIcon, SearchIcon } from '../components/icons';
+import { ProductCard } from '../components/ProductCard';
+import { ErrorState, ProductGridSkeleton } from '../components/States';
 import { useToast } from '../components/Toast';
-import { useFacets } from '../api/hooks';
+import { useFacets, useProducts } from '../api/hooks';
 import { sectionBg, stripeBg } from '../lib/section';
 
 const HOW = [
@@ -13,14 +15,26 @@ const HOW = [
   { n: '3', t: 'Te avisamos por Telegram', d: 'Un único mensaje cuando la rebaja es de verdad, comparada con su mínimo reciente.' },
 ];
 
+/** Atajos del buscador: arrancan una búsqueda de verdad, no son adorno. */
+const SUGGESTIONS = ['botas', 'pantalones', 'sudadera'];
+
+/** Cuántas ofertas enseña la portada. Suficiente para dos filas cómodas y ni una tarjeta de relleno. */
+const DEALS_ON_HOME = 8;
+
 export function HomePage() {
   const navigate = useNavigate();
   const toast = useToast();
   const facets = useFacets();
-  const stores = facets.data?.retailers.length ?? 8;
+  const [text, setText] = useState('');
+
+  const goSearch = (q: string) => {
+    const term = q.trim();
+    navigate(term ? `/catalogo?q=${encodeURIComponent(term)}` : '/catalogo');
+  };
 
   const stats = [
-    { n: `${stores}`, l: 'tiendas rastreadas' },
+    // Sin número inventado mientras carga: un guion dice la verdad, un "8" por defecto no.
+    { n: facets.data ? `${facets.data.retailers.length}` : '—', l: 'tiendas rastreadas' },
     { n: 'Barefoot', l: 'ropa y calzado infantil' },
     { n: 'Cero', l: 'descuentos falsos' },
   ];
@@ -40,11 +54,45 @@ export function HomePage() {
             Seguimos las tiendas por ti y te avisamos por Telegram cuando una prenda que sigues baja de precio{' '}
             <strong style={{ color: 'var(--text)' }}>de verdad</strong>. Detectamos los descuentos inflados para que no piques.
           </p>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" style={{ padding: '15px 26px', fontSize: 16, boxShadow: 'var(--shadow-2)' }} onClick={() => navigate('/catalogo')}>
-              Explorar el catálogo
+          {/* El CTA es el buscador. Antes era un «Explorar el catálogo» que llevaba al mismo sitio
+              que las tarjetas de sección de más abajo y que la barra de la cabecera: tres caminos
+              al mismo `/catalogo` en una sola pantalla. */}
+          <form
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              goSearch(text);
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r-pill)', padding: '6px 6px 6px 18px', maxWidth: 520, boxShadow: 'var(--shadow-2)' }}
+          >
+            <SearchIcon size={20} />
+            <input
+              type="search"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="¿Qué estás buscando?"
+              aria-label="Buscar prendas"
+              maxLength={80}
+              style={{ flex: 1, minWidth: 0, border: 'none', background: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', color: 'var(--text)', padding: '13px 4px' }}
+            />
+            <button className="btn btn-primary" type="submit" style={{ padding: '13px 22px', fontSize: 15, flex: 'none' }}>
+              Buscar
             </button>
-            <button className="btn btn-secondary" style={{ padding: '15px 26px', fontSize: 16 }} onClick={() => toast('Inicia sesión para guardar tus seguimientos · muy pronto')}>
+          </form>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 12 }}>
+            <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>Prueba con</span>
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                onClick={() => goSearch(s)}
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-pill)', padding: '5px 12px', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <button className="btn btn-secondary" style={{ padding: '13px 22px', fontSize: 15 }} onClick={() => toast('Inicia sesión para guardar tus seguimientos · muy pronto')}>
               Empieza a seguir prendas
             </button>
           </div>
@@ -65,17 +113,10 @@ export function HomePage() {
               </span>
             </div>
           </div>
-          <div style={{ position: 'absolute', bottom: -18, left: -18, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-3)', padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center' }}>
-            <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--good-soft)', color: 'var(--good-text)', display: 'grid', placeItems: 'center', flex: 'none' }}>
-              <ZapIcon size={20} />
-            </span>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 14 }}>¡Oferta real encontrada!</div>
-              <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Botas Zapa −38% vs mínimo</div>
-            </div>
-          </div>
         </div>
       </div>
+
+      <TodaysDeals />
 
       {/* dos secciones */}
       <div className="dt-two" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 36 }}>
@@ -139,10 +180,75 @@ export function HomePage() {
             </div>
           </div>
         </div>
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: 20 }}>
-          <PriceBlock price="15.90" listPrice="25.90" discountPct="39" stock="stock" honesty="real" />
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: 24, display: 'grid', placeItems: 'center', textAlign: 'center', gap: 10 }}>
+          <div className="serif" style={{ fontSize: 20 }}>Sin letra pequeña</div>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14.5, lineHeight: 1.55, margin: 0 }}>
+            Cada prenda del catálogo lleva su etiqueta y su gráfica de precios. Si no podemos
+            corroborar la rebaja con el histórico, no la llamamos oferta.
+          </p>
+          <Link to="/catalogo?onlyDeals=true" style={{ color: 'var(--accent)', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>
+            Ver las ofertas de hoy
+          </Link>
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * Las ofertas reales del momento, salidas de la API.
+ *
+ * Aquí antes había una tarjeta que decía «¡Oferta real encontrada! · Botas Zapa −38 % vs mínimo»
+ * escrita a mano. Enseñar un descuento inventado en la portada de un producto que se vende como
+ * detector de descuentos inventados era el peor sitio posible para hacerlo.
+ *
+ * `onlyDeals` filtra en el servidor por oferta **real**: nunca aparece aquí un «precio inflado»
+ * como gancho. Y si hoy no hay ninguna, se dice; no se rellena con productos sin rebaja.
+ */
+function TodaysDeals() {
+  const q = useProducts({ sort: 'ofertas', onlyDeals: true, inStock: true }, DEALS_ON_HOME);
+  const items = q.data?.pages[0]?.items ?? [];
+
+  return (
+    <div style={{ marginTop: 48 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+        <div>
+          <h2 className="serif" style={{ fontSize: 30, margin: '0 0 4px' }}>
+            Ofertas <em style={{ color: 'var(--accent)' }}>reales</em> de hoy
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14.5, margin: 0 }}>
+            Prendas por debajo de su mínimo de los últimos meses. Comprobado contra su historial.
+          </p>
+        </div>
+        <Link to="/catalogo?onlyDeals=true" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--accent)', fontWeight: 800, fontSize: 14.5, textDecoration: 'none' }}>
+          Ver todas las ofertas <ArrowRightIcon size={16} />
+        </Link>
+      </div>
+
+      {q.isPending ? (
+        <ProductGridSkeleton count={4} />
+      ) : q.isError ? (
+        <ErrorState onRetry={() => q.refetch()} />
+      ) : items.length === 0 ? (
+        <div style={{ background: 'var(--surface)', border: '1px dashed var(--border-strong)', borderRadius: 'var(--r-lg)', padding: '40px 24px', textAlign: 'center' }}>
+          <div className="serif" style={{ fontSize: 22, marginBottom: 8 }}>Hoy no hay ninguna oferta real</div>
+          <p style={{ color: 'var(--text-muted)', maxWidth: 460, margin: '0 auto 18px', lineHeight: 1.55 }}>
+            Ninguna prenda ha bajado de su mínimo reciente. Preferimos decírtelo a llenar esto de
+            rebajas que no lo son. Volvemos a mirar las tiendas cada día.
+          </p>
+          <Link className="btn btn-secondary" to="/catalogo" style={{ padding: '12px 22px', textDecoration: 'none' }}>
+            Ver el catálogo completo
+          </Link>
+        </div>
+      ) : (
+        // Tarjetas algo más anchas que en el catálogo (4 por fila en vez de 5): así las 8 de la
+        // portada caen en dos filas completas en lugar de dejar una huérfana.
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 16 }}>
+          {items.map((p) => (
+            <ProductCard key={p.id} p={p} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,5 +1,8 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+
+/** Tope del término de búsqueda: nadie busca frases, y acota el coste del `LIKE` sin índice. */
+export const MAX_SEARCH_LENGTH = 80;
 
 /** Criterios de ordenación admitidos por el catálogo. */
 export const PRODUCT_SORTS = ['ofertas', 'precio-asc', 'precio-desc', 'descuento'] as const;
@@ -18,6 +21,13 @@ export type BarefootFilter = (typeof BAREFOOT_FILTERS)[number];
 
 /** Filtros y paginación de `GET /api/catalog/products`. Todos opcionales. */
 export class ProductQueryDto {
+  /** Búsqueda libre sobre nombre, categoría y género. Insensible a mayúsculas y acentos. */
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(MAX_SEARCH_LENGTH)
+  q?: string;
+
   @IsOptional()
   @IsString()
   gender?: string; // niño | niña | unisex
@@ -54,6 +64,16 @@ export class ProductQueryDto {
   @IsOptional()
   @IsIn(BAREFOOT_FILTERS)
   barefoot: BarefootFilter = 'si';
+
+  /**
+   * Deja solo las **ofertas reales** (mínimo nuevo con rebaja contra el PVP creíble), no cualquier
+   * rebaja que declare la tienda. Apagado por defecto: el catálogo completo es el valor para quien
+   * lo usa para no ir tienda por tienda, y la oferta es secundaria para ese uso.
+   */
+  @IsOptional()
+  @Transform(({ value }) => (value === undefined ? undefined : value === 'true' || value === true))
+  @IsBoolean()
+  onlyDeals?: boolean;
 
   @IsOptional()
   @IsIn(PRODUCT_SORTS)
