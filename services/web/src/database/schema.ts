@@ -44,6 +44,12 @@ export const product = pgTable(
     gender: text('gender'),
     section: text('section'),
     category: text('category'),
+    /**
+     * Calzado respetuoso: `'si' | 'no' | 'desconocido'`, y **NULL cuando no aplica** porque es
+     * ropa. Ese NULL no es "sin datos": es la diferencia de la que depende el filtro por defecto
+     * del catálogo, que deja pasar toda la ropa y solo el calzado `si` (ver migración 0012).
+     */
+    barefoot: text('barefoot'),
     url: text('url'),
     imageUrl: text('image_url'),
     listingSignature: text('listing_signature'),

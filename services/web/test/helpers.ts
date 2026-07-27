@@ -34,16 +34,22 @@ export interface SeedIds {
 /** Foto del producto sembrado (hotlink al CDN de la tienda, como la que guarda el scraper). */
 export const SEED_IMAGE_URL = 'https://static.example/p/ZARA-1.jpg?ts=1';
 
-/** Siembra un catálogo mínimo: 1 tienda, 1 producto (niña/zapatería/zapatos), 1 variante con precio. */
+/**
+ * Siembra un catálogo mínimo: 1 tienda, 1 producto (niña/zapatería/zapatos), 1 variante con precio.
+ *
+ * El producto va marcado como barefoot `si` a propósito: desde #30 el catálogo esconde por defecto
+ * el calzado no respetuoso, así que un seed sin marcar sería invisible para casi todos los specs y
+ * los haría fallar por una razón que no es la que están comprobando.
+ */
 export async function seedCatalog(sql: postgres.Sql): Promise<SeedIds> {
   const [r] = await sql<{ id: number }[]>`
     INSERT INTO retailer (slug, name, base_url)
     VALUES ('zara', 'Zara', 'https://www.zara.com')
     RETURNING id`;
   const [p] = await sql<{ id: number }[]>`
-    INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category, url,
-                         image_url)
-    VALUES (${r.id}, 'ZARA-1', 'Botas niña', 'niña', 'zapateria', 'zapatos', 'https://x/1',
+    INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                         barefoot, url, image_url)
+    VALUES (${r.id}, 'ZARA-1', 'Botas niña', 'niña', 'zapateria', 'zapatos', 'si', 'https://x/1',
             ${SEED_IMAGE_URL})
     RETURNING id`;
   const [v] = await sql<{ id: number }[]>`

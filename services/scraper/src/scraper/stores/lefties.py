@@ -40,6 +40,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
+from ..barefoot import classify as classify_barefoot
 from ..config import Config
 from .base import (
     DelistCandidate,
@@ -51,6 +52,7 @@ from .base import (
 )
 from .browser import BrowserSession
 
+SLUG = "lefties"  # a nivel de módulo porque las funciones puras de parseo también lo necesitan
 BASE_URL = "https://www.lefties.com/es/"
 _ROOT = "https://www.lefties.com"
 
@@ -325,6 +327,15 @@ def parse_detail_product(product: dict[str, Any], cat: CategoryConfig) -> Scrape
         category=cat.category,
         url=url,
         variants=variants,
+        # Lefties tiene ramas `Barefoot` propias, así que casi siempre decide `cat.category`; el
+        # nombre va como respaldo para el calzado respetuoso que no cuelgue de ellas.
+        barefoot=classify_barefoot(
+            retailer=SLUG,
+            retailer_product_id=pid,
+            section=cat.section,
+            category=cat.category,
+            texts=nombre,
+        ),
         image_url=images[0].url if images else None,
         images=images,
     )
@@ -349,7 +360,7 @@ def _batched(items: list[str], size: int) -> Iterable[list[str]]:
 class LeftiesStore:
     """Scraper de Lefties. Implementa BaseStore y SupportsAliveProbe."""
 
-    slug = "lefties"
+    slug = SLUG
     name = "Lefties"
     base_url = BASE_URL
 

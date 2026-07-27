@@ -77,6 +77,11 @@ class IngestResult:
     probes_alive: int  # el sondeo los encontró vivos: rescatados, no se dan de baja
     probes_dead: int  # el sondeo confirmó la retirada
     probes_unresolved: int  # sin veredicto (fallo, respuesta ambigua o fuera del tope)
+    # Reparto si/no/desconocido del calzado ACTIVO de la tienda tras la pasada. Es el informe que
+    # pide #30, y va aquí en vez de en una consulta a mano porque es la cifra que dice si el foco
+    # barefoot tiene contenido: una zapatería que se queda en 0 productos `si` no es un detalle
+    # técnico, es la mitad del producto vacía.
+    barefoot_counts: dict[str, int] = field(default_factory=dict)
 
 
 def _scalar_int(cur: psycopg.Cursor) -> int:
@@ -153,14 +158,19 @@ def _upsert_product(
     cur.execute(
         """
         INSERT INTO product (retailer_id, retailer_product_id, name, gender, section,
-                             category, url, image_url, listing_signature, first_seen_at,
+                             category, barefoot, url, image_url, listing_signature, first_seen_at,
                              last_seen_at, last_detail_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (retailer_id, retailer_product_id) DO UPDATE SET
             name = EXCLUDED.name,
             gender = EXCLUDED.gender,
             section = EXCLUDED.section,
             category = EXCLUDED.category,
+            -- Sin COALESCE, al revés que `image_url`: aquí el valor nuevo SIEMPRE manda, incluido
+            -- un `desconocido` que degrade a un `si` anterior. La clasificación se recalcula entera
+            -- en cada pasada (categoría de la tienda, heurística y correcciones manuales), así que
+            -- conservar lo viejo dejaría clavado un veredicto que ya hemos decidido cambiar.
+            barefoot = EXCLUDED.barefoot,
             url = EXCLUDED.url,
             -- COALESCE y no EXCLUDED a secas: una tienda que aún no sepa dar foto (o un fallo
             -- puntual de parseo) no debe dejar sin imagen una ficha que ya la tenía.
@@ -178,6 +188,7 @@ def _upsert_product(
             product.gender,
             product.section,
             product.category,
+            product.barefoot,
             product.url,
             product.image_url,
             signature,
@@ -312,6 +323,24 @@ def _stale_refreshes(
     # `None` es lo más rancio posible: nunca se le pidió el detalle (o es de antes de la 0009).
     stale.sort(key=lambda item: item[0] or _NEVER)
     return {product_id for _, product_id in stale[:refresh_max]}
+
+
+def _barefoot_counts(cur: psycopg.Cursor, retailer_id: int) -> dict[str, int]:
+    """Reparto si/no/desconocido del calzado activo de la tienda (informe de #30).
+
+    Solo `zapateria`: en la ropa la columna es NULL porque la pregunta no aplica, y meterla aquí
+    solo serviría para inflar el recuento con un estado que no significa nada.
+    """
+    cur.execute(
+        """
+        SELECT COALESCE(barefoot, 'sin-marcar'), count(*)
+        FROM product
+        WHERE retailer_id = %s AND section = 'zapateria' AND delisted_at IS NULL
+        GROUP BY 1
+        """,
+        (retailer_id,),
+    )
+    return {str(row[0]): int(row[1]) for row in cur.fetchall()}
 
 
 def _load_active_counts(cur: psycopg.Cursor, retailer_id: int) -> dict[_ScopeKey, int]:
@@ -685,6 +714,7 @@ def ingest(
                 """,
                 (len(entries), variants_seen, len(suspicious) + probe.unresolved, run_id),
             )
+            barefoot_counts = _barefoot_counts(cur, retailer_id)
         conn.commit()
         return IngestResult(
             scrape_run_id=run_id,
@@ -704,6 +734,7 @@ def ingest(
             probes_alive=probe.alive,
             probes_dead=probe.dead,
             probes_unresolved=probe.unresolved,
+            barefoot_counts=barefoot_counts,
         )
     except Exception:
         conn.rollback()

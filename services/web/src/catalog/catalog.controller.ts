@@ -1,6 +1,7 @@
 import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 
 import { CatalogService } from './catalog.service';
+import { FacetQueryDto } from './dto/facet-query.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
 
 /** Catálogo de solo lectura. Público (browsing sin login); los intereses sí piden auth. */
@@ -24,7 +25,7 @@ export class CatalogController {
   }
 
   @Get('facets')
-  getFacets() {
-    return this.catalog.getFacets();
+  getFacets(@Query() query: FacetQueryDto) {
+    return this.catalog.getFacets(query.barefoot);
   }
 }

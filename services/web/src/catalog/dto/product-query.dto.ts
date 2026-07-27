@@ -8,6 +8,17 @@ export const MAX_SEARCH_LENGTH = 80;
 export const PRODUCT_SORTS = ['ofertas', 'precio-asc', 'precio-desc', 'descuento'] as const;
 export type ProductSort = (typeof PRODUCT_SORTS)[number];
 
+/**
+ * Filtro de calzado respetuoso. `si` es el DEFECTO del producto entero: es una plataforma de ropa
+ * y calzado barefoot, así que enseñar calzado convencional sin pedirlo sería contar otra cosa.
+ *
+ * - `si` (defecto): toda la ropa + solo el calzado marcado como respetuoso.
+ * - `no` / `desconocido`: solo calzado con esa marca. Sirven para auditar la clasificación.
+ * - `all`: sin filtro — el escape explícito para la futura vista de "ver también el no respetuoso".
+ */
+export const BAREFOOT_FILTERS = ['si', 'no', 'desconocido', 'all'] as const;
+export type BarefootFilter = (typeof BAREFOOT_FILTERS)[number];
+
 /** Filtros y paginación de `GET /api/catalog/products`. Todos opcionales. */
 export class ProductQueryDto {
   /** Búsqueda libre sobre nombre, categoría y género. Insensible a mayúsculas y acentos. */
@@ -45,6 +56,14 @@ export class ProductQueryDto {
   @Transform(({ value }) => (value === undefined ? undefined : value === 'true' || value === true))
   @IsBoolean()
   inStock?: boolean;
+
+  /**
+   * Por defecto `si`: el catálogo esconde el calzado no respetuoso salvo que se pida lo contrario.
+   * No afecta a la ropa, donde la marca es NULL ("no aplica") y siempre pasa el filtro.
+   */
+  @IsOptional()
+  @IsIn(BAREFOOT_FILTERS)
+  barefoot: BarefootFilter = 'si';
 
   /**
    * Deja solo las **ofertas reales** (mínimo nuevo con rebaja contra el PVP creíble), no cualquier

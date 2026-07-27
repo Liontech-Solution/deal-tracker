@@ -122,6 +122,11 @@ export class MatchingService {
         JOIN product  p ON p.id = v.product_id
         JOIN retailer r ON r.id = p.retailer_id
         WHERE ph.scrape_run_id > ${watermark} AND ph.in_stock
+          -- Foco barefoot (#30): no se avisa de calzado que no sea respetuoso. Un aviso es más
+          -- intrusivo que una tarjeta del catálogo — llega solo al móvil de alguien — así que
+          -- mandar ahí lo que el catálogo esconde sería la peor versión del mismo error.
+          -- IS DISTINCT FROM y no <>: con section NULL, <> daría NULL y tiraría la fila.
+          AND (p.section IS DISTINCT FROM 'zapateria' OR p.barefoot = 'si')
       )
       SELECT i.id AS interest_id, i.user_id, i.min_discount_pct, i.compare_base, i.window_days,
              u.telegram_chat_id,

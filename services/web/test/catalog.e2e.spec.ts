@@ -170,8 +170,9 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
     history: { price: number; list: number | null; daysAgo: number; discount?: number }[],
   ): Promise<void> {
     const [p] = await sql<{ id: number }[]>`
-      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category, url)
-      VALUES (${retailerId}, ${name}, ${name}, 'niña', 'zapateria', 'zapatos', 'https://x')
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${retailerId}, ${name}, ${name}, 'niña', 'zapateria', 'zapatos', 'si', 'https://x')
       RETURNING id`;
     const [v] = await sql<{ id: number }[]>`
       INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
@@ -299,9 +300,9 @@ describe.skipIf(!TEST_DB)('galería por color · coherencia foto↔precio (e2e)'
     // al rosa, pero la variante más barata en stock es la negra: es justo el caso en el que la
     // tarjeta enseñaba la foto de un color con el precio de otro.
     const [p] = await sql<{ id: number }[]>`
-      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category, url,
-                           image_url)
-      VALUES (${r.id}, 'ZARA-2', 'Bailarina', 'niña', 'zapateria', 'zapatos', 'https://x/2',
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url, image_url)
+      VALUES (${r.id}, 'ZARA-2', 'Bailarina', 'niña', 'zapateria', 'zapatos', 'si', 'https://x/2',
               ${ROSA_0})
       RETURNING id`;
     productId = p.id;
@@ -364,5 +365,117 @@ describe.skipIf(!TEST_DB)('galería por color · coherencia foto↔precio (e2e)'
         INSERT INTO product_image (product_id, color, position, url)
         VALUES (${productId}, 'Negro', 0, ${NEGRO_0})`;
     }
+  });
+});
+
+describe.skipIf(!TEST_DB)('foco barefoot · qué enseña el catálogo por defecto (e2e)', () => {
+  let sql: postgres.Sql;
+  let app: INestApplication;
+
+  /** Producto con una variante y un precio, con la marca barefoot que se le pase. */
+  async function seedProduct(
+    retailerId: number,
+    name: string,
+    section: string,
+    category: string,
+    barefoot: string | null,
+  ): Promise<number> {
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${retailerId}, ${name}, ${name}, 'niña', ${section}, ${category}, ${barefoot},
+              'https://x')
+      RETURNING id`;
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p.id}, ${name + '-v'}, '24', 'rojo', ${name + '-sku'}) RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${v.id}, 19.99, 39.99, 50, true, now())`;
+    return p.id;
+  }
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    const [r] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('zara', 'Zara', 'https://www.zara.com') RETURNING id`;
+
+    await seedProduct(r.id, 'Bailarina barefoot', 'zapateria', 'barefoot', 'si');
+    await seedProduct(r.id, 'Botín de tacón', 'zapateria', 'zapatos', 'no');
+    await seedProduct(r.id, 'Zapato sin clasificar', 'zapateria', 'zapatos', 'desconocido');
+    // Ropa: la marca es NULL porque la pregunta no aplica. Debe verse SIEMPRE.
+    await seedProduct(r.id, 'Camiseta', 'ropa', 'camisetas', null);
+
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  const nombres = async (query: string): Promise<string[]> => {
+    const res = await request(app.getHttpServer()).get(query).expect(200);
+    return res.body.items.map((i: { name: string }) => i.name).sort();
+  };
+
+  it('por defecto enseña toda la ropa y solo el calzado respetuoso', async () => {
+    expect(await nombres('/api/catalog/products')).toEqual(['Bailarina barefoot', 'Camiseta']);
+  });
+
+  it('lo NO concluyente se esconde igual que lo descartado', async () => {
+    // El sesgo de #30: en la duda no se enseña. Un `desconocido` visible sería prometer barefoot
+    // sin saberlo, que es peor que enseñar de menos.
+    const visibles = await nombres('/api/catalog/products');
+    expect(visibles).not.toContain('Zapato sin clasificar');
+    expect(visibles).not.toContain('Botín de tacón');
+  });
+
+  it('la ropa nunca se ve afectada por el filtro', async () => {
+    for (const filtro of ['si', 'all']) {
+      expect(await nombres(`/api/catalog/products?barefoot=${filtro}`)).toContain('Camiseta');
+    }
+  });
+
+  it('barefoot=all es el escape explícito y devuelve el catálogo entero', async () => {
+    expect(await nombres('/api/catalog/products?barefoot=all')).toEqual([
+      'Bailarina barefoot',
+      'Botín de tacón',
+      'Camiseta',
+      'Zapato sin clasificar',
+    ]);
+  });
+
+  it('permite auditar la clasificación pidiendo un estado concreto', async () => {
+    expect(await nombres('/api/catalog/products?barefoot=desconocido')).toEqual([
+      'Zapato sin clasificar',
+    ]);
+    expect(await nombres('/api/catalog/products?barefoot=no')).toEqual(['Botín de tacón']);
+  });
+
+  it('rechaza un valor de barefoot inválido', async () => {
+    await request(app.getHttpServer()).get('/api/catalog/products?barefoot=quizas').expect(400);
+  });
+
+  it('la ficha directa SÍ enseña el calzado no respetuoso, con su marca', async () => {
+    // El filtro acota lo que el catálogo OFRECE; no censura un enlace que alguien ya tiene.
+    const [row] = await sql<{ id: number }[]>`
+      SELECT id FROM product WHERE name = 'Botín de tacón'`;
+    const res = await request(app.getHttpServer())
+      .get(`/api/catalog/products/${row.id}`)
+      .expect(200);
+    expect(res.body.barefoot).toBe('no');
+  });
+
+  it('las facetas no ofrecen filtros que el catálogo por defecto deja vacíos', async () => {
+    const porDefecto = await request(app.getHttpServer()).get('/api/catalog/facets').expect(200);
+    expect(porDefecto.body.categories).toEqual(['barefoot', 'camisetas']);
+
+    const todo = await request(app.getHttpServer())
+      .get('/api/catalog/facets?barefoot=all')
+      .expect(200);
+    expect(todo.body.categories).toContain('zapatos');
   });
 });

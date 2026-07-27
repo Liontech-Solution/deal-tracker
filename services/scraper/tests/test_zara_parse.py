@@ -264,6 +264,32 @@ def test_el_dedup_de_list_catalog_respeta_el_orden_de_categories() -> None:
     assert {e.retailer_product_id: e.category for e in al_reves}["545453620"] == "zapatos"
 
 
+def test_el_detalle_clasifica_el_calzado_como_barefoot() -> None:
+    """La marca de #30 sale del propio detalle, sin peticiones nuevas.
+
+    El fixture es la bailarina de la hoja BAREFOOT: su nombre lo dice y su descripción por color
+    también («suela de goma flexible con drop 0»), así que cae por las dos vías.
+    """
+    details = load_fixture("zara_products_details_545453620.json")
+    product = parse_detail_product(details[0], **_DOMAIN)  # _DOMAIN es zapatería/zapatos
+    assert product is not None
+    assert product.barefoot == "si"
+
+    # Y por la vía de la categoría, sin mirar el texto: es la hoja de la tienda quien lo dice.
+    barefoot_cat = parse_detail_product(
+        details[0], gender="niña", section="zapateria", category="barefoot"
+    )
+    assert barefoot_cat is not None and barefoot_cat.barefoot == "si"
+
+
+def test_la_ropa_se_queda_sin_marca_barefoot() -> None:
+    """NULL = "no aplica", que no es lo mismo que `desconocido` (ver 0012_add_barefoot.sql)."""
+    details = load_fixture("zara_products_details_545453620.json")
+    ropa = parse_detail_product(details[0], gender="niña", section="ropa", category="camisetas")
+    assert ropa is not None
+    assert ropa.barefoot is None
+
+
 def test_discount_pct() -> None:
     assert _discount_pct(Decimal("39.95"), None) is None
     assert _discount_pct(Decimal("40"), Decimal("40")) is None  # sin rebaja real

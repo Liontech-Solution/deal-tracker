@@ -122,7 +122,9 @@ def _product(
     variants: list[ScrapedVariant],
     *,
     gender: str = "niña",
+    section: str = "zapateria",
     category: str = "zapatos",
+    barefoot: str | None = None,
     image_url: str | None = None,
     images: list[ScrapedImage] | None = None,
 ) -> ScrapedProduct:
@@ -130,8 +132,9 @@ def _product(
         retailer_product_id=pid,
         name=name,
         gender=gender,
-        section="zapateria",
+        section=section,
         category=category,
+        barefoot=barefoot,
         url=f"https://fake.example/p{pid}.html",
         variants=variants,
         image_url=image_url,
@@ -768,3 +771,71 @@ def test_dos_colores_con_el_mismo_nombre_no_chocan(db_conn: Any) -> None:
         ("Marrón", 1, "https://static.example/p/marron-b.jpg"),
         ("Marrón", 2, "https://static.example/p/marron-c.jpg"),
     ]
+
+
+# --- #30 Marca barefoot -------------------------------------------------------------------
+
+
+def test_la_marca_barefoot_se_persiste_y_la_ropa_queda_en_null(db_conn: Any) -> None:
+    """NULL en la ropa no es "sin datos": es "la pregunta no aplica".
+
+    Es la distinción de la que depende el filtro por defecto del catálogo, que deja pasar toda la
+    ropa y solo el calzado `si`. Si la ropa entrara como `desconocido`, desaparecería del catálogo.
+    """
+    store = FakeStore(
+        [
+            _product("A", "Bailarina barefoot", [_variant("A-1", "39.95")], barefoot="si"),
+            _product("B", "Botín de tacón", [_variant("B-1", "45.00")], barefoot="no"),
+            _product("C", "Zapato sin señal", [_variant("C-1", "30.00")], barefoot="desconocido"),
+            _product(
+                "D",
+                "Camiseta",
+                [_variant("D-1", "9.95")],
+                section="ropa",
+                category="camisetas",
+                barefoot=None,
+            ),
+        ],
+        signatures={"A": "a1", "B": "b1", "C": "c1", "D": "d1"},
+    )
+
+    result = ingest(db_conn, store, run_ts=T1)
+
+    with db_conn.cursor() as cur:
+        cur.execute("SELECT retailer_product_id, barefoot FROM product ORDER BY 1")
+        assert cur.fetchall() == [("A", "si"), ("B", "no"), ("C", "desconocido"), ("D", None)]
+
+    # El informe que pide #30 sale de la propia pasada, y solo cuenta calzado.
+    assert result.barefoot_counts == {"si": 1, "no": 1, "desconocido": 1}
+
+
+def test_la_reclasificacion_pisa_el_valor_anterior(db_conn: Any) -> None:
+    """Sin COALESCE, al revés que la foto: un `si` que pasa a `desconocido` debe degradarse.
+
+    La clasificación se recalcula entera en cada pasada (categoría de la tienda, heurística y
+    correcciones manuales); conservar lo viejo dejaría clavado un veredicto ya rectificado, que es
+    justo lo que la lista de correcciones manuales existe para poder arreglar.
+    """
+    ingest(
+        db_conn,
+        FakeStore(
+            [_product("A", "Bailarina", [_variant("A-1", "39.95")], barefoot="si")],
+            signatures={"A": "a1"},
+        ),
+        run_ts=T1,
+    )
+    assert _scalar(db_conn, "SELECT barefoot FROM product WHERE retailer_product_id = 'A'") == "si"
+
+    # Segunda pasada: cambia la huella (para que se pida el detalle) y el veredicto.
+    ingest(
+        db_conn,
+        FakeStore(
+            [_product("A", "Bailarina", [_variant("A-1", "39.95")], barefoot="desconocido")],
+            signatures={"A": "a2"},
+        ),
+        run_ts=T2,
+    )
+    assert (
+        _scalar(db_conn, "SELECT barefoot FROM product WHERE retailer_product_id = 'A'")
+        == "desconocido"
+    )

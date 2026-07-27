@@ -68,6 +68,10 @@ class ScrapedProduct:
     category: str | None  # pantalones | camisetas | zapatos | ...
     url: str | None
     variants: list[ScrapedVariant]
+    # Calzado respetuoso: 'si' | 'no' | 'desconocido', y None cuando no aplica (ropa). Lo decide
+    # `scraper.barefoot.classify()` con lo que cada tienda sepa dar — su propia categoría barefoot
+    # si la tiene, y si no la heurística de texto. Ver `0012_add_barefoot.sql`.
+    barefoot: str | None = None
     # Foto primaria (la del primer color). Opcional: hay tiendas que no la exponen en lo que ya
     # pedimos, y una ficha sin foto vale más que una petición extra por producto.
     image_url: str | None = None

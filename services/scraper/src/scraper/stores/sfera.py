@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
+from ..barefoot import classify as classify_barefoot
 from ..config import Config
 from .base import (
     DelistCandidate,
@@ -43,6 +44,7 @@ from .base import (
 )
 from .browser import BrowserSession
 
+SLUG = "sfera"  # a nivel de módulo porque las funciones puras de parseo también lo necesitan
 BASE_ROOT = "https://www.sfera.com/es"
 BASE_URL = BASE_ROOT + "/"
 _SEED_URL = BASE_ROOT + "/{category_path}/"
@@ -262,15 +264,28 @@ def parse_products(products: list[dict[str, Any]], cat: CategoryConfig) -> list[
             images.extend(ScrapedImage(color=color_name, url=u) for u in _color_image_urls(color))
         if not variants:
             continue
+        nombre = product.get("title", "")
         out.append(
             ScrapedProduct(
                 retailer_product_id=str(pid),
-                name=product.get("title", ""),
+                name=nombre,
                 gender=cat.gender,
                 section=cat.section,
                 category=cat.category,
                 url=url,
                 variants=variants,
+                # Sfera es la tienda sin señal: su payload no menciona `barefoot` ni equivalentes
+                # por ningún lado (comprobado sobre el firefly completo de sus dos categorías de
+                # zapatos), y tampoco da descripción. Solo queda el nombre, así que lo esperable es
+                # que su calzado se quede en `desconocido` — que es justo para lo que existe ese
+                # estado, y no una carencia que haya que tapar inventando un `si`.
+                barefoot=classify_barefoot(
+                    retailer=SLUG,
+                    retailer_product_id=str(pid),
+                    section=cat.section,
+                    category=cat.category,
+                    texts=nombre,
+                ),
                 # Se prefiere la galería para que la foto de tarjeta sea de un color conocido; si
                 # esta pasada no trae galería (fixture antiguo sin media), la elección de la tienda.
                 image_url=images[0].url if images else _primary_image(product),
@@ -301,7 +316,7 @@ def product_signature(product: ScrapedProduct) -> str:
 class SferaStore:
     """Scraper de Sfera (vía navegador headless). Implementa el Protocol BaseStore."""
 
-    slug = "sfera"
+    slug = SLUG
     name = "Sfera"
     base_url = BASE_URL
 
