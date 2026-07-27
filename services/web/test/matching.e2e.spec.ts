@@ -213,6 +213,40 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     expect((await makeService(client).run(false)).candidates).toBe(0);
   });
 
+  it('calzado no respetuoso: no se avisa aunque el interés y la bajada casen', async () => {
+    // Foco barefoot (#30). El aviso es más intrusivo que una tarjeta del catálogo —llega solo al
+    // móvil de alguien—, así que mandar ahí lo que el catálogo esconde sería el mismo error a lo
+    // grande. El producto sembrado es zapatería, así que basta con degradar su marca.
+    const user = await seedLinkedUser('kc-match-barefoot', 909);
+    await seedInterest(user.id);
+    const { client, sent } = fakeTelegram();
+
+    for (const marca of ['no', 'desconocido', null]) {
+      await sql`UPDATE product SET barefoot = ${marca} WHERE id = ${seeded.productId}`;
+      const summary = await makeService(client).run(false);
+      expect(summary.candidates, `barefoot=${marca}`).toBe(0);
+    }
+    expect(sent).toHaveLength(0);
+    expect(await countNotifications()).toBe(0);
+
+    // ...y con la marca puesta, el mismo caso sí avisa: el filtro es lo único que cambiaba.
+    await sql`UPDATE product SET barefoot = 'si' WHERE id = ${seeded.productId}`;
+    expect((await makeService(client).run(false)).deals).toBe(1);
+  });
+
+  it('la ropa nunca la filtra el foco barefoot', async () => {
+    // En ropa la marca es NULL porque la pregunta no aplica; si el filtro la tratara como "sin
+    // clasificar", los avisos de ropa —la mitad del catálogo— desaparecerían en silencio.
+    const user = await seedLinkedUser('kc-match-ropa', 910);
+    await seedInterest(user.id);
+    await sql`
+      UPDATE product SET section = 'ropa', category = 'camisetas', barefoot = NULL
+      WHERE id = ${seeded.productId}`;
+    const { client } = fakeTelegram();
+
+    expect((await makeService(client).run(false)).deals).toBe(1);
+  });
+
   it('arranque en frío: producto nuevo ya rebajado no avisa', async () => {
     const user = await seedLinkedUser('kc-match-frio', 908);
     await seedInterest(user.id);

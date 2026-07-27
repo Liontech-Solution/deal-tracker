@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 
 import { Database, DRIZZLE } from '../database/database.module';
 import { classifyHonesty, HONESTY_WINDOW_DAYS } from '../matching/deal-rule';
@@ -13,7 +13,28 @@ import type {
   RetailerFacet,
   VariantWithPrice,
 } from './catalog.types';
-import type { ProductQueryDto } from './dto/product-query.dto';
+import type { BarefootFilter, ProductQueryDto } from './dto/product-query.dto';
+
+/** Sección donde la marca barefoot aplica. En el resto (`ropa`) la columna es NULL. */
+const SECCION_CALZADO = 'zapateria';
+
+/**
+ * Condición SQL del filtro barefoot (#30), con `alias` como alias de la tabla `product`.
+ *
+ * El caso por defecto (`si`) NO es "barefoot = 'si'" a secas: es **toda la ropa más el calzado
+ * respetuoso**. La ropa lleva NULL porque la pregunta no le aplica, y `NULL = 'si'` es NULL, o sea
+ * falso, así que un filtro ingenuo escondería el catálogo entero de ropa. `IS DISTINCT FROM` en vez
+ * de `<>` por la misma razón: un producto con `section` NULL debe pasar, no evaporarse.
+ */
+export function barefootCondition(filter: BarefootFilter, alias: string): SQL {
+  const seccion = sql.raw(`${alias}.section`);
+  const marca = sql.raw(`${alias}.barefoot`);
+  if (filter === 'all') return sql`true`;
+  if (filter === 'si') {
+    return sql`(${seccion} IS DISTINCT FROM ${SECCION_CALZADO} OR ${marca} = 'si')`;
+  }
+  return sql`${marca} = ${filter}`;
+}
 
 /**
  * Lectura del catálogo (tablas que escribe el scraper). "Último precio" por variante se
@@ -61,7 +82,7 @@ export class CatalogService {
       ),
       matched AS (
         SELECT p.id, p.retailer_id, r.slug AS retailer_slug, r.name AS retailer_name,
-               p.retailer_product_id, p.name, p.gender, p.section, p.category, p.url,
+               p.retailer_product_id, p.name, p.gender, p.section, p.category, p.barefoot, p.url,
                p.image_url,
                v.id AS variant_id, v.color, l.price, l.list_price, l.discount_pct, l.in_stock,
                s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points
@@ -78,9 +99,10 @@ export class CatalogService {
           AND (${color}::text IS NULL OR v.color = ${color})
           AND (${inStock}::boolean IS NULL OR l.in_stock = ${inStock})
           AND (${q.activeOnly} = false OR p.delisted_at IS NULL)
+          AND ${barefootCondition(q.barefoot, 'p')}
       )
       SELECT id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
-             name, gender, section, category, url, image_url,
+             name, gender, section, category, barefoot, url, image_url,
              MIN(price) AS price_from,
              MAX(discount_pct) AS max_discount,
              (array_agg(list_price ORDER BY in_stock DESC, price ASC))[1] AS list_from,
@@ -99,7 +121,7 @@ export class CatalogService {
              COUNT(variant_id) AS variant_count
       FROM matched
       GROUP BY id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
-               name, gender, section, category, url, image_url
+               name, gender, section, category, barefoot, url, image_url
       ORDER BY ${orderBy}
       LIMIT ${q.limit} OFFSET ${q.offset}
     `);
@@ -114,6 +136,7 @@ export class CatalogService {
       gender: (row.gender as string | null) ?? null,
       section: (row.section as string | null) ?? null,
       category: (row.category as string | null) ?? null,
+      barefoot: (row.barefoot as string | null) ?? null,
       url: (row.url as string | null) ?? null,
       imageUrl: (row.image_url as string | null) ?? null,
       colorRepr: (row.color_repr as string | null) ?? null,
@@ -174,7 +197,7 @@ export class CatalogService {
   async getProduct(id: number): Promise<ProductDetail> {
     const [head] = (await this.db.execute(sql`
       SELECT p.id, p.retailer_id, r.slug AS retailer_slug, r.name AS retailer_name,
-             p.retailer_product_id, p.name, p.gender, p.section, p.category, p.url,
+             p.retailer_product_id, p.name, p.gender, p.section, p.category, p.barefoot, p.url,
              p.image_url
       FROM product p
       JOIN retailer r ON r.id = p.retailer_id
@@ -262,6 +285,9 @@ export class CatalogService {
       gender: (head.gender as string | null) ?? null,
       section: (head.section as string | null) ?? null,
       category: (head.category as string | null) ?? null,
+      // La ficha SÍ enseña el calzado no respetuoso: el filtro de #30 acota lo que se ofrece en el
+      // catálogo, no censura un enlace directo. Devolver la marca deja que la ficha lo advierta.
+      barefoot: (head.barefoot as string | null) ?? null,
       url: (head.url as string | null) ?? null,
       imageUrl: (head.image_url as string | null) ?? null,
       variants,
@@ -293,12 +319,20 @@ export class CatalogService {
     }));
   }
 
-  async getFacets(): Promise<Facets> {
+  /**
+   * Valores disponibles para los filtros. Acepta el MISMO `barefoot` que el listado y por la misma
+   * razón: unas facetas sin filtrar ofrecerían chips (`zapatos`, `zapatillas`, tallas de calzado
+   * convencional) que con el filtro por defecto no devuelven ni un producto.
+   */
+  async getFacets(barefoot: BarefootFilter = 'si'): Promise<Facets> {
+    const visible = barefootCondition(barefoot, 'p');
+
     const pick = async (column: 'gender' | 'section' | 'category'): Promise<string[]> => {
       const rows = (await this.db.execute(sql`
-        SELECT DISTINCT ${sql.raw(column)} AS value
-        FROM product
-        WHERE ${sql.raw(column)} IS NOT NULL AND delisted_at IS NULL
+        SELECT DISTINCT ${sql.raw(`p.${column}`)} AS value
+        FROM product p
+        WHERE ${sql.raw(`p.${column}`)} IS NOT NULL AND p.delisted_at IS NULL
+          AND ${visible}
         ORDER BY value
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => String(r.value));
@@ -312,6 +346,7 @@ export class CatalogService {
         JOIN product p ON p.id = v.product_id
         WHERE ${sql.raw(`v.${column}`)} IS NOT NULL
           AND v.delisted_at IS NULL AND p.delisted_at IS NULL
+          AND ${visible}
         ORDER BY value
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => String(r.value));
@@ -322,6 +357,7 @@ export class CatalogService {
         SELECT DISTINCT r.slug, r.name
         FROM retailer r
         JOIN product p ON p.retailer_id = r.id AND p.delisted_at IS NULL
+        WHERE ${visible}
         ORDER BY r.name
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => ({ slug: String(r.slug), name: String(r.name) }));

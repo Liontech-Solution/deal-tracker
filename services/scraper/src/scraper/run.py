@@ -85,6 +85,9 @@ def main(argv: list[str] | None = None) -> int:
         f"{result.variants_seen} variantes, {result.prices_recorded} precios; "
         f"bajas: {result.products_delisted} productos / {result.variants_delisted} variantes"
     )
+    if result.barefoot_counts:
+        reparto = ", ".join(f"{k}: {v}" for k, v in sorted(result.barefoot_counts.items()))
+        print(f"calzado por marca barefoot: {reparto}")
     if result.details_refreshed:
         print(
             f"refresco forzado: {result.details_refreshed} productos con el detalle rancio "

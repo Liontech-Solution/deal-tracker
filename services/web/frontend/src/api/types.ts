@@ -16,6 +16,12 @@ export interface ProductListItem {
   gender: string | null;
   section: string | null;
   category: string | null;
+  /**
+   * Calzado respetuoso: `si` | `no` | `desconocido`; `null` en ropa, donde no aplica. La API ya
+   * filtra por esto (solo `si` salvo `?barefoot=all`), así que en el catálogo normal siempre
+   * llega `si` o `null`.
+   */
+  barefoot: string | null;
   url: string | null;
   imageUrl: string | null;
   /** Color de la variante cuyo precio muestra la tarjeta: `imageUrl` ya viene resuelta a ese color. */
@@ -67,6 +73,9 @@ export interface ProductDetail {
   gender: string | null;
   section: string | null;
   category: string | null;
+  /** Igual que en la tarjeta, pero aquí SÍ puede llegar `no`/`desconocido`: la ficha directa no
+   * se filtra, solo se filtra lo que el catálogo ofrece. */
+  barefoot: string | null;
   url: string | null;
   imageUrl: string | null;
   variants: VariantWithPrice[];

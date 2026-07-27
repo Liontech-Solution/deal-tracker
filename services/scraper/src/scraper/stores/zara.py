@@ -31,6 +31,7 @@ from typing import Any
 
 import httpx
 
+from ..barefoot import classify as classify_barefoot
 from ..config import Config
 from .base import (
     DelistCandidate,
@@ -41,6 +42,7 @@ from .base import (
     ScrapeScope,
 )
 
+SLUG = "zara"  # a nivel de módulo porque las funciones puras de parseo también lo necesitan
 BASE_URL = "https://www.zara.com/es/es/"
 _CATEGORY_URL = BASE_URL + "category/{cat_id}/products?ajax=true"
 # El endpoint de detalle solo devuelve datos para UN productId por llamada
@@ -217,6 +219,15 @@ def parse_listing_entries(listing: dict[str, Any], cat: CategoryConfig) -> list[
     return entries
 
 
+def _descripciones(entry: dict[str, Any]) -> list[str]:
+    """Textos descriptivos del detalle. Zara los cuelga de cada COLOR, no del producto."""
+    return [
+        str(color["description"])
+        for color in entry.get("detail", {}).get("colors", [])
+        if color.get("description")
+    ]
+
+
 def parse_detail_product(
     entry: dict[str, Any], *, gender: str | None, section: str | None, category: str | None
 ) -> ScrapedProduct | None:
@@ -263,14 +274,25 @@ def parse_detail_product(
 
     if not variants:
         return None
+    name = entry.get("name", "")
     return ScrapedProduct(
         retailer_product_id=pid,
-        name=entry.get("name", ""),
+        name=name,
         gender=gender,
         section=section,
         category=category,
         url=url,
         variants=variants,
+        # Zara etiqueta el barefoot en su árbol, así que lo normal es que decida `category`. La
+        # descripción por color va igualmente como respaldo: cubre el zapato respetuoso que Zara
+        # describe como tal pero no cuelga de la hoja BAREFOOT.
+        barefoot=classify_barefoot(
+            retailer=SLUG,
+            retailer_product_id=pid,
+            section=section,
+            category=category,
+            texts=[name, *_descripciones(entry)],
+        ),
         # La foto de tarjeta sale de la propia galería, para no tener dos fuentes de verdad.
         image_url=images[0].url if images else None,
         images=images,
@@ -280,7 +302,7 @@ def parse_detail_product(
 class ZaraStore:
     """Scraper de Zara. Implementa el Protocol BaseStore."""
 
-    slug = "zara"
+    slug = SLUG
     name = "Zara"
     base_url = BASE_URL
 

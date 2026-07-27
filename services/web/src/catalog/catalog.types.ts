@@ -12,6 +12,8 @@ export interface ProductListItem {
   gender: string | null;
   section: string | null;
   category: string | null;
+  /** Calzado respetuoso: `si` | `no` | `desconocido`; `null` en ropa, donde no aplica. */
+  barefoot: string | null;
   url: string | null;
   /** Foto del producto en el CDN de la tienda (`null` si aún no se conoce). */
   imageUrl: string | null;
