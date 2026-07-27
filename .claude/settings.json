@@ -1,5 +1,33 @@
 {
   "enabledPlugins": {
-    "playwright@claude-plugins-official": true
+    "playwright@claude-plugins-official": false
+  },
+  "permissions": {
+    "deny": [
+      "Edit(**/*.local)",
+      "Edit(**/.env)",
+      "Edit(**/*.pem)",
+      "Edit(**/*.key)",
+      "Edit(~/.kube/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "ruff format + check --fix",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath // empty' | { read -r f; case \"$f\" in */services/scraper/*.py) r=\"${f%%/services/scraper/*}/services/scraper/.venv/bin/ruff\"; [ -x \"$r\" ] && \"$r\" format \"$f\" && \"$r\" check --fix \"$f\";; esac; } 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "statusMessage": "eslint --fix",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath // empty' | { read -r f; case \"$f\" in */services/web/frontend/*.ts|*/services/web/frontend/*.tsx) d=\"${f%%/services/web/*}/services/web/frontend\";; */services/web/*.ts|*/services/web/*.tsx) d=\"${f%%/services/web/*}/services/web\";; *) exit 0;; esac; b=\"$d/node_modules/.bin/eslint\"; [ -x \"$b\" ] && cd \"$d\" && \"$b\" --fix \"$f\"; } 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
   }
 }
