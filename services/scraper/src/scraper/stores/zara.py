@@ -72,7 +72,28 @@ class CategoryConfig:
 # los filtros del web unifiquen tiendas. El dedup por id de `list_catalog()` evita duplicados
 # cuando un producto aparece en dos hojas/rangos; la talla distingue el rango a nivel variante.
 # Ampliable añadiendo entradas (el resto del código no cambia).
+#
+# `barefoot` es el slug que estrenó Lefties: el calzado respetuoso, que es el nicho del producto.
+# Zara lo etiqueta en su propio árbol (`key` ...-ZAPATOS-BAREFOOT), así que aquí sale gratis, sin
+# heurística sobre el nombre. Sus hojas cubren los DOS rangos de edad, mientras que el calzado
+# genérico de abajo solo trae el de 6-14: de las 86 referencias barefoot medidas (27/07/2026),
+# solo 8 aparecían en `zapatos`/`zapatillas` — las otras 78 no se estaban ingiriendo.
+#
+# EL ORDEN IMPORTA: un modelo puede colgar de dos hojas y `list_catalog()` deduplica por id,
+# quedándose con la PRIMERA que lo ve. Las hojas barefoot van delante para que esos 8 solapados
+# queden como `barefoot` y no como calzado genérico; barefoot es la señal que interesa conservar.
+# (Mismo razonamiento y misma trampa que en `lefties.py`, donde el solape era casi total.)
+#
+# Nota: el hub NIÑOS > ACCESORIOS | ZAPATOS > CALZADO BAREFOOT (2597610) tiene sus propias hojas
+# por género/edad (2630194, 2631201, 2630196, 2630195). Medidas: devuelven EXACTAMENTE las mismas
+# 86 referencias que las cuatro de aquí, así que no se añaden — serían cuatro peticiones por
+# pasada a cambio de nada.
 CATEGORIES: list[CategoryConfig] = [
+    # --- barefoot: primero a propósito (ver nota de orden arriba) ---
+    CategoryConfig(2596605, "niña", "zapateria", "barefoot"),  # barefoot (6-14 años)
+    CategoryConfig(2543431, "niña", "zapateria", "barefoot"),  # barefoot (mini)
+    CategoryConfig(2595608, "niño", "zapateria", "barefoot"),  # barefoot (6-14 años)
+    CategoryConfig(2543932, "niño", "zapateria", "barefoot"),  # barefoot (mini)
     # --- calzado (conservado desde la Fase 1) ---
     CategoryConfig(2427610, "niña", "zapateria", "zapatos"),
     CategoryConfig(2427608, "niña", "zapateria", "zapatillas"),

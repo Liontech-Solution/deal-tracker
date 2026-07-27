@@ -6,14 +6,28 @@ from collections import defaultdict
 from copy import deepcopy
 from decimal import Decimal
 
+import httpx
+
+from scraper.config import Config
 from scraper.ingest import _discount_pct
 from scraper.stores.base import ScrapedImage
-from scraper.stores.zara import CATEGORIES, parse_detail_product, parse_listing_entries
+from scraper.stores.zara import (
+    CATEGORIES,
+    CategoryConfig,
+    ZaraStore,
+    parse_detail_product,
+    parse_listing_entries,
+)
 
 from .conftest import load_fixture
 
 # Seleccionado por atributos, no por índice: así ampliar/reordenar CATEGORIES no rompe el test.
-_CAT = next(c for c in CATEGORIES if c.section == "zapateria" and c.gender == "niña")
+# `zapatos` (y no cualquier hoja de zapatería) porque es la hoja de la que salió el fixture.
+_CAT = next(
+    c
+    for c in CATEGORIES
+    if c.section == "zapateria" and c.gender == "niña" and c.category == "zapatos"
+)
 _DOMAIN = {"gender": _CAT.gender, "section": _CAT.section, "category": _CAT.category}
 # Hoja de ropa (niña / pantalones) para comprobar que el parsing común también la cubre.
 _CAT_ROPA = next(
@@ -173,6 +187,81 @@ def test_precios_en_euros_y_variant_id_unico() -> None:
     ids = [v.retailer_variant_id for v in product.variants]
     assert len(ids) == len(set(ids)), "cada talla/color debe tener id único"
     assert all(v.price > 0 for v in product.variants)
+
+
+# --- #33 Barefoot: la señal que Zara ya etiqueta y el orden que la conserva ----------------
+
+
+def test_barefoot_va_antes_que_el_resto_del_calzado() -> None:
+    """El orden de CATEGORIES no es cosmético: decide con qué categoría se queda un modelo.
+
+    `list_catalog()` deduplica por id y gana la primera hoja que lo ve. Las 86 referencias
+    barefoot de Zara solapan en 8 con `zapatos`/`zapatillas`; si estas hojas fuesen al final,
+    esas 8 se guardarían como calzado genérico. Barefoot es el nicho del producto: gana ella.
+    """
+    calzado = [i for i, c in enumerate(CATEGORIES) if c.section == "zapateria"]
+    barefoot = [i for i, c in enumerate(CATEGORIES) if c.category == "barefoot"]
+    assert barefoot, "debe haber hojas barefoot"
+    assert max(barefoot) < min(set(calzado) - set(barefoot))
+
+    # Ids de categoría únicos: un duplicado listaría la misma hoja dos veces por pasada.
+    ids = [c.category_id for c in CATEGORIES]
+    assert len(ids) == len(set(ids))
+
+
+def _listado_con(*product_ids: str) -> dict[str, object]:
+    """Listado mínimo con la forma que recorre `_iter_product_nodes` (seo.discernProductId)."""
+    return {
+        "productGroups": [
+            {
+                "elements": [
+                    {
+                        "commercialComponents": [
+                            {
+                                "seo": {"discernProductId": pid},
+                                "detail": {"colors": [{"id": "1", "price": 2599}]},
+                            }
+                            for pid in product_ids
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+
+
+def _store_sirviendo(
+    categories: list[CategoryConfig], por_categoria: dict[int, tuple[str, ...]]
+) -> ZaraStore:
+    """ZaraStore cuyo cliente HTTP devuelve un listado sintético por id de categoría."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        cat_id = int(request.url.path.rstrip("/").split("/")[-2])
+        return httpx.Response(200, json=_listado_con(*por_categoria[cat_id]))
+
+    store = ZaraStore(Config(database_url="x", request_delay=0.0), categories)
+    store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
+    return store
+
+
+def test_el_dedup_de_list_catalog_respeta_el_orden_de_categories() -> None:
+    """Lo anterior, comprobado sobre el comportamiento real y no sobre la posición en la lista.
+
+    Un modelo que cuelga de la hoja barefoot y de la de zapatos debe salir como `barefoot`
+    mientras barefoot vaya primero; invertir el orden lo degrada a `zapatos`. Ese es justo el
+    fallo que el orden de CATEGORIES previene.
+    """
+    barefoot = CategoryConfig(2596605, "niña", "zapateria", "barefoot")
+    zapatos = CategoryConfig(2427610, "niña", "zapateria", "zapatos")
+    # 545453620 (la bailarina barefoot del fixture) cuelga de las dos; 111 solo de zapatos.
+    servido = {2596605: ("545453620",), 2427610: ("545453620", "111")}
+
+    entries = list(_store_sirviendo([barefoot, zapatos], servido).list_catalog())
+    por_id = {e.retailer_product_id: e.category for e in entries}
+    assert por_id == {"545453620": "barefoot", "111": "zapatos"}, "sin duplicar el solapado"
+
+    al_reves = list(_store_sirviendo([zapatos, barefoot], servido).list_catalog())
+    assert {e.retailer_product_id: e.category for e in al_reves}["545453620"] == "zapatos"
 
 
 def test_discount_pct() -> None:
