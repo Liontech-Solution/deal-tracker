@@ -42,6 +42,10 @@ class Config:
     # de lo más rancio, acotado por pasada. `detail_max_age_days=0` desactiva el refresco.
     detail_max_age_days: int = 7
     detail_refresh_max: int = 100
+    # Hojas de categoría caídas (404): una suelta se salta y su ámbito queda fuera de las bajas,
+    # pero por encima de esta proporción la pasada aborta sin escribir — tantas hojas muertas no
+    # son categorías retiradas, son un bloqueo o un cambio de API.
+    scan_max_dead_ratio: float = 0.34
     # Navegador headless (solo tiendas que lo requieren, p.ej. Sfera tras Akamai).
     # `browser_headless=False` abre ventana real (dev con display); en el cluster/CI
     # se ejecuta headless. `browser_channel` fuerza un canal instalado (p.ej. "chrome").
@@ -71,6 +75,7 @@ class Config:
             delist_probe_max=int(env.get("SCRAPER_DELIST_PROBE_MAX", "50")),
             detail_max_age_days=int(env.get("SCRAPER_DETAIL_MAX_AGE_DAYS", "7")),
             detail_refresh_max=int(env.get("SCRAPER_DETAIL_REFRESH_MAX", "100")),
+            scan_max_dead_ratio=float(env.get("SCRAPER_SCAN_MAX_DEAD_RATIO", "0.34")),
             browser_headless=env.get("SCRAPER_BROWSER_HEADLESS", "1")
             not in ("0", "false", "False"),
             browser_nav_timeout=float(env.get("SCRAPER_BROWSER_NAV_TIMEOUT", "45")),

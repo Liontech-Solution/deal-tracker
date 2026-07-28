@@ -35,14 +35,17 @@ from typing import Any
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
 from .base import (
+    GONE_STATUS,
     DelistCandidate,
+    LeafHealth,
     ListingEntry,
+    ScanReport,
     ScrapedImage,
     ScrapedProduct,
     ScrapedVariant,
     ScrapeScope,
 )
-from .browser import BrowserSession
+from .browser import BrowserHTTPError, BrowserSession
 
 SLUG = "sfera"  # a nivel de módulo porque las funciones puras de parseo también lo necesitan
 BASE_ROOT = "https://www.sfera.com/es"
@@ -331,6 +334,7 @@ class SferaStore:
         # Costura para los tests: por defecto abre un Chromium real.
         self._session_factory = session_factory or (lambda: BrowserSession(config))
         self._cache: dict[str, ScrapedProduct] = {}  # rellenado por list_catalog()
+        self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
 
     def scopes(self) -> Iterable[ScrapeScope]:
         seen: list[ScrapeScope] = []
@@ -361,20 +365,65 @@ class SferaStore:
 
     def list_catalog(self) -> Iterable[ListingEntry]:
         self._cache = {}
+        self._scan = ScanReport()
         with self._session_factory() as session:
             for cat in self._categories:
-                for product in self._iter_category(session, cat):
-                    pid = product.retailer_product_id
-                    if pid in self._cache:
-                        continue  # dedup entre categorías dentro de la misma ejecución
-                    self._cache[pid] = product
-                    yield ListingEntry(
-                        retailer_product_id=pid,
-                        signature=product_signature(product),
-                        gender=product.gender,
-                        section=product.section,
-                        category=product.category,
-                    )
+                scope = ScrapeScope(cat.gender, cat.section, cat.category)
+                try:
+                    # El `try` envuelve el bucle entero porque `_iter_category` es un generador:
+                    # el fallo de una página se ve al tirar de él, no al crearlo. Lo que ya haya
+                    # emitido se queda (el dedup por id lo cubre), pero su ámbito deja de ser
+                    # seguro para dar bajas, que es lo que importa.
+                    for product in self._iter_category(session, cat):
+                        pid = product.retailer_product_id
+                        if pid in self._cache:
+                            continue  # dedup entre categorías dentro de la misma ejecución
+                        self._cache[pid] = product
+                        yield ListingEntry(
+                            retailer_product_id=pid,
+                            signature=product_signature(product),
+                            gender=product.gender,
+                            section=product.section,
+                            category=product.category,
+                        )
+                except BrowserHTTPError as exc:
+                    if exc.status not in GONE_STATUS:
+                        raise  # bloqueo de Akamai o fallo del servidor: no es una hoja retirada
+                    self._scan.leaf_gone(scope)
+                    continue
+                self._scan.leaf_ok()
+
+    def scan_report(self) -> ScanReport:
+        """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""
+        return self._scan
+
+    def check_leaves(self) -> Iterable[LeafHealth]:
+        """Sondea las hojas configuradas (ver `stores.base.SupportsLeafHealth`).
+
+        Pide solo la **primera página** de cada categoría: basta para saber si la ruta sigue
+        existiendo y si devuelve género. Una categoría viva pero vacía cuenta como aviso (`None`,
+        sin veredicto): no está retirada, pero tampoco está aportando nada.
+        """
+        with self._session_factory() as session:
+            for cat in self._categories:
+                scope = ScrapeScope(cat.gender, cat.section, cat.category)
+                url = _FIREFLY_URL.format(category_path=cat.category_path, page=1)
+                try:
+                    payload = session.get_json(url)
+                except BrowserHTTPError as exc:
+                    alive = False if exc.status in GONE_STATUS else None
+                    yield LeafHealth(scope, cat.category_path, alive, f"HTTP {exc.status}")
+                    continue
+                except Exception as exc:  # navegador caído, timeout, respuesta no-JSON
+                    yield LeafHealth(scope, cat.category_path, None, type(exc).__name__)
+                    continue
+                total = len(products_of(payload))
+                yield LeafHealth(
+                    scope,
+                    cat.category_path,
+                    True if total else None,
+                    f"{total} productos en la 1ª página",
+                )
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
         # El listado ya trajo el detalle: se sirve desde caché (sin peticiones extra).

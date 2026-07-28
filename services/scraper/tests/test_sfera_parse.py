@@ -15,11 +15,17 @@ from __future__ import annotations
 from collections import defaultdict
 from copy import deepcopy
 from decimal import Decimal
+from typing import Any
 
+import pytest
+
+from scraper.config import Config
 from scraper.ingest import _discount_pct
-from scraper.stores.base import ScrapedImage
+from scraper.stores.base import ScrapedImage, ScrapeScope
+from scraper.stores.browser import BrowserHTTPError
 from scraper.stores.sfera import (
     CategoryConfig,
+    SferaStore,
     _color_image_urls,
     _primary_image,
     pagination_of,
@@ -30,6 +36,7 @@ from scraper.stores.sfera import (
 
 from .conftest import load_fixture
 
+_CFG = Config(database_url="x", request_delay=0.0, retry_backoff=0.0)
 _NINO = CategoryConfig("ninos/nino", "niño", "ropa", "camisetas")
 _REBAJAS = CategoryConfig("rebajas/ninos", "niña", "ropa", "camisetas")
 
@@ -224,3 +231,91 @@ def test_product_signature_determinista_y_sensible_al_precio() -> None:
     assert product_signature(p) == product_signature(again)
     # La huella incluye el precio efectivo: un cambio de precio la cambia.
     assert product_signature(p) != f"{p.variants[0].retailer_variant_id}:0.00"
+
+
+# --- #41 Una categoría retirada no tumba las demás -----------------------------------------
+
+_CATS_SCAN = [
+    CategoryConfig("ninos/nina/zapatos", "niña", "zapateria", "zapatos"),
+    CategoryConfig("ninos/nina/camisetas", "niña", "ropa", "camisetas"),
+]
+
+
+class _ScanSession:
+    """Sesión falsa: cada categoría responde su payload firefly, o revienta con un status."""
+
+    def __init__(self, por_categoria: dict[str, Any]) -> None:
+        self._por_categoria = por_categoria
+
+    def __enter__(self) -> _ScanSession:
+        return self
+
+    def __exit__(self, *_exc: Any) -> None:
+        return None
+
+    def goto(self, url: str) -> int:
+        return 200
+
+    def get_json(self, url: str) -> Any:
+        for path, respuesta in self._por_categoria.items():
+            if path in url:
+                if isinstance(respuesta, Exception):
+                    raise respuesta
+                return respuesta
+        raise AssertionError(f"categoría no simulada: {url}")
+
+
+def _firefly(pid: str) -> dict[str, Any]:
+    """Payload firefly mínimo: un producto de un color con una talla con precio."""
+    return {
+        "success": True,
+        "data": {
+            "pagination": {"_total": 1},
+            "products": [
+                {
+                    "id": pid,
+                    "name": f"Producto {pid}",
+                    "_my_colors": [
+                        {
+                            "title": "Negro",
+                            "variants": [{"id": f"{pid}-v", "size": "30", "price": 19.95}],
+                        }
+                    ],
+                }
+            ],
+        },
+    }
+
+
+def _scan_store(por_categoria: dict[str, Any]) -> SferaStore:
+    session = _ScanSession(por_categoria)
+    return SferaStore(_CFG, categories=_CATS_SCAN, session_factory=lambda: session)  # type: ignore[arg-type]
+
+
+def test_categoria_retirada_no_impide_listar_las_demas() -> None:
+    store = _scan_store(
+        {
+            "ninos/nina/zapatos": _firefly("Z1"),
+            "ninos/nina/camisetas": BrowserHTTPError(404, "https://sfera.example/firefly"),
+        }
+    )
+
+    ids = [e.retailer_product_id for e in store.list_catalog()]
+    report = store.scan_report()
+
+    assert ids == ["Z1"]
+    assert (report.leaves_total, report.leaves_failed) == (2, 1)
+    assert report.failed_scopes == {ScrapeScope("niña", "ropa", "camisetas")}
+
+
+def test_un_bloqueo_de_akamai_no_pasa_por_categoria_retirada() -> None:
+    """403 es Akamai cerrando la puerta, no una categoría que Sfera haya quitado."""
+    store = _scan_store(
+        {
+            "ninos/nina/zapatos": _firefly("Z1"),
+            "ninos/nina/camisetas": BrowserHTTPError(403, "https://sfera.example/firefly"),
+        }
+    )
+
+    with pytest.raises(BrowserHTTPError):
+        list(store.list_catalog())

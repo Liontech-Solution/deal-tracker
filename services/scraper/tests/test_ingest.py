@@ -11,10 +11,13 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from scraper.ingest import ingest
+import pytest
+
+from scraper.ingest import CatalogScanAborted, ingest
 from scraper.stores.base import (
     DelistCandidate,
     ListingEntry,
+    ScanReport,
     ScrapedImage,
     ScrapedProduct,
     ScrapedVariant,
@@ -102,6 +105,23 @@ class ProbingFakeStore(FakeStore):
             if verdict is not None:
                 out[candidate.retailer_product_id] = verdict
         return out
+
+
+class ScanningFakeStore(FakeStore):
+    """Como `FakeStore`, pero informa de hojas caídas (implementa `SupportsScanReport`)."""
+
+    def __init__(
+        self,
+        products: list[ScrapedProduct],
+        signatures: dict[str, str],
+        report: ScanReport,
+        scopes: list[ScrapeScope] | None = None,
+    ) -> None:
+        super().__init__(products, signatures, scopes)
+        self._report = report
+
+    def scan_report(self) -> ScanReport:
+        return self._report
 
 
 def _variant(vid: str, price: str, list_price: str | None = None) -> ScrapedVariant:
@@ -839,3 +859,116 @@ def test_la_reclasificacion_pisa_el_valor_anterior(db_conn: Any) -> None:
         _scalar(db_conn, "SELECT barefoot FROM product WHERE retailer_product_id = 'A'")
         == "desconocido"
     )
+
+
+# --- #41 Hojas de categoría caídas: sin bajas falsas, y aborto si caen demasiadas ---------
+
+_CAMISETAS = ScrapeScope("niña", "ropa", "camisetas")
+_ZAPATOS = ScrapeScope("niña", "zapateria", "zapatos")
+
+
+def _dos_ambitos() -> tuple[list[ScrapedProduct], dict[str, str]]:
+    """Un producto en cada ámbito: uno cuya hoja se caerá y otro con la hoja sana."""
+    return (
+        [
+            _product(
+                "A", "Camiseta", [_variant("A-1", "9.95")], section="ropa", category="camisetas"
+            ),
+            _product("B", "Botín", [_variant("B-1", "45.00")]),
+        ],
+        {"A": "a1", "B": "b1"},
+    )
+
+
+def test_hoja_caida_no_da_de_baja_lo_que_no_se_ha_podido_mirar(db_conn: Any) -> None:
+    """La trampa de #41: sin esto, saltar la hoja descataloga sus productos en dos pasadas.
+
+    La red de seguridad por umbral no lo cubriría: un ámbito alimentado por varias hojas apenas
+    baja al caerse una, así que la caída nunca llega al 50 % que dispara la sospecha.
+    """
+    products, sigs = _dos_ambitos()
+    ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
+
+    # Segunda pasada: no se ve NINGUNO de los dos, pero la hoja de camisetas está caída (1 de 4,
+    # por debajo del umbral de aborto). Sin histéresis, para aislar el efecto del ámbito.
+    store = ScanningFakeStore(
+        [],
+        signatures={},
+        report=ScanReport(leaves_total=4, leaves_failed=1, failed_scopes={_CAMISETAS}),
+        scopes=[_CAMISETAS, _ZAPATOS],
+    )
+    result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    # El de la hoja caída sobrevive intacto; el del ámbito sano sí se da de baja.
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='A'") is None
+    assert _streak(db_conn, "A") == 0  # ni siquiera gasta un intento de histéresis
+    assert (
+        _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='B'")
+        is not None
+    )
+    assert (result.leaves_scanned, result.leaves_failed) == (4, 1)
+    assert (result.unscanned_scopes, result.scanned_scopes) == (1, 1)
+
+
+def test_demasiadas_hojas_caidas_abortan_la_pasada_sin_escribir(db_conn: Any) -> None:
+    """Media tienda muerta no son categorías retiradas: es un bloqueo o un cambio de API."""
+    products, sigs = _dos_ambitos()
+    ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
+
+    store = ScanningFakeStore(
+        [],
+        signatures={},
+        report=ScanReport(leaves_total=4, leaves_failed=2, failed_scopes={_CAMISETAS, _ZAPATOS}),
+        scopes=[_CAMISETAS, _ZAPATOS],
+    )
+    with pytest.raises(CatalogScanAborted):
+        ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    # Rollback del contenido: el catálogo anterior queda intacto, sin bajas ni precios nuevos.
+    assert _scalar(db_conn, "SELECT count(*) FROM product WHERE delisted_at IS NOT NULL") == 0
+    assert _scalar(db_conn, "SELECT count(*) FROM price_history") == 2
+    # Pero la pasada fallida SÍ deja rastro: si no, la avería solo se vería en los logs.
+    assert _scalar(db_conn, "SELECT status FROM scrape_run ORDER BY id DESC LIMIT 1") == "failed"
+    assert "CatalogScanAborted" in _scalar(
+        db_conn, "SELECT message FROM scrape_run ORDER BY id DESC LIMIT 1"
+    )
+
+
+def test_una_tienda_sin_informe_se_comporta_igual_que_siempre(db_conn: Any) -> None:
+    """`SupportsScanReport` es opcional: quien no lo implemente no cambia de comportamiento."""
+    products, sigs = _dos_ambitos()
+    ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
+
+    result = ingest(
+        db_conn,
+        FakeStore([], signatures={}, scopes=[_CAMISETAS, _ZAPATOS]),
+        run_ts=T2,
+        delist_min_misses=1,
+    )
+
+    assert (result.leaves_scanned, result.leaves_failed, result.unscanned_scopes) == (0, 0, 0)
+    assert result.products_delisted == 2
+
+
+def test_una_pasada_que_revienta_deja_rastro_en_scrape_run(db_conn: Any) -> None:
+    """Vale para cualquier fallo, no solo para el aborto por hojas caídas.
+
+    Antes, el rollback se llevaba por delante la fila de la pasada: una tienda podía estar días
+    sin ingerir y en la BD no se distinguía de una tienda que nadie había programado todavía.
+    """
+
+    class TiendaRota(FakeStore):
+        def list_catalog(self) -> Iterable[ListingEntry]:
+            raise RuntimeError("la tienda nos ha bloqueado")
+
+    with pytest.raises(RuntimeError):
+        ingest(db_conn, TiendaRota([], signatures={}), run_ts=T1)
+
+    assert _scalar(db_conn, "SELECT count(*) FROM product") == 0
+    assert _scalar(db_conn, "SELECT status FROM scrape_run ORDER BY id DESC LIMIT 1") == "failed"
+    assert (
+        _scalar(db_conn, "SELECT message FROM scrape_run ORDER BY id DESC LIMIT 1")
+        == "RuntimeError: la tienda nos ha bloqueado"
+    )
+    # La tienda queda dada de alta aunque no ingiriera nada: la fila de la pasada la necesita.
+    assert _scalar(db_conn, "SELECT count(*) FROM retailer") == 1

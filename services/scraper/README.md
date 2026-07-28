@@ -37,6 +37,9 @@ python -m scraper.run --retailer zara --migrate
 # Recorrer sin escribir en BD
 python -m scraper.run --retailer zara --dry-run
 
+# ¿Sigue viva cada hoja de categoría? (vigilancia, no ingiere)
+python -m scraper.run --retailer zara --check-categories
+
 # Calidad
 ruff check . && ruff format --check . && mypy && pytest
 ```
@@ -83,7 +86,8 @@ descatalogado. Para que esto no genere falsos positivos:
 
 - **Acotada al ámbito escaneado** — cada tienda declara sus ámbitos `(gender, section,
   category)` en `scopes()`. Solo se dan de baja productos de ámbitos realmente recorridos en
-  esa pasada; quitar o fallar una categoría no afecta a las demás.
+  esa pasada, y **un ámbito con alguna hoja caída no cuenta como recorrido** (ver más abajo):
+  lo que no se ha podido mirar no está retirado.
 - **Red de seguridad por umbral** — si en un ámbito con al menos `SCRAPER_DELIST_MIN_BASELINE`
   productos activos lo observado cae por debajo de `SCRAPER_DELIST_DROP_RATIO` (p.ej. una
   categoría que devuelve 0 por un bloqueo blando), se **omiten sus bajas** y el `scrape_run`
@@ -106,6 +110,69 @@ descatalogado. Para que esto no genere falsos positivos:
   - **Lefties**: el mismo `productsArray` del detalle responde `_ERR_PRODUCT_NOT_FOUND` para un
     id que ya no existe, y admite varios ids por llamada: el sondeo sale casi gratis.
 
+## Hojas de categoría que caducan
+
+Las cinco redes de arriba actúan **después** del listado, así que ninguna cubre lo que pasa
+**durante**. Y lo que pasa es que los ids de categoría caducan: el `2428332` de Zara devolvía
+404 **cuatro días** después de verificarlo vivo, y como el error propagaba y la ingesta es
+atómica, **una hoja muerta de 47 tumbaba las 47**, en silencio y en cada pasada.
+
+Ahora una hoja que la tienda ya no sirve (**404/410**, ver `GONE_STATUS`) se salta y se apunta en
+el `ScanReport` de la tienda (`SupportsScanReport`, capacidad opcional como `SupportsAliveProbe`):
+
+- **Solo se toleran las hojas retiradas.** Un 403 es un bloqueo y un 5xx un fallo del servidor
+  —que además ya se reintenta con backoff—: esos siguen abortando la pasada. Tragárselos
+  convertiría un problema transitorio en un catálogo mutilado que se da por bueno.
+- **El ámbito de una hoja caída sale de las bajas**, aunque sus otras hojas hayan respondido. Sin
+  esto, sus productos contarían como ausentes y acabarían descatalogados; la red por umbral no lo
+  salva, porque un ámbito alimentado por seis hojas solo pierde un 17 % de lo observado al caerse
+  una — lejos del 50 % que dispara la sospecha.
+- **Si cae más de `SCRAPER_SCAN_MAX_DEAD_RATIO` (0,34 por defecto), la pasada aborta** sin
+  escribir (`CatalogScanAborted`): tantas hojas muertas no son categorías retiradas, son un
+  bloqueo o un cambio de API.
+- **Se nota**: las hojas caídas suman a `scrape_run.errors` y el resumen del job las canta con la
+  cuenta de ámbitos que se quedan sin detección de bajas. Al verlo, toca buscar el id nuevo en el
+  árbol de categorías de la tienda.
+
+Lo implementan las tres tiendas. En Lefties cuenta igual la hoja que **desaparece del menú**, que
+es su forma de la misma avería.
+
+### Vigilancia: `--check-categories`
+
+Que la pasada sobreviva no arregla el problema de fondo — mientras nadie busque el id nuevo, esa
+categoría no se ingiere. Para enterarse antes que el usuario:
+
+```bash
+python -m scraper.run --retailer zara --check-categories   # no ingiere, no escribe
+```
+
+Sondea cada hoja configurada (`SupportsLeafHealth`) y sale **≠ 0 solo por lo accionable**: una
+hoja **retirada** pide un id nuevo y hace fallar el chequeo; una hoja **sin veredicto** se avisa
+pero no rompe, porque medido contra Sfera un chequeo normal ya trae un 403 suelto de Akamai y un
+vigía que da falsas alarmas de rutina acaba silenciado. La excepción es que **ninguna** hoja se
+confirme viva: eso ya no es un blip, es un bloqueo, y sí falla.
+
+Cada tienda usa su señal más barata: Zara pide el listado (no hay endpoint para preguntar "¿existe
+esta categoría?"), **Lefties resuelve las 38 hojas con UNA petición** al menú (la hoja retirada es
+justo la que ya no aparece en él) y Sfera pide la primera página firefly de cada ruta.
+
+## Pasadas fallidas en `scrape_run`
+
+Una pasada que revienta deshace su transacción entera, y con ella se iba **la propia fila de la
+pasada**: en la BD, una tienda que llevaba días sin poder ingerir no se distinguía de una que
+nadie había programado todavía, y el único rastro estaba en unos logs que rotan. Ahora el fallo se
+registra aparte, con `status = 'failed'` y el motivo en `message` (migración `0013`):
+
+```sql
+SELECT r.slug, s.status, s.started_at, s.message
+FROM scrape_run s JOIN retailer r ON r.id = s.retailer_id
+ORDER BY s.started_at DESC LIMIT 20;
+```
+
+Vale para cualquier excepción, no solo para el aborto por hojas caídas. El contenido sigue sin
+escribirse: el registro va en una transacción nueva **después** del rollback, y si él mismo
+fallara se traga el error para no tapar el original.
+
 ## Añadir una tienda
 
 1. Crear `stores/<tienda>.py` con funciones `parse_*` puras + una clase que implemente
@@ -113,7 +180,9 @@ descatalogado. Para que esto no genere falsos positivos:
 2. Registrarla en `stores/registry.py`.
 3. Guardar respuestas reales como fixtures en `tests/fixtures/` y testear el parsing.
 4. Opcional pero recomendado: implementar `probe_alive()` (`SupportsAliveProbe`) si la tienda
-   sabe responder por un producto suelto — es lo que evita falsas bajas.
+   sabe responder por un producto suelto — es lo que evita falsas bajas. Y si el catálogo se
+   recorre por hojas de categoría, `scan_report()` (`SupportsScanReport`): sin él, la primera
+   hoja que caduque tumba la pasada entera de esa tienda.
 5. Opcional: rellenar `ScrapedProduct.images` (galería por color) si la tienda las expone en algo
    que ya se pide. Se guardan en `product_image` (una fila por foto, con el color y su posición) y
    `image_url` sale de la primera, para no tener dos fuentes de verdad. Hecho en Zara

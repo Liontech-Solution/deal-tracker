@@ -34,8 +34,11 @@ import httpx
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
 from .base import (
+    GONE_STATUS,
     DelistCandidate,
+    LeafHealth,
     ListingEntry,
+    ScanReport,
     ScrapedImage,
     ScrapedProduct,
     ScrapedVariant,
@@ -93,10 +96,11 @@ class CategoryConfig:
 #
 # LOS IDS CADUCAN, y más rápido de lo que parece: `2428332` (niño > pantalones, 6-14) se verificó
 # vivo al añadirlo y devolvía 404 CUATRO DÍAS después, desaparecido del árbol de `/categories`;
-# Zara lo había reemplazado por `2428292`, mismo `key` que su gemelo de niña. Como `_get_json`
-# propaga el error y la ingesta es atómica, una sola hoja muerta de 47 aborta la pasada ENTERA y
-# no guarda nada — de forma determinista, así que la tienda se queda congelada hasta que alguien
-# mire los logs. Si esto vuelve a pasar, el sondeo de los 47 ids está en la issue #41.
+# Zara lo había reemplazado por `2428292`, mismo `key` que su gemelo de niña. Aquello tumbó la
+# pasada entera (47 hojas por una). Desde #41 ya no: un 404 se salta, se cuenta en el `ScanReport`
+# y su ÁMBITO sale de las bajas —lo que no se ha podido mirar no está retirado—, y solo si cae una
+# proporción alta de las hojas se aborta. Aun así, una hoja caída es una categoría que dejamos de
+# ingerir: el resumen del job la canta, y toca buscar el id nuevo en `/categories?ajax=true`.
 CATEGORIES: list[CategoryConfig] = [
     # --- barefoot: primero a propósito (ver nota de orden arriba) ---
     CategoryConfig(2596605, "niña", "zapateria", "barefoot"),  # barefoot (6-14 años)
@@ -316,6 +320,7 @@ class ZaraStore:
     def __init__(self, config: Config, categories: list[CategoryConfig] | None = None) -> None:
         self._config = config
         self._categories = categories if categories is not None else CATEGORIES
+        self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
 
     def scopes(self) -> Iterable[ScrapeScope]:
         # Ámbitos que se recorren, deducidos de las categorías configuradas (sin duplicar).
@@ -366,14 +371,49 @@ class ZaraStore:
         time.sleep(wait * random.uniform(0.8, 1.2))
 
     def list_catalog(self) -> Iterable[ListingEntry]:
+        self._scan = ScanReport()
         emitted: set[str] = set()  # dedup entre categorías dentro de la misma ejecución
         with self._client() as client:
             for cat in self._categories:
-                listing = self._get_json(client, _CATEGORY_URL.format(cat_id=cat.category_id))
+                scope = ScrapeScope(cat.gender, cat.section, cat.category)
+                try:
+                    listing = self._get_json(client, _CATEGORY_URL.format(cat_id=cat.category_id))
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code not in GONE_STATUS:
+                        raise  # bloqueo o fallo del servidor: no es una hoja retirada
+                    self._scan.leaf_gone(scope)
+                    continue
+                self._scan.leaf_ok()
                 for entry in parse_listing_entries(listing, cat):
                     if entry.retailer_product_id not in emitted:
                         emitted.add(entry.retailer_product_id)
                         yield entry
+
+    def scan_report(self) -> ScanReport:
+        """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""
+        return self._scan
+
+    def check_leaves(self) -> Iterable[LeafHealth]:
+        """Sondea las hojas configuradas (ver `stores.base.SupportsLeafHealth`).
+
+        Pide el mismo listado que la pasada: Zara no tiene un endpoint más barato para preguntar
+        "¿existe esta categoría?", y el árbol de `/categories` no sirve porque el id retirado
+        simplemente deja de estar en él sin decir cuál lo sustituye.
+        """
+        with self._client() as client:
+            for cat in self._categories:
+                scope = ScrapeScope(cat.gender, cat.section, cat.category)
+                leaf = str(cat.category_id)
+                try:
+                    self._get_json(client, _CATEGORY_URL.format(cat_id=cat.category_id))
+                except httpx.HTTPStatusError as exc:
+                    status = exc.response.status_code
+                    alive = False if status in GONE_STATUS else None
+                    yield LeafHealth(scope, leaf, alive, f"HTTP {status}")
+                except (httpx.TransportError, ValueError) as exc:
+                    yield LeafHealth(scope, leaf, None, type(exc).__name__)
+                else:
+                    yield LeafHealth(scope, leaf, True, "HTTP 200")
 
     def _probe_one(self, client: httpx.Client, product_id: str) -> bool | None:
         """¿Sigue a la venta? True/False; None si la tienda no da una respuesta utilizable."""
