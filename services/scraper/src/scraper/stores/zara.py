@@ -90,6 +90,13 @@ class CategoryConfig:
 # por género/edad (2630194, 2631201, 2630196, 2630195). Medidas: devuelven EXACTAMENTE las mismas
 # 86 referencias que las cuatro de aquí, así que no se añaden — serían cuatro peticiones por
 # pasada a cambio de nada.
+#
+# LOS IDS CADUCAN, y más rápido de lo que parece: `2428332` (niño > pantalones, 6-14) se verificó
+# vivo al añadirlo y devolvía 404 CUATRO DÍAS después, desaparecido del árbol de `/categories`;
+# Zara lo había reemplazado por `2428292`, mismo `key` que su gemelo de niña. Como `_get_json`
+# propaga el error y la ingesta es atómica, una sola hoja muerta de 47 aborta la pasada ENTERA y
+# no guarda nada — de forma determinista, así que la tienda se queda congelada hasta que alguien
+# mire los logs. Si esto vuelve a pasar, el sondeo de los 47 ids está en la issue #41.
 CATEGORIES: list[CategoryConfig] = [
     # --- barefoot: primero a propósito (ver nota de orden arriba) ---
     CategoryConfig(2596605, "niña", "zapateria", "barefoot"),  # barefoot (6-14 años)
@@ -125,7 +132,7 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(2427530, "niña", "ropa", "ropa-interior"),  # ropa interior | calcetines
     CategoryConfig(2426369, "niña", "ropa", "ropa-interior"),  # ropa interior | calcetines (mini)
     # --- ropa niño (6-14 años + mini 1½-6) ---
-    CategoryConfig(2428332, "niño", "ropa", "pantalones"),  # pantalones
+    CategoryConfig(2428292, "niño", "ropa", "pantalones"),  # pantalones (2428332 → 404 28/07)
     CategoryConfig(2427796, "niño", "ropa", "pantalones"),  # pantalones (mini)
     CategoryConfig(2426737, "niño", "ropa", "pantalones"),  # jeans
     CategoryConfig(2422737, "niño", "ropa", "pantalones"),  # jeans (mini)
