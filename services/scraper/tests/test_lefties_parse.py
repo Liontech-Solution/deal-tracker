@@ -9,11 +9,15 @@ from __future__ import annotations
 from collections import defaultdict
 from copy import deepcopy
 from decimal import Decimal
+from typing import Any
 
-from scraper.stores.base import ScrapedImage
+from scraper.config import Config
+from scraper.stores.base import ScrapedImage, ScrapeScope
+from scraper.stores.browser import BrowserHTTPError
 from scraper.stores.lefties import (
     CATEGORIES,
     CategoryConfig,
+    LeftiesStore,
     grid_ids_by_category,
     known_product_ids,
     parse_detail_product,
@@ -21,6 +25,8 @@ from scraper.stores.lefties import (
 )
 
 from .conftest import load_fixture
+
+_CFG = Config(database_url="x", request_delay=0.0, retry_backoff=0.0)
 
 # Hoja real de la que salen los dos fixtures: niña / zapatería / zapatos.
 _CAT = CategoryConfig(1030272335, "niña", "zapateria", "zapatos")
@@ -224,3 +230,94 @@ def test_known_product_ids_es_la_prueba_de_baja() -> None:
     }
     assert known_product_ids(payload) == {"747860883"}
     assert known_product_ids({}) == set()
+
+
+# --- #41 Hojas que desaparecen del menú o dejan de responder --------------------------------
+
+_CATS_SCAN = [
+    CategoryConfig(1030272335, "niña", "zapateria", "zapatos"),
+    CategoryConfig(1030267678, "niña", "ropa", "camisetas"),
+]
+
+
+class _ScanSession:
+    """Sesión falsa: devuelve el menú y, por uuid de grid, su payload o una excepción."""
+
+    def __init__(self, menu: dict[str, Any], grids: dict[str, Any]) -> None:
+        self._menu = menu
+        self._grids = grids
+
+    def __enter__(self) -> _ScanSession:
+        return self
+
+    def __exit__(self, *_exc: Any) -> None:
+        return None
+
+    def goto(self, url: str) -> int:
+        return 200
+
+    def get_json(self, url: str) -> Any:
+        if "/menu" in url:
+            return self._menu
+        for grid_id, respuesta in self._grids.items():
+            if grid_id in url:
+                if isinstance(respuesta, Exception):
+                    raise respuesta
+                return respuesta
+        raise AssertionError(f"grid no simulado: {url}")
+
+
+def _menu(por_categoria: dict[int, str]) -> dict[str, Any]:
+    """Menú mínimo: una hoja por categoría, con su uuid de grid en `content.id`."""
+    return {
+        "items": [{"id": cid, "content": {"id": grid_id}} for cid, grid_id in por_categoria.items()]
+    }
+
+
+def _grid(pid: str) -> dict[str, Any]:
+    """Grid mínimo: un componente de producto (que en Lefties es un color)."""
+    return {
+        "components": {
+            "c1": {
+                "kind": "Product",
+                "identifier": {"productParentId": pid},
+                "color": {"id": "01"},
+                "pricing": {"price": {"current": {"value": 1799}}},
+            }
+        }
+    }
+
+
+def _scan_store(menu: dict[str, Any], grids: dict[str, Any]) -> LeftiesStore:
+    session = _ScanSession(menu, grids)
+    return LeftiesStore(_CFG, categories=_CATS_SCAN, session_factory=lambda: session)  # type: ignore[arg-type]
+
+
+def test_hoja_ausente_del_menu_saca_su_ambito_de_las_bajas() -> None:
+    """Saltarla no basta: su ámbito seguía contando como escaneado y sus productos caían."""
+    store = _scan_store(
+        _menu({1030272335: "uuid-zapatos"}),  # camisetas ya no está en el menú
+        {"uuid-zapatos": _grid("Z1")},
+    )
+
+    ids = [e.retailer_product_id for e in store.list_catalog()]
+    report = store.scan_report()
+
+    assert ids == ["Z1"]
+    assert (report.leaves_total, report.leaves_failed) == (2, 1)
+    assert report.failed_scopes == {ScrapeScope("niña", "ropa", "camisetas")}
+
+
+def test_grid_que_da_404_se_trata_como_hoja_retirada() -> None:
+    store = _scan_store(
+        _menu({1030272335: "uuid-zapatos", 1030267678: "uuid-camisetas"}),
+        {
+            "uuid-zapatos": _grid("Z1"),
+            "uuid-camisetas": BrowserHTTPError(404, "https://lefties.example/grids/uuid-camisetas"),
+        },
+    )
+
+    ids = [e.retailer_product_id for e in store.list_catalog()]
+
+    assert ids == ["Z1"]
+    assert store.scan_report().failed_scopes == {ScrapeScope("niña", "ropa", "camisetas")}

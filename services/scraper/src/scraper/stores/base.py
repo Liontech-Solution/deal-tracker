@@ -12,7 +12,9 @@ Así la ingesta (`ingest.py`) compara la huella contra la última conocida en BD
 la petición de detalle cuando nada ha cambiado. Los scrapers no tocan la BD: solo la red.
 
 Opcionalmente una tienda puede implementar `SupportsAliveProbe` (confirmación activa antes
-de dar de baja); las que no puedan lo omiten y la ingesta se queda con la histéresis.
+de dar de baja); las que no puedan lo omiten y la ingesta se queda con la histéresis. Y
+`SupportsScanReport` para contar las hojas que se cayeron durante el listado sin abortar la
+pasada (ver `ScanReport`).
 """
 
 from __future__ import annotations
@@ -109,6 +111,49 @@ class ListingEntry:
         return ScrapeScope(self.gender, self.section, self.category)
 
 
+# Los únicos códigos que valen como "esta hoja ya no existe" y por tanto se toleran. Un 403 es un
+# bloqueo y un 5xx un fallo del servidor (que además ya se reintenta con backoff): tragárselos
+# convertiría un problema transitorio en un catálogo mutilado que se da por bueno.
+GONE_STATUS = frozenset({404, 410})
+
+
+@dataclass
+class ScanReport:
+    """Qué hojas del catálogo se pudieron listar en esta pasada y cuáles no.
+
+    Una hoja retirada (404) no debe tumbar la pasada entera —lo hacía: `2428332` de Zara empezó
+    a dar 404 cuatro días después de verificarla viva y las otras 46 hojas se quedaron sin
+    ingerir, de forma determinista y silenciosa—, pero tampoco puede pasar inadvertida:
+
+    - **Su ámbito deja de ser seguro para dar bajas.** Lo que no se ve en un ámbito cuya hoja no
+      se ha podido mirar no está retirado: es que no se ha mirado. Y la red de seguridad por
+      umbral no lo cubre, porque un ámbito alimentado por seis hojas solo pierde un 17 % de lo
+      observado al caerse una — muy por debajo del 50 % que dispara la sospecha.
+    - **La proporción importa.** Una hoja de 47 es una categoría que la tienda ha retirado; la
+      mitad de ellas es un bloqueo o un cambio de API, y ahí la pasada sí debe abortar en vez de
+      guardar un catálogo mutilado.
+    """
+
+    leaves_total: int = 0
+    leaves_failed: int = 0
+    failed_scopes: set[ScrapeScope] = field(default_factory=set)
+
+    def leaf_ok(self) -> None:
+        """Registra una hoja listada con éxito."""
+        self.leaves_total += 1
+
+    def leaf_gone(self, scope: ScrapeScope) -> None:
+        """Registra una hoja que la tienda ya no sirve; su ámbito queda fuera de las bajas."""
+        self.leaves_total += 1
+        self.leaves_failed += 1
+        self.failed_scopes.add(scope)
+
+    @property
+    def dead_ratio(self) -> float:
+        """Proporción de hojas caídas (0.0 si no se recorrió ninguna)."""
+        return self.leaves_failed / self.leaves_total if self.leaves_total else 0.0
+
+
 @dataclass(frozen=True)
 class DelistCandidate:
     """Producto que la ingesta está a punto de dar de baja y quiere confirmar antes."""
@@ -153,5 +198,49 @@ class SupportsAliveProbe(Protocol):
         Tres estados con dos valores: `True` (vivo), `False` (retirado) y **ausente del
         mapa** = no concluyente (fallo de red, bloqueo, respuesta ambigua). La ingesta es
         conservadora: solo da de baja lo confirmado como retirado.
+        """
+        ...
+
+
+@dataclass(frozen=True)
+class LeafHealth:
+    """Veredicto sobre UNA hoja de categoría, para el chequeo preventivo de `--check-categories`."""
+
+    scope: ScrapeScope
+    leaf: str  # el identificador de la hoja tal y como lo escribe la tienda (id, uuid, ruta)
+    alive: bool | None  # True viva, False retirada, None sin veredicto (fallo nuestro)
+    detail: str = ""  # qué respondió, para poder actuar sin repetir la petición a mano
+
+
+@runtime_checkable
+class SupportsLeafHealth(Protocol):
+    """Capacidad OPCIONAL: sondear las hojas de categoría SIN ingerir nada.
+
+    Existe para enterarse de que un id ha caducado **antes** de que lo note el usuario: la pasada
+    ya tolera la hoja muerta, pero mientras tanto esa categoría no se ingiere, y sin esto solo se
+    descubre leyendo el resumen de un job que nadie mira. Pensado para ejecutarse a mano o desde
+    un CronJob de vigilancia, no en cada pasada.
+    """
+
+    def check_leaves(self) -> Iterable[LeafHealth]:
+        """Un veredicto por hoja configurada, en el orden en que están declaradas."""
+        ...
+
+
+@runtime_checkable
+class SupportsScanReport(Protocol):
+    """Capacidad OPCIONAL: contar las hojas que se cayeron durante `list_catalog()`.
+
+    La implementan las tiendas que recorren hojas de categoría independientes y saben seguir
+    cuando una desaparece. Una tienda que no la implemente se comporta como siempre: cualquier
+    error de listado propaga y aborta la pasada.
+    """
+
+    def scan_report(self) -> ScanReport:
+        """Informe del último recorrido.
+
+        **Solo es válido con `list_catalog()` consumido entero**: es un generador, así que las
+        hojas se recorren a medida que la ingesta tira de él. Quien lo consuma a medias verá un
+        informe a medias.
         """
         ...

@@ -51,6 +51,19 @@ _LAUNCH_ARGS = [
 ]
 
 
+class BrowserHTTPError(RuntimeError):
+    """Respuesta no-OK de `get_json`, con el status accesible.
+
+    Existe para que quien llama pueda distinguir una hoja retirada (404) de un fallo del que no
+    se puede concluir nada, igual que hace Zara con `httpx.HTTPStatusError`.
+    """
+
+    def __init__(self, status: int, url: str, status_text: str = "") -> None:
+        super().__init__(f"GET {url} -> HTTP {status} {status_text}".rstrip())
+        self.status = status
+        self.url = url
+
+
 class BrowserSession:
     """Context manager que abre un Chromium con perfil realista y lo cierra al salir."""
 
@@ -130,6 +143,6 @@ class BrowserSession:
             if resp.ok:
                 return resp.json()
             if resp.status not in _RETRYABLE_STATUS or attempt == retries:
-                raise RuntimeError(f"GET {url} -> HTTP {resp.status} {resp.status_text}")
+                raise BrowserHTTPError(resp.status, url, resp.status_text)
             self._backoff(attempt)
         return None  # inalcanzable (el último intento hace raise), tranquiliza a mypy

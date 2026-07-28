@@ -21,6 +21,10 @@ run retailer="zara":
 dry-run retailer="zara":
     cd {{scraper_dir}} && .venv/bin/python -m scraper.run --retailer {{retailer}} --dry-run
 
+# Sondea las hojas de categoría: falla si alguna ha caducado (no ingiere).
+check-categories retailer="zara":
+    cd {{scraper_dir}} && .venv/bin/python -m scraper.run --retailer {{retailer}} --check-categories
+
 # Lint + formato + tipos + tests.
 check:
     cd {{scraper_dir}} && .venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy && .venv/bin/pytest

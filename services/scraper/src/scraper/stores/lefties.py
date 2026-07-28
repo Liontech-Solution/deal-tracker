@@ -35,7 +35,7 @@ Id estable de producto: `identifier.productParentId` (= `id` del detalle). Id es
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -43,14 +43,17 @@ from typing import Any
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
 from .base import (
+    GONE_STATUS,
     DelistCandidate,
+    LeafHealth,
     ListingEntry,
+    ScanReport,
     ScrapedImage,
     ScrapedProduct,
     ScrapedVariant,
     ScrapeScope,
 )
-from .browser import BrowserSession
+from .browser import BrowserHTTPError, BrowserSession
 
 SLUG = "lefties"  # a nivel de módulo porque las funciones puras de parseo también lo necesitan
 BASE_URL = "https://www.lefties.com/es/"
@@ -364,12 +367,20 @@ class LeftiesStore:
     name = "Lefties"
     base_url = BASE_URL
 
-    def __init__(self, config: Config, categories: list[CategoryConfig] | None = None) -> None:
+    def __init__(
+        self,
+        config: Config,
+        categories: list[CategoryConfig] | None = None,
+        session_factory: Callable[[], BrowserSession] | None = None,
+    ) -> None:
         self._config = config
         self._categories = categories if categories is not None else CATEGORIES
+        # Costura para los tests: por defecto abre un Chromium real (igual que Sfera).
+        self._session_factory = session_factory or (lambda: BrowserSession(config))
         # Detalle cacheado del ámbito de cada producto: `fetch_details` recibe `ListingEntry`,
         # pero necesita la CategoryConfig para el dominio y para construir la URL.
         self._cat_by_product: dict[str, CategoryConfig] = {}
+        self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
 
     def scopes(self) -> Iterable[ScrapeScope]:
         out: list[ScrapeScope] = []
@@ -380,15 +391,29 @@ class LeftiesStore:
         return out
 
     def list_catalog(self) -> Iterable[ListingEntry]:
+        self._scan = ScanReport()
         vistos: set[str] = set()
-        with BrowserSession(self._config) as session:
+        with self._session_factory() as session:
             session.goto(BASE_URL)  # siembra las cookies de Akamai
             grids = grid_ids_by_category(session.get_json(_MENU_URL))
             for cat in self._categories:
+                scope = ScrapeScope(cat.gender, cat.section, cat.category)
                 grid_id = grids.get(cat.category_id)
                 if grid_id is None:
-                    continue  # hoja retirada del menú: la red de bajas por ámbito la cubre
-                grid = session.get_json(_GRID_URL.format(grid_id=grid_id))
+                    # Hoja que ya no está en el menú: es el mismo caso que el 404 de una hoja de
+                    # Zara. Se salta, pero su ámbito sale de las bajas — el comentario que había
+                    # aquí daba por hecho que la red por ámbito lo cubría, y no es así: `scopes()`
+                    # se deriva de CATEGORIES, así que el ámbito seguía contando como escaneado.
+                    self._scan.leaf_gone(scope)
+                    continue
+                try:
+                    grid = session.get_json(_GRID_URL.format(grid_id=grid_id))
+                except BrowserHTTPError as exc:
+                    if exc.status not in GONE_STATUS:
+                        raise
+                    self._scan.leaf_gone(scope)
+                    continue
+                self._scan.leaf_ok()
                 for entry in parse_listing_entries(grid, cat):
                     # Dedup por id: un modelo puede aparecer en dos hojas (p.ej. barefoot también
                     # cuelga de zapatos). Gana la primera, que fija su ámbito.
@@ -397,6 +422,30 @@ class LeftiesStore:
                     vistos.add(entry.retailer_product_id)
                     self._cat_by_product[entry.retailer_product_id] = cat
                     yield entry
+
+    def scan_report(self) -> ScanReport:
+        """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""
+        return self._scan
+
+    def check_leaves(self) -> Iterable[LeafHealth]:
+        """Sondea las hojas configuradas (ver `stores.base.SupportsLeafHealth`).
+
+        Aquí sale casi gratis y sin tocar los grids: **el menú entero es UNA petición** y una hoja
+        retirada es, precisamente, la que ya no aparece en él. Que el grid siga respondiendo se
+        comprueba en la pasada, que es cuando hace falta.
+        """
+        with self._session_factory() as session:
+            session.goto(BASE_URL)  # siembra las cookies de Akamai
+            grids = grid_ids_by_category(session.get_json(_MENU_URL))
+        for cat in self._categories:
+            scope = ScrapeScope(cat.gender, cat.section, cat.category)
+            grid_id = grids.get(cat.category_id)
+            yield LeafHealth(
+                scope,
+                str(cat.category_id),
+                grid_id is not None,
+                f"grid {grid_id}" if grid_id else "ya no está en el menú",
+            )
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
         ids = [e.retailer_product_id for e in entries]

@@ -12,7 +12,15 @@
    histórico previo) y el stock por talla se queda congelado. Lo más rancio según
    `product.last_detail_at` vuelve a pedirse, acotado por un presupuesto por pasada.
 
-Todo ocurre en una única transacción por ejecución (`scrape_run`). Las bajas se detectan por
+Una hoja de categoría que la tienda ya no sirve (404) no tumba la pasada: el scraper la salta y
+la apunta en su `ScanReport`, la ingesta saca su ámbito de las bajas —lo que no se ha podido
+mirar no está retirado— y solo aborta si cae una proporción alta de las hojas, que ya no es una
+categoría retirada sino un bloqueo o un cambio de API.
+
+Todo ocurre en una única transacción por ejecución (`scrape_run`), y si algo revienta se deshace
+entera — pero **la pasada fallida se registra igual** (`status = 'failed'` y el motivo en
+`message`, ver `_record_failed_run`): una tienda que deja de ingerir tiene que verse en la BD, no
+solo en unos logs que rotan. Las bajas se detectan por
 ausencia: lo no visto conserva un `last_seen_at` anterior, suma una pasada a `missing_streak`
 y solo se marca `delisted_at` tras N pasadas consecutivas sin verlo (histéresis). Si la tienda
 sabe responder por un producto concreto (`SupportsAliveProbe`), antes de descatalogar se le
@@ -33,11 +41,13 @@ from .stores.base import (
     BaseStore,
     DelistCandidate,
     ListingEntry,
+    ScanReport,
     ScrapedImage,
     ScrapedProduct,
     ScrapedVariant,
     ScrapeScope,
     SupportsAliveProbe,
+    SupportsScanReport,
 )
 
 # Umbrales por defecto de la red de seguridad de bajas (ver `_suspicious_scopes`).
@@ -51,8 +61,23 @@ DEFAULT_DELIST_PROBE_MAX = 50
 # refrescos por pasada (ver `_stale_refreshes`).
 DEFAULT_DETAIL_MAX_AGE_DAYS = 7
 DEFAULT_DETAIL_REFRESH_MAX = 100
+# Hojas de categoría caídas: proporción a partir de la cual la pasada aborta (ver `ingest`).
+DEFAULT_SCAN_MAX_DEAD_RATIO = 0.34
+# Tope del motivo que se guarda en `scrape_run.message`: un traceback de una librería puede venir
+# con kilobytes de ruido y esta columna es para leerla de un vistazo.
+_MAX_FAIL_MESSAGE = 500
 
 _ScopeKey = tuple[str | None, str | None, str | None]
+
+
+class CatalogScanAborted(RuntimeError):
+    """Se cayeron demasiadas hojas del catálogo: no es una categoría retirada, es un problema.
+
+    Una hoja suelta se tolera (ver `stores.base.ScanReport`), pero a partir de cierta proporción
+    lo que hay delante es un bloqueo o un cambio de API, y guardar el catálogo mutilado sería
+    peor que no guardar nada: daría por buenas unas ausencias que acabarían en bajas.
+    """
+
 
 # Orden de "nunca se le pidió detalle" al elegir a quién refrescar: lo más rancio que hay.
 _NEVER = datetime.min.replace(tzinfo=UTC)
@@ -73,6 +98,9 @@ class IngestResult:
     variants_missing: int
     scanned_scopes: int  # ámbitos recorridos en esta pasada
     skipped_scopes: int  # ámbitos con caída sospechosa: se omitieron sus bajas
+    leaves_scanned: int  # hojas de categoría recorridas en el listado
+    leaves_failed: int  # de las anteriores, las que la tienda ya no sirve (404)
+    unscanned_scopes: int  # ámbitos excluidos de las bajas por tener alguna hoja caída
     probes_sent: int  # candidatos a baja sondeados (confirmación activa)
     probes_alive: int  # el sondeo los encontró vivos: rescatados, no se dan de baja
     probes_dead: int  # el sondeo confirmó la retirada
@@ -605,6 +633,35 @@ def _delist(
     return products_delisted, cur.rowcount
 
 
+def _record_failed_run(
+    conn: psycopg.Connection, store: BaseStore, run_ts: datetime, exc: BaseException
+) -> None:
+    """Deja constancia en `scrape_run` de una pasada que no llegó a escribir nada.
+
+    Va en una transacción NUEVA, después del rollback: la fila que abrió la pasada se fue con él,
+    así que sin esto un fallo no deja rastro ninguno en BD y solo se ve en los logs del pod —
+    exactamente cómo Zara pudo pasarse cuatro días sin poder ingerir sin que nadie lo notara. Con
+    la fila, "¿desde cuándo falla esta tienda?" es una consulta.
+
+    Que este registro falle no puede tapar el error original (que se está propagando), así que se
+    traga cualquier excepción: es información útil, no parte del contrato.
+    """
+    try:
+        with conn.cursor() as cur:
+            retailer_id = _upsert_retailer(cur, store)
+            cur.execute(
+                """
+                INSERT INTO scrape_run (retailer_id, started_at, finished_at, status, errors,
+                                        message)
+                VALUES (%s, %s, now(), 'failed', 1, %s)
+                """,
+                (retailer_id, run_ts, f"{type(exc).__name__}: {exc}"[:_MAX_FAIL_MESSAGE]),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
+
 def ingest(
     conn: psycopg.Connection,
     store: BaseStore,
@@ -617,6 +674,7 @@ def ingest(
     delist_probe_max: int = DEFAULT_DELIST_PROBE_MAX,
     detail_max_age_days: int = DEFAULT_DETAIL_MAX_AGE_DAYS,
     detail_refresh_max: int = DEFAULT_DETAIL_REFRESH_MAX,
+    scan_max_dead_ratio: float = DEFAULT_SCAN_MAX_DEAD_RATIO,
 ) -> IngestResult:
     """Ejecuta una pasada completa del scraper y persiste el resultado. Atómico."""
     run_ts = run_ts or datetime.now(UTC)
@@ -630,10 +688,26 @@ def ingest(
             run_id = _scalar_int(cur)
             existing = _load_existing(cur, retailer_id)
             prior_active = _load_active_counts(cur, retailer_id)  # baseline por ámbito
-            scanned = list(dict.fromkeys(store.scopes()))  # ámbitos recorridos, sin duplicar
 
             # Fase 1: listado barato. Decidimos a quién pedir detalle y a quién solo "tocar".
             entries = list(store.list_catalog())
+
+            # Hojas caídas durante el listado (#41). El informe se lee DESPUÉS de consumir el
+            # generador entero, que es cuando existe.
+            report = store.scan_report() if isinstance(store, SupportsScanReport) else ScanReport()
+            if report.dead_ratio > scan_max_dead_ratio:
+                raise CatalogScanAborted(
+                    f"{report.leaves_failed} de {report.leaves_total} hojas de categoría no "
+                    f"responden (> {scan_max_dead_ratio:.0%}): la pasada se aborta sin escribir. "
+                    "Revisa si la tienda ha reestructurado el catálogo o nos está bloqueando."
+                )
+            # Un ámbito con CUALQUIER hoja caída queda fuera de las bajas: lo que no se ha podido
+            # mirar no está retirado. Si no, sus productos contarían como ausentes y acabarían
+            # descatalogados — y la red por umbral no lo salva, porque un ámbito alimentado por
+            # seis hojas solo pierde un 17 % al caerse una, lejos del 50 % que dispara la sospecha.
+            declared = list(dict.fromkeys(store.scopes()))  # ámbitos de la tienda, sin duplicar
+            scanned = [s for s in declared if s not in report.failed_scopes]
+
             to_fetch: list[ListingEntry] = []
             signature_by_id: dict[str, str] = {}
             unchanged: list[tuple[ListingEntry, _ExistingProduct]] = []
@@ -712,7 +786,12 @@ def ingest(
                     products_seen = %s, variants_seen = %s, errors = %s
                 WHERE id = %s
                 """,
-                (len(entries), variants_seen, len(suspicious) + probe.unresolved, run_id),
+                (
+                    len(entries),
+                    variants_seen,
+                    len(suspicious) + probe.unresolved + report.leaves_failed,
+                    run_id,
+                ),
             )
             barefoot_counts = _barefoot_counts(cur, retailer_id)
         conn.commit()
@@ -730,12 +809,16 @@ def ingest(
             variants_missing=variants_missing,
             scanned_scopes=len(scanned),
             skipped_scopes=len(suspicious),
+            leaves_scanned=report.leaves_total,
+            leaves_failed=report.leaves_failed,
+            unscanned_scopes=len(declared) - len(scanned),
             probes_sent=probe.sent,
             probes_alive=probe.alive,
             probes_dead=probe.dead,
             probes_unresolved=probe.unresolved,
             barefoot_counts=barefoot_counts,
         )
-    except Exception:
+    except Exception as exc:
         conn.rollback()
+        _record_failed_run(conn, store, run_ts, exc)
         raise
