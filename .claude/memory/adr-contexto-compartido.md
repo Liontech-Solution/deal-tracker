@@ -1,11 +1,11 @@
 ---
 name: adr-contexto-compartido
-description: Hay ADR indexados en codebase-memory para deal-tracker y k3s-local-apps-manifests; ahí vive el contrato entre ambos repos
+description: "ADR indexados en codebase-memory para deal-tracker y k3s-local-apps-manifests; ahí vive el contrato entre ambos repos, versionado en .claude/adr/"
 metadata: 
   node_type: memory
   type: project
   originSessionId: b87433e3-a8e3-41d8-beb2-5710fece9ab5
-  modified: 2026-07-29T10:45:15.902Z
+  modified: 2026-07-29T11:13:37.800Z
 ---
 
 El 2026-07-29 se indexaron en el MCP `codebase-memory` dos proyectos y se les escribió un ADR:
@@ -19,11 +19,21 @@ defaults seguros en `base/` que el overlay de QA levanta, y el mapa de qué repo
 (Cilium y labels de nodo → `kxs-ansible`, backups Longhorn → `toolsuite-platform-gitops`,
 rutas públicas → panel de Zero Trust, no Git).
 
+El grafo es local a cada equipo, así que el ADR se versiona como fichero en `.claude/adr/` de
+cada repo: es lo que permite reconstruirlo en el otro portátil y revisarlo en un PR. La skill
+`cerrar-sesion` se encarga de mantenerlo al día al terminar.
+
+Dos detalles del indexador que cuestan tiempo redescubrir: el modo `fast` **excluye
+`db/migrations/` y `tests/fixtures/`** (justo el contrato de deal-tracker), así que para este
+repo hay que reindexar en `full`. Y `detect_changes` no vale como señal de caducidad, porque
+`index_status` lee el git en vivo: `base_sha == head_sha` siempre y devuelve 0 cambios aunque
+el índice esté viejo. Reindexar es incremental y tarda segundos, así que sale más barato
+hacerlo siempre que intentar detectar si procede.
+
 **Why:** el despliegue de deal-tracker vive en otro repo, así que trabajar solo en uno deja
 la mitad del sistema fuera de contexto.
 
 **How to apply:** al tocar CI, imágenes, migraciones o cualquier cosa que cruce a k8s, leer el
 ADR antes de asumir. El modo `cross-repo-intelligence` no aporta nada aquí (0 aristas: el repo
-de manifiestos es YAML, sin rutas HTTP que enlazar) — el ADR es el mecanismo, no las aristas.
-Reindexar con `index_repository` tras cambios grandes. Relacionado: [[gitops-argocd-selfheal]],
-[[verificar-en-cluster-dev]].
+de manifiestos es YAML, sin rutas HTTP que enlazar). Relacionado: [[gitops-argocd-selfheal]],
+[[verificar-en-cluster-dev]], [[memoria-en-repo]].
