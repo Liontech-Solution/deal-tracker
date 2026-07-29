@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: b87433e3-a8e3-41d8-beb2-5710fece9ab5
-  modified: 2026-07-29T11:13:37.800Z
+  modified: 2026-07-29T21:06:43.159Z
 ---
 
 El 2026-07-29 se indexaron en el MCP `codebase-memory` dos proyectos y se les escribió un ADR:
@@ -22,6 +22,13 @@ rutas públicas → panel de Zero Trust, no Git).
 El grafo es local a cada equipo, así que el ADR se versiona como fichero en `.claude/adr/` de
 cada repo: es lo que permite reconstruirlo en el otro portátil y revisarlo en un PR. La skill
 `cerrar-sesion` se encarga de mantenerlo al día al terminar.
+
+**El respaldo en fichero no es paranoia: el grafo pierde el ADR de verdad.** Visto dos veces el
+2026-07-29, en los dos proyectos. El patrón que encaja con ambos casos: un ADR escrito por el
+**servidor MCP** desaparece en el **primer `index_repository` posterior**; los re-publicados con
+el **CLI** (`codebase-memory-mcp cli manage_adr --mode update`) han sobrevivido a todos los
+reindexados siguientes. Por eso conviene re-publicar por CLI y mirar siempre `adr_present` en
+la salida del indexado.
 
 Dos detalles del indexador que cuestan tiempo redescubrir: el modo `fast` **excluye
 `db/migrations/` y `tests/fixtures/`** (justo el contrato de deal-tracker), así que para este
