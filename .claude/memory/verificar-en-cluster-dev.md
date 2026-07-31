@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 842d188a-5bed-4fff-9049-9f5776ad8a66
-  modified: 2026-07-28T22:11:20.522Z
+  modified: 2026-07-31T09:52:13.305Z
 ---
 
 Esta máquina no tiene `postgres`, `psql` ni `pg_isready` instalados (ver
@@ -41,3 +41,13 @@ en docker de arriba llega y no exige mergear nada.) Una vez publicada, se puede 
 
 La API de dev es alcanzable sin port-forward: `svc/deal-tracker-web` es LoadBalancer en
 `192.169.2.16`. `limit` máximo del catálogo = 100, hay que paginar.
+
+**Para MEDIR el vocabulario de dev no hace falta tocar el cluster, y conviene no tocarlo**: el
+modo automático de permisos bloquea los escritos con `kubectl` (crear el ConfigMap y el pod de
+arriba, y también `kubectl exec` contra el pod de CNPG), así que ese camino se queda a medias.
+`GET /api/catalog/facets?barefoot=all` devuelve **la lista completa de colores, tallas, categorías
+y tiendas vivas** — es un GET público, lo mismo que pide la SPA. Con eso volcado a un CSV y
+cargado en la Postgres de docker se miden en local cosas como cuántos valores funde una
+normalización, sin datos inventados. `?barefoot=all` es imprescindible: por defecto la faceta va
+acotada a `si` y esconde parte del catálogo. Para saber **de qué tienda** es cada valor,
+`GET /api/catalog/products?color=<valor>&barefoot=all&limit=100` y mirar `retailerName`.
