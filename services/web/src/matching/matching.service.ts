@@ -147,7 +147,9 @@ export class MatchingService {
         -- Se normalizan los dos lados aunque el alta ya guarde canónico: size_canon es idempotente
         -- y así una fila escrita a mano en la base tampoco se queda sin avisar.
         AND (i.size     IS NULL OR size_canon(i.size) = size_canon(b.size))
-        AND (i.color    IS NULL OR i.color    = b.color)
+        -- Y el color CANÓNICO por lo mismo (#49): con igualdad de texto crudo, un interés guardado
+        -- con 'Verde' nunca casaba con una prenda que la tienda escribió 'VERDE'.
+        AND (i.color    IS NULL OR color_canon(i.color) = color_canon(b.color))
       JOIN app_user u ON u.id = i.user_id AND u.telegram_chat_id IS NOT NULL
       LEFT JOIN LATERAL (
         SELECT MIN(h.price) FILTER (

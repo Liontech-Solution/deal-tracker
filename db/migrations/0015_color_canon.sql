@@ -1,0 +1,115 @@
+-- Color canónico: `color_canon(text)`.
+--
+-- Segunda mitad de lo que la 0014 hizo con la talla. `variant.color` guarda el color TAL COMO lo
+-- escribe cada tienda, y eso rompe las dos mismas cosas (issue #49). Medido el 31/07/2026 sobre una
+-- copia de `dev` (3.175 productos, 33.311 variantes vivas): **220 valores de color distintos**, con
+-- **11 pares que son el mismo color y solo difieren en las mayúsculas**:
+--
+--   'Azul Marino' / 'Azul marino'     'Chocolate' / 'chocolate'
+--   'Frambuesa' / 'frambuesa'         'Fucsia Oscuro' / 'Fucsia oscuro'
+--   'Gris Topo' / 'Gris topo'         'Marino' / 'marino'
+--   'Rayas' / 'rayas'                 'Rosa claro' / 'rosa claro'
+--   'Tostado' / 'tostado'             'VERDE' / 'Verde'
+--   'Verde Pato' / 'Verde pato'
+--
+--   1. **El aviso por color fallaba en silencio.** El job de matching casa por igualdad exacta de
+--      texto, así que un interés guardado con 'Verde' NUNCA disparaba para una prenda cuyo color la
+--      tienda escribió 'VERDE'. No hay error, no llega el aviso, y nadie se entera. Es el mismo
+--      fallo que la 0014, en el mismo JOIN y con el mismo consumidor crítico.
+--   2. **La faceta ofrecía el mismo color varias veces**, y aquí se ve peor que en la talla: son 220
+--      chips en una sola lista, así que elegir color era inviable.
+--
+-- Se hace ahora por la misma razón que la 0014: hay **0 intereses en dev y 0 en qa**. En cuanto haya
+-- seguimientos reales, cambiar la representación obliga a migrarlos.
+--
+-- ¿Por qué una función SQL y no una columna que escriba el scraper? Las mismas tres razones que la
+-- 0014, que no se repiten aquí: los consumidores son SQL, vive en el contrato, y no hay nada
+-- materializado que backfillear. Y como allí, **`color` NO se toca**: sigue guardando el texto de la
+-- tienda porque la ficha lo enseña.
+--
+-- Hay una razón MÁS, exclusiva del color, para no tocar el dato: `product_image` está clavada por el
+-- TEXTO del color (migración 0011, `product_image.color` = `variant.color`, invariante que fijan los
+-- tests de parseo de cada tienda). Ese join sostiene la foto de la tarjeta y la galería de la ficha.
+-- Canonicalizar la columna lo rompería en silencio; canonicalizar solo la comparación lo deja
+-- intacto, porque ese join sigue siendo crudo-contra-crudo dentro del mismo producto.
+
+-- Etiqueta canónica de un color: pliega la caja y los espacios, y quita el código interno que Sfera
+-- antepone al nombre.
+--
+-- El resultado va en MINÚSCULAS y es lo que se guarda en `interest.color` y lo que ofrece la faceta.
+-- No es un descuido de presentación: la SPA ya pinta los chips con `capitalize()`, así que
+-- 'azul marino' se ve «Azul marino» — que además es como se escribe en castellano, y no el Title
+-- Case inconsistente que traen las tiendas. Lo único que se pierde es la mayúscula interior de los
+-- compuestos ('Azul / Índigo' se verá 'Azul / índigo'), y eso vale menos que tener un chip por color.
+--
+-- EL CÓDIGO DE SFERA. 20 valores lo llevan delante ('120 Crudo', '430 Azul oscuro'…) y son todos de
+-- Sfera, que escribe el mismo color de las dos maneras. La duda al abrir #49 era si quitarlo fundiría
+-- el 'Crudo' de una tienda con el de otra, que probablemente es otro crudo — la talla tenía detrás
+-- una verdad física (el mismo pie) y el color no la tiene. La medición sobre los 220 valores de dev
+-- deshizo la duda:
+--
+--   * De los 17 que llevan nombre detrás, 11 colisionan con un nombre que ya existe suelto, y **9 de
+--     esos 11 colisionan con la propia Sfera**. O sea: el código no está distinguiendo dos colores,
+--     está partiendo en dos el catálogo de una misma tienda. Es la enfermedad de esta issue, no una
+--     defensa contra ella.
+--   * Los otros 2 ('291 Berenjena' con Zara, '850 Piedra' con Zara) sí son el caso entre tiendas. Se
+--     aceptan a sabiendas, porque **eso ya pasa hoy**: el 'Crudo' de Zara y el de Sfera son el mismo
+--     chip desde siempre y nadie lo ha considerado un problema. Quitar el código solo hace que estos
+--     valores se comporten como se comporta ya cualquier otro color compartido.
+--
+-- Se exigen EXACTAMENTE TRES DÍGITOS y un espacio, no `[0-9]+`. Los 20 códigos medidos son de tres
+-- dígitos (107…850), y la regla suelta se comería el nombre de un color legítimo que empezara por un
+-- número ('2 tonos', '3 rayas') el día que entre una tienda que los use. Falla del lado seguro: como
+-- mucho deja un chip feo, nunca destroza un color de verdad.
+--
+-- LO QUE ESTA FUNCIÓN SIGUE SIN HACER, a propósito (ver #49, y los tests que lo fijan en
+-- `services/web/test/color-canon.spec.ts`):
+--
+--   * **No rescata los códigos pelados.** '107', '140' y '771' (10 productos) son SOLO el número:
+--     Sfera escribe eso en `title`, que es el único campo con nombre del bloque de color, así que no
+--     hay nada que canonicalizar. Recuperarlos exige la PDP, que está tras Akamai — es un problema
+--     del scraper y va por su propia issue.
+--   * **No agrupa familias.** 'Azul claro', 'Azul medio' y 'Azul oscuro' son colores distintos para
+--     quien compra, y 'Kaki' / 'Khaki' es una decisión de vocabulario. Agrupar por familia es
+--     producto, no formato — el mismo sitio donde la 0014 dejó los rangos de edad solapados.
+--   * **No pliega los acentos.** Medido sobre los 220 valores: 26 llevan algún acento y **ninguno**
+--     colisiona con una versión sin acentuar, así que plegarlos no fundiría ni un par y a cambio
+--     degradaría el chip ('índigo' → 'indigo').
+--
+-- Es IDEMPOTENTE —color_canon(color_canon(x)) = color_canon(x)— y por eso se aplica a los DOS lados
+-- de cada comparación, sin tener que razonar sobre cuál venía ya normalizado. Que el código se quite
+-- en una segunda pasada sobre el texto ya plegado es lo que lo mantiene así: 'crudo' ya no empieza
+-- por tres dígitos, y volver a aplicarla no cambia nada.
+CREATE OR REPLACE FUNCTION color_canon(color text) RETURNS text
+    LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+    SELECT regexp_replace(
+               lower(btrim(regexp_replace(color, '\s+', ' ', 'g'))),
+               '^[0-9]{3} (.+)$', '\1');
+$$;
+
+-- El filtro del catálogo compara `color_canon(v.color) = color_canon(<color>)`, y sin índice eso
+-- evalúa la función una vez por variante. Medido sobre el volumen de dev (3.175 productos, 33.311
+-- variantes, 220 colores) reproducido en local con el esquema real, Postgres 16:
+--
+--   sin índice   14,6 ms (Seq Scan, 33.160 filas descartadas)      con índice   0,11 ms
+--   igualdad de texto cruda, de referencia: 1,57 ms
+--
+-- O sea: sin índice el filtro por color cuesta ~9 veces lo que costaba la igualdad cruda que
+-- sustituye, y con él cuesta ~15 veces MENOS. Es más barato que el de la talla (la 0014 midió
+-- 1.000 ms sin índice) porque `color_canon` es un `regexp_replace` y `size_canon` son siete ramas,
+-- pero la forma del problema es idéntica y en el cluster —que son Raspberry Pi— la diferencia es la
+-- que decide si pinchar un chip responde o se queda pensando.
+--
+-- ⚠️ **OBLIGACIÓN AL CAMBIAR `color_canon`.** El índice almacena los valores YA calculados. Una
+-- migración futura que reemplace la función deja este índice obsoleto en silencio, y entonces el
+-- filtro devuelve filas EQUIVOCADAS (no un error: resultados mal). Cualquier migración que toque el
+-- cuerpo de `color_canon` —y las tres exclusiones de arriba son candidatas a que alguien lo haga—
+-- tiene que terminar con:
+--
+--     REINDEX INDEX ix_variant_color_canon;
+--
+-- Parcial por `delisted_at IS NULL` porque ese es el otro filtro que llevan todas las lecturas del
+-- catálogo, igual que en los índices de la 0012 y la 0014.
+CREATE INDEX ix_variant_color_canon ON variant (color_canon(color))
+    WHERE delisted_at IS NULL;

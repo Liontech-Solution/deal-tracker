@@ -589,3 +589,98 @@ describe.skipIf(!TEST_DB)('talla canónica · faceta y filtro (e2e)', () => {
     expect(res.body.variants[0].size).toBe('26 (16,3 cm)');
   });
 });
+
+describe.skipIf(!TEST_DB)('color canónico · faceta, filtro y foto (e2e)', () => {
+  let sql: postgres.Sql;
+  let app: INestApplication;
+
+  const FOTO_VERDE = 'https://static.example/p/verde-0.jpg';
+
+  /** Producto de una tienda con UNA variante, cuyo color se escribe como lo escribe esa tienda. */
+  async function seedColor(retailerId: number, name: string, color: string): Promise<number> {
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${retailerId}, ${name}, ${name}, 'niña', 'zapateria', 'barefoot', 'si', 'https://x')
+      RETURNING id`;
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p.id}, ${name + '-v'}, '26', ${color}, ${name + '-sku'}) RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${v.id}, 19.99, 39.99, 50, true, now())`;
+    return p.id;
+  }
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    const [zara] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('zara', 'Zara', 'https://www.zara.com') RETURNING id`;
+    const [sfera] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('sfera', 'Sfera', 'https://www.sfera.com') RETURNING id`;
+
+    // El mismo color escrito de dos maneras por dos tiendas, que es el caso medido en dev.
+    const idZara = await seedColor(zara.id, 'Bota Zara', 'VERDE');
+    await seedColor(sfera.id, 'Bota Sfera', 'Verde');
+
+    // La foto se clava por el TEXTO del color (migración 0011). Se siembra con el texto crudo de la
+    // tienda a propósito: si la canonicalización llegara al dato, este join dejaría de casar.
+    await sql`
+      INSERT INTO product_image (product_id, color, position, url)
+      VALUES (${idZara}, 'VERDE', 0, ${FOTO_VERDE})`;
+
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  const facetas = async (query = '') => {
+    const res = await request(app.getHttpServer()).get(`/api/catalog/facets${query}`).expect(200);
+    return res.body as { colors: string[] };
+  };
+
+  const nombres = async (query: string): Promise<string[]> => {
+    const res = await request(app.getHttpServer()).get(query).expect(200);
+    return res.body.items.map((i: { name: string }) => i.name).sort();
+  };
+
+  it('ofrece el mismo color UNA sola vez, y en canónico', async () => {
+    expect((await facetas('?section=zapateria')).colors).toEqual(['verde']);
+  });
+
+  it('un filtro por el color del chip encuentra las dos tiendas', async () => {
+    expect(await nombres('/api/catalog/products?color=verde')).toEqual(['Bota Sfera', 'Bota Zara']);
+  });
+
+  it('sigue encontrando por el color crudo de la tienda (enlaces antiguos)', async () => {
+    expect(await nombres('/api/catalog/products?color=VERDE')).toEqual(['Bota Sfera', 'Bota Zara']);
+  });
+
+  it('la ficha sigue enseñando el color tal como lo escribe la tienda', async () => {
+    const [row] = await sql<{ id: number }[]>`SELECT id FROM product WHERE name = 'Bota Zara'`;
+    const res = await request(app.getHttpServer())
+      .get(`/api/catalog/products/${row.id}`)
+      .expect(200);
+    expect(res.body.variants[0].color).toBe('VERDE');
+  });
+
+  /**
+   * El riesgo concreto que esta issue tenía que comprobar antes de escribir nada (#49, punto 2):
+   * `product_image.color` está clavada por el texto de `variant.color`. Como se canonicaliza solo la
+   * comparación y nunca el dato, ese join sigue siendo crudo-contra-crudo y la foto sigue saliendo.
+   */
+  it('la foto por color sigue casando aunque el filtro sea canónico', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/catalog/products?color=verde')
+      .expect(200);
+    const zara = res.body.items.find((i: { name: string }) => i.name === 'Bota Zara');
+    expect(zara.colorRepr).toBe('VERDE');
+    expect(zara.imageUrl).toBe(FOTO_VERDE);
+  });
+});

@@ -119,6 +119,29 @@ describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
     }
   });
 
+  it('guarda el color en canónico, venga como venga (#49)', async () => {
+    // Mismo razonamiento que la talla: un interés guardado con 'VERDE' solo casaría con la tienda
+    // que lo escribe así, y el aviso no llegaría para la misma prenda de la de al lado.
+    const user = await seedUser(sql, 'kc-color-canon');
+    const app = await makeApp(user);
+    try {
+      for (const [entrada, esperada] of [
+        ['VERDE', 'verde'],
+        ['Azul Marino', 'azul marino'],
+        ['  Gris   Topo ', 'gris topo'],
+        ['verde', 'verde'],
+      ]) {
+        const created = await request(app.getHttpServer())
+          .post('/api/interests')
+          .send({ color: entrada })
+          .expect(201);
+        expect(created.body.color, `entrada «${entrada}»`).toBe(esperada);
+      }
+    } finally {
+      await app.close();
+    }
+  });
+
   it('rechaza un interés vacío (sin objetivo ni filtro) con 400', async () => {
     const user = await seedUser(sql, 'kc-sub-empty');
     const app = await makeApp(user);
