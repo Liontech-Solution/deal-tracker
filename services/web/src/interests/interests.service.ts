@@ -57,6 +57,16 @@ export class InterestsService {
         'El interés necesita al menos un objetivo (producto/variante/tienda) o un filtro (género/sección/categoría/talla/color).',
       );
     }
+    // Un color que no tiene etiqueta canónica no puede guardarse tal cual: `color_canon` devuelve
+    // NULL para él (#51), y en `matching.service.ts` un `interest.color` NULL significa «cualquier
+    // color». O sea, pedir avisos del '771' de Zara habría suscrito al usuario a TODOS los colores,
+    // en silencio y más ancho de lo que pidió. La SPA ya no lo ofrece —desaparece de la faceta—,
+    // pero esta API acepta texto libre.
+    if (dto.color !== undefined && dto.color !== null && !(await this.hasCanonColor(dto.color))) {
+      throw new BadRequestException(
+        `El color '${dto.color}' no identifica ningún color: no puede usarse como filtro.`,
+      );
+    }
 
     const [row] = await this.db
       .insert(interest)
@@ -91,6 +101,14 @@ export class InterestsService {
     if (deleted.length === 0) {
       throw new NotFoundException(`Interés ${id} no encontrado`);
     }
+  }
+
+  /** ¿Este color tiene etiqueta canónica? (`color_canon` la niega devolviendo NULL — ver #51). */
+  private async hasCanonColor(color: string): Promise<boolean> {
+    const rows = (await this.db.execute(
+      sql`SELECT color_canon(${color}) AS canon`,
+    )) as unknown as Record<string, unknown>[];
+    return rows[0]?.canon != null;
   }
 
   private hasSignal(dto: CreateInterestDto): boolean {

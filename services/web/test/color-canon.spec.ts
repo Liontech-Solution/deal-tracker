@@ -5,7 +5,7 @@ import { runMigrations } from '../src/database/migrate';
 import { makeSql, TEST_DB } from './helpers';
 
 /**
- * `color_canon` (migración 0015, issue #49).
+ * `color_canon` (migraciones 0015 y 0016; issues #49 y #51).
  *
  * Los casos NO son inventados: son los 220 valores distintos que había en `dev` el 31/07/2026 con
  * Zara, Sfera y Lefties ingeridas, reducidos a los que documentan una regla o un límite. Si una
@@ -14,8 +14,8 @@ import { makeSql, TEST_DB } from './helpers';
 describe.skipIf(!TEST_DB)('color canónico', () => {
   let sql: postgres.Sql;
 
-  const canon = async (value: string): Promise<string> => {
-    const [row] = await sql<{ v: string }[]>`SELECT color_canon(${value}) AS v`;
+  const canon = async (value: string): Promise<string | null> => {
+    const [row] = await sql<{ v: string | null }[]>`SELECT color_canon(${value}) AS v`;
     return row.v;
   };
 
@@ -91,7 +91,10 @@ describe.skipIf(!TEST_DB)('color canónico', () => {
     });
 
     it('sigue siendo idempotente', async () => {
-      expect(await canon(await canon('120 Crudo'))).toBe('crudo');
+      const [row] = await sql<
+        { v: string | null }[]
+      >`SELECT color_canon(color_canon('120 Crudo')) AS v`;
+      expect(row.v).toBe('crudo');
     });
   });
 
@@ -100,17 +103,30 @@ describe.skipIf(!TEST_DB)('color canónico', () => {
    * Si algún día se amplía la función, estos tests son los que hay que reescribir, y así el cambio
    * de criterio queda a la vista en vez de colarse.
    */
-  describe('lo que NO funde, a propósito', () => {
-    it('no toca los códigos pelados, que no tienen nombre que rescatar', async () => {
-      // '107', '140' y '771' son 10 productos cuyo color, tal como lo sirve Sfera, es solo el
-      // número. No hay nada que canonicalizar: recuperarlos exige la PDP, tras Akamai.
+  describe('un nombre que son solo dígitos no es un nombre (#51)', () => {
+    it('lo niega devolviendo NULL, que es como esta función dice «no hay etiqueta»', async () => {
+      // '107', '140' y '771' son 10 productos de ZARA, que escribe el id del color en el campo del
+      // nombre (verificado contra su API: {"id":"771","name":"771"}). No es el código de Sfera al
+      // que le falta el nombre —eso lo resuelve la 0015—, aquí el número ES el nombre entero.
+      // Nadie puede pinchar un chip '771', así que no pertenece a la faceta ni al aviso.
       for (const pelado of ['107', '140', '771']) {
-        expect(await canon(pelado)).toBe(pelado);
+        expect(await canon(pelado)).toBeNull();
       }
     });
 
-    it('exige tres dígitos exactos, para no destrozar un color que empiece por número', async () => {
-      // La regla suelta `[0-9]+` se comería el nombre el día que entre una tienda con colores así.
+    it('sigue siendo idempotente: color_canon(NULL) = NULL porque es STRICT', async () => {
+      const [row] = await sql<{ v: string | null }[]>`SELECT color_canon(color_canon('771')) AS v`;
+      expect(row.v).toBeNull();
+    });
+
+    it('compone con la regla del código de Sfera', async () => {
+      // '120 456' -> se quita el prefijo -> '456' -> solo dígitos -> NULL.
+      expect(await canon('120 456')).toBeNull();
+    });
+
+    it('no se lleva por delante un color que solo EMPIECE por número', async () => {
+      // Llevan letras, así que no son "solo dígitos" y siguen intactos. Son los mismos casos que
+      // protegía la 0015 al exigir tres dígitos exactos para el prefijo.
       expect(await canon('2 tonos')).toBe('2 tonos');
       expect(await canon('12 rayas')).toBe('12 rayas');
       expect(await canon('1200 Crudo')).toBe('1200 crudo');

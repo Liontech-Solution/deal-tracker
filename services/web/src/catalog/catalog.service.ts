@@ -471,6 +471,10 @@ export class CatalogService {
      *
      * El orden alfabético del canónico basta —a diferencia de la talla, es el que se espera de una
      * lista de colores—, así que aquí no hace falta el equivalente de `size_sort`.
+     *
+     * El `IS NOT NULL` de fuera no es defensivo: `color_canon` devuelve NULL a propósito para un
+     * nombre que son solo dígitos (#51, migración 0016 — Zara escribe el id del color como nombre
+     * en 10 productos). Sin él, ese NULL llegaría a la SPA como el chip literal `"null"`.
      */
     const pickColors = async (): Promise<string[]> => {
       const rows = (await this.db.execute(sql`
@@ -483,6 +487,7 @@ export class CatalogService {
             AND ${visible}
             AND ${inSection}
         ) crudas
+        WHERE color_canon(cruda) IS NOT NULL
         ORDER BY value
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => String(r.value));

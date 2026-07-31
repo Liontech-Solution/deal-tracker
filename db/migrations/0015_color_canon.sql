@@ -65,10 +65,12 @@
 -- LO QUE ESTA FUNCIÓN SIGUE SIN HACER, a propósito (ver #49, y los tests que lo fijan en
 -- `services/web/test/color-canon.spec.ts`):
 --
---   * **No rescata los códigos pelados.** '107', '140' y '771' (10 productos) son SOLO el número:
---     Sfera escribe eso en `title`, que es el único campo con nombre del bloque de color, así que no
---     hay nada que canonicalizar. Recuperarlos exige la PDP, que está tras Akamai — es un problema
---     del scraper y va por su propia issue.
+--   * **No rescata los códigos pelados.** '107', '140' y '771' (10 productos) son SOLO el número, y
+--     no hay nombre que recuperar. [CORREGIDO EL 31/07/2026, ver 0016: aquí se atribuyeron a SFERA
+--     y a su PDP tras Akamai, y es FALSO — son de ZARA, que escribe el id del color en el campo del
+--     nombre, y su API es pública. La 0016 los resuelve devolviendo NULL: no son un caso extremo de
+--     este prefijo, son otro problema. Se deja escrito el error porque la suposición era razonable
+--     y conviene que se vea de dónde salió.]
 --   * **No agrupa familias.** 'Azul claro', 'Azul medio' y 'Azul oscuro' son colores distintos para
 --     quien compra, y 'Kaki' / 'Khaki' es una decisión de vocabulario. Agrupar por familia es
 --     producto, no formato — el mismo sitio donde la 0014 dejó los rangos de edad solapados.

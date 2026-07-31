@@ -595,6 +595,7 @@ describe.skipIf(!TEST_DB)('color canónico · faceta, filtro y foto (e2e)', () =
   let app: INestApplication;
 
   const FOTO_VERDE = 'https://static.example/p/verde-0.jpg';
+  const FOTO_MUDA = 'https://static.example/p/771-0.jpg';
 
   /** Producto de una tienda con UNA variante, cuyo color se escribe como lo escribe esa tienda. */
   async function seedColor(retailerId: number, name: string, color: string): Promise<number> {
@@ -632,6 +633,13 @@ describe.skipIf(!TEST_DB)('color canónico · faceta, filtro y foto (e2e)', () =
       INSERT INTO product_image (product_id, color, position, url)
       VALUES (${idZara}, 'VERDE', 0, ${FOTO_VERDE})`;
 
+    // El color mudo de Zara (#51): su `name` es el id del color, así que no hay nombre que ofrecer.
+    // Se siembra con foto para comprobar que quitarlo de la faceta NO le quita la galería.
+    const idMudo = await seedColor(zara.id, 'Bermuda Zara', '771');
+    await sql`
+      INSERT INTO product_image (product_id, color, position, url)
+      VALUES (${idMudo}, '771', 0, ${FOTO_MUDA})`;
+
     app = await makeApp();
   });
 
@@ -651,7 +659,27 @@ describe.skipIf(!TEST_DB)('color canónico · faceta, filtro y foto (e2e)', () =
   };
 
   it('ofrece el mismo color UNA sola vez, y en canónico', async () => {
+    // Que '771' no salga aquí es la mitad de #51: un chip que son solo dígitos no lo pincha nadie.
     expect((await facetas('?section=zapateria')).colors).toEqual(['verde']);
+  });
+
+  /**
+   * La otra mitad de #51, y el riesgo del enfoque: quitar el color de la faceta NO puede quitarle
+   * al producto ni su sitio en el catálogo ni su foto. Como `variant.color` conserva el texto crudo
+   * ('771') y solo se canonicaliza la comparación, el join de `product_image` sigue casando.
+   */
+  it('el producto del color mudo sigue en el catálogo y con su foto', async () => {
+    const res = await request(app.getHttpServer()).get('/api/catalog/products').expect(200);
+    const mudo = res.body.items.find((i: { name: string }) => i.name === 'Bermuda Zara');
+    expect(mudo, 'el producto no puede desaparecer del catálogo').toBeDefined();
+    expect(mudo.colorRepr).toBe('771');
+    expect(mudo.imageUrl).toBe(FOTO_MUDA);
+  });
+
+  it('un filtro por el color mudo no devuelve el catálogo entero', async () => {
+    // `color_canon('771')` es NULL, y `NULL = NULL` es NULL: la fila queda fuera. Lo que NO puede
+    // pasar es que un filtro sin sentido se comporte como "sin filtro".
+    expect(await nombres('/api/catalog/products?color=771')).toEqual([]);
   });
 
   it('un filtro por el color del chip encuentra las dos tiendas', async () => {
