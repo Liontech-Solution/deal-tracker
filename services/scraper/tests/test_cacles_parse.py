@@ -367,6 +367,31 @@ def test_la_pagina_vacia_despues_de_la_primera_es_el_fin_normal_de_la_paginacion
     assert informe.dead_ratio == 0.0
 
 
+def test_agotar_el_tope_de_paginas_no_cuenta_como_hoja_sana() -> None:
+    """Si no se llega al final de la paginación, se ha visto SOLO parte del catálogo.
+
+    Contarla como sana sería el peor de los dos errores: los ámbitos seguirían siendo elegibles
+    para bajas y, a las `delist_min_misses` pasadas, se descatalogaría producto vivo solo por no
+    haber cabido en el tope. Lo que no se ha llegado a mirar no está retirado.
+    """
+
+    # Todas las páginas devuelven producto: nunca aparece la página vacía que marca el final.
+    def handler(request: httpx.Request) -> httpx.Response:
+        page = int(request.url.params.get("page", "1"))
+        return httpx.Response(200, json=_pagina_con(page))
+
+    store = CaclesStore(Config(database_url="x", request_delay=0.0), [_COLECCION])
+    store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
+
+    entries = list(store.list_catalog())
+    assert entries, "debería haber emitido lo que sí pudo leer"
+
+    informe = store.scan_report()
+    assert informe.leaves_failed == 1, "la hoja truncada no puede contar como sana"
+    assert informe.dead_ratio == 1.0
+    assert informe.failed_scopes == set(store.scopes())
+
+
 def test_list_catalog_deduplica_por_id() -> None:
     store = _store_sirviendo({1: _pagina_con(1, 2), 2: _pagina_con(2, 3)})
     ids = [e.retailer_product_id for e in store.list_catalog()]
@@ -452,3 +477,35 @@ def test_un_candidato_sin_url_no_se_puede_sondear() -> None:
 
     store = _store_probando(httpx.Response(200, json={"product": {"id": 1}}))
     assert store.probe_alive([DelistCandidate("1", None)]) == {}
+
+
+def test_el_410_tambien_confirma_la_retirada() -> None:
+    """410 significa lo mismo que 404 y así lo declara `GONE_STATUS` en el contrato común."""
+    assert _store_probando(httpx.Response(410)).probe_alive([_candidato()]) == {"1": False}
+
+
+# --------------------------------------------------------------------------------------
+# Educación con el servidor
+# --------------------------------------------------------------------------------------
+
+
+def test_retry_after_con_decimales_se_respeta() -> None:
+    """Shopify manda "2.0", y `.isdigit()` —lo que usa zara.py— lo daría por no numérico.
+
+    Se ignoraría en silencio justo en la tienda que cobra por complejidad y tarda minutos en
+    rellenar el cubo.
+    """
+    import scraper.stores.cacles as modulo
+
+    esperas: list[float] = []
+    store = CaclesStore(Config(database_url="x", request_delay=0.0, retry_backoff=1.0))
+    original = modulo.time.sleep
+    modulo.time.sleep = esperas.append  # type: ignore[assignment]
+    try:
+        store._backoff(0, retry_after="30.0")
+        store._backoff(0, retry_after="no-es-un-numero")
+    finally:
+        modulo.time.sleep = original
+
+    assert esperas[0] >= 24, "debería esperar los 30 s que pide la tienda (con jitter a la baja)"
+    assert esperas[1] < 2, "un valor ilegible cae al backoff exponencial, no revienta"

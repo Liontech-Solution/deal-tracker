@@ -14,7 +14,7 @@ Por qué esta tienda (#32): Zara, Sfera y Lefties son cadenas de moda convencion
 dejaban la zapatería respetuosa en ~92 referencias. Aquí **todo el catálogo es barefoot**, así que
 `barefoot='si'` se declara a nivel de tienda (`tienda_barefoot=True`) sin heurística de texto.
 
-Dos cosas que hay que tener presentes al tocar este fichero:
+Tres cosas que hay que tener presentes al tocar este fichero:
 
 1. **Una colección que no existe responde 200 con `products: []`, no 404.** Comprobado en vivo. Es
    la trampa de Sfera (#54) con otra forma y peor: una hoja muerta parece "este ámbito se ha
@@ -25,12 +25,23 @@ Dos cosas que hay que tener presentes al tocar este fichero:
 2. **`compare_at_price` suele venir IGUAL a `price`** (248 de 428 productos el 31/07/2026). Solo es
    precio tachado si es estrictamente mayor; tratarlo a ciegas inventaría un descuento del 0 % en
    más de la mitad del catálogo y ensuciaría justo al detector de ofertas engañosas.
+3. **Shopify cobra por COMPLEJIDAD, no por número de peticiones**, y devuelve 429 al agotar el
+   presupuesto. Una página con `limit=250` puntúa `shopify-complexity-score: 12400`, y el cubo
+   tarda MINUTOS en rellenarse: medido el 31/07/2026, tres páginas seguidas se comen el
+   presupuesto y hubo que esperar ~7 min a que se recuperase. Además el 429 **no trae
+   `Retry-After`**, así que el backoff exponencial se queda corto si arranca del segundo por
+   defecto. Una pasada normal son dos peticiones al día y no se acerca al límite —esto se
+   descubrió capturando fixtures a ráfagas—, pero el CronJob lleva igualmente
+   `SCRAPER_RETRY_BACKOFF=8` y `SCRAPER_REQUEST_RETRIES=6` para que una pasada que coincida con
+   otra cosa aguante en vez de abortar. Bajar `_PAGE_SIZE` NO ayuda: el coste es por producto
+   devuelto, así que el mismo catálogo cuesta lo mismo en más viajes.
 
 Las funciones `parse_*` son puras (JSON -> dataclasses) y se testean con fixtures.
 """
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import random
 import time
@@ -44,6 +55,7 @@ import httpx
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
 from .base import (
+    GONE_STATUS,
     DelistCandidate,
     LeafHealth,
     ListingEntry,
@@ -433,10 +445,19 @@ class CaclesStore:
                 self._backoff(attempt)
 
     def _backoff(self, attempt: int, retry_after: str | None = None) -> None:
-        """Espera exponencial (respeta Retry-After si viene) con jitter."""
+        """Espera exponencial (respeta Retry-After si viene) con jitter.
+
+        `float()` y no `.isdigit()` como en `zara.py`: Shopify manda la cabecera con decimales
+        (`"2.0"`), y `"2.0".isdigit()` es False, así que el valor se habría ignorado en silencio
+        justo en la tienda que más lo necesita. Hoy sus 429 no la traen, pero si empiezan a
+        traerla queremos hacerle caso.
+        """
         wait = self._config.retry_backoff * (2**attempt)
-        if retry_after and retry_after.isdigit():
-            wait = max(wait, float(retry_after))
+        if retry_after:
+            # La cabecera también admite una fecha HTTP: no la interpretamos, y en ese caso nos
+            # quedamos con el backoff exponencial en vez de reventar.
+            with contextlib.suppress(ValueError):
+                wait = max(wait, float(retry_after))
         time.sleep(wait * random.uniform(0.8, 1.2))
 
     def _pagina(self, client: httpx.Client, handle: str, page: int) -> list[ScrapedProduct]:
@@ -446,8 +467,8 @@ class CaclesStore:
             raise ValueError(f"cacles: respuesta inesperada en {handle} pág. {page}")
         return parse_products(payload)
 
-    def _hoja_retirada(self, handle: str) -> None:
-        """Marca la colección como caída y saca TODOS sus ámbitos de las bajas.
+    def _hoja_comprometida(self, motivo: str) -> None:
+        """Cuenta la hoja como caída y saca TODOS sus ámbitos de las bajas.
 
         Se cuenta como UNA hoja (no una por ámbito) para que `leaves_total` siga midiendo lo que
         dice medir; los ámbitos restantes se añaden aparte porque esta tienda cubre todos con una
@@ -457,11 +478,7 @@ class CaclesStore:
         ambitos = list(self.scopes())
         self._scan.leaf_gone(ambitos[0])
         self._scan.failed_scopes.update(ambitos[1:])
-        logger.warning(
-            "cacles: la colección %r no devolvió ningún producto; se trata como hoja retirada "
-            "y se omiten sus bajas",
-            handle,
-        )
+        logger.warning("cacles: %s; se omiten las bajas de esta pasada", motivo)
 
     def list_catalog(self) -> Iterable[ListingEntry]:
         self._scan = ScanReport()
@@ -469,9 +486,11 @@ class CaclesStore:
         emitted: set[str] = set()
         with self._client() as client:
             for cat in self._categories:
+                handle = cat.collection_handle
                 viva = False
+                truncada = True  # solo deja de serlo al ver el final real de la paginación
                 for page in range(_PAGINA_INICIAL, _PAGINA_INICIAL + _MAX_PAGES):
-                    productos = self._pagina(client, cat.collection_handle, page)
+                    productos = self._pagina(client, handle, page)
                     if not productos:
                         # LA PARTE IMPORTANTE DE ESTE FICHERO. Una colección retirada NO da 404:
                         # devuelve 200 con la lista vacía, igual que la página siguiente a la
@@ -480,7 +499,11 @@ class CaclesStore:
                         # catálogo entero—; a partir de la segunda es el fin normal de la
                         # paginación.
                         if not viva:
-                            self._hoja_retirada(cat.collection_handle)
+                            self._hoja_comprometida(
+                                f"la colección {handle!r} no devolvió ningún producto, "
+                                "así que se trata como hoja retirada"
+                            )
+                        truncada = False
                         break
                     viva = True
                     for producto in productos:
@@ -496,13 +519,16 @@ class CaclesStore:
                             section=producto.section,
                             category=producto.category,
                         )
-                else:
-                    logger.warning(
-                        "cacles: %r alcanzó el tope de %d páginas; puede faltar catálogo",
-                        cat.collection_handle,
-                        _MAX_PAGES,
+                if viva and truncada:
+                    # Se agotó el tope de páginas sin llegar al final: hemos visto SOLO una parte
+                    # del catálogo. Contarla como hoja sana sería el peor de los dos errores —lo
+                    # que no se ha llegado a mirar no está retirado, y a las `delist_min_misses`
+                    # pasadas se descatalogaría solo por no haber cabido en el tope.
+                    self._hoja_comprometida(
+                        f"{handle!r} agotó el tope de {_MAX_PAGES} páginas sin llegar al final, "
+                        "así que el catálogo leído está incompleto"
                     )
-                if viva:
+                elif viva:
                     self._scan.leaf_ok()
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
@@ -549,9 +575,10 @@ class CaclesStore:
         try:
             payload = self._get_json(client, f"{url}.json")
         except httpx.HTTPStatusError as exc:
-            # 404 es un veredicto ("ese handle ya no existe"); el resto, tras agotar los
-            # reintentos, es un fallo nuestro y no vale como prueba de retirada.
-            return False if exc.response.status_code == 404 else None
+            # 404/410 son un veredicto ("ese handle ya no existe"); el resto, tras agotar los
+            # reintentos, es un fallo nuestro y no vale como prueba de retirada. Se usa
+            # `GONE_STATUS` y no un 404 suelto para no dejar fuera el 410, que significa lo mismo.
+            return False if exc.response.status_code in GONE_STATUS else None
         except (httpx.TransportError, ValueError):  # red caída o respuesta no-JSON
             return None
         if not isinstance(payload, dict):
