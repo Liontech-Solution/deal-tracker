@@ -96,6 +96,29 @@ describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
     }
   });
 
+  it('guarda la talla en canónico, venga como venga (#43)', async () => {
+    // El chip del filtro ya manda la canónica, pero un alta por API con el texto crudo de la tienda
+    // tiene que seguir a la misma prenda: si se guardara '26 (16,3 cm)', ese interés solo casaría
+    // con Zara y nunca con el mismo pie en otra tienda.
+    const user = await seedUser(sql, 'kc-talla-canon');
+    const app = await makeApp(user);
+    try {
+      for (const [entrada, esperada] of [
+        ['26 (16,3 cm)', '26'],
+        ['11-12', '11-12 años'],
+        ['26', '26'],
+      ]) {
+        const created = await request(app.getHttpServer())
+          .post('/api/interests')
+          .send({ size: entrada })
+          .expect(201);
+        expect(created.body.size, `entrada «${entrada}»`).toBe(esperada);
+      }
+    } finally {
+      await app.close();
+    }
+  });
+
   it('rechaza un interés vacío (sin objetivo ni filtro) con 400', async () => {
     const user = await seedUser(sql, 'kc-sub-empty');
     const app = await makeApp(user);

@@ -68,7 +68,9 @@ export class InterestsService {
         gender: dto.gender ?? null,
         section: dto.section ?? null,
         category: dto.category ?? null,
-        size: dto.size ?? null,
+        // La talla se guarda canónica (#43): el chip del filtro ya lo es, pero un alta por API con el
+        // texto crudo de la tienda ('26 (16,3 cm)') tiene que seguir a la misma prenda que un '26'.
+        size: dto.size ? sql<string>`size_canon(${dto.size})` : null,
         color: dto.color ?? null,
         // numeric() de Drizzle se envía como string; DEFAULT si no se especifica.
         ...(dto.minDiscountPct !== undefined ? { minDiscountPct: String(dto.minDiscountPct) } : {}),

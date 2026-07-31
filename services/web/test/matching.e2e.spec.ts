@@ -213,6 +213,37 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     expect((await makeService(client).run(false)).candidates).toBe(0);
   });
 
+  /**
+   * El fallo silencioso de #43: la talla se guardaba tal como la escribe cada tienda, y el JOIN
+   * casaba por igualdad de texto. Un interés con '24' —la talla que ofrece el filtro mirando Sfera—
+   * no avisaba de la misma prenda en Zara, guardada como '24 (14,9 cm)'. Y no fallaba ruidosamente:
+   * el aviso simplemente no llegaba.
+   */
+  it('avisa aunque la tienda escriba la talla con el cm', async () => {
+    const user = await seedLinkedUser('kc-match-talla-canon', 908);
+    await sql`
+      UPDATE variant SET size = '24 (14,9 cm)' WHERE id = ${seeded.variantId}`;
+    await seedInterest(user.id, { size: '24' });
+    const { client, sent } = fakeTelegram();
+
+    const summary = await makeService(client).run(false);
+
+    expect(summary.notified).toBe(1);
+    // Y el mensaje enseña la talla de la tienda, no la canónica: es lo que el usuario verá al abrir
+    // el enlace.
+    expect(sent[0].text).toContain('24 (14,9 cm)');
+  });
+
+  it('no confunde tallas distintas al normalizar', async () => {
+    // La red de seguridad del test anterior: si `size_canon` fundiera de más, esto pasaría a avisar.
+    const user = await seedLinkedUser('kc-match-talla-distinta', 911);
+    await sql`UPDATE variant SET size = '34 (21,6 cm)' WHERE id = ${seeded.variantId}`;
+    await seedInterest(user.id, { size: '24' });
+    const { client } = fakeTelegram();
+
+    expect((await makeService(client).run(false)).candidates).toBe(0);
+  });
+
   it('calzado no respetuoso: no se avisa aunque el interés y la bajada casen', async () => {
     // Foco barefoot (#30). El aviso es más intrusivo que una tarjeta del catálogo —llega solo al
     // móvil de alguien—, así que mandar ahí lo que el catálogo esconde sería el mismo error a lo

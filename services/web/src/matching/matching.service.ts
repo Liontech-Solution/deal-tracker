@@ -141,7 +141,12 @@ export class MatchingService {
         AND (i.gender   IS NULL OR i.gender   = b.gender)
         AND (i.section  IS NULL OR i.section  = b.section)
         AND (i.category IS NULL OR i.category = b.category)
-        AND (i.size     IS NULL OR i.size     = b.size)
+        -- La talla se compara CANÓNICA (#43). Con igualdad de texto crudo, un interés guardado con
+        -- '26' —la talla que ofrece el filtro— nunca casaba con un zapato de Zara almacenado como
+        -- '26 (16,3 cm)', y el aviso no fallaba ruidosamente: no llegaba, y nadie se enteraba.
+        -- Se normalizan los dos lados aunque el alta ya guarde canónico: size_canon es idempotente
+        -- y así una fila escrita a mano en la base tampoco se queda sin avisar.
+        AND (i.size     IS NULL OR size_canon(i.size) = size_canon(b.size))
         AND (i.color    IS NULL OR i.color    = b.color)
       JOIN app_user u ON u.id = i.user_id AND u.telegram_chat_id IS NOT NULL
       LEFT JOIN LATERAL (

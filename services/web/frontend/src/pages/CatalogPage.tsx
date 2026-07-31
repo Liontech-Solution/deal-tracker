@@ -20,7 +20,6 @@ const SORTS: Array<{ value: ProductSort; label: string }> = [
 export function CatalogPage() {
   const [params, setParams] = useSearchParams();
   const [drawer, setDrawer] = useState(false);
-  const facets = useFacets();
 
   const filters: CatalogFilters = {
     gender: params.get('gender') ?? '',
@@ -34,6 +33,10 @@ export function CatalogPage() {
   };
   const search = params.get('q') ?? '';
   const sort = (params.get('sort') as ProductSort) ?? 'ofertas';
+
+  // Las facetas describen ESTA vista, así que se piden para la sección que se está mirando: las
+  // tallas de ropa (rangos de edad) y de calzado (números de pie) no son la misma lista.
+  const facets = useFacets(filters.section || undefined);
 
   const setFilters = (patch: Partial<CatalogFilters & { sort: ProductSort; q: string }>) => {
     const next = new URLSearchParams(params);
