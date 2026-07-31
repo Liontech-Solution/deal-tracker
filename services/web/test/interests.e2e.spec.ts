@@ -142,6 +142,27 @@ describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
     }
   });
 
+  it('rechaza un color sin etiqueta canónica en vez de suscribir a todos (#51)', async () => {
+    // `color_canon('771')` es NULL: Zara escribe ahí el id del color, no un nombre. Guardarlo tal
+    // cual dejaría `interest.color` a NULL, y para el matching eso significa «cualquier color» —
+    // el usuario habría pedido un color y recibiría avisos de todos, sin enterarse.
+    const user = await seedUser(sql, 'kc-color-mudo');
+    const app = await makeApp(user);
+    try {
+      for (const mudo of ['771', '107']) {
+        await request(app.getHttpServer())
+          .post('/api/interests')
+          .send({ color: mudo })
+          .expect(400);
+      }
+      // Y no ha quedado nada guardado que avise de más de la cuenta.
+      const listed = await request(app.getHttpServer()).get('/api/interests').expect(200);
+      expect(listed.body).toHaveLength(0);
+    } finally {
+      await app.close();
+    }
+  });
+
   it('rechaza un interés vacío (sin objetivo ni filtro) con 400', async () => {
     const user = await seedUser(sql, 'kc-sub-empty');
     const app = await makeApp(user);
