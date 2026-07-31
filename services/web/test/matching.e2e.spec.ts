@@ -244,6 +244,31 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     expect((await makeService(client).run(false)).candidates).toBe(0);
   });
 
+  it('avisa aunque la tienda escriba el color en mayúsculas', async () => {
+    // El fallo de #49: el interés se guarda con el color del chip ('verde') y la tienda escribe
+    // 'VERDE'. Con igualdad de texto crudo el aviso no llegaba, y no fallaba nada ruidosamente.
+    const user = await seedLinkedUser('kc-match-color-canon', 912);
+    await sql`UPDATE variant SET color = 'VERDE' WHERE id = ${seeded.variantId}`;
+    await seedInterest(user.id, { color: 'verde' });
+    const { client, sent } = fakeTelegram();
+
+    const summary = await makeService(client).run(false);
+
+    expect(summary.notified).toBe(1);
+    // Y el mensaje enseña el color de la tienda, no el canónico, por lo mismo que la talla.
+    expect(sent[0].text).toContain('VERDE');
+  });
+
+  it('no confunde colores distintos al normalizar', async () => {
+    // La red de seguridad del anterior: si `color_canon` fundiera familias, esto pasaría a avisar.
+    const user = await seedLinkedUser('kc-match-color-distinto', 913);
+    await sql`UPDATE variant SET color = 'Verde pato' WHERE id = ${seeded.variantId}`;
+    await seedInterest(user.id, { color: 'verde' });
+    const { client } = fakeTelegram();
+
+    expect((await makeService(client).run(false)).candidates).toBe(0);
+  });
+
   it('calzado no respetuoso: no se avisa aunque el interés y la bajada casen', async () => {
     // Foco barefoot (#30). El aviso es más intrusivo que una tarjeta del catálogo —llega solo al
     // móvil de alguien—, así que mandar ahí lo que el catálogo esconde sería el mismo error a lo

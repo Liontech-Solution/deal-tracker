@@ -154,7 +154,10 @@ export class CatalogService {
           -- la función se evalúa una vez por variante y esta consulta pasa de 1,4 ms a 1 segundo
           -- (medido sobre una copia de dev con 33.311 variantes).
           AND (${size}::text IS NULL OR size_canon(v.size) = size_canon(${size}))
-          AND (${color}::text IS NULL OR v.color = ${color})
+          -- Color canónico (#49), mismo trato y misma razón que la talla: la tienda escribe 'Verde'
+          -- y 'VERDE' para el mismo color. Canonicalizar también lo que llega por query string deja
+          -- vivos los enlaces antiguos, y es lo que justifica el índice de la migración 0015.
+          AND (${color}::text IS NULL OR color_canon(v.color) = color_canon(${color}))
           AND (${inStock}::boolean IS NULL OR l.in_stock = ${inStock})
           AND (${q.activeOnly} = false OR p.delisted_at IS NULL)
           AND ${search}
@@ -456,15 +459,30 @@ export class CatalogService {
       return rows.map((r) => String(r.value));
     };
 
+    /**
+     * Colores CANÓNICOS distintos entre variantes vivas de productos activos (#49).
+     *
+     * Misma estructura de dos niveles que `pickSizes` y por la misma medida: `crudas` deduplica el
+     * TEXTO de la tienda ANTES de canonicalizar, así la función se llama una vez por forma distinta
+     * (220 en dev) y no una por variante (33.311). El DISTINCT de fuera funde las equivalentes.
+     * Medido sobre ese volumen: 32,1 ms canonicalizando fila a fila contra 14,2 ms deduplicando
+     * antes. Menos espectacular que en la talla (866 ms → 13 ms) porque `color_canon` es mucho más
+     * barata, pero es la mitad del tiempo del panel de filtros por escribir el SELECT de otra forma.
+     *
+     * El orden alfabético del canónico basta —a diferencia de la talla, es el que se espera de una
+     * lista de colores—, así que aquí no hace falta el equivalente de `size_sort`.
+     */
     const pickColors = async (): Promise<string[]> => {
       const rows = (await this.db.execute(sql`
-        SELECT DISTINCT v.color AS value
-        FROM variant v
-        JOIN product p ON p.id = v.product_id
-        WHERE v.color IS NOT NULL
-          AND v.delisted_at IS NULL AND p.delisted_at IS NULL
-          AND ${visible}
-          AND ${inSection}
+        SELECT DISTINCT color_canon(cruda) AS value FROM (
+          SELECT DISTINCT v.color AS cruda
+          FROM variant v
+          JOIN product p ON p.id = v.product_id
+          WHERE v.color IS NOT NULL
+            AND v.delisted_at IS NULL AND p.delisted_at IS NULL
+            AND ${visible}
+            AND ${inSection}
+        ) crudas
         ORDER BY value
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => String(r.value));

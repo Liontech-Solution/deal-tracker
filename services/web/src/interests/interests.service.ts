@@ -71,7 +71,9 @@ export class InterestsService {
         // La talla se guarda canónica (#43): el chip del filtro ya lo es, pero un alta por API con el
         // texto crudo de la tienda ('26 (16,3 cm)') tiene que seguir a la misma prenda que un '26'.
         size: dto.size ? sql<string>`size_canon(${dto.size})` : null,
-        color: dto.color ?? null,
+        // Y el color igual (#49): 'VERDE' y 'Verde' son el mismo color, y el interés tiene que
+        // seguir a la misma prenda venga como venga.
+        color: dto.color ? sql<string>`color_canon(${dto.color})` : null,
         // numeric() de Drizzle se envía como string; DEFAULT si no se especifica.
         ...(dto.minDiscountPct !== undefined ? { minDiscountPct: String(dto.minDiscountPct) } : {}),
         ...(dto.compareBase !== undefined ? { compareBase: dto.compareBase } : {}),
