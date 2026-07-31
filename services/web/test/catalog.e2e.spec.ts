@@ -479,3 +479,113 @@ describe.skipIf(!TEST_DB)('foco barefoot · qué enseña el catálogo por defect
     expect(todo.body.categories).toContain('zapatos');
   });
 });
+
+/**
+ * Talla canónica en el catálogo (#43).
+ *
+ * El escenario es el medido en `dev`: la talla 26 de un niño existe como '26' en Sfera y como
+ * '26 (16,3 cm)' en Zara. Antes de 0014 la faceta ofrecía las dos y cada filtro enseñaba media
+ * zapatería.
+ */
+describe.skipIf(!TEST_DB)('talla canónica · faceta y filtro (e2e)', () => {
+  let sql: postgres.Sql;
+  let app: INestApplication;
+
+  /** Producto de una tienda con UNA variante, cuya talla se escribe como la escribe esa tienda. */
+  async function seedTalla(
+    retailerId: number,
+    name: string,
+    section: string,
+    category: string,
+    barefoot: string | null,
+    size: string,
+  ): Promise<void> {
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${retailerId}, ${name}, ${name}, 'niña', ${section}, ${category}, ${barefoot},
+              'https://x')
+      RETURNING id`;
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p.id}, ${name + '-v'}, ${size}, 'rojo', ${name + '-sku'}) RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${v.id}, 19.99, 39.99, 50, true, now())`;
+  }
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    const [zara] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('zara', 'Zara', 'https://www.zara.com') RETURNING id`;
+    const [sfera] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('sfera', 'Sfera', 'https://www.sfera.com') RETURNING id`;
+
+    await seedTalla(zara.id, 'Bota Zara', 'zapateria', 'barefoot', 'si', '26 (16,3 cm)');
+    await seedTalla(sfera.id, 'Bota Sfera', 'zapateria', 'barefoot', 'si', '26');
+    await seedTalla(zara.id, 'Camiseta Zara', 'ropa', 'camisetas', null, '11-12 años (152 cm)');
+    await seedTalla(sfera.id, 'Camiseta Sfera', 'ropa', 'camisetas', null, '11-12');
+
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  const facetas = async (query = '') => {
+    const res = await request(app.getHttpServer())
+      .get(`/api/catalog/facets${query}`)
+      .expect(200);
+    return res.body as { sizes: string[]; sections: string[] };
+  };
+
+  const nombres = async (query: string): Promise<string[]> => {
+    const res = await request(app.getHttpServer()).get(query).expect(200);
+    return res.body.items.map((i: { name: string }) => i.name).sort();
+  };
+
+  it('ofrece la misma talla física UNA sola vez', async () => {
+    expect((await facetas('?section=zapateria')).sizes).toEqual(['26']);
+    expect((await facetas('?section=ropa')).sizes).toEqual(['11-12 años']);
+  });
+
+  it('acota las tallas a la sección que se está mirando', async () => {
+    // Sin acotar, la lista es la unión de números de pie y rangos de edad, y ninguna de las dos
+    // mitades sirve para la vista en la que está el usuario.
+    // Y el orden lo demuestra: sin sección, un rango de edad se cuela delante de un número de pie
+    // porque numéricamente le toca ahí.
+    const sinAcotar = await facetas();
+    expect(sinAcotar.sizes).toEqual(['11-12 años', '26']);
+    expect((await facetas('?section=ropa')).sizes).not.toContain('26');
+    // La sección misma no se acota: son las pestañas con las que se sale de aquí.
+    expect((await facetas('?section=ropa')).sections).toEqual(['ropa', 'zapateria']);
+  });
+
+  it('un filtro por la talla del chip encuentra las dos tiendas', async () => {
+    expect(await nombres('/api/catalog/products?size=26')).toEqual(['Bota Sfera', 'Bota Zara']);
+    expect(await nombres('/api/catalog/products?size=11-12%20a%C3%B1os')).toEqual([
+      'Camiseta Sfera',
+      'Camiseta Zara',
+    ]);
+  });
+
+  it('sigue encontrando por la talla cruda de la tienda (enlaces antiguos)', async () => {
+    expect(await nombres('/api/catalog/products?size=26%20(16%2C3%20cm)')).toEqual([
+      'Bota Sfera',
+      'Bota Zara',
+    ]);
+  });
+
+  it('la ficha sigue enseñando la talla tal como la escribe la tienda', async () => {
+    const [row] = await sql<{ id: number }[]>`SELECT id FROM product WHERE name = 'Bota Zara'`;
+    const res = await request(app.getHttpServer())
+      .get(`/api/catalog/products/${row.id}`)
+      .expect(200);
+    expect(res.body.variants[0].size).toBe('26 (16,3 cm)');
+  });
+});

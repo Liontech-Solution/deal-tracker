@@ -145,7 +145,15 @@ export class CatalogService {
           AND (${section}::text IS NULL OR p.section = ${section})
           AND (${category}::text IS NULL OR p.category = ${category})
           AND (${retailer}::text IS NULL OR r.slug = ${retailer})
-          AND (${size}::text IS NULL OR v.size = ${size})
+          -- Talla canónica (#43): variant.size guarda el texto de la tienda, donde la misma talla
+          -- aparece como '26', '26 (16,3 cm)' y '26 (16.3 cm)'. Se canonicaliza también lo que llega
+          -- por query string, así que los enlaces antiguos con la talla cruda siguen vivos.
+          --
+          --
+          -- Esta igualdad es la que justifica el índice por expresión de la migración 0014: sin él,
+          -- la función se evalúa una vez por variante y esta consulta pasa de 1,4 ms a 1 segundo
+          -- (medido sobre una copia de dev con 33.311 variantes).
+          AND (${size}::text IS NULL OR size_canon(v.size) = size_canon(${size}))
           AND (${color}::text IS NULL OR v.color = ${color})
           AND (${inStock}::boolean IS NULL OR l.in_stock = ${inStock})
           AND (${q.activeOnly} = false OR p.delisted_at IS NULL)
@@ -387,30 +395,76 @@ export class CatalogService {
    * Valores disponibles para los filtros. Acepta el MISMO `barefoot` que el listado y por la misma
    * razón: unas facetas sin filtrar ofrecerían chips (`zapatos`, `zapatillas`, tallas de calzado
    * convencional) que con el filtro por defecto no devuelven ni un producto.
+   *
+   * `section` acota por el mismo criterio, y en las tallas no es cosmético: sin él la lista mezcla
+   * números de pie con rangos de edad (medido en dev: 121 valores crudos, 60 canónicos), y ninguna
+   * de las dos mitades sirve para la sección que el usuario está mirando.
    */
-  async getFacets(barefoot: BarefootFilter = 'si'): Promise<Facets> {
+  async getFacets(barefoot: BarefootFilter = 'si', section: string | null = null): Promise<Facets> {
     const visible = barefootCondition(barefoot, 'p');
+    const inSection = sql`(${section}::text IS NULL OR p.section = ${section})`;
 
-    const pick = async (column: 'gender' | 'section' | 'category'): Promise<string[]> => {
+    // `gender` y `section` van SIN acotar: son los ejes de navegación de la vista, y devolver solo
+    // la sección elegida dejaría a la SPA sin las pestañas con las que se sale de ella.
+    const pick = async (
+      column: 'gender' | 'section' | 'category',
+      scoped = false,
+    ): Promise<string[]> => {
       const rows = (await this.db.execute(sql`
         SELECT DISTINCT ${sql.raw(`p.${column}`)} AS value
         FROM product p
         WHERE ${sql.raw(`p.${column}`)} IS NOT NULL AND p.delisted_at IS NULL
           AND ${visible}
+          AND ${scoped ? inSection : sql`TRUE`}
         ORDER BY value
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => String(r.value));
     };
 
-    // Tallas/colores: valores distintos entre variantes vivas de productos activos.
-    const pickVariant = async (column: 'size' | 'color'): Promise<string[]> => {
+    /**
+     * Tallas: valores CANÓNICOS distintos entre variantes vivas de productos activos, ordenados por
+     * talla y no alfabéticamente (así el desplegable no pone '19' entre '11-12 años' y '2 años').
+     *
+     * Es la mitad visible de #43: la faceta ofrecía la misma talla física hasta cuatro veces, y el
+     * chip que se elegía aquí es el que luego se guarda en `interest.size`, así que un chip por talla
+     * física es también lo que hace que el aviso pueda casar con cualquier tienda.
+     */
+    const pickSizes = async (): Promise<string[]> => {
+      // Tres niveles, y cada uno se gana el sitio:
+      //   `crudas` deduplica el TEXTO de la tienda antes de canonicalizar. Medido sobre la copia de
+      //     dev (33.311 variantes): canonicalizar fila a fila tarda 866 ms y así 13 ms, porque la
+      //     función pasa de ~32.000 llamadas a las ~70 formas distintas que existen de verdad. En
+      //     el cluster, que son Raspberry Pi, esa diferencia es la que decide si el panel de
+      //     filtros abre al instante o no.
+      //   el DISTINCT de fuera funde las formas equivalentes.
+      //   el ORDER BY va en el nivel de arriba porque Postgres exige que sus expresiones estén en
+      //     la lista del SELECT DISTINCT, y `size_sort(...)` no pinta como chip.
       const rows = (await this.db.execute(sql`
-        SELECT DISTINCT ${sql.raw(`v.${column}`)} AS value
+        SELECT value FROM (
+          SELECT DISTINCT size_canon(cruda) AS value FROM (
+            SELECT DISTINCT v.size AS cruda
+            FROM variant v
+            JOIN product p ON p.id = v.product_id
+            WHERE v.size IS NOT NULL
+              AND v.delisted_at IS NULL AND p.delisted_at IS NULL
+              AND ${visible}
+              AND ${inSection}
+          ) crudas
+        ) t
+        ORDER BY size_sort(value), value
+      `)) as unknown as Record<string, unknown>[];
+      return rows.map((r) => String(r.value));
+    };
+
+    const pickColors = async (): Promise<string[]> => {
+      const rows = (await this.db.execute(sql`
+        SELECT DISTINCT v.color AS value
         FROM variant v
         JOIN product p ON p.id = v.product_id
-        WHERE ${sql.raw(`v.${column}`)} IS NOT NULL
+        WHERE v.color IS NOT NULL
           AND v.delisted_at IS NULL AND p.delisted_at IS NULL
           AND ${visible}
+          AND ${inSection}
         ORDER BY value
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => String(r.value));
@@ -430,9 +484,9 @@ export class CatalogService {
     const [genders, sections, categories, sizes, colors, retailers] = await Promise.all([
       pick('gender'),
       pick('section'),
-      pick('category'),
-      pickVariant('size'),
-      pickVariant('color'),
+      pick('category', true),
+      pickSizes(),
+      pickColors(),
       pickRetailers(),
     ]);
     return { genders, sections, categories, sizes, colors, retailers };

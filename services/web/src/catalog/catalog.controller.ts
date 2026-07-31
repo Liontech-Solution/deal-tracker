@@ -26,6 +26,6 @@ export class CatalogController {
 
   @Get('facets')
   getFacets(@Query() query: FacetQueryDto) {
-    return this.catalog.getFacets(query.barefoot);
+    return this.catalog.getFacets(query.barefoot, query.section ?? null);
   }
 }

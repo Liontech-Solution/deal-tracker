@@ -15,11 +15,16 @@ import type {
 
 const PAGE_SIZE = 12;
 
-/** Facetas para poblar los filtros (género/sección/categoría/talla/color/tiendas). */
-export function useFacets() {
+/**
+ * Facetas para poblar los filtros (género/sección/categoría/talla/color/tiendas).
+ *
+ * `section` viaja al backend porque las tallas y las categorías de ropa y calzado no comparten
+ * vocabulario: sin acotar, la lista de tallas es la unión de números de pie y rangos de edad.
+ */
+export function useFacets(section?: string) {
   return useQuery({
-    queryKey: ['facets'],
-    queryFn: () => apiGet<Facets>('/catalog/facets'),
+    queryKey: ['facets', section ?? null],
+    queryFn: () => apiGet<Facets>('/catalog/facets', section ? { section } : undefined),
     staleTime: 5 * 60 * 1000,
   });
 }
