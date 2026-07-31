@@ -235,6 +235,45 @@ def test_product_signature_determinista_y_sensible_al_precio() -> None:
     assert product_signature(p) != f"{p.variants[0].retailer_variant_id}:0.00"
 
 
+# --- #33 Sfera no etiqueta el barefoot, pero lo dice en el nombre --------------------------
+
+_BEBE_NINA = CategoryConfig("ninos/bebe-nina/zapatos", "niña", "zapateria", "zapatos")
+
+
+def test_el_barefoot_de_sfera_sale_del_nombre_del_producto() -> None:
+    """La única tienda que se clasifica por la heurística de texto, sobre datos reales.
+
+    Zara y Lefties traen su propia categoría BAREFOOT y se resuelven sin mirar una palabra. Sfera
+    no la tiene —ni en el árbol ni en las facetas— pero **escribe «barefoot» en el nombre**. Este
+    fixture es la captura real de la hoja donde está el grueso de su calzado respetuoso.
+    """
+    payload = load_fixture("sfera_firefly_ninos_bebe_nina_zapatos.json")
+    products = parse_products(products_of(payload), _BEBE_NINA)
+    assert len(products) == 9
+
+    por_marca: dict[str | None, list[str]] = defaultdict(list)
+    for p in products:
+        por_marca[p.barefoot].append(p.name)
+
+    assert sorted(por_marca["si"]) == [
+        "Merceditas basic barefoot",
+        "Merceditas basic barefoot",
+        "Merceditas basic barefoot",
+        "Zapatilla runner barefoot",
+    ]
+    # El resto NO se inventa un veredicto: sin señal, `desconocido`. El sesgo va en una sola
+    # dirección, y un falso `si` es justo la mentira que este producto existe para no contar.
+    assert len(por_marca["desconocido"]) == 5
+    assert "no" not in por_marca
+
+
+def test_la_ropa_de_sfera_no_recibe_marca_barefoot() -> None:
+    """`barefoot` es None en ropa: la pregunta no aplica y la columna se queda NULL."""
+    payload = load_fixture("sfera_firefly_ninos_nino.json")
+    products = parse_products(products_of(payload), _NINO)
+    assert products and all(p.barefoot is None for p in products)
+
+
 # --- #41 Una categoría retirada no tumba las demás -----------------------------------------
 
 _CATS_SCAN = [
