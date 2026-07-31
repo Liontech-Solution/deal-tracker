@@ -95,6 +95,35 @@ imagen (~900 MB), así que el primer arranque en un nodo nuevo paga ~2m20s de pu
 `postgresql-generic` del cluster. QA es público en `dealtracker-qa.liontechsolution.com` a través
 del túnel compartido `cloudflared` (la ruta se configura en el panel de Zero Trust, no en Git).
 
+### Canonicalizar el texto de las tiendas: función SQL, nunca el dato
+
+Cada tienda escribe la talla y el color a su manera (`26` / `26 (16,3 cm)`, `Verde` / `VERDE` /
+`120 Crudo`). El matching y el filtro comparaban por **igualdad exacta de texto**, así que un interés
+no casaba con la misma prenda de otra tienda: el aviso no llegaba y **no fallaba nada ruidosamente**.
+Resuelto dos veces con la misma forma — `size_canon` (migración 0014) y `color_canon` (0015) — y esa
+forma es ya el patrón para cualquier campo de texto que venga de las tiendas:
+
+1. **Función SQL `IMMUTABLE` en `db/migrations`**, no en el scraper ni duplicada en TS: los
+   consumidores (filtro del catálogo, faceta, JOIN del matching) son SQL, así que la canónica tiene
+   que existir *dentro* de la consulta. Una sola implementación, y en el contrato.
+2. **Se aplica solo a la COMPARACIÓN, jamás a la columna.** Además de conservar el texto que la ficha
+   enseña, es una restricción dura: `product_image.color` está clavada por el **texto** de
+   `variant.color` (migración 0011) y sostiene la foto de la tarjeta y la galería. Canonicalizar el
+   dato rompería ese join en silencio.
+3. **Índice por expresión obligatorio**, parcial por `delisted_at IS NULL`. Medido sobre el volumen de
+   dev (33.311 variantes): el filtro por color pasa de 14,6 ms a 0,11 ms; el de talla, de ~1 s a
+   1,4 ms. Y la faceta debe deduplicar el texto crudo **antes** de canonicalizar (866 ms → 13 ms en
+   talla, 32 ms → 14 ms en color), porque si no la función se evalúa una vez por variante.
+4. **Idempotente**, y por eso se normalizan los dos lados de cada comparación sin razonar sobre cuál
+   venía ya limpio. El alta de interés guarda ya canónico.
+5. **Cambiar el cuerpo de una de estas funciones obliga a `REINDEX`** del índice por expresión: guarda
+   los valores ya calculados y, obsoleto, devuelve filas equivocadas *sin dar error*.
+
+Los límites de cada función están fijados por tests que rompen si alguien los amplía sin decidirlo
+(rangos de edad solapados en la talla; familias de color, acentos y códigos pelados en el color).
+Se decide **midiendo, no intuyendo**: en #49 la cautela declarada sobre el código de tienda se cayó
+al ver que 9 de sus 11 colisiones eran de Sfera contra sí misma.
+
 ### Local
 
 Postgres desechable en Docker para tests e ingesta. `TEST_DATABASE_URL` decide si corren los tests
