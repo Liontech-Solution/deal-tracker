@@ -9,6 +9,12 @@ página de categoría (siembra cookies) y luego pide la API de listado `firefly/
   GET /es/api/sfera-es/firefly/products_list/{category_path}/{page}/?showDimensions=none
   -> {"success": true, "data": {"products": [...], "pagination": {"_current","_total",...}}}
 
+`showDimensions=none` se queda fijo a propósito: lo único que aporta subirlo es `data.filters
+._menubar`, que son las facetas de la web (Talla, Color, Tipo de producto, Precios, % Descuento
+y el árbol de Categorías). Ninguna sirve para clasificar barefoot, así que no compensa. Ojo con
+`data.filters._filters`, que sí viene siempre en la respuesta: está **vacío con cualquier valor
+del parámetro** y no es el sitio donde mirar (#33).
+
 El listado ya trae el detalle completo (colores + tallas + precios + **foto**), así que **no
 hay 2ª petición por producto**: `list_catalog()` recorre y cachea los productos, y
 `fetch_details()` los devuelve desde caché (respetando el "detalle condicional" de la
@@ -107,6 +113,17 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig("ninos/nino/punto-y-jerseis", "niño", "ropa", "sudaderas"),
     CategoryConfig("ninos/nino/pijamas-y-calcetines", "niño", "ropa", "ropa-interior"),
     CategoryConfig("ninos/nino/zapatos", "niño", "zapateria", "zapatos"),
+    # --- calzado del rango bebé (#33) ---
+    # Sfera separa los rangos de edad en ramas distintas, igual que Zara (#17), y **ahí es donde
+    # está su barefoot**: de los 6 productos que lo dicen en el nombre, 5 cuelgan de estas dos
+    # hojas. Se mapean al mismo género que su rama de 6-14, que es el vocabulario del catálogo.
+    #
+    # Solo entra el calzado, que es el alcance de #33. El rango bebé también tiene hojas de ropa
+    # reales (`bebe-nina/punto-y-jerseis`, `bebe-nino/camisetas`…) y van por #56 — ojo, que el
+    # árbol NO es simétrico entre rangos: la mayoría de categorías de ropa no existen en bebé, y
+    # pedirlas devuelve el género entero en vez de un 404 (ver `is_mirage`).
+    CategoryConfig("ninos/bebe-nina/zapatos", "niña", "zapateria", "zapatos"),
+    CategoryConfig("ninos/bebe-nino/zapatos", "niño", "zapateria", "zapatos"),
 ]
 
 
@@ -332,11 +349,17 @@ def parse_products(products: list[dict[str, Any]], cat: CategoryConfig) -> list[
                 category=cat.category,
                 url=url,
                 variants=variants,
-                # Sfera es la tienda sin señal: su payload no menciona `barefoot` ni equivalentes
-                # por ningún lado (comprobado sobre el firefly completo de sus dos categorías de
-                # zapatos), y tampoco da descripción. Solo queda el nombre, así que lo esperable es
-                # que su calzado se quede en `desconocido` — que es justo para lo que existe ese
-                # estado, y no una carencia que haya que tapar inventando un `si`.
+                # Sfera no etiqueta el barefoot en su árbol de categorías —a diferencia de Zara y
+                # Lefties— pero **sí lo dice en el nombre del producto** ("Zapatilla runner
+                # barefoot", "Merceditas basic barefoot"): 6 de sus 51 zapatos, medidos el
+                # 31/07/2026. Así que aquí la clasificación va por la heurística de texto, que es
+                # el plan B para el que existe, y no por la categoría.
+                #
+                # Lo que NO tiene es faceta: `data.filters._filters` viene vacío con cualquier
+                # valor de `showDimensions`, y de las 6 facetas reales (en `_menubar`) ninguna
+                # habla de calzado respetuoso. Comprobado en vivo, ver #33. El resto de su calzado
+                # se queda en `desconocido`, que es justo para lo que existe ese estado y no una
+                # carencia que haya que tapar inventando un `si`.
                 barefoot=classify_barefoot(
                     retailer=SLUG,
                     retailer_product_id=str(pid),
