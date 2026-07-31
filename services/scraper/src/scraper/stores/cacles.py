@@ -460,12 +460,22 @@ class CaclesStore:
                 wait = max(wait, float(retry_after))
         time.sleep(wait * random.uniform(0.8, 1.2))
 
-    def _pagina(self, client: httpx.Client, handle: str, page: int) -> list[ScrapedProduct]:
+    def _pagina(
+        self, client: httpx.Client, handle: str, page: int
+    ) -> tuple[list[ScrapedProduct], int]:
+        """Devuelve `(productos parseados, productos CRUDOS que traía la página)`.
+
+        Los dos números hacen falta y no son el mismo: el parseo descarta la tarjeta regalo, el
+        medidor de pie y lo que no tenga variantes con precio. Decidir el final de la paginación
+        —o si la hoja está muerta— con el número parseado haría que una página entera de tipos
+        excluidos pareciese "aquí se acabó el catálogo".
+        """
         url = _COLLECTION_URL.format(handle=handle, limit=_PAGE_SIZE, page=page)
         payload = self._get_json(client, url)
         if not isinstance(payload, dict):
             raise ValueError(f"cacles: respuesta inesperada en {handle} pág. {page}")
-        return parse_products(payload)
+        crudos = payload.get("products")
+        return parse_products(payload), len(crudos) if isinstance(crudos, list) else 0
 
     def _hoja_comprometida(self, motivo: str) -> None:
         """Cuenta la hoja como caída y saca TODOS sus ámbitos de las bajas.
@@ -490,8 +500,8 @@ class CaclesStore:
                 viva = False
                 truncada = True  # solo deja de serlo al ver el final real de la paginación
                 for page in range(_PAGINA_INICIAL, _PAGINA_INICIAL + _MAX_PAGES):
-                    productos = self._pagina(client, handle, page)
-                    if not productos:
+                    productos, crudos = self._pagina(client, handle, page)
+                    if not crudos:
                         # LA PARTE IMPORTANTE DE ESTE FICHERO. Una colección retirada NO da 404:
                         # devuelve 200 con la lista vacía, igual que la página siguiente a la
                         # última. En la primera página eso es una hoja muerta y hay que decirlo
@@ -519,6 +529,17 @@ class CaclesStore:
                             section=producto.section,
                             category=producto.category,
                         )
+                    if crudos < _PAGE_SIZE:
+                        # Una página incompleta ES la última, y saberlo aquí ahorra la petición
+                        # extra que solo servía para que la tienda respondiera vacío. No es
+                        # cosmético: con el catálogo actual son 2 peticiones en vez de 3 (un tercio
+                        # menos del presupuesto de complejidad, que es lo que aquí se agota), y
+                        # quita el modo de fallo que costó una pasada entera el 01/08/2026 — las
+                        # páginas 1 y 2 se leyeron bien y el 429 llegó justo en la 3ª, la que solo
+                        # preguntaba "¿hay más?". Con exactamente `_PAGE_SIZE` productos sigue
+                        # haciendo falta preguntar, y entonces la página vacía cierra arriba.
+                        truncada = False
+                        break
                 if viva and truncada:
                     # Se agotó el tope de páginas sin llegar al final: hemos visto SOLO una parte
                     # del catálogo. Contarla como hoja sana sería el peor de los dos errores —lo

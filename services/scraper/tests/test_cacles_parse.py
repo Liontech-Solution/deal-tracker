@@ -17,6 +17,7 @@ import httpx
 
 from scraper.config import Config
 from scraper.stores.cacles import (
+    _PAGE_SIZE,
     CaclesStore,
     CategoryConfig,
     _categoria_desde_tipo,
@@ -356,15 +357,43 @@ def test_una_coleccion_vacia_es_una_hoja_retirada_y_no_un_catalogo_vacio() -> No
 
 
 def test_la_pagina_vacia_despues_de_la_primera_es_el_fin_normal_de_la_paginacion() -> None:
-    """La misma respuesta significa dos cosas distintas según dónde aparezca."""
-    store = _store_sirviendo({1: _pagina_con(1, 2), 2: _pagina_con(3)})
+    """La misma respuesta significa dos cosas distintas según dónde aparezca.
+
+    El caso se da cuando la colección tiene EXACTAMENTE `_PAGE_SIZE` productos: la primera página
+    viene llena, así que hay que preguntar por la siguiente, y esa sí llega vacía. Es el único
+    escenario en el que sigue haciendo falta la petición de más.
+    """
+    store = _store_sirviendo({1: _pagina_con(*range(1, _PAGE_SIZE + 1))})
     entries = list(store.list_catalog())
 
-    assert [e.retailer_product_id for e in entries] == ["1", "2", "3"]
+    assert len(entries) == _PAGE_SIZE
     informe = store.scan_report()
-    assert informe.leaves_failed == 0
+    assert informe.leaves_failed == 0, "la página vacía de la 2ª no es una hoja muerta"
     assert informe.leaves_total == 1
     assert informe.dead_ratio == 0.0
+
+
+def test_una_pagina_incompleta_es_la_ultima_y_no_se_pide_la_siguiente() -> None:
+    """Shopify no da total, pero una página con menos de `_PAGE_SIZE` ya dice que se acabó.
+
+    Ahorra una petición por pasada, y con esta tienda eso importa: el presupuesto es de
+    complejidad, no de peticiones. Es además el modo de fallo que costó una pasada entera contra
+    la tienda real (01/08/2026): las páginas 1 y 2 se leyeron bien y el 429 llegó en la 3ª, la que
+    solo servía para preguntar "¿hay más?".
+    """
+    pedidas: list[int] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        page = int(request.url.params.get("page", "1"))
+        pedidas.append(page)
+        return httpx.Response(200, json=_pagina_con(1, 2))  # 2 productos < _PAGE_SIZE
+
+    store = CaclesStore(Config(database_url="x", request_delay=0.0), [_COLECCION])
+    store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
+
+    assert [e.retailer_product_id for e in store.list_catalog()] == ["1", "2"]
+    assert pedidas == [1], "no debería haber pedido una segunda página"
+    assert store.scan_report().leaves_failed == 0
 
 
 def test_agotar_el_tope_de_paginas_no_cuenta_como_hoja_sana() -> None:
@@ -375,10 +404,11 @@ def test_agotar_el_tope_de_paginas_no_cuenta_como_hoja_sana() -> None:
     haber cabido en el tope. Lo que no se ha llegado a mirar no está retirado.
     """
 
-    # Todas las páginas devuelven producto: nunca aparece la página vacía que marca el final.
+    # Páginas SIEMPRE llenas: nunca llega la señal de final, ni por vacía ni por incompleta.
     def handler(request: httpx.Request) -> httpx.Response:
         page = int(request.url.params.get("page", "1"))
-        return httpx.Response(200, json=_pagina_con(page))
+        base = page * 1000
+        return httpx.Response(200, json=_pagina_con(*range(base, base + _PAGE_SIZE)))
 
     store = CaclesStore(Config(database_url="x", request_delay=0.0), [_COLECCION])
     store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
@@ -392,10 +422,49 @@ def test_agotar_el_tope_de_paginas_no_cuenta_como_hoja_sana() -> None:
     assert informe.failed_scopes == set(store.scopes())
 
 
-def test_list_catalog_deduplica_por_id() -> None:
-    store = _store_sirviendo({1: _pagina_con(1, 2), 2: _pagina_con(2, 3)})
+def test_una_pagina_solo_de_tipos_excluidos_no_es_el_final_del_catalogo() -> None:
+    """El final se decide con los productos CRUDOS, no con los que sobreviven al parseo.
+
+    Una página entera de tarjetas regalo parsea a cero. Si eso contase como página vacía, en la
+    primera daría una hoja muerta falsa —y con ella la baja de todo el catálogo— y en las
+    siguientes cortaría la paginación dejándose productos sin ver.
+    """
+    regalo = {
+        "id": 77,
+        "title": "Tarjeta de regalo",
+        "handle": "tarjeta",
+        "product_type": "Tarjetas de regalo",
+        "tags": [],
+        "options": [{"name": "Valor", "position": 1}],
+        "variants": [{"id": 770, "option1": "10", "price": "10.00"}],
+        "images": [],
+    }
+    paginas: dict[int, dict[str, Any]] = {
+        1: {"products": [regalo] * _PAGE_SIZE},  # llena, pero no deja ni un producto seguible
+        2: _pagina_con(5),
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        page = int(request.url.params.get("page", "1"))
+        return httpx.Response(200, json=paginas.get(page, {"products": []}))
+
+    store = CaclesStore(Config(database_url="x", request_delay=0.0), [_COLECCION])
+    store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
+
+    assert [e.retailer_product_id for e in store.list_catalog()] == ["5"]
+    informe = store.scan_report()
+    assert informe.leaves_failed == 0, "una página de excluidos no es una hoja muerta"
+
+
+def test_list_catalog_deduplica_por_id_entre_paginas() -> None:
+    """La página 1 va llena para que la paginación siga; el 2 repetido llega en la siguiente."""
+    llena = _pagina_con(*range(1, _PAGE_SIZE + 1))
+    store = _store_sirviendo({1: llena, 2: _pagina_con(2, _PAGE_SIZE + 1)})
     ids = [e.retailer_product_id for e in store.list_catalog()]
-    assert ids == ["1", "2", "3"]
+
+    assert len(ids) == len(set(ids)), "no debe emitir dos veces el mismo id"
+    assert ids[-1] == str(_PAGE_SIZE + 1), "lo nuevo de la 2ª página sí entra"
+    assert len(ids) == _PAGE_SIZE + 1
 
 
 def test_fetch_details_sirve_de_cache_sin_tocar_la_red() -> None:
