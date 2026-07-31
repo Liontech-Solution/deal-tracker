@@ -20,6 +20,12 @@ producto sigue comprable si lo lista en `data.ADD`; y si no, la PDP resuelve la 
 Sfera enruta por id y devuelve **404** para un id que ya no existe (el slug de la URL da igual:
 redirige al canónico). Un producto agotado pero vivo sale de `ADD` y su PDP responde 200.
 
+**Una ruta de categoría que no existe NO da 404**: Sfera devuelve 200 con el catálogo del
+*padre* (`ninos/nina/loquesea` -> las 30 páginas de `ninos/nina`). Como las dos redes de
+seguridad para hojas muertas se apoyan en el 404 (`GONE_STATUS`), aquí hay que detectarlo por
+otra vía: `is_mirage()` compara los ids de la 1ª página de la hoja con los del padre.
+Ver `parent_path()` y la issue #54.
+
 Id estable de producto: `id` (p.ej. "A200974138"). Id estable de variante: el `sku` de la
 talla (p.ej. "001015811718640004"). Las funciones `parse_*` son puras (JSON -> dataclasses) y
 se testean con fixtures capturados de la API real.
@@ -206,6 +212,29 @@ def _product_url(product: dict[str, Any]) -> str | None:
     return None
 
 
+class LeafMirage(RuntimeError):
+    """La ruta pedida no existe: Sfera ha servido el catálogo del padre en su lugar.
+
+    No es un error de red ni de parseo — la respuesta es un 200 perfectamente válido. Es el
+    equivalente al 404 que esta tienda no da, y por eso se trata igual: la hoja se cuenta como
+    caída (`ScanReport.leaf_gone`) en vez de ingerir el catálogo de otro ámbito.
+    """
+
+
+def parent_path(category_path: str) -> str | None:
+    """Ruta del padre de una hoja (`ninos/nina/zapatos` -> `ninos/nina`).
+
+    `None` cuando no hay contra qué comparar: una ruta de menos de tres segmentos ya es una raíz
+    de género, y su "padre" sería la tienda entera. Comparar contra eso no distingue nada y
+    costaría una petición, así que esas rutas se quedan sin esta red (todas las hojas curadas de
+    `CATEGORIES` tienen tres segmentos).
+    """
+    partes = [p for p in category_path.strip("/").split("/") if p]
+    if len(partes) < 3:
+        return None
+    return "/".join(partes[:-1])
+
+
 def products_of(payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Extrae `data.products` de una respuesta firefly (lista vacía si falta/!success)."""
     data = payload.get("data")
@@ -222,6 +251,32 @@ def pagination_of(payload: dict[str, Any]) -> dict[str, Any]:
         return {}
     pag = data.get("pagination")
     return pag if isinstance(pag, dict) else {}
+
+
+def page_product_ids(payload: dict[str, Any]) -> list[str]:
+    """Ids de producto de una página firefly, en el orden que los da la tienda."""
+    return [str(p["id"]) for p in products_of(payload) if p.get("id")]
+
+
+def is_mirage(leaf: dict[str, Any], parent: dict[str, Any]) -> bool:
+    """¿La respuesta de la hoja es en realidad el catálogo del padre? (ver `LeafMirage`)
+
+    Se comparan **los ids de la 1ª página y el número total de páginas**, no `data.title`: el
+    título es texto de presentación y localizado (`Niña (Niños) | Sfera España`), mientras que los
+    ids son el contrato. Pedir además que coincida el total de páginas aleja el falso positivo de
+    una hoja real que casualmente empezara por los mismos productos que su padre.
+
+    Queda un caso que NADIE puede distinguir ni en principio: una hoja que contuviera exactamente
+    todo el catálogo de su padre. Se acepta a sabiendas, porque el error cae del lado seguro — la
+    hoja se cuenta como caída, lo que suspende las bajas de su ámbito, en vez de ingerir productos
+    con el género/sección/categoría equivocados.
+    """
+    ids = page_product_ids(leaf)
+    if not ids:
+        return False  # una página vacía no prueba nada; de eso ya se ocupa `_iter_category`
+    if ids != page_product_ids(parent):
+        return False
+    return pagination_of(leaf).get("_total") == pagination_of(parent).get("_total")
 
 
 def parse_products(products: list[dict[str, Any]], cat: CategoryConfig) -> list[ScrapedProduct]:
@@ -335,6 +390,10 @@ class SferaStore:
         self._session_factory = session_factory or (lambda: BrowserSession(config))
         self._cache: dict[str, ScrapedProduct] = {}  # rellenado por list_catalog()
         self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
+        # 1ª página de cada ruta padre, cacheada durante la pasada: la comparten todas las hojas
+        # que cuelgan de ella, así que la detección de espejismo cuesta UNA petición por padre
+        # (dos con las categorías de hoy), no una por hoja.
+        self._parent_pages: dict[str, dict[str, Any]] = {}
 
     def scopes(self) -> Iterable[ScrapeScope]:
         seen: list[ScrapeScope] = []
@@ -343,6 +402,33 @@ class SferaStore:
             if scope not in seen:
                 seen.append(scope)
         return seen
+
+    def _parent_page(self, session: BrowserSession, category_path: str) -> dict[str, Any] | None:
+        """1ª página del padre de una hoja, cacheada por pasada. `None` si no hay padre útil.
+
+        Si la petición del PADRE fallara, el error sube y lo trata quien llama como si fuera de la
+        hoja. Es lo correcto aunque suene tosco: los padres son las raíces de género, y que una
+        deje de responder afecta a todas sus hojas — con lo que `SCRAPER_SCAN_MAX_DEAD_RATIO`
+        aborta la pasada en vez de guardar un catálogo a medias, que es justo lo que se quiere.
+        """
+        padre = parent_path(category_path)
+        if padre is None:
+            return None
+        if padre not in self._parent_pages:
+            self._parent_pages[padre] = session.get_json(
+                _FIREFLY_URL.format(category_path=padre, page=1)
+            )
+        return self._parent_pages[padre]
+
+    def _check_not_mirage(
+        self, session: BrowserSession, category_path: str, payload: dict[str, Any]
+    ) -> None:
+        """Lanza `LeafMirage` si la hoja está devolviendo el catálogo de su padre (#54)."""
+        parent = self._parent_page(session, category_path)
+        if parent is not None and is_mirage(payload, parent):
+            raise LeafMirage(
+                f"{category_path} devuelve el catálogo de {parent_path(category_path)}"
+            )
 
     def _iter_category(
         self, session: BrowserSession, cat: CategoryConfig
@@ -356,6 +442,9 @@ class SferaStore:
                 _FIREFLY_URL.format(category_path=cat.category_path, page=page)
             )
             if page == 1:
+                # ANTES de emitir nada: una ruta que ya no existe devuelve 200 con el catálogo
+                # del padre, y ingerirlo etiquetaría cientos de productos con este ámbito.
+                self._check_not_mirage(session, cat.category_path, payload)
                 total = int(pagination_of(payload).get("_total", 1) or 1)
             products = parse_products(products_of(payload), cat)
             if not products:
@@ -366,6 +455,7 @@ class SferaStore:
     def list_catalog(self) -> Iterable[ListingEntry]:
         self._cache = {}
         self._scan = ScanReport()
+        self._parent_pages = {}
         with self._session_factory() as session:
             for cat in self._categories:
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
@@ -391,6 +481,10 @@ class SferaStore:
                         raise  # bloqueo de Akamai o fallo del servidor: no es una hoja retirada
                     self._scan.leaf_gone(scope)
                     continue
+                except LeafMirage:
+                    # El 404 que esta tienda no da: la ruta ya no existe (#54). Mismo trato.
+                    self._scan.leaf_gone(scope)
+                    continue
                 self._scan.leaf_ok()
 
     def scan_report(self) -> ScanReport:
@@ -403,16 +497,30 @@ class SferaStore:
         Pide solo la **primera página** de cada categoría: basta para saber si la ruta sigue
         existiendo y si devuelve género. Una categoría viva pero vacía cuenta como aviso (`None`,
         sin veredicto): no está retirada, pero tampoco está aportando nada.
+
+        Contar productos NO basta como prueba de vida en esta tienda: una ruta que ya no existe
+        responde 200 con el catálogo del padre, y sin la comprobación de espejismo (#54) este
+        sondeo informaba «12 productos en la 1ª página» de una categoría inventada.
         """
+        self._parent_pages = {}
         with self._session_factory() as session:
             for cat in self._categories:
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
                 url = _FIREFLY_URL.format(category_path=cat.category_path, page=1)
                 try:
                     payload = session.get_json(url)
+                    self._check_not_mirage(session, cat.category_path, payload)
                 except BrowserHTTPError as exc:
                     alive = False if exc.status in GONE_STATUS else None
                     yield LeafHealth(scope, cat.category_path, alive, f"HTTP {exc.status}")
+                    continue
+                except LeafMirage:
+                    yield LeafHealth(
+                        scope,
+                        cat.category_path,
+                        False,
+                        f"espejismo: devuelve el catálogo de {parent_path(cat.category_path)}",
+                    )
                     continue
                 except Exception as exc:  # navegador caído, timeout, respuesta no-JSON
                     yield LeafHealth(scope, cat.category_path, None, type(exc).__name__)

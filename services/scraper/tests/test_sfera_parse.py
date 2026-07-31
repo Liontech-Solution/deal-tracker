@@ -28,7 +28,9 @@ from scraper.stores.sfera import (
     SferaStore,
     _color_image_urls,
     _primary_image,
+    is_mirage,
     pagination_of,
+    parent_path,
     parse_products,
     product_signature,
     products_of,
@@ -242,10 +244,16 @@ _CATS_SCAN = [
 
 
 class _ScanSession:
-    """Sesión falsa: cada categoría responde su payload firefly, o revienta con un status."""
+    """Sesión falsa: cada categoría responde su payload firefly, o revienta con un status.
+
+    Las claves se buscan por subcadena de la URL y **gana la primera que case**, así que las
+    rutas hoja van antes que la del padre. La del padre (`ninos/nina/1/`) lleva el número de
+    página para no comerse también las URLs de sus hojas.
+    """
 
     def __init__(self, por_categoria: dict[str, Any]) -> None:
         self._por_categoria = por_categoria
+        self.pedidas: list[str] = []  # para comprobar que el padre se pide UNA vez
 
     def __enter__(self) -> _ScanSession:
         return self
@@ -257,6 +265,7 @@ class _ScanSession:
         return 200
 
     def get_json(self, url: str) -> Any:
+        self.pedidas.append(url)
         for path, respuesta in self._por_categoria.items():
             if path in url:
                 if isinstance(respuesta, Exception):
@@ -287,13 +296,19 @@ def _firefly(pid: str) -> dict[str, Any]:
     }
 
 
-def _scan_store(por_categoria: dict[str, Any]) -> SferaStore:
-    session = _ScanSession(por_categoria)
-    return SferaStore(_CFG, categories=_CATS_SCAN, session_factory=lambda: session)  # type: ignore[arg-type]
+def _scan_store(
+    por_categoria: dict[str, Any], padre: Any = None
+) -> tuple[SferaStore, _ScanSession]:
+    """Store con sesión falsa. `padre` responde a `ninos/nina/1/` (ver #54); por defecto, uno
+    que no se parece a ninguna hoja, que es el caso sano."""
+    respuestas = {**por_categoria, "ninos/nina/1/": padre or _firefly("PADRE")}
+    session = _ScanSession(respuestas)
+    store = SferaStore(_CFG, categories=_CATS_SCAN, session_factory=lambda: session)  # type: ignore[arg-type]
+    return store, session
 
 
 def test_categoria_retirada_no_impide_listar_las_demas() -> None:
-    store = _scan_store(
+    store, _ = _scan_store(
         {
             "ninos/nina/zapatos": _firefly("Z1"),
             "ninos/nina/camisetas": BrowserHTTPError(404, "https://sfera.example/firefly"),
@@ -310,7 +325,7 @@ def test_categoria_retirada_no_impide_listar_las_demas() -> None:
 
 def test_un_bloqueo_de_akamai_no_pasa_por_categoria_retirada() -> None:
     """403 es Akamai cerrando la puerta, no una categoría que Sfera haya quitado."""
-    store = _scan_store(
+    store, _ = _scan_store(
         {
             "ninos/nina/zapatos": _firefly("Z1"),
             "ninos/nina/camisetas": BrowserHTTPError(403, "https://sfera.example/firefly"),
@@ -319,3 +334,86 @@ def test_un_bloqueo_de_akamai_no_pasa_por_categoria_retirada() -> None:
 
     with pytest.raises(BrowserHTTPError):
         list(store.list_catalog())
+
+
+# --- #54 La hoja que no existe devuelve el catálogo del padre ------------------------------
+
+# Captura real de `ninos/nina` (página 1, 12 productos, 30 páginas): es a la vez el catálogo del
+# padre y —literalmente la misma respuesta— lo que Sfera sirve para una ruta que ya no existe.
+_PADRE_REAL = load_fixture("sfera_firefly_ninos_nina_padre.json")
+
+
+def test_parent_path_recorta_el_ultimo_segmento() -> None:
+    assert parent_path("ninos/nina/zapatos") == "ninos/nina"
+    assert parent_path("/ninos/bebe-nina/zapatos/") == "ninos/bebe-nina"
+    # Menos de tres segmentos no tiene padre útil: sería la tienda entera.
+    assert parent_path("ninos/nina") is None
+    assert parent_path("ninos") is None
+
+
+def test_el_espejismo_se_reconoce_por_los_ids_no_por_el_titulo() -> None:
+    """El título es texto localizado de presentación; los ids son el contrato."""
+    con_otro_titulo = deepcopy(_PADRE_REAL)
+    con_otro_titulo["data"]["title"] = "Zapatos (Niños) | Sfera España"
+
+    assert is_mirage(con_otro_titulo, _PADRE_REAL)
+    assert not is_mirage(_firefly("Z1"), _PADRE_REAL)
+
+
+def test_una_pagina_distinta_del_padre_no_es_espejismo() -> None:
+    """Sin esto, cualquier hoja con el mismo número de páginas caería en la red."""
+    otra = deepcopy(_PADRE_REAL)
+    otra["data"]["products"] = otra["data"]["products"][1:]
+
+    assert not is_mirage(otra, _PADRE_REAL)
+
+
+def test_la_hoja_espejismo_no_se_ingiere_y_cuenta_como_caida() -> None:
+    """El caso real: `ninos/nina/camisetas` deja de existir y Sfera sirve el género entero.
+
+    Sin la comprobación se ingerirían 360 productos —ropa incluida— etiquetados como
+    `niña/ropa/camisetas`, y el `ScanReport` no vería ninguna hoja caída.
+    """
+    store, _ = _scan_store(
+        {
+            "ninos/nina/zapatos": _firefly("Z1"),
+            "ninos/nina/camisetas": _PADRE_REAL,
+        },
+        padre=_PADRE_REAL,
+    )
+
+    ids = [e.retailer_product_id for e in store.list_catalog()]
+    report = store.scan_report()
+
+    assert ids == ["Z1"], "la hoja espejismo no debe aportar ni un producto"
+    assert (report.leaves_total, report.leaves_failed) == (2, 1)
+    assert report.failed_scopes == {ScrapeScope("niña", "ropa", "camisetas")}
+
+
+def test_el_padre_se_pide_una_sola_vez_para_todas_sus_hojas() -> None:
+    """La red cuesta una petición por padre y pasada, no una por hoja."""
+    store, session = _scan_store(
+        {"ninos/nina/zapatos": _firefly("Z1"), "ninos/nina/camisetas": _firefly("C1")}
+    )
+
+    list(store.list_catalog())
+
+    del_padre = [u for u in session.pedidas if "products_list/ninos/nina/1/" in u]
+    assert len(del_padre) == 1
+
+
+def test_check_leaves_marca_el_espejismo_como_muerta() -> None:
+    """Antes informaba «12 productos en la 1ª página» de una ruta inventada, o sea: viva."""
+    store, _ = _scan_store(
+        {
+            "ninos/nina/zapatos": _firefly("Z1"),
+            "ninos/nina/camisetas": _PADRE_REAL,
+        },
+        padre=_PADRE_REAL,
+    )
+
+    salud = {h.leaf: h for h in store.check_leaves()}
+
+    assert salud["ninos/nina/zapatos"].alive is True
+    assert salud["ninos/nina/camisetas"].alive is False
+    assert "espejismo" in (salud["ninos/nina/camisetas"].detail or "")
