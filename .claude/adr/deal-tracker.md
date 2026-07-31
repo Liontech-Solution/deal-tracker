@@ -22,7 +22,7 @@ Monorepo **poliglota**, dos servicios que no se llaman entre sí:
 - `services/web` — **NestJS** (`@nestjs/*`, drizzle-orm, postgres, passport-jwt + jwks-rsa para
   validar tokens Keycloak) y frontend **React/Vite** en `services/web/frontend`, servido por el
   propio Nest vía `@nestjs/serve-static`. Gestor de paquetes: **pnpm**.
-- `db/migrations` — **SQL crudo neutro** (`0001_init.sql` … `0013_scrape_run_message.sql`).
+- `db/migrations` — **SQL crudo neutro** (`0001_init.sql` … `0016_color_canon_solo_digitos.sql`).
 
 Imágenes: `ghcr.io/liontech-solution/deal-tracker-scraper` y `-web`. Contexto de build en la **raíz
 del repo**, no en el directorio del servicio.
@@ -120,9 +120,38 @@ forma es ya el patrón para cualquier campo de texto que venga de las tiendas:
    los valores ya calculados y, obsoleto, devuelve filas equivocadas *sin dar error*.
 
 Los límites de cada función están fijados por tests que rompen si alguien los amplía sin decidirlo
-(rangos de edad solapados en la talla; familias de color, acentos y códigos pelados en el color).
-Se decide **midiendo, no intuyendo**: en #49 la cautela declarada sobre el código de tienda se cayó
-al ver que 9 de sus 11 colisiones eran de Sfera contra sí misma.
+(rangos de edad solapados en la talla; familias de color y acentos en el color). Una función puede
+además **negar** una etiqueta devolviendo `NULL`: `color_canon` lo hace con un nombre que son solo
+dígitos (0016), porque un chip que es un número no lo puede elegir nadie. Cuidado al hacerlo — un
+consumidor puede leer ese `NULL` como «cualquier valor»: en `interest.color` significa exactamente
+eso, así que el alta rechaza con 400 en vez de guardarlo.
+
+Se decide **midiendo, no intuyendo**, y hay dos escarmientos: en #49 la cautela declarada sobre el
+código de tienda se cayó al ver que 9 de sus 11 colisiones eran de Sfera contra sí misma; y en #51,
+un límite documentado como imposible («recuperar el nombre exige la PDP de Sfera, tras Akamai»)
+resultó estar atribuido a **la tienda equivocada** — eran colores de Zara, cuya API es pública.
+Nadie había medido de qué tienda eran las filas. Antes de escribir en el contrato que algo no se
+puede, comprobar sobre los datos de quién se está hablando.
+
+### El árbol de categorías de una tienda no es lo que parece
+
+Dos cosas medidas sobre Zara y Sfera que se repiten y conviene dar por supuestas al mapear la
+siguiente tienda:
+
+**Los rangos de edad son ramas distintas, y el barefoot vive en la de bebé.** Las dos tiendas
+parten el catálogo infantil en 6-14 y mini/bebé, con rutas separadas, y el calzado respetuoso está
+sobre todo en la segunda: en Zara **78 de 86** referencias barefoot no se ingerían (#35), en Sfera
+**5 de 6** (#33). Mapear solo la rama mayor parece cubrir la tienda y deja fuera el grueso de lo que
+este producto existe para encontrar. Y el árbol **no es simétrico** entre rangos: la mayoría de
+categorías de ropa de Sfera no existen en bebé.
+
+**Una hoja muerta no siempre da 404.** Sfera responde **200 con el catálogo del padre** a una ruta
+que no existe (`ninos/nina/loquesea` → las 30 páginas de `ninos/nina`). Eso deja ciegas las dos
+redes de seguridad, que se apoyan en `GONE_STATUS`: el sondeo de `--check-categories` informa
+«12 productos, viva», y una pasada ingeriría cientos de productos del género entero —ropa incluida—
+etiquetados con el ámbito de la hoja muerta, sin que `ScanReport` cuente ninguna caída. Se detecta
+comparando **los ids de la 1ª página contra los del padre**, nunca `data.title` (texto localizado de
+presentación). Al añadir una tienda, probar una ruta inventada **antes** de fiarse del 404.
 
 ### Local
 
@@ -143,8 +172,9 @@ parece). El cluster dev solo sirve para verificar el **despliegue**, y eso exige
   determinista. Coste: no se puede parchear QA sin pasar por dev.
 - **selfHeal de ArgoCD activado**: un `kubectl patch` en el cluster se revierte solo. Todo cambio de
   cluster pasa por el repo de manifiestos.
-- **Drift conocido**: `lefties` está registrado en `stores/registry.py` pero **no tiene CronJob** en
-  el repo de manifiestos — nunca se ejecuta en el cluster. Añadir una tienda son dos repos, no uno.
+- **Añadir una tienda son dos repos, no uno**: el registro en `stores/registry.py` no la ejecuta en
+  el cluster sin su CronJob en el repo de manifiestos. Fue el drift real de `lefties`, ya resuelto
+  (tiene CronJob en `base` y patch en el overlay de QA), y es el que hay que comprobar cada vez.
 
 ## PHILOSOPHY
 
@@ -169,3 +199,7 @@ Al reindexar, modo **`full`**: `fast` excluye `db/migrations/` y `tests/fixtures
 contrato del proyecto. `detect_changes` no sirve como señal de caducidad —`index_status` lee el
 git en vivo, así que `base_sha == head_sha` siempre—, pero el reindexado es incremental y tarda
 segundos, así que sale más barato hacerlo siempre.
+
+**El reindexado puede dejar `adr_present: false`** y borrar el ADR del grafo sin avisar (visto el
+31/07/2026). Por eso el fichero es la fuente de verdad: mirar siempre ese campo en la salida de
+`index_repository` y republicar desde `.claude/adr/` si viene en falso.
