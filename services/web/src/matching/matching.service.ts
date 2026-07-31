@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { inArray, sql } from 'drizzle-orm';
 
+import { generoCondition } from '../catalog/gender.sql';
 import { Database, DRIZZLE } from '../database/database.module';
 import { notification } from '../database/schema';
 import { TelegramApiClient } from '../telegram/telegram-api.client';
@@ -138,7 +139,12 @@ export class MatchingService {
         AND (i.variant_id  IS NULL OR i.variant_id  = b.variant_id)
         AND (i.product_id  IS NULL OR i.product_id  = b.product_id)
         AND (i.retailer_id IS NULL OR i.retailer_id = b.retailer_id)
-        AND (i.gender   IS NULL OR i.gender   = b.gender)
+        -- El género casa por generoCondition y no por igualdad: un zapato unisex tiene que
+        -- disparar el aviso de quien sigue "niño" y el de quien sigue "niña". Es la misma regla
+        -- que usa el catálogo, y a propósito el mismo fichero — si el catálogo enseñara bajo
+        -- "Niño" un zapato con el que luego el aviso no dispara, la promesa incumplida la vería
+        -- el usuario sin poder explicársela.
+        AND ${generoCondition(sql.raw('i.gender'), sql.raw('b.gender'))}
         AND (i.section  IS NULL OR i.section  = b.section)
         AND (i.category IS NULL OR i.category = b.category)
         -- La talla se compara CANÓNICA (#43). Con igualdad de texto crudo, un interés guardado con

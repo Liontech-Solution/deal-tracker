@@ -712,3 +712,91 @@ describe.skipIf(!TEST_DB)('color canónico · faceta, filtro y foto (e2e)', () =
     expect(zara.imageUrl).toBe(FOTO_VERDE);
   });
 });
+
+/**
+ * Género unisex (#32): un producto que sirve para niño y para niña tiene que salir en los DOS
+ * filtros, no en ninguno.
+ *
+ * No es un caso de borde inventado para el test. El calzado barefoot infantil se diseña unisex, y
+ * Cacles —la primera tienda barefoot nativa del catálogo— publica así 342 de sus 428 referencias,
+ * con ninguna marcada solo de niño. Con la igualdad estricta que había antes, filtrar por "Niño"
+ * devolvía cero productos suyos: la tienda que entró justo para llenar la zapatería quedaba
+ * invisible en media navegación.
+ */
+describe.skipIf(!TEST_DB)('género unisex · catálogo (e2e)', () => {
+  let sql: postgres.Sql;
+  let app: INestApplication;
+
+  async function seedGenero(retailerId: number, name: string, gender: string): Promise<void> {
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${retailerId}, ${name}, ${name}, ${gender}, 'zapateria', 'sandalias', 'si',
+              'https://x')
+      RETURNING id`;
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p.id}, ${name + '-v'}, '24', 'azul', ${name + '-sku'})
+      RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${v.id}, 39.90, 39.90, 0, true, now() - interval '2 days'),
+             (${v.id}, 19.90, 39.90, 50, true, now())`;
+  }
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    const [r] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('cacles', 'Cacles Barefoot', 'https://www.caclesbarefoot.com') RETURNING id`;
+    await seedGenero(r.id, 'Sandalia unisex', 'unisex');
+    await seedGenero(r.id, 'Sandalia de niña', 'niña');
+    await seedGenero(r.id, 'Sandalia de niño', 'niño');
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  const nombres = async (query: string): Promise<string[]> => {
+    const res = await request(app.getHttpServer()).get(query).expect(200);
+    return res.body.items.map((i: { name: string }) => i.name).sort();
+  };
+
+  it('el unisex sale al filtrar por niño y también por niña', async () => {
+    expect(await nombres('/api/catalog/products?gender=niño')).toEqual([
+      'Sandalia de niño',
+      'Sandalia unisex',
+    ]);
+    expect(await nombres('/api/catalog/products?gender=niña')).toEqual([
+      'Sandalia de niña',
+      'Sandalia unisex',
+    ]);
+  });
+
+  it('sin filtro de género salen los tres, sin duplicar el unisex', async () => {
+    expect(await nombres('/api/catalog/products')).toEqual([
+      'Sandalia de niña',
+      'Sandalia de niño',
+      'Sandalia unisex',
+    ]);
+  });
+
+  it('el unisex sigue saliendo con el filtro barefoot por defecto', async () => {
+    // Los dos filtros son condiciones independientes: que el género sea unisex no puede hacer que
+    // el producto se caiga del filtro barefoot, que es el que la SPA lleva puesto siempre.
+    expect(await nombres('/api/catalog/products?gender=niño&barefoot=si')).toContain(
+      'Sandalia unisex',
+    );
+  });
+
+  it('no ofrece "unisex" como tercer chip de género', async () => {
+    // Ya está incluido en Niño y en Niña, así que un chip propio no filtraría nada nuevo: solo
+    // sugeriría que hay tres estanterías cuando el brief pide dos.
+    const res = await request(app.getHttpServer()).get('/api/catalog/facets').expect(200);
+    expect(res.body.genders.sort()).toEqual(['niña', 'niño']);
+  });
+});
