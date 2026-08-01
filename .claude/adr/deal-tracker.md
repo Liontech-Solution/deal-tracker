@@ -185,8 +185,8 @@ Dos corolarios que costaron dinero descubrir:
 ### Shopify cobra por complejidad, no por peticiones
 
 Medido contra Cacles el 31/07-01/08/2026. Una página con `limit=250` puntúa
-`shopify-complexity-score: 12400`, el cubo tarda **minutos** en rellenarse, y el 429 **no trae
-`Retry-After`**. Consecuencias prácticas:
+`shopify-complexity-score: 12400` y el cubo tarda **minutos** en rellenarse. Consecuencias
+prácticas:
 
 - **Bajar el tamaño de página no ayuda**: el coste es por producto devuelto, así que el mismo
   catálogo cuesta lo mismo repartido en más viajes.
@@ -202,6 +202,37 @@ Medido contra Cacles el 31/07-01/08/2026. Una página con `limit=250` puntúa
   bloqueada horas, con el castigo alargándose en cada reintento. Una pasada normal (2 peticiones
   diarias) no se acerca al límite; el problema es el desarrollo, no la producción. Capturar la
   fixture **una vez** y trabajar contra ella.
+
+### Hay dos 429 distintos y solo uno se arregla esperando
+
+Corrige lo que esta misma sección afirmaba: los 429 de Cacles **sí traen `Retry-After`** (60 s,
+medido el 01/08/2026), y sobre todo, **no todos vienen de Shopify**. Delante hay un Cloudflare que
+ficha la **huella TLS del cliente**, y ese 429 es de otra especie aunque comparta código de estado:
+
+| | 429 de presupuesto (Shopify) | 429 de huella (Cloudflare) |
+|---|---|---|
+| cuerpo | JSON / vacío | `local_rate_limited` |
+| depende de | cuántos productos has pedido | qué cliente eres |
+| se arregla | esperando minutos | cambiando el ClientHello |
+
+Lo medido: httpx recibía 429 en **todas** sus peticiones —también desde un pod del cluster—
+mientras `curl`, `wget` y `urllib` pasaban con 200 desde la misma IP, con las mismas cabeceras byte
+a byte y contra el mismo edge, en el mismo proceso y con segundos de diferencia. La única diferencia
+era la extensión **ALPN**: JA4 `t13d17`**`13`**`h1` (httpx, 13 extensiones) contra
+`t13d17`**`12`** (urllib, 12). Quitarla devuelve 200; control emparejado, alternando cuatro veces.
+
+Tres cosas que llevarse:
+
+- **No se quita por configuración**: `httpcore` llama a `set_alpn_protocols()` sobre el contexto que
+  le pases, sea cual sea. La única vía es una subclase de `SSLContext` que ignore esa llamada —
+  `scraper/tls.py`, hoy usado solo por `cacles`. Sin ALPN no hay HTTP/2, que es lo que el scraper ya
+  hablaba de todas formas.
+- **Es reutilizable y no es de esta tienda**: la huella de httpx es de las más conocidas, así que
+  cualquier tienda tras Cloudflare puede ficharla. Al añadir una tienda, si el 429 llega desde la
+  primera petición y sin ráfaga previa, sospechar de la huella antes que del ritmo.
+- **Antes de culpar al ritmo, comparar clientes.** Un `curl` con las cabeceras exactas del scraper
+  cuesta segundos y separa las dos hipótesis; sin esa comparación, el diagnóstico natural («me he
+  pasado pidiendo») es plausible, encaja con los hechos y es falso.
 
 ### El género `unisex` es la norma del barefoot, no una excepción
 
