@@ -28,13 +28,16 @@ Tres cosas que hay que tener presentes al tocar este fichero:
 3. **Shopify cobra por COMPLEJIDAD, no por número de peticiones**, y devuelve 429 al agotar el
    presupuesto. Una página con `limit=250` puntúa `shopify-complexity-score: 12400`, y el cubo
    tarda MINUTOS en rellenarse: medido el 31/07/2026, tres páginas seguidas se comen el
-   presupuesto y hubo que esperar ~7 min a que se recuperase. Además el 429 **no trae
-   `Retry-After`**, así que el backoff exponencial se queda corto si arranca del segundo por
-   defecto. Una pasada normal son dos peticiones al día y no se acerca al límite —esto se
-   descubrió capturando fixtures a ráfagas—, pero el CronJob lleva igualmente
-   `SCRAPER_RETRY_BACKOFF=8` y `SCRAPER_REQUEST_RETRIES=6` para que una pasada que coincida con
-   otra cosa aguante en vez de abortar. Bajar `_PAGE_SIZE` NO ayuda: el coste es por producto
-   devuelto, así que el mismo catálogo cuesta lo mismo en más viajes.
+   presupuesto y hubo que esperar ~7 min a que se recuperase. Una pasada normal son dos peticiones
+   al día y no se acerca al límite —esto se descubrió capturando fixtures a ráfagas—, pero el
+   CronJob lleva igualmente `SCRAPER_RETRY_BACKOFF=8` y `SCRAPER_REQUEST_RETRIES=6` para que una
+   pasada que coincida con otra cosa aguante en vez de abortar. Bajar `_PAGE_SIZE` NO ayuda: el
+   coste es por producto devuelto, así que el mismo catálogo cuesta lo mismo en más viajes.
+4. **Delante de Shopify hay un Cloudflare que ficha la huella TLS del cliente**, y ese 429 no se
+   parece en nada al anterior aunque comparta código: llega con `Retry-After: 60`, el cuerpo dice
+   `local_rate_limited`, y **no se arregla esperando** porque no depende del ritmo. Por eso el
+   cliente usa `contexto_sin_alpn()`; el porqué, medido, está en `scraper/tls.py`. Al distinguirlos,
+   mirar el cuerpo: si pone `local_rate_limited`, es la huella; si no, es el presupuesto.
 
 Las funciones `parse_*` son puras (JSON -> dataclasses) y se testean con fixtures.
 """
@@ -54,6 +57,7 @@ import httpx
 
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
+from ..tls import contexto_sin_alpn
 from .base import (
     GONE_STATUS,
     DelistCandidate,
@@ -413,7 +417,10 @@ class CaclesStore:
         ]
 
     def _client(self) -> httpx.Client:
+        # `verify` con contexto propio para NO anunciar ALPN: con el de httpx, el Cloudflare de
+        # esta tienda contesta 429 a todo (ver `scraper/tls.py`). Lo demás, igual que las otras.
         return httpx.Client(
+            verify=contexto_sin_alpn(),
             headers={"User-Agent": self._config.user_agent, "Accept": "application/json"},
             timeout=self._config.request_timeout,
             follow_redirects=True,
@@ -449,8 +456,10 @@ class CaclesStore:
 
         `float()` y no `.isdigit()` como en `zara.py`: Shopify manda la cabecera con decimales
         (`"2.0"`), y `"2.0".isdigit()` es False, así que el valor se habría ignorado en silencio
-        justo en la tienda que más lo necesita. Hoy sus 429 no la traen, pero si empiezan a
-        traerla queremos hacerle caso.
+        justo en la tienda que más lo necesita. Y sí la traen: los 429 de Cloudflare medidos el
+        01/08/2026 vienen con `Retry-After: 60`, así que un sondeo bloqueado tarda ~4 min (4
+        intentos × 60 s) en rendirse. Es caro, pero esperar lo que pide la tienda es lo correcto;
+        lo que no se debe hacer es insistir por debajo de ese minuto.
         """
         wait = self._config.retry_backoff * (2**attempt)
         if retry_after:
