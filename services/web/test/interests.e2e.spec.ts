@@ -107,6 +107,9 @@ describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
         ['26 (16,3 cm)', '26'],
         ['11-12', '11-12 años'],
         ['26', '26'],
+        // Rangos de número de pie (#64): no se etiquetan como edad, y el separador se normaliza.
+        ['48-51', '48-51'],
+        ['20 /21', '20-21'],
       ]) {
         const created = await request(app.getHttpServer())
           .post('/api/interests')
