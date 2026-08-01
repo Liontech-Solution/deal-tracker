@@ -138,7 +138,10 @@ forma es ya el patrón para cualquier campo de texto que venga de las tiendas:
 4. **Idempotente**, y por eso se normalizan los dos lados de cada comparación sin razonar sobre cuál
    venía ya limpio. El alta de interés guarda ya canónico.
 5. **Cambiar el cuerpo de una de estas funciones obliga a `REINDEX`** del índice por expresión: guarda
-   los valores ya calculados y, obsoleto, devuelve filas equivocadas *sin dar error*.
+   los valores ya calculados y, obsoleto, devuelve filas equivocadas *sin dar error*. Que esté puesto
+   se comprueba en un minuto y conviene hacerlo, porque olvidarlo no rompe nada visible: se cuenta el
+   mismo filtro con y sin índice (`SET enable_indexscan/bitmapscan = off`) y los dos números tienen
+   que coincidir. Medido en la 0017 dejando fuera el `REINDEX` a propósito: 0 contra 12.
 
 **Un mismo texto puede significar cosas distintas, y la sección NO es lo que lo decide.** `size_canon`
 leía `25-34` o `20 /21` como rango de EDAD cuando en Cacles son números de pie: plantillas vendidas
