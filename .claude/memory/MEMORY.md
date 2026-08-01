@@ -5,3 +5,4 @@
 - [gitops-argocd-selfheal](gitops-argocd-selfheal.md) — cambios de cluster por repo de manifiestos; ArgoCD selfHeal revierte kubectl patch; refresh por annotate
 - [verificar-en-cluster-dev](verificar-en-cluster-dev.md) — Postgres desechable en docker para tests e ingesta en local; el cluster dev solo para verificar despliegue (eso sí exige mergear a main)
 - [adr-contexto-compartido](adr-contexto-compartido.md) — ADR en codebase-memory para deal-tracker y k3s-local-apps-manifests; contrato entre repos, versionado en `.claude/adr/`
+- [adr-update-por-cli](adr-update-por-cli.md) — `manage_adr --mode update` reemplaza el ADR entero; publicarlo con el CLI pasando `$(cat .claude/adr/…)`, nunca a mano
