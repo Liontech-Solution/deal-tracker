@@ -64,8 +64,11 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
     { canonica: '24-25', formas: ['24 / 25'] },
     // Y ojo: esto es ROPA (calcetines barefoot de Plus12, categoría ropa-interior) tallada por
     // número de pie. Por eso la sección NO sirve para decidirlo: 123 de las 201 variantes afectadas
-    // estaban en `ropa`.
+    // estaban en `ropa`. Algunos calcetines traen además el cm entre paréntesis, como el calzado de
+    // Zara, y se descarta igual.
     { canonica: '36-38', formas: ['36-38'] },
+    { canonica: '20-24', formas: ['20-24', '20-24 (14 a 16 cm)'] },
+    { canonica: '30-34', formas: ['30-34 (20 a 22 cm)'] },
   ];
 
   for (const { canonica, formas } of equivalencias) {
