@@ -140,26 +140,46 @@ forma es ya el patrón para cualquier campo de texto que venga de las tiendas:
 5. **Cambiar el cuerpo de una de estas funciones obliga a `REINDEX`** del índice por expresión: guarda
    los valores ya calculados y, obsoleto, devuelve filas equivocadas *sin dar error*.
 
-**Un mismo texto puede significar cosas distintas según la sección**, y estas funciones hoy no lo
-saben: `size_canon` lee `25-34` o `20 /21` como rango de EDAD, que es correcto en `ropa` y falso en
-`zapateria`, donde son números de pie (78 variantes de Cacles, que estrena esa forma con las
-plantillas por rango y el calzado de primeros pasos; el catálogo llega a ofrecer un chip de talla
-«48-51 años»). Al ampliar una de estas funciones, la pregunta no es solo qué texto entra sino **en
-qué sección entra**. Abierto en #64.
+**Un mismo texto puede significar cosas distintas, y la sección NO es lo que lo decide.** `size_canon`
+leía `25-34` o `20 /21` como rango de EDAD cuando en Cacles son números de pie: plantillas vendidas
+por rango y calzado de primeros pasos con talla doble. El catálogo llegaba a ofrecer un chip de talla
+«48-51 años». Este ADR y la propia #64 daban por hecho que el dato que faltaba era `section` («en
+`zapateria` es pie, en `ropa` es edad»), y **medir lo desmontó**: de las 201 variantes afectadas,
+**123 están en `ropa`** — son calcetines barefoot de Be Lenka y Plus12, categoría `ropa-interior`,
+tallados por número de pie. Son ropa y son números de pie a la vez, así que mirar la sección habría
+dejado mal a la mayoría de las filas. Nadie había mirado de qué **categoría** eran.
+
+Lo que sí discrimina es **el propio número**, con el umbral 15 que la 0014 ya tenía medido para el
+número suelto, ahora exigido en los dos extremos del rango (0017): las edades acaban en `13-14` y los
+pies empiezan en `20 /21`, seis puntos de hueco. Y era además la única salida practicable:
+`size_canon(size, section)` haría **imposible** el índice por expresión, porque un índice solo puede
+referirse a columnas de su propia tabla y `variant` no tiene `section` — el filtro volvería de 1,4 ms
+a ~1 s. Al ampliar una de estas funciones, antes de meter una dimensión nueva en la firma, mirar si
+el propio valor ya distingue: sale más barato y no ata el índice. Cerrado en #64.
 
 Los límites de cada función están fijados por tests que rompen si alguien los amplía sin decidirlo
-(rangos de edad solapados en la talla; familias de color y acentos en el color). Una función puede
+(rangos de edad solapados y el umbral pie/edad en la talla; familias de color y acentos en el color).
+Ese candado es lo que obliga a que un cambio de criterio se vea: la 0017 no pudo mover el umbral sin
+reescribir el test que lo fija. Una función puede
 además **negar** una etiqueta devolviendo `NULL`: `color_canon` lo hace con un nombre que son solo
 dígitos (0016), porque un chip que es un número no lo puede elegir nadie. Cuidado al hacerlo — un
 consumidor puede leer ese `NULL` como «cualquier valor»: en `interest.color` significa exactamente
 eso, así que el alta rechaza con 400 en vez de guardarlo.
 
-Se decide **midiendo, no intuyendo**, y hay dos escarmientos: en #49 la cautela declarada sobre el
-código de tienda se cayó al ver que 9 de sus 11 colisiones eran de Sfera contra sí misma; y en #51,
-un límite documentado como imposible («recuperar el nombre exige la PDP de Sfera, tras Akamai»)
-resultó estar atribuido a **la tienda equivocada** — eran colores de Zara, cuya API es pública.
-Nadie había medido de qué tienda eran las filas. Antes de escribir en el contrato que algo no se
-puede, comprobar sobre los datos de quién se está hablando.
+Se decide **midiendo, no intuyendo**, y hay tres escarmientos, los tres del mismo tipo: una frase
+escrita en el contrato con seguridad, que se cayó en cuanto alguien consultó las filas.
+
+- **#49** — la cautela declarada sobre el código de tienda se cayó al ver que 9 de sus 11 colisiones
+  eran de Sfera contra sí misma.
+- **#51** — un límite documentado como imposible («recuperar el nombre exige la PDP de Sfera, tras
+  Akamai») resultó estar atribuido a **la tienda equivocada**: eran colores de Zara, cuya API es
+  pública. Nadie había medido de qué tienda eran las filas.
+- **#64** — la 0014 escribió como certeza que «un rango sin unidad solo puede ser edad; ninguna talla
+  de calzado se escribe `11-12`», y este mismo ADR propuso arreglarlo con la sección. Las dos cosas
+  eran falsas, y bastó agrupar por sección y categoría para verlo.
+
+Antes de escribir en el contrato que algo no se puede o que algo es siempre así, comprobar sobre los
+datos de quién —y de qué— se está hablando. La consulta cuesta un minuto.
 
 ### El árbol de categorías de una tienda no es lo que parece
 

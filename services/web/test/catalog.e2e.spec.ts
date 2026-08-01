@@ -481,11 +481,15 @@ describe.skipIf(!TEST_DB)('foco barefoot · qué enseña el catálogo por defect
 });
 
 /**
- * Talla canónica en el catálogo (#43).
+ * Talla canónica en el catálogo (#43 y #64).
  *
  * El escenario es el medido en `dev`: la talla 26 de un niño existe como '26' en Sfera y como
  * '26 (16,3 cm)' en Zara. Antes de 0014 la faceta ofrecía las dos y cada filtro enseñaba media
  * zapatería.
+ *
+ * Cacles añade el segundo escenario: tallas que son RANGOS de número de pie. Antes de 0017 la
+ * faceta llegaba a ofrecer un chip «48-51 años», que ni se entiende ni filtra lo que dice filtrar.
+ * Y el calcetín está a propósito en `ropa`: es la contraprueba de que la sección no decide esto.
  */
 describe.skipIf(!TEST_DB)('talla canónica · faceta y filtro (e2e)', () => {
   let sql: postgres.Sql;
@@ -524,10 +528,18 @@ describe.skipIf(!TEST_DB)('talla canónica · faceta y filtro (e2e)', () => {
       INSERT INTO retailer (slug, name, base_url)
       VALUES ('sfera', 'Sfera', 'https://www.sfera.com') RETURNING id`;
 
+    const [cacles] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('cacles', 'Cacles', 'https://cacles.com') RETURNING id`;
+
     await seedTalla(zara.id, 'Bota Zara', 'zapateria', 'barefoot', 'si', '26 (16,3 cm)');
     await seedTalla(sfera.id, 'Bota Sfera', 'zapateria', 'barefoot', 'si', '26');
     await seedTalla(zara.id, 'Camiseta Zara', 'ropa', 'camisetas', null, '11-12 años (152 cm)');
     await seedTalla(sfera.id, 'Camiseta Sfera', 'ropa', 'camisetas', null, '11-12');
+    // Rangos de número de pie (#64), tal como los escribe Cacles.
+    await seedTalla(cacles.id, 'Plantilla Cacles', 'zapateria', 'plantillas', 'si', '48-51');
+    await seedTalla(cacles.id, 'Botita Cacles', 'zapateria', 'barefoot', 'si', '20 /21');
+    await seedTalla(cacles.id, 'Calcetín Cacles', 'ropa', 'ropa-interior', 'si', '36-38');
 
     app = await makeApp();
   });
@@ -550,8 +562,22 @@ describe.skipIf(!TEST_DB)('talla canónica · faceta y filtro (e2e)', () => {
   };
 
   it('ofrece la misma talla física UNA sola vez', async () => {
-    expect((await facetas('?section=zapateria')).sizes).toEqual(['26']);
-    expect((await facetas('?section=ropa')).sizes).toEqual(['11-12 años']);
+    // Los rangos de pie se intercalan con los números sueltos por su extremo inferior.
+    expect((await facetas('?section=zapateria')).sizes).toEqual(['20-21', '26', '48-51']);
+    expect((await facetas('?section=ropa')).sizes).toEqual(['11-12 años', '36-38']);
+  });
+
+  /**
+   * El síntoma que abrió la issue #64: un chip «48-51 años» en la faceta de zapatería. Ni se
+   * entiende ni filtra lo que dice filtrar.
+   */
+  it('no etiqueta como edad un rango de número de pie (#64)', async () => {
+    const zapateria = (await facetas('?section=zapateria')).sizes;
+    expect(zapateria.filter((s) => s.includes('años'))).toEqual([]);
+    // Y el calcetín es ROPA: aquí la única etiqueta de edad es la de la camiseta.
+    expect((await facetas('?section=ropa')).sizes.filter((s) => s.includes('años'))).toEqual([
+      '11-12 años',
+    ]);
   });
 
   it('acota las tallas a la sección que se está mirando', async () => {
@@ -560,7 +586,7 @@ describe.skipIf(!TEST_DB)('talla canónica · faceta y filtro (e2e)', () => {
     // Y el orden lo demuestra: sin sección, un rango de edad se cuela delante de un número de pie
     // porque numéricamente le toca ahí.
     const sinAcotar = await facetas();
-    expect(sinAcotar.sizes).toEqual(['11-12 años', '26']);
+    expect(sinAcotar.sizes).toEqual(['11-12 años', '20-21', '26', '36-38', '48-51']);
     expect((await facetas('?section=ropa')).sizes).not.toContain('26');
     // La sección misma no se acota: son las pestañas con las que se sale de aquí.
     expect((await facetas('?section=ropa')).sections).toEqual(['ropa', 'zapateria']);
@@ -579,6 +605,14 @@ describe.skipIf(!TEST_DB)('talla canónica · faceta y filtro (e2e)', () => {
       'Bota Sfera',
       'Bota Zara',
     ]);
+  });
+
+  it('el chip de un rango de pie devuelve producto, venga con guion o con barra', async () => {
+    expect(await nombres('/api/catalog/products?size=48-51')).toEqual(['Plantilla Cacles']);
+    expect(await nombres('/api/catalog/products?size=36-38')).toEqual(['Calcetín Cacles']);
+    // '20 /21' y '20-21' son la misma talla: el separador se normaliza igual que en los años.
+    expect(await nombres('/api/catalog/products?size=20-21')).toEqual(['Botita Cacles']);
+    expect(await nombres('/api/catalog/products?size=20%20%2F21')).toEqual(['Botita Cacles']);
   });
 
   it('la ficha sigue enseñando la talla tal como la escribe la tienda', async () => {

@@ -244,6 +244,32 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     expect((await makeService(client).run(false)).candidates).toBe(0);
   });
 
+  /**
+   * El otro modo de fallo de #64, el que no se ve en la faceta. Antes de 0017, un rango de número de
+   * pie ('25-34', las plantillas de Cacles) se canonicalizaba como '25-34 años', así que quedaba
+   * indistinguible de un rango de EDAD de ropa escrito con esa etiqueta. Dos tallas que no tienen
+   * nada que ver casaban, y el aviso llegaba mal sin que fallara nada ruidosamente.
+   */
+  it('un rango de número de pie no casa con un rango de edad (#64)', async () => {
+    const user = await seedLinkedUser('kc-match-rango-pie', 912);
+    await sql`UPDATE variant SET size = '25-34' WHERE id = ${seeded.variantId}`;
+    await seedInterest(user.id, { size: '25-34 años' });
+    const { client } = fakeTelegram();
+
+    expect((await makeService(client).run(false)).candidates).toBe(0);
+  });
+
+  it('avisa de una plantilla por su rango de número de pie (#64)', async () => {
+    // Y el lado positivo: el chip '48-51' de la faceta sí encuentra la variante, venga la talla con
+    // guion o con la barra que usa Cacles en el calzado de primeros pasos.
+    const user = await seedLinkedUser('kc-match-rango-pie-ok', 913);
+    await sql`UPDATE variant SET size = '48-51' WHERE id = ${seeded.variantId}`;
+    await seedInterest(user.id, { size: '48-51' });
+    const { client } = fakeTelegram();
+
+    expect((await makeService(client).run(false)).notified).toBe(1);
+  });
+
   it('avisa aunque la tienda escriba el color en mayúsculas', async () => {
     // El fallo de #49: el interés se guarda con el color del chip ('verde') y la tienda escribe
     // 'VERDE'. Con igualdad de texto crudo el aviso no llegaba, y no fallaba nada ruidosamente.

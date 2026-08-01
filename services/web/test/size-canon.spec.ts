@@ -5,11 +5,11 @@ import { runMigrations } from '../src/database/migrate';
 import { makeSql, TEST_DB } from './helpers';
 
 /**
- * `size_canon` / `size_sort` (migración 0014, issue #43).
+ * `size_canon` / `size_sort` (migraciones 0014 y 0017; issues #43 y #64).
  *
- * Los casos NO son inventados: son los 121 valores distintos que había en `dev` el 30/07/2026 con
- * Zara y Sfera ingeridas, reducidos a los que documentan una regla. Si una tienda futura trae una
- * forma nueva, se añade aquí antes de tocar la función.
+ * Los casos NO son inventados: son los valores distintos que había en `dev` —los 121 del 30/07/2026
+ * con Zara y Sfera, más los que estrenó Cacles el 01/08/2026— reducidos a los que documentan una
+ * regla. Si una tienda futura trae una forma nueva, se añade aquí antes de tocar la función.
  */
 describe.skipIf(!TEST_DB)('talla canónica', () => {
   let sql: postgres.Sql;
@@ -55,6 +55,17 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
     // Número suelto: por debajo de 15 es edad (ropa de Sfera), por encima es pie.
     { canonica: '4 años', formas: ['4', '4 años (104 cm)'] },
     { canonica: '11 años', formas: ['11'] },
+    // Rango de NÚMERO DE PIE (#64). Cacles es la primera tienda que lo trae, y desmiente la premisa
+    // de la 0014 («un rango sin unidad solo puede ser edad»). Sale sin unidad, igual que el número
+    // suelto del calzado, y el separador se normaliza como en los rangos de edad.
+    { canonica: '25-34', formas: ['25-34'] }, // plantillas vendidas por rango
+    { canonica: '48-51', formas: ['48-51'] }, // el chip «48-51 años» que motivó la issue
+    { canonica: '20-21', formas: ['20 /21', '20-21'] }, // calzado de primeros pasos, talla doble
+    { canonica: '24-25', formas: ['24 / 25'] },
+    // Y ojo: esto es ROPA (calcetines barefoot de Plus12, categoría ropa-interior) tallada por
+    // número de pie. Por eso la sección NO sirve para decidirlo: 123 de las 201 variantes afectadas
+    // estaban en `ropa`.
+    { canonica: '36-38', formas: ['36-38'] },
   ];
 
   for (const { canonica, formas } of equivalencias) {
@@ -83,6 +94,27 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
     );
     expect(new Set(tres).size).toBe(3);
     expect(tres).toEqual(['2 años', '1-2 años', '1.5-2 años']);
+  });
+
+  /**
+   * El otro límite declarado, y el que la 0017 fija a propósito (issue #64): un rango de dos números
+   * sin unidad es de PIE solo si LOS DOS extremos llegan al umbral 15, y si no se queda como edad.
+   *
+   * El umbral no es una intuición, es el hueco medido entre los dos dominios: en `dev` los rangos de
+   * edad acaban en '13-14' (Sfera) y los de pie empiezan en '20 /21' (Cacles) — seis puntos de
+   * holgura. El rango mixto ('14-16') es el único ambiguo de verdad, no existe hoy en ninguna
+   * tienda, y se decide como edad, que era el comportamiento anterior.
+   *
+   * La sección NO interviene: los calcetines de Cacles son `ropa` y van por número de pie. Si algún
+   * día se quisiera mover el umbral o meter la sección en la decisión, es este test el que hay que
+   * reescribir, y así el cambio de criterio queda a la vista.
+   */
+  it('decide rango de pie vs. rango de edad por el umbral 15, en los DOS extremos', async () => {
+    expect(await canon('13-14')).toBe('13-14 años'); // el mayor rango de edad real
+    expect(await canon('14-15')).toBe('14-15 años'); // un extremo por debajo: sigue siendo edad
+    expect(await canon('14-16')).toBe('14-16 años'); // mixto: ante la duda, edad
+    expect(await canon('15-16')).toBe('15-16'); // los dos llegan: pie
+    expect(await canon('20-21')).toBe('20-21'); // el menor rango de pie real
   });
 
   it('es idempotente sobre su propia salida', async () => {
@@ -129,5 +161,13 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
     // El '9' no es un pie real (el calzado infantil empieza en 19), pero fija que ordena por número
     // y no por texto, que es donde '9' se colaba detrás de '41'.
     expect(pies).toEqual(['9', '19', '26', '30', '41']);
+
+    // Los rangos de pie de la 0017 se intercalan con los números sueltos por su extremo inferior,
+    // sin necesidad de tocar `size_sort`: la faceta de zapatería los mezcla en la misma lista.
+    const conRangos = ['26', '19', '48-51', '25-34', '41', '20-21'];
+    const [{ v: mezclados }] = await sql<{ v: string[] }[]>`
+      SELECT array_agg(t ORDER BY size_sort(t), t) AS v
+      FROM unnest(${sql.array(conRangos)}::text[]) AS t`;
+    expect(mezclados).toEqual(['19', '20-21', '25-34', '26', '41', '48-51']);
   });
 });
