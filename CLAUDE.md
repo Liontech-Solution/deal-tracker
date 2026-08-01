@@ -8,7 +8,7 @@ Both services are **built and deployed**. This is a **polyglot monorepo**: scrap
 **Python** (`services/scraper`), user experience in **Node/TS** (`services/web`, NestJS API +
 React/Vite SPA + Telegram bot). The two services never call each other — they integrate through the
 **shared Postgres**, whose schema is the contract as neutral SQL in `db/migrations` (`0001` …
-`0013`). The `scraper` service owns writes to `retailer`/`product`/`variant`/`price_history`/
+`0016`). The `scraper` service owns writes to `retailer`/`product`/`variant`/`price_history`/
 `scrape_run`; the `web` service owns `app_user` (Telegram link included)/`interest`/`notification`/
 `job_state`.
 
@@ -16,8 +16,9 @@ Running in the cluster today: namespaces `deal-tracker-dev` (auto-deployed on ev
 and `deal-tracker-qa` (semver releases, public at `dealtracker-qa.liontechsolution.com`).
 
 Retailers implemented: **Zara** (public AJAX JSON endpoints), **Sfera** (headless Chromium — it sits
-behind Akamai), **Lefties**. Still pending from the brief: Mango Kids, H&M, Springfield Kids, C&A,
-Hipercor.
+behind Akamai), **Lefties**, **Cacles Barefoot** (Shopify `products.json`; the first *natively*
+barefoot store, so `barefoot='si'` is declared per-store instead of guessed). Still pending from the
+brief: Mango Kids, H&M, Springfield Kids, C&A, Hipercor.
 
 > **Deeper architectural context lives in the ADR**, not in this file. Read it before any change
 > that crosses services or reaches k8s — it documents the contract between this repo and the
@@ -85,6 +86,13 @@ returning 404, and a dead leaf must not take down the whole pass. The safety net
 `SCRAPER_DELIST_*` and `SCRAPER_SCAN_MAX_DEAD_RATIO` (see `.env.example`). Don't tighten them
 without understanding which failure they absorb.
 
+**A 429 is not proof that you asked for too much.** Cacles' Cloudflare had *httpx's TLS fingerprint*
+rate-limited: every httpx request got `429 local_rate_limited` — from the cluster too — while curl,
+wget and urllib got 200 from the same IP with byte-identical headers. The culprit was the ALPN
+extension, and httpcore forces it onto whatever SSL context you hand it, so `scraper/tls.py` exists
+to strip it. Before blaming your own rate, **reproduce the request with curl**: it costs seconds and
+separates the two hypotheses. The measured detail lives in the ADR.
+
 **Ingestion is atomic.** A pass either commits fully or rolls back. A cold pass against Zara is
 ~30 min (2219 products / 25623 variants); steady state is ~1m35s thanks to conditional detail
 fetching by signature. This is why the cluster CronJob carries a generous `activeDeadlineSeconds`
@@ -113,7 +121,8 @@ These are facts about the running system, not plans:
 
 - **Deployment target:** an existing **k3s cluster**. Scheduled CronJobs re-scrape per retailer
   (one job per store — the profiles diverge: Zara is light httpx, Sfera needs 2Gi for Chromium) plus
-  a daily matching job.
+  a daily matching job. They ship `suspend: true` by default, so in dev a pass is fired by hand:
+  `kubectl -n deal-tracker-dev create job <name> --from=cronjob/deal-tracker-scraper-<slug>`.
 - **Database:** the **CNPG** cluster `platform-postgres-dev` in namespace `data-dev` — *not* the
   cluster's `postgresql-generic`. It also holds the price-history time series.
 - **Auth/login:** **Keycloak**, already deployed in the cluster. The web service is a resource
@@ -122,7 +131,9 @@ These are facts about the running system, not plans:
 - **CI/CD:** GitHub Actions (`scraper-ci.yml`, `web-ci.yml`, `release-qa.yml`) build and publish
   `ghcr.io/liontech-solution/deal-tracker-{scraper,web}`, then a `bump` job rewrites the image tag
   in the manifests repo; **ArgoCD** syncs it. dev tracks `sha-<7>` automatically; QA tracks semver
-  via the manual `release-qa` workflow, which promotes **by digest** (no rebuild).
+  via the manual `release-qa` workflow, which promotes **by digest** (no rebuild). PRs only validate
+  on amd64 — the **multiarch build runs on `main`** (#61), so a PR check being green does not mean
+  the arm64 image exists yet.
 - **Manifests live in a separate repo:** `juanjocop/k3s-local-apps-manifests`, under
   `deal-tracker/{base,overlays/dev,overlays/qa}`. The `images[].newTag` values there are
   **machine-edited — never hand-edit them**. ArgoCD runs with `selfHeal: true`, so a `kubectl patch`

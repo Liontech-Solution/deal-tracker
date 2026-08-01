@@ -128,6 +128,13 @@ forma es ya el patrón para cualquier campo de texto que venga de las tiendas:
 5. **Cambiar el cuerpo de una de estas funciones obliga a `REINDEX`** del índice por expresión: guarda
    los valores ya calculados y, obsoleto, devuelve filas equivocadas *sin dar error*.
 
+**Un mismo texto puede significar cosas distintas según la sección**, y estas funciones hoy no lo
+saben: `size_canon` lee `25-34` o `20 /21` como rango de EDAD, que es correcto en `ropa` y falso en
+`zapateria`, donde son números de pie (78 variantes de Cacles, que estrena esa forma con las
+plantillas por rango y el calzado de primeros pasos; el catálogo llega a ofrecer un chip de talla
+«48-51 años»). Al ampliar una de estas funciones, la pregunta no es solo qué texto entra sino **en
+qué sección entra**. Abierto en #64.
+
 Los límites de cada función están fijados por tests que rompen si alguien los amplía sin decidirlo
 (rangos de edad solapados en la talla; familias de color y acentos en el color). Una función puede
 además **negar** una etiqueta devolviendo `NULL`: `color_canon` lo hace con un nombre que son solo
