@@ -110,6 +110,17 @@ class CategoryConfig:
 # `barefoot` es un slug NUEVO, que hoy solo llena esta tienda: Lefties es la única de las
 # candidatas que etiqueta el calzado respetuoso, y es justo el nicho del producto.
 #
+# `botas` y `sandalias` también son slugs nuevos, que esta tienda estrena junto con Cacles. Antes
+# estas cuatro hojas se colapsaban a `zapatos` para alinearse con Zara y Sfera, que no tienen hoja
+# propia para ninguno de los dos; el resultado era tirar una distinción que Lefties YA nos daba
+# gratis y que un padre buscando botas de agua sí quiere. Zara y Sfera quedan pendientes de una
+# issue de vocabulario: hasta entonces sus sandalias siguen dentro de `zapatos`.
+#
+# Al remapear, la primera pasada verá caer mucho la población del ámbito (género, zapateria,
+# zapatos) y la red de seguridad de `ingest.py` OMITIRÁ sus bajas esa vez. Es lo correcto y se
+# recupera sola en la siguiente: los productos no se duplican ni se descatalogan, solo cambian de
+# categoría (`ingest.py` hace `category = EXCLUDED.category`).
+#
 # EL ORDEN IMPORTA: un modelo puede colgar de dos hojas y `list_catalog()` deduplica por id,
 # quedándose con la PRIMERA que lo ve. Las hojas barefoot van delante justo por eso — casi todo
 # lo barefoot cuelga también de `zapatos`, y dejándolas al final el catálogo se quedaba con 4
@@ -136,8 +147,8 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(1030352572, "niña", "ropa", "ropa-interior"),  # calcetines
     # --- niña / zapatería ---
     CategoryConfig(1030272335, "niña", "zapateria", "zapatos"),  # zapatos
-    CategoryConfig(1030272301, "niña", "zapateria", "zapatos"),  # botas y botines
-    CategoryConfig(1030276114, "niña", "zapateria", "zapatos"),  # sandalias
+    CategoryConfig(1030272301, "niña", "zapateria", "botas"),  # botas y botines
+    CategoryConfig(1030276114, "niña", "zapateria", "sandalias"),  # sandalias
     CategoryConfig(1030272304, "niña", "zapateria", "zapatillas"),  # zapatillas
     CategoryConfig(1030476904, "niña", "zapateria", "zapatillas"),  # deportivos
     # --- niño / ropa ---
@@ -155,8 +166,8 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(1030352081, "niño", "ropa", "ropa-interior"),  # calcetines
     # --- niño / zapatería ---
     CategoryConfig(1030272391, "niño", "zapateria", "zapatos"),  # zapatos
-    CategoryConfig(1030272326, "niño", "zapateria", "zapatos"),  # botas y botines
-    CategoryConfig(1030276115, "niño", "zapateria", "zapatos"),  # sandalias
+    CategoryConfig(1030272326, "niño", "zapateria", "botas"),  # botas y botines
+    CategoryConfig(1030276115, "niño", "zapateria", "sandalias"),  # sandalias
     CategoryConfig(1030272329, "niño", "zapateria", "zapatillas"),  # zapatillas
     CategoryConfig(1030272327, "niño", "zapateria", "zapatillas"),  # deportivos
 ]

@@ -38,7 +38,16 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
   `job_state`.
 - Las tiendas son **pluggable**: `stores/base.py` define `BaseStore`, `stores/registry.py` mapea
   slug → factoría. Hoy: `zara` (endpoints AJAX JSON públicos), `sfera` (Chromium, detrás de
-  Akamai), `lefties`. Añadir tienda = añadir entrada en el registry.
+  Akamai), `lefties`, `cacles` (Shopify, `products.json` público). Añadir tienda = añadir entrada
+  en el registry.
+- **`cacles` es la primera tienda barefoot NATIVA**, y entró porque el foco barefoot (#30) dejaba la
+  zapatería casi vacía: las otras tres son cadenas de moda convencional y entre ellas sumaban ~92
+  referencias respetuosas. Eso convierte «tienda entera barefoot» en un caso que el modelo tiene que
+  soportar, no una rareza — de ahí `classify(tienda_barefoot=True)` en `barefoot.py`, que es la
+  tercera vía junto a la categoría propia de la tienda (Zara, Lefties) y la heurística de texto
+  (Sfera). Se declara a nivel de tienda **en vez de** usar `category="barefoot"`: ese slug dejaría
+  todo el catálogo bajo una sola categoría y mataría la faceta. Cacles es la primera tienda donde
+  categoría y respetuosidad son ejes ortogonales; en Zara y Lefties siguen mezclados.
 - El **web** expone `/api/catalog/*`, `/api/interests`, `/api/settings/telegram`, `/api/config`,
   `/api/health`, y el job `dist/jobs/matching.job.js` que evalúa ofertas y notifica por Telegram.
 - `services/web/src/database/schema.ts` (Drizzle) es un **espejo** del SQL, no la fuente de verdad.
@@ -145,13 +154,83 @@ sobre todo en la segunda: en Zara **78 de 86** referencias barefoot no se inger�
 este producto existe para encontrar. Y el árbol **no es simétrico** entre rangos: la mayoría de
 categorías de ropa de Sfera no existen en bebé.
 
-**Una hoja muerta no siempre da 404.** Sfera responde **200 con el catálogo del padre** a una ruta
-que no existe (`ninos/nina/loquesea` → las 30 páginas de `ninos/nina`). Eso deja ciegas las dos
-redes de seguridad, que se apoyan en `GONE_STATUS`: el sondeo de `--check-categories` informa
-«12 productos, viva», y una pasada ingeriría cientos de productos del género entero —ropa incluida—
-etiquetados con el ámbito de la hoja muerta, sin que `ScanReport` cuente ninguna caída. Se detecta
-comparando **los ids de la 1ª página contra los del padre**, nunca `data.title` (texto localizado de
-presentación). Al añadir una tienda, probar una ruta inventada **antes** de fiarse del 404.
+**Una hoja muerta casi nunca da 404, y cada tienda miente de una forma distinta.** Ya van dos, con
+formas opuestas y la misma consecuencia:
+
+- **Sfera responde 200 con el catálogo del padre** a una ruta que no existe (`ninos/nina/loquesea` →
+  las 30 páginas de `ninos/nina`). El sondeo de `--check-categories` informa «12 productos, viva», y
+  una pasada ingeriría cientos de productos del género entero —ropa incluida— etiquetados con el
+  ámbito de la hoja muerta. Se detecta comparando **los ids de la 1ª página contra los del padre**,
+  nunca `data.title` (texto localizado de presentación).
+- **Cacles/Shopify responde 200 con la lista VACÍA**, que es peor: no mete basura, pero una hoja
+  muerta pasa por «este ámbito se ha quedado sin productos», que es exactamente el disparador de una
+  baja masiva. Y la misma respuesta es el fin normal de la paginación, así que hay que desambiguarla
+  por posición: vacía en la **primera** página es hoja retirada, a partir de la segunda es el final.
+
+En los dos casos las redes de seguridad se apoyan en `GONE_STATUS` y quedan ciegas, sin que
+`ScanReport` cuente ninguna caída. **Al añadir una tienda, probar una ruta inventada antes de fiarse
+del 404** — es la primera comprobación del recon, no la última.
+
+Dos corolarios que costaron dinero descubrir:
+
+- **El final de la paginación se decide con los productos CRUDOS, no con los parseados.** El parseo
+  descarta tipos no seguibles (tarjeta regalo, medidor de pie), así que una página entera de
+  excluidos parsea a cero: en la primera daría una hoja muerta falsa y en las siguientes cortaría la
+  paginación dejándose catálogo sin ver.
+- **Quedarse corto en la paginación tampoco puede contar como hoja sana.** Si se agota el tope de
+  páginas sin llegar al final, se ha visto solo una parte del catálogo; contarla como sana deja sus
+  ámbitos elegibles para bajas y, a las `SCRAPER_DELIST_MIN_MISSES` pasadas, descataloga producto
+  vivo por no haber cabido en el tope. Se trata igual que una hoja retirada.
+
+### Shopify cobra por complejidad, no por peticiones
+
+Medido contra Cacles el 31/07-01/08/2026. Una página con `limit=250` puntúa
+`shopify-complexity-score: 12400`, el cubo tarda **minutos** en rellenarse, y el 429 **no trae
+`Retry-After`**. Consecuencias prácticas:
+
+- **Bajar el tamaño de página no ayuda**: el coste es por producto devuelto, así que el mismo
+  catálogo cuesta lo mismo repartido en más viajes.
+- **La petición que sobra es la cara.** Shopify no da total, pero devuelve menos de `limit` al llegar
+  al final: usar esa señal evita la petición extra que solo servía para recibir una lista vacía. Con
+  el catálogo actual son 2 peticiones en vez de 3, y ese tercio es lo que costó una pasada entera —
+  las páginas 1 y 2 se leyeron bien y el 429 llegó justo en la 3ª.
+- Los defaults del scraper (`request_retries=3`, `retry_backoff=1.0`) suman ~7 s de espera, dos
+  órdenes de magnitud por debajo de lo que tarda el cubo. El CronJob de `cacles` sube
+  `SCRAPER_RETRY_BACKOFF`/`RETRIES`/`DELAY` por eso; con los defaults, una pasada que coincida con
+  otro consumo aborta.
+- **El recon agota el presupuesto para el resto del día.** Capturar fixtures a ráfagas dejó la IP
+  bloqueada horas, con el castigo alargándose en cada reintento. Una pasada normal (2 peticiones
+  diarias) no se acerca al límite; el problema es el desarrollo, no la producción. Capturar la
+  fixture **una vez** y trabajar contra ella.
+
+### El género `unisex` es la norma del barefoot, no una excepción
+
+El brief pide separar **niño/niña**, y durante tres tiendas eso se implementó como igualdad exacta
+(`p.gender = 'niño'`) porque ninguna emitía otra cosa. Con la primera tienda barefoot nativa deja de
+valer: el calzado respetuoso infantil **se diseña unisex**, y Cacles publica así 342 de sus 428
+referencias, con **ninguna** marcada solo de niño. Con igualdad estricta, un producto `unisex` no
+salía en *ninguno* de los dos filtros: filtrar por «Niño» devolvía cero productos de la tienda que
+entró justo para llenar la zapatería.
+
+La regla —`gender = X OR gender = 'unisex'`— vive en **`services/web/src/catalog/gender.sql.ts`**, y
+que esté en un módulo aparte es la decisión, no un detalle de organización: la comparten el listado
+del catálogo y el JOIN del job de matching. Si el catálogo enseñara un zapato unisex bajo «Niño» y
+el aviso configurado para niño no disparase con él, el usuario vería una promesa incumplida sin
+poder explicársela. Mismo trato y misma razón que `matching/deal-rule.sql.ts`.
+
+`unisex` **no se ofrece como chip** en la faceta: ya está incluido en Niño y en Niña, así que no
+filtraría nada nuevo y sugeriría tres estanterías donde el brief pide dos.
+
+### El vocabulario de categorías diverge entre tiendas, y es deliberado
+
+`sandalias` y `botas` existen en `cacles` y `lefties` —las dos tiendas que dan esa distinción
+gratis, la primera en `product_type` y la segunda en hojas propias que antes se colapsaban a
+`zapatos`— y **no** en `zara` ni `sfera`, donde sacarla exigiría clasificar por nombre o comprobar
+si `attr.fashion_level3` viene por producto. El web no se entera: categoría y facetas son
+dinámicas. Pero filtrar por `sandalias` hoy no devuelve las sandalias de Zara aunque las venda, así
+que el vocabulario es **una deuda declarada, no una inconsistencia accidental**. Lo mismo pasa con
+`barefoot` usado como slug de categoría en Zara y Lefties, que deja esos productos sin categoría
+real.
 
 ### Local
 

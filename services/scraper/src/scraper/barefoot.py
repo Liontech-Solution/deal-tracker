@@ -4,10 +4,11 @@ Contexto (#30): ingerimos todo el calzado, pero el catálogo solo enseña por de
 barefoot. Esa marca la escribe el scraper en `product.barefoot` con tres estados —`si` / `no` /
 `desconocido`— más `NULL` para la ropa, donde la pregunta no aplica (ver `0012_add_barefoot.sql`).
 
-**La vía preferente no es la heurística, es la propia tienda.** Zara y Lefties etiquetan el calzado
-barefoot en su árbol de categorías, así que sus scrapers ya traen `category="barefoot"` y aquí sale
-`si` sin mirar una sola palabra. La heurística de texto es el plan B para las tiendas que no dan esa
-señal (hoy Sfera, cuyo payload no contiene ni una vez `barefoot|respetuos|descalz|minimalist`).
+**La vía preferente no es la heurística, es la propia tienda.** Cacles es barefoot nativa —todo su
+catálogo lo es— y lo declara con `tienda_barefoot=True`; Zara y Lefties etiquetan el calzado
+barefoot en su árbol de categorías, así que sus scrapers ya traen `category="barefoot"`. En los tres
+casos sale `si` sin mirar una sola palabra. La heurística de texto es el plan B para las tiendas que
+no dan esa señal (hoy Sfera, que solo la lleva en el nombre de seis productos).
 
 El sesgo es deliberado y va en una sola dirección: **en la duda, `desconocido`, nunca `si`**. Un
 falso negativo esconde un zapato bueno; un falso positivo promete barefoot y sirve calzado
@@ -113,6 +114,7 @@ def classify(
     section: str | None,
     category: str | None,
     texts: str | Iterable[str | None] = (),
+    tienda_barefoot: bool = False,
 ) -> Barefoot | None:
     """Decide el valor de `product.barefoot`. `None` = no aplica (no es calzado).
 
@@ -121,19 +123,28 @@ def classify(
     garantizado. El orden de decisión es de más fiable a menos:
 
       1. corrección manual (`OVERRIDES`) — la última palabra;
-      2. categoría barefoot de la propia tienda — su etiqueta, no nuestra suposición;
+      2. tienda barefoot nativa (`tienda_barefoot`) o categoría barefoot de la propia tienda —
+         su etiqueta, no nuestra suposición;
       3. señal negativa en el texto — incompatible con barefoot;
       4. una señal fuerte, o dos débiles;
       5. `desconocido`.
+
+    `tienda_barefoot` lo activan las tiendas cuyo catálogo ENTERO es respetuoso (Cacles), donde
+    preguntarle al texto sobraría y además fallaría: un "Zapatos colegiales" de una tienda 100 %
+    barefoot no nombra el concepto y saldría `desconocido`, o sea invisible con el filtro por
+    defecto. No sirve para tiendas mixtas —las que venden barefoot junto a calzado convencional,
+    como Zapasaurios—, que necesitan decidir producto a producto.
     """
     if section != _SECCION_CALZADO:
         return None  # ropa (o sección desconocida): la pregunta no aplica
 
+    # Va primero para que una corrección manual siga pudiendo desmentir a la tienda, tanto si el
+    # `si` viene de su árbol de categorías como de ser barefoot nativa.
     forzado = OVERRIDES.get((retailer, retailer_product_id))
     if forzado is not None:
         return forzado
 
-    if category == CATEGORIA_BAREFOOT:
+    if tienda_barefoot or category == CATEGORIA_BAREFOOT:
         return SI
 
     partes: list[str | None] = [texts] if isinstance(texts, str) else list(texts)

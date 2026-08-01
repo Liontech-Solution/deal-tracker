@@ -4,6 +4,7 @@ import { sql, type SQL } from 'drizzle-orm';
 import { Database, DRIZZLE } from '../database/database.module';
 import { classifyHonesty, HONESTY_WINDOW_DAYS } from '../matching/deal-rule';
 import { honestDiscountSql, isRealDealSql, type DealSqlColumns } from '../matching/deal-rule.sql';
+import { GENERO_UNISEX, generoCondition } from './gender.sql';
 import type {
   Facets,
   PricePoint,
@@ -141,7 +142,7 @@ export class CatalogService {
         JOIN variant v ON v.product_id = p.id AND v.delisted_at IS NULL
         JOIN latest l ON l.variant_id = v.id
         LEFT JOIN stats s ON s.variant_id = v.id
-        WHERE (${gender}::text IS NULL OR p.gender = ${gender})
+        WHERE ${generoCondition(sql`${gender}::text`, sql.raw('p.gender'))}
           AND (${section}::text IS NULL OR p.section = ${section})
           AND (${category}::text IS NULL OR p.category = ${category})
           AND (${retailer}::text IS NULL OR r.slug = ${retailer})
@@ -504,8 +505,17 @@ export class CatalogService {
       return rows.map((r) => ({ slug: String(r.slug), name: String(r.name) }));
     };
 
+    /**
+     * Géneros ofrecibles como chip. `unisex` se cae de la lista a propósito: con
+     * `generoCondition()` esos productos ya salen dentro de "Niño" y de "Niña", así que un tercer
+     * chip no filtraría nada nuevo — solo sugeriría que hay tres estanterías cuando el brief pide
+     * dos y el usuario piensa en dos.
+     */
+    const pickGenders = async (): Promise<string[]> =>
+      (await pick('gender')).filter((g) => g !== GENERO_UNISEX);
+
     const [genders, sections, categories, sizes, colors, retailers] = await Promise.all([
-      pick('gender'),
+      pickGenders(),
       pick('section'),
       pick('category', true),
       pickSizes(),
