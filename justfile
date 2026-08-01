@@ -25,6 +25,10 @@ dry-run retailer="zara":
 check-categories retailer="zara":
     cd {{scraper_dir}} && .venv/bin/python -m scraper.run --retailer {{retailer}} --check-categories
 
+# Enumera el árbol de categorías que publica la tienda y marca cuáles ingerimos (no ingiere).
+tree retailer="sfera" root="ninos":
+    cd {{scraper_dir}} && .venv/bin/python -m scraper.run --retailer {{retailer}} --tree {{root}}
+
 # Lint + formato + tipos + tests.
 check:
     cd {{scraper_dir}} && .venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy && .venv/bin/pytest

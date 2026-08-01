@@ -156,6 +156,35 @@ Cada tienda usa su señal más barata: Zara pide el listado (no hay endpoint par
 esta categoría?"), **Lefties resuelve las 38 hojas con UNA petición** al menú (la hoja retirada es
 justo la que ya no aparece en él) y Sfera pide la primera página firefly de cada ruta.
 
+### Cobertura: `--tree`
+
+`--check-categories` contesta «¿siguen vivas las hojas que ingiero?». La otra pregunta —**«¿qué
+existe que no esté ingiriendo?»**— la contesta `--tree`, enumerando el árbol que la propia tienda
+publica (`SupportsCategoryTree`):
+
+```bash
+python -m scraper.run --retailer sfera --tree ninos     # informa y sale 0 SIEMPRE
+```
+
+```
+sfera · árbol de ninos: 47 categorías, 27 sin mapear
+  ·   ninos/bebe-nino                                115  Bebé niño ▸
+  ·     ninos/bebe-nino/pantalones-y-monos            24  Pantalones y monos
+  ✓     ninos/bebe-nino/zapatos                        6  Zapatos
+  ✓ = ya en CATEGORIES · · = existe y no la ingerimos · ▸ = tiene hijas
+```
+
+No es un vigía y por eso no falla nunca: es reconocimiento, y se lanza a mano cuando toca decidir
+cobertura. **En Sfera no es un lujo, es la única vía fiable**: una ruta de categoría que ya no
+existe no da 404, devuelve 200 con el catálogo del padre (ver el apartado anterior), así que
+probar nombres copiados de otra rama no distingue una hoja real de una inventada. Medido en #56:
+el rango bebé tiene 20 hojas reales, y buscarlas copiando los nombres de la rama 6-14 encontraba
+solo 4 — las que más productos tienen se llaman distinto (`pantalones-y-leggings` donde 6-14 dice
+`pantalones` y `leggings` por separado).
+
+La faceta publica **un nivel por respuesta**, así que el árbol completo son varias peticiones: una
+por nodo que declare hijas, con tope de profundidad y sin repetir ruta ya visitada.
+
 ## Pasadas fallidas en `scrape_run`
 
 Una pasada que revienta deshace su transacción entera, y con ella se iba **la propia fila de la

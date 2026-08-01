@@ -9,11 +9,18 @@ página de categoría (siembra cookies) y luego pide la API de listado `firefly/
   GET /es/api/sfera-es/firefly/products_list/{category_path}/{page}/?showDimensions=none
   -> {"success": true, "data": {"products": [...], "pagination": {"_current","_total",...}}}
 
-`showDimensions=none` se queda fijo a propósito: lo único que aporta subirlo es `data.filters
-._menubar`, que son las facetas de la web (Talla, Color, Tipo de producto, Precios, % Descuento
-y el árbol de Categorías). Ninguna sirve para clasificar barefoot, así que no compensa. Ojo con
-`data.filters._filters`, que sí viene siempre en la respuesta: está **vacío con cualquier valor
-del parámetro** y no es el sitio donde mirar (#33).
+`showDimensions` tiene dos usos y por eso hay dos URLs sobre el mismo endpoint:
+
+  - **`none` para ingerir** (`_FIREFLY_URL`): el payload va sin facetas, que es todo lo que la
+    pasada necesita.
+  - **`all` para el reconocimiento** (`_FIREFLY_TREE_URL`): puebla `data.filters._menubar` con las
+    seis facetas de la web (Talla, Color, Tipo de producto, Precios, % Descuento y el árbol de
+    **Categorías**). Ninguna sirve para clasificar barefoot —eso ya se midió en #33— pero la de
+    Categorías es la **única fuente fiable de qué hojas existen**, y en esta tienda eso no es un
+    lujo: una ruta inventada no da 404, devuelve el catálogo del padre. Ver `parse_category_tree`.
+
+Ojo con `data.filters._filters`, que sí viene siempre en la respuesta: está **vacío con cualquier
+valor del parámetro** y no es el sitio donde mirar (#33).
 
 El listado ya trae el detalle completo (colores + tallas + precios + **foto**), así que **no
 hay 2ª petición por producto**: `list_catalog()` recorre y cachea los productos, y
@@ -40,7 +47,7 @@ se testean con fixtures capturados de la API real.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import Any
 
@@ -48,6 +55,7 @@ from ..barefoot import classify as classify_barefoot
 from ..config import Config
 from .base import (
     GONE_STATUS,
+    CategoryNode,
     DelistCandidate,
     LeafHealth,
     ListingEntry,
@@ -68,6 +76,16 @@ _FIREFLY_URL = (
 )
 # Stock por id de producto: sondeo barato (JSON, sin renderizar) para la confirmación activa.
 _STOCK_URL = BASE_ROOT + "/api/sfera-es/firefly/stock/2/?products={product_id}"
+# El MISMO endpoint de listado, pero con las facetas puestas: es la única vía fiable para saber
+# qué categorías existen de verdad (ver `parse_category_tree`). No se usa para ingerir — el
+# payload es más gordo y `_menubar` no aporta nada a los productos.
+_FIREFLY_TREE_URL = (
+    BASE_ROOT + "/api/sfera-es/firefly/products_list/{category_path}/1/?showDimensions=all"
+)
+
+# Tope de recursión al bajar por el árbol: `ninos` tiene 2 niveles y el guarda evita que un
+# `has_children` mal puesto (o un ciclo) convierta un recon en una tormenta de peticiones.
+_MAX_TREE_DEPTH = 4
 
 # Tope de guarda por si `_total` viniera anómalo (evita un bucle desbocado).
 _MAX_PAGES = 200
@@ -118,12 +136,40 @@ CATEGORIES: list[CategoryConfig] = [
     # está su barefoot**: de los 6 productos que lo dicen en el nombre, 5 cuelgan de estas dos
     # hojas. Se mapean al mismo género que su rama de 6-14, que es el vocabulario del catálogo.
     #
-    # Solo entra el calzado, que es el alcance de #33. El rango bebé también tiene hojas de ropa
-    # reales (`bebe-nina/punto-y-jerseis`, `bebe-nino/camisetas`…) y van por #56 — ojo, que el
-    # árbol NO es simétrico entre rangos: la mayoría de categorías de ropa no existen en bebé, y
-    # pedirlas devuelve el género entero en vez de un 404 (ver `is_mirage`).
+    # Solo entra el calzado, que es el alcance de #33; la ropa del mismo rango va justo debajo.
     CategoryConfig("ninos/bebe-nina/zapatos", "niña", "zapateria", "zapatos"),
     CategoryConfig("ninos/bebe-nino/zapatos", "niño", "zapateria", "zapatos"),
+    # --- ropa del rango bebé (#56) ---
+    # Estas doce hojas NO se pueden derivar copiando las rutas de `nina`/`nino`: el árbol de Sfera
+    # no es simétrico entre rangos, y el nombre cambia justo en las categorías gordas —donde 6-14
+    # dice `pantalones` y `leggings` por separado, bebé dice `pantalones-y-leggings`; donde dice
+    # `camisetas` + `camisas-y-blusas`, bebé dice `blusas-y-camisetas`—. Salen de enumerar la
+    # faceta de categorías con `--tree` (ver `parse_category_tree`), que es la única vía fiable:
+    # probar rutas a ojo devuelve 200 con el catálogo del padre, no un 404 (#54, `is_mirage`).
+    #
+    # Se mapean a la misma categoría que su equivalente de 6-14 para que el vocabulario del
+    # catálogo no se parta por rango de edad, y ninguna estrena ámbito: todos los `ScrapeScope`
+    # que producen ya existían, así que la superficie de bajas no cambia.
+    CategoryConfig("ninos/bebe-nina/pantalones-y-leggings", "niña", "ropa", "pantalones"),
+    CategoryConfig("ninos/bebe-nina/shorts-y-bermudas", "niña", "ropa", "pantalones"),
+    CategoryConfig("ninos/bebe-nina/blusas-y-camisetas", "niña", "ropa", "camisetas"),
+    CategoryConfig("ninos/bebe-nina/punto-y-jerseis", "niña", "ropa", "sudaderas"),
+    CategoryConfig("ninos/bebe-nina/vestidos-y-faldas", "niña", "ropa", "vestidos"),
+    CategoryConfig("ninos/bebe-nina/accesorios-y-pijamas", "niña", "ropa", "ropa-interior"),
+    CategoryConfig("ninos/bebe-nino/pantalones-y-monos", "niño", "ropa", "pantalones"),
+    CategoryConfig("ninos/bebe-nino/bermudas-y-petos", "niño", "ropa", "pantalones"),
+    CategoryConfig("ninos/bebe-nino/camisetas", "niño", "ropa", "camisetas"),
+    CategoryConfig("ninos/bebe-nino/camisas", "niño", "ropa", "camisetas"),
+    CategoryConfig("ninos/bebe-nino/punto-y-jerseis", "niño", "ropa", "sudaderas"),
+    CategoryConfig("ninos/bebe-nino/accesorios-y-pijamas", "niño", "ropa", "ropa-interior"),
+    # `accesorios-y-pijamas` es la única del bloque que entra sucia: mezcla los pijamas (que sí son
+    # ropa interior, igual que en `pijamas-y-calcetines` de 6-14) con gorros y baberos, que no lo
+    # son. Entra porque son 8 productos entre los dos géneros y dejarla fuera sería no tener NINGUNA
+    # ropa interior de bebé, que es una de las cinco categorías del brief. Si algún día la hoja
+    # engorda, lo que toca es filtrar por `attr.fashion_level3`, no seguir tragándola entera.
+    #
+    # Se quedan FUERA a propósito, por no ser ninguna de las cinco del brief y porque su equivalente
+    # de 6-14 tampoco se mapea: `bano` / `banadores-bebe`, `ropa-deportiva` y `abrigos-y-cazadoras`.
 ]
 
 
@@ -294,6 +340,69 @@ def is_mirage(leaf: dict[str, Any], parent: dict[str, Any]) -> bool:
     if ids != page_product_ids(parent):
         return False
     return pagination_of(leaf).get("_total") == pagination_of(parent).get("_total")
+
+
+def _categories_facet(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Valores de la faceta `Categorías` dentro de `data.filters._menubar` (vacío si no viene)."""
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        return []
+    filters = data.get("filters")
+    if not isinstance(filters, dict):
+        return []
+    menubar = filters.get("_menubar")
+    if not isinstance(menubar, list):
+        return []
+    for faceta in menubar:
+        if isinstance(faceta, dict) and faceta.get("type") == "categories":
+            valores = faceta.get("values")
+            if not isinstance(valores, list):
+                return []
+            return [v for v in valores if isinstance(v, dict)]
+    return []
+
+
+def parse_category_tree(payload: dict[str, Any], root: str) -> list[CategoryNode]:
+    """Categorías que la tienda publica **por debajo de `root`**, leídas de una respuesta firefly.
+
+    Exige `showDimensions=all` (`_FIREFLY_TREE_URL`): con el `none` que usa la ingesta, `_menubar`
+    viene lista vacía y esto devuelve `[]` sin quejarse. No es un error — es que no se ha pedido.
+
+    Dos comportamientos que solo se ven pidiéndolo de verdad, y que son la razón de que esto no
+    sea un `for` de tres líneas:
+
+    - **`values` no siempre son los hijos.** Para una categoría SIN descendencia (`ninos/mini`) la
+      faceta responde con el rastro de **ancestros** («Sfera España», «Niños»), no con hijos. Por
+      eso se filtra a descendientes estrictos de `root`: una hoja devuelve `[]`, que es la
+      respuesta honesta a «qué cuelga de aquí», en vez de un árbol que apunta hacia arriba.
+    - **El nodo raíz de la tienda no trae `slugs` ni `link`**, solo `label` («Sfera España»). Sin
+      ruta no hay nada que pedir ni que mapear, así que se descarta.
+
+    El `count` se respeta como lo da la tienda y `None` significa «no lo dice», que **no** es lo
+    mismo que 0: una hoja real vacía es una decisión de cobertura distinta a una sin dato.
+    """
+    raiz = [p for p in root.strip("/").split("/") if p]
+    nodos: list[CategoryNode] = []
+    for valor in _categories_facet(payload):
+        slugs = valor.get("slugs")
+        if not isinstance(slugs, list) or not all(isinstance(s, str) and s for s in slugs):
+            continue  # el nodo raíz de la tienda no tiene ruta
+        if len(slugs) <= len(raiz) or slugs[: len(raiz)] != raiz:
+            continue  # ancestro, hermano, o `root` mismo: no cuelga de lo que se ha pedido
+        count = valor.get("count")
+        nodos.append(
+            CategoryNode(
+                path="/".join(slugs),
+                title=str(valor.get("label") or ""),
+                # `bool` es subclase de `int`, así que un `True` colado pasaría por un count de 1.
+                count=count if isinstance(count, int) and not isinstance(count, bool) else None,
+                depth=len(slugs) - len(raiz),
+                # Estricto a propósito: la comparación con `True` no se deja engañar por el
+                # `"False"` en texto que devuelven otras APIs de esta misma casa.
+                has_children=valor.get("has_children") is True,
+            )
+        )
+    return nodos
 
 
 def parse_products(products: list[dict[str, Any]], cat: CategoryConfig) -> list[ScrapedProduct]:
@@ -554,6 +663,56 @@ class SferaStore:
                     cat.category_path,
                     True if total else None,
                     f"{total} productos en la 1ª página",
+                )
+
+    def mapped_leaves(self) -> Iterable[str]:
+        """Ver `stores.base.SupportsCategoryTree`. Las rutas que esta tienda tiene configuradas."""
+        return [cat.category_path for cat in self._categories]
+
+    def category_tree(self, root: str) -> Iterable[CategoryNode]:
+        """Ver `stores.base.SupportsCategoryTree`. Una petición por nodo con hijos.
+
+        Baja recursivamente porque la faceta solo publica **un nivel** por respuesta: para saber
+        qué hay bajo `ninos` hacen falta también las de `ninos/nina`, `ninos/bebe-nino`… Son 5
+        peticiones para el árbol entero de niños, así que no compensa complicarlo.
+
+        Un fallo de red o un 403 de Akamai **propaga**, no se traga: aquí no hay forma de decir
+        «esta rama no la pude leer» sin inventarse un nodo. Quien llama es el que decide, y
+        `run._tree()` se queda con lo ya emitido y lo dice. El que además tiene que sobrevivir a
+        los blips sin ayuda de nadie es `check_leaves()`, que es el vigía.
+        """
+        with self._session_factory() as session:
+            session.goto(_SEED_URL.format(category_path=root))  # siembra cookies de Akamai
+            yield from self._tree_from(session, root, 0, {root}, set())
+
+    def _tree_from(
+        self,
+        session: BrowserSession,
+        root: str,
+        base_depth: int,
+        pedidas: set[str],
+        emitidas: set[str],
+    ) -> Iterable[CategoryNode]:
+        """Recorre `root` y sus descendientes, con la profundidad ya referida a la raíz original.
+
+        Dos conjuntos, porque son dos preguntas distintas: `pedidas` evita repetir una PETICIÓN
+        (un `has_children` que apunte hacia atrás sería un bucle infinito) y `emitidas` evita
+        repetir un NODO en el informe. Se separan porque una ruta se emite justo antes de que se
+        pida, así que compartir conjunto cortaría la bajada en el primer hijo.
+        """
+        if base_depth >= _MAX_TREE_DEPTH:
+            return
+        payload = session.get_json(_FIREFLY_TREE_URL.format(category_path=root))
+        for nodo in parse_category_tree(payload, root):
+            if nodo.path not in emitidas:
+                emitidas.add(nodo.path)
+                # `parse_category_tree` mide la profundidad contra el `root` que se le pasa, que
+                # en la recursión ya no es el que pidió quien llama: se le suma el desplazamiento.
+                yield replace(nodo, depth=nodo.depth + base_depth)
+            if nodo.has_children and nodo.path not in pedidas:
+                pedidas.add(nodo.path)
+                yield from self._tree_from(
+                    session, nodo.path, base_depth + nodo.depth, pedidas, emitidas
                 )
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:

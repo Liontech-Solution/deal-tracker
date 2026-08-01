@@ -72,3 +72,28 @@ def test_sfera_live_probe_alive() -> None:
 
     assert verdicts.get(live.retailer_product_id) is True
     assert verdicts.get("A999999999") is False
+
+
+@pytest.mark.skipif(not _LIVE, reason="smoke en vivo; define SFERA_LIVE=1 para ejecutarlo")
+def test_sfera_live_el_arbol_sigue_publicando_las_hojas_que_ingerimos() -> None:
+    """#56: el detector de que Sfera ha reestructurado su árbol de categorías.
+
+    Las hojas del rango bebé no se pueden adivinar copiando rutas de la rama 6-14 —usan otros
+    nombres— y una ruta que deja de existir no da 404, devuelve el catálogo del padre. Así que
+    el aviso de que hay que volver a mirar el árbol tiene que salir de la propia faceta.
+
+    Solo se comprueba el rango bebé para que el smoke sea corto: son 3 peticiones (`ninos` no
+    hace falta) frente a las 5 del árbol entero.
+    """
+    config = Config(database_url="postgresql://unused")  # el smoke no toca la BD
+    store = SferaStore(config)
+    mapeadas = set(store.mapped_leaves())
+
+    for rama in ("ninos/bebe-nina", "ninos/bebe-nino"):
+        publicadas = {n.path for n in store.category_tree(rama)}
+        assert publicadas, f"{rama} debería publicar sus categorías"
+        nuestras = {r for r in mapeadas if r.startswith(rama + "/")}
+        assert nuestras <= publicadas, (
+            f"hojas configuradas que {rama} ya no publica: {sorted(nuestras - publicadas)} "
+            "— busca su nombre nuevo con `--tree` antes de que dejen de ingerirse en silencio"
+        )
