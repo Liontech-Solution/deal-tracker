@@ -3,7 +3,8 @@
     "allow": [
       "Bash(gh issue *)",
       "Bash(gh api *)",
-      "Bash(gh pr *)"
+      "Bash(gh pr *)",
+      "mcp__codebase-memory-mcp__manage_adr"
     ]
   }
 }
