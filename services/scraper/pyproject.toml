@@ -9,6 +9,10 @@ description = "Servicio de scraping e ingesta de precios (deal-tracker)"
 requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.27",
+    # `scraper/tls.py` lo usa directo para armar el contexto TLS con los mismos CA que httpx.
+    # Llega de todas formas como dependencia transitiva de httpx, pero eso es una casualidad, no
+    # un contrato: si httpx dejara de necesitarlo, el CronJob de Cacles reventaría al arrancar.
+    "certifi",
     "psycopg[binary]>=3.2",
     # Navegador headless para tiendas tras anti-bot (Akamai): ejecuta el sensor JS y
     # obtiene cookies válidas. Solo lo usan las tiendas que lo necesitan (p.ej. Sfera);

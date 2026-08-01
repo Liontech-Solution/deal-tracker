@@ -42,7 +42,10 @@ class ContextoSinALPN(ssl.SSLContext):
     """`SSLContext` que ignora el ALPN que httpcore impone en cada conexión.
 
     Sobrescribir el método es la única vía: httpcore lo llama después de recibir el contexto y
-    antes del handshake, así que cualquier ajuste hecho al construirlo se pierde.
+    antes del handshake, así que cualquier ajuste hecho al construirlo se pierde. Comprobado sobre
+    httpcore 1.0.9, y en sus tres transportes (directo, proxy HTTP y SOCKS). Es un detalle interno,
+    no API pública: **al subir de versión httpx/httpcore hay que volver a comprobarlo**, y la señal
+    de que ha dejado de valer es el 429 con `local_rate_limited`, no un error.
     """
 
     def set_alpn_protocols(self, alpn_protocols: Iterable[str]) -> None:
@@ -50,13 +53,18 @@ class ContextoSinALPN(ssl.SSLContext):
 
 
 def contexto_sin_alpn() -> ssl.SSLContext:
-    """Contexto de cliente equivalente al de httpx (mismos CA de `certifi`), pero sin ALPN.
+    """Contexto de cliente idéntico al de httpx salvo por el ALPN.
 
-    La verificación de certificado y de nombre se mantienen: lo que se quita es la extensión que
-    delata al cliente, no la seguridad.
+    Lo que se quita es la extensión que delata al cliente, no la seguridad — pero eso hay que
+    construirlo, no darlo por hecho: `ssl.create_default_context()` (lo que usa httpx con
+    `verify=True`) **endurece el contexto DESPUÉS de crearlo**, y partir del `SSLContext` pelado se
+    dejaba fuera `VERIFY_X509_STRICT | VERIFY_X509_PARTIAL_CHAIN`, es decir se verificaba menos que
+    el resto de tiendas. `test_verifica_igual_que_el_contexto_por_defecto_de_httpx` compara los dos
+    contextos atributo a atributo para que la próxima diferencia no pase inadvertida.
     """
     ctx = ContextoSinALPN(ssl.PROTOCOL_TLS_CLIENT)
     ctx.check_hostname = True
     ctx.verify_mode = ssl.CERT_REQUIRED
+    ctx.verify_flags |= ssl.VERIFY_X509_STRICT | ssl.VERIFY_X509_PARTIAL_CHAIN
     ctx.load_verify_locations(cafile=certifi.where())
     return ctx

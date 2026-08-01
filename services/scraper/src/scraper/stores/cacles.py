@@ -457,9 +457,12 @@ class CaclesStore:
         `float()` y no `.isdigit()` como en `zara.py`: Shopify manda la cabecera con decimales
         (`"2.0"`), y `"2.0".isdigit()` es False, así que el valor se habría ignorado en silencio
         justo en la tienda que más lo necesita. Y sí la traen: los 429 de Cloudflare medidos el
-        01/08/2026 vienen con `Retry-After: 60`, así que un sondeo bloqueado tarda ~4 min (4
-        intentos × 60 s) en rendirse. Es caro, pero esperar lo que pide la tienda es lo correcto;
-        lo que no se debe hacer es insistir por debajo de ese minuto.
+        01/08/2026 vienen con `Retry-After: 60`, y eso domina al backoff durante los primeros
+        intentos. Con los valores por defecto (3 reintentos, backoff 1 s) rendirse cuesta 3 esperas
+        de 60 s = **~3 min**; con los del CronJob (6 reintentos, backoff 8 s) el exponencial
+        adelanta al minuto a partir del cuarto y salen **~10,5 min** (60+60+60+64+128+256 s). Es
+        caro, pero esperar lo que pide la tienda es lo correcto; lo que no se debe hacer es insistir
+        por debajo de ese minuto. Ojo al dimensionar `activeDeadlineSeconds` del CronJob con esto.
         """
         wait = self._config.retry_backoff * (2**attempt)
         if retry_after:

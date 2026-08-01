@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import ssl
 
+import certifi
 import pytest
 
 from scraper.config import Config
@@ -27,12 +28,28 @@ def test_el_contexto_ignora_el_alpn_que_impone_httpcore() -> None:
     assert ctx.set_alpn_protocols(["http/1.1", "h2"]) is None
 
 
-def test_quitar_el_alpn_no_baja_la_verificacion() -> None:
-    # Lo que se quita es lo que delata al cliente, no la seguridad: un contexto que no valide
-    # certificado o nombre sería un arreglo mucho peor que el problema.
+def test_verifica_igual_que_el_contexto_por_defecto_de_httpx() -> None:
+    """Un contexto que verifique menos sería un arreglo peor que el problema.
+
+    Se compara atributo a atributo contra `ssl.create_default_context()` —lo que usa httpx con
+    `verify=True`— en vez de afirmar dos o tres propiedades sueltas: la primera versión de este
+    módulo pasaba un test así y aun así se dejaba fuera `VERIFY_X509_STRICT |
+    VERIFY_X509_PARTIAL_CHAIN`, porque `create_default_context()` los añade DESPUÉS de construir el
+    contexto y partir del `SSLContext` pelado no los hereda.
+    """
     ctx = contexto_sin_alpn()
-    assert ctx.check_hostname is True
-    assert ctx.verify_mode is ssl.CERT_REQUIRED
+    referencia = ssl.create_default_context(cafile=certifi.where())
+    for atributo in (
+        "verify_flags",
+        "verify_mode",
+        "check_hostname",
+        "options",
+        "minimum_version",
+        "maximum_version",
+        "post_handshake_auth",
+        "hostname_checks_common_name",
+    ):
+        assert getattr(ctx, atributo) == getattr(referencia, atributo), atributo
 
 
 def test_el_cliente_de_la_tienda_usa_ese_contexto() -> None:
