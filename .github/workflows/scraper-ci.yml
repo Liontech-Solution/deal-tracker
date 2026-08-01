@@ -7,6 +7,13 @@ on:
   pull_request:
     paths: ["services/scraper/**", "db/migrations/**", ".github/workflows/scraper-ci.yml"]
 
+# Un push nuevo a una rama con PR abierto cancela el run anterior: nadie va a mirar ese build y
+# cuesta minutos de Actions. En main NO se cancela — ese run es el que publica la imagen en GHCR
+# y dispara el bump de GitOps; abortarlo a medias dejaría el despliegue a medio camino.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 defaults:
   run:
     working-directory: services/scraper
@@ -44,7 +51,7 @@ jobs:
         run: pytest
 
   image:
-    name: build & push (multiarch)
+    name: build & push (multiarch en main)
     runs-on: ubuntu-latest
     needs: lint-type-test
     permissions:
@@ -61,7 +68,9 @@ jobs:
       - name: Tag de despliegue (sha corto, inmutable)
         id: deploytag
         run: echo "tag=sha-$(echo "${{ github.sha }}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+      # QEMU solo hace falta para emular arm64, y arm64 solo se compila en main (ver más abajo).
       - uses: docker/setup-qemu-action@v3
+        if: github.event_name == 'push'
       - uses: docker/setup-buildx-action@v3
       - name: Login a GHCR
         # Solo publicamos desde main; en los PR el build es solo validación (no push).
@@ -71,20 +80,29 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build multiarch (push solo en main)
+      - name: "Build — main: multiarch y publica / PR: solo amd64 (validación)"
         uses: docker/build-push-action@v6
         with:
           # Contexto = raíz del repo (la imagen necesita db/migrations).
           context: .
           file: services/scraper/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          # En un PR el build no se publica: solo comprueba que el Dockerfile sigue construyendo,
+          # que las dependencias resuelven y que el contexto es correcto. Eso ya lo prueba amd64,
+          # y el arm64 emulado por QEMU costaba ~9 min para tirarlos a la basura (#61).
+          # main SIEMPRE multiarch: el cluster son Raspberry Pi (arm64) y sin esa variante no
+          # arranca nada. Si arm64 rompe, este job falla y el bump no reescribe el newTag.
+          platforms: ${{ github.event_name == 'push' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           push: ${{ github.event_name == 'push' }}
           provenance: false
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ steps.deploytag.outputs.tag }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Solo main escribe caché. Lo que escribe un PR solo lo ve ese mismo PR (Actions aísla
+          # la caché por rama), pero sí gasta de los 10 GB del repo y desaloja por LRU la caché
+          # multiarch de main, que es la que leen todos los PR. mode=max porque las stages caras
+          # son intermedias (deps/build-api/build-frontend en el web).
+          cache-to: ${{ github.event_name == 'push' && 'type=gha,mode=max' || '' }}
       - name: Retención de imágenes en GHCR (conserva las 10 últimas)
         if: github.event_name == 'push'
         continue-on-error: true # la limpieza nunca debe tumbar la publicación
