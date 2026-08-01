@@ -72,7 +72,8 @@ Este repo produce imágenes; aquel decide qué corre.
 
 **Promoción dev → QA, el flujo completo:**
 
-1. Push a `main` → `scraper-ci.yml` / `web-ci.yml` construyen y publican en GHCR con tag `sha-<7>`.
+1. Push a `main` → `scraper-ci.yml` / `web-ci.yml` construyen **multiarch** (`amd64` + `arm64`) y
+   publican en GHCR con tag `sha-<7>`. **En un PR se valida solo `amd64`** (#61).
 2. Job `bump` (gated por la variable de repo `ENABLE_BUMP=true`, usa el secret `GITOPS_PAT`) hace
    checkout de `juanjocop/k3s-local-apps-manifests` en `path: gitops` y reescribe con `yq` el
    `images[].newTag` de **su** imagen en `deal-tracker/overlays/dev/kustomization.yaml`, commit y push.
@@ -84,6 +85,17 @@ Este repo produce imágenes; aquel decide qué corre.
 
 Consecuencia: **dev sigue `sha-<7>`, QA sigue semver**, y el binario de QA es bit a bit el que se
 validó en dev. Los `newTag` de ambos kustomizations son **machine-edited — no editar a mano**.
+
+**El arm64 solo se compila en `main`, y eso es deliberado.** El cluster son Raspberry Pi, así que
+la variante arm64 es obligatoria para desplegar; pero emularla con QEMU en cada PR costaba ~9 min
+por servicio *y se tiraba* (los PR construyen con `push: false`). Medido: el job `image` de un PR
+pasó de 9m12s–11m20s a 19-20s en el scraper y de 2m43s–8m11s a ~1 min en el web; un PR que toca
+los dos servicios, de 19m19s a 1m21s. La red de seguridad es el **orden**: el build multiarch de
+`main` va *antes* del `bump`, así que si arm64 rompe el job falla, el `newTag` no se reescribe y el
+cluster se queda con la imagen anterior — se rompe la entrega, no el entorno. Lo que no se puede
+dar por hecho: **un check verde en un PR no prueba que la imagen arm64 exista**, y la caché de
+buildx solo se escribe desde `main` (lo que escribe un PR solo lo ve ese PR, pero desaloja por LRU
+la caché multiarch que leen todos).
 
 **Contrato de secretos**: un único SealedSecret `deal-tracker-config` por namespace, con las claves
 `DATABASE_URL`, `KEYCLOAK_ISSUER_URL`, `KEYCLOAK_AUDIENCE` (+ `TELEGRAM_*` en QA), más `ghcr-pull`
