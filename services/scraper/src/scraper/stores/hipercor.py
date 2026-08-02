@@ -80,7 +80,7 @@ from .base import (
     ScrapedVariant,
     ScrapeScope,
 )
-from .browser import BrowserSession
+from .browser import BrowserSession, BrowserUnreachable
 
 _LOG = logging.getLogger(__name__)
 
@@ -92,9 +92,12 @@ _ROOT = "https://www.hipercor.es"
 # cuenta como hoja sana: ver `_iter_category`.
 _MAX_PAGES = 60
 
-# Fichas ilegibles (403, 5xx tras reintentos) que se toleran antes de abortar la pasada. Sueltas
-# son ruido —y la confirmación activa impide que se conviertan en bajas—, pero en cantidad
-# significan que la tienda ha dejado de dejarnos entrar, y eso no se guarda como catálogo bueno.
+# Fichas ilegibles **seguidas** (403, 5xx o timeout tras reintentos) que se toleran antes de
+# abortar la pasada. Sueltas son ruido —y la confirmación activa impide que se conviertan en
+# bajas—, pero encadenadas significan que la tienda ha dejado de dejarnos entrar, y eso no se
+# guarda como catálogo bueno. Seguidas y no acumuladas (#107): una pasada en frío son 1.224
+# navegaciones en 3 h 27 min, así que contando el total bastarían seis timeouts dispersos —ruido
+# normal a esa escala— para tirar una pasada entera que iba bien.
 _MAX_FICHAS_FALLIDAS = 5
 
 # Tope de fotos por color, mismo criterio que en Zara y Sfera. Hoy la PDP da una sola por
@@ -762,6 +765,21 @@ class HipercorStore:
                 except (LeafGone, LeafUnreadable):
                     self._scan.leaf_gone(scope)
                     continue
+                except Exception as exc:
+                    # Red ancha a propósito (#107): una segunda pasada murió entera por un timeout
+                    # de navegación en la hoja 32 de 32, y con ella las 31 ya leídas. Cualquier
+                    # fallo que llegue hasta aquí significa «no he podido ver esta hoja», que es lo
+                    # que `leaf_gone` ya sabe tratar: su ámbito queda fuera de las bajas. Y barrer
+                    # tan ancho es seguro precisamente porque `SCRAPER_SCAN_MAX_DEAD_RATIO` sigue
+                    # abortando la pasada si caen demasiadas — se pierde una hoja, no el criterio.
+                    _LOG.warning(
+                        "hipercor: hoja %s ilegible (%s: %s)",
+                        cat.category_path,
+                        type(exc).__name__,
+                        exc,
+                    )
+                    self._scan.leaf_gone(scope)
+                    continue
                 self._scan.leaf_ok()
 
     def scan_report(self) -> ScanReport:
@@ -791,9 +809,11 @@ class HipercorStore:
         que provoca bajas falsas: un producto que sale en el listado y cuya ficha no llega no
         recibe `last_seen_at`, así que a las `SCRAPER_DELIST_MIN_MISSES` pasadas lo descatalogan
         —y las redes de `ingest.py` no lo ven, porque su ámbito sigue lleno en el listado—. Solo
-        `GONE_STATUS` significa retirado; un 403 de Akamai o un 5xx que agota reintentos es
-        problema nuestro, y por encima de `_MAX_FICHAS_FALLIDAS` la pasada se aborta entera en
-        vez de guardar un catálogo mutilado que parece sano (mismo criterio que `zara.py`).
+        `GONE_STATUS` significa retirado; un 403 de Akamai, un 5xx o un timeout que agota
+        reintentos es problema nuestro, y por encima de `_MAX_FICHAS_FALLIDAS` **seguidas** la
+        pasada se aborta entera en vez de guardar un catálogo mutilado que parece sano (mismo
+        criterio que `zara.py`). Una ficha leída —aunque sea un 404 honesto— reinicia la cuenta:
+        prueba que la tienda nos sigue dejando entrar, que es lo que el tope vigila.
         """
         pendientes = list(entries)
         if not pendientes:
@@ -806,24 +826,33 @@ class HipercorStore:
                 url = self._urls.get(entry.retailer_product_id)
                 if url is None:
                     continue  # sin URL no hay ficha que pedir (no salió en esta pasada)
-                status, html = session.get_html(url, _SELECTOR_TALLAS)
+                try:
+                    status, html = session.get_html(url, _SELECTOR_TALLAS)
+                except BrowserUnreachable as exc:
+                    # La navegación no completó ni tras los reintentos. Es «no he podido verlo»,
+                    # exactamente igual que un 403: cuenta como fallo, nunca como baja.
+                    status, html, motivo = 0, "", exc.motivo
+                else:
+                    motivo = f"HTTP {status}"
                 if status in GONE_STATUS:
+                    fallos = 0
                     continue  # retirado entre el listado y ahora: lo resuelven las bajas
                 if status != 200:
                     fallos += 1
                     _LOG.warning(
-                        "hipercor: ficha %s -> HTTP %s (%d fallo/s en esta pasada)",
+                        "hipercor: ficha %s -> %s (%d fallo/s seguido/s)",
                         entry.retailer_product_id,
-                        status,
+                        motivo,
                         fallos,
                     )
                     if fallos > _MAX_FICHAS_FALLIDAS:
                         raise DetailUnavailable(
-                            f"{fallos} fichas seguidas sin poder leerse (última: HTTP {status}). "
+                            f"{fallos} fichas seguidas sin poder leerse (última: {motivo}). "
                             "No es que los productos se hayan retirado: es que la tienda no nos "
                             "deja verlos, así que la pasada se aborta sin escribir."
                         )
                     continue
+                fallos = 0  # la tienda sigue dejándonos entrar: el contador va de fichas SEGUIDAS
                 producto = parse_pdp(html, self._categoria_de(entry), url)
                 if producto is not None:
                     yield producto

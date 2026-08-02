@@ -12,6 +12,7 @@ degrada a `image_url = None` en vez de romperse.
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from copy import deepcopy
 from decimal import Decimal
@@ -22,7 +23,7 @@ import pytest
 from scraper.config import Config
 from scraper.ingest import _discount_pct
 from scraper.stores.base import ScrapedImage, ScrapeScope
-from scraper.stores.browser import BrowserHTTPError
+from scraper.stores.browser import BrowserHTTPError, BrowserUnreachable
 from scraper.stores.sfera import (
     CategoryConfig,
     SferaStore,
@@ -414,6 +415,32 @@ def test_un_bloqueo_de_akamai_no_pasa_por_categoria_retirada() -> None:
 
     with pytest.raises(BrowserHTTPError):
         list(store.list_catalog())
+
+
+def test_un_timeout_en_una_hoja_no_se_lleva_la_pasada(caplog: pytest.LogCaptureFixture) -> None:
+    """#107: el fallo transitorio más probable de una tienda por navegador no puede abortarlo todo.
+
+    Antes de #107 esto subía hasta `ingest` y tiraba la pasada entera, incluidas las hojas ya
+    leídas. Ahora la hoja cuenta como caída —su ámbito queda fuera de las bajas— y es el
+    `dead_ratio` quien decide si han sido demasiadas.
+    """
+    store, _ = _scan_store(
+        {
+            "ninos/nina/zapatos": _firefly("Z1"),
+            "ninos/nina/camisetas": BrowserUnreachable(
+                "https://sfera.example/firefly", TimeoutError("Timeout 45000ms exceeded")
+            ),
+        }
+    )
+
+    with caplog.at_level(logging.WARNING):
+        ids = [e.retailer_product_id for e in store.list_catalog()]
+    report = store.scan_report()
+
+    assert ids == ["Z1"]
+    assert (report.leaves_total, report.leaves_failed) == (2, 1)
+    assert report.failed_scopes == {ScrapeScope("niña", "ropa", "camisetas")}
+    assert "camisetas" in caplog.text, "una hoja que se pierde tiene que dejar rastro"
 
 
 # --- #54 La hoja que no existe devuelve el catálogo del padre ------------------------------

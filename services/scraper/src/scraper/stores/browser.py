@@ -8,8 +8,15 @@ como Akamai liga la validez de las cookies al *fingerprint* del navegador, TODAS
 peticiones de esas tiendas van por aquí:
 
   - `goto(url)`   — navega a una página de documento (siembra las cookies del origen).
+  - `get_html(url)` — navega y devuelve `(status, HTML)`, para tiendas cuyo dato viaja en la
+    propia página (Hipercor, cuyo `robots.txt` veta la API).
   - `get_json(url)` — pide una API del mismo origen con `page.request` (mismo fingerprint
     + cookies que el navegador), con reintentos/backoff como el cliente httpx de Zara.
+
+Los tres reintentan **también cuando la navegación no llega a completarse** (timeout, `net::ERR_*`)
+y elevan `BrowserUnreachable` al agotar los intentos. No es un detalle: en una tienda que va por
+navegador ese es el fallo transitorio más probable, y mientras se coló fuera del bucle una sola
+hoja lenta bastó para tumbar una pasada de tres horas y media (#107).
 
 Se importa Playwright de forma **perezosa**: el paquete Python es una dependencia, pero el
 binario de Chromium solo hace falta en ejecución real (los tests de parseo no lo necesitan).
@@ -65,6 +72,25 @@ class BrowserHTTPError(RuntimeError):
         self.url = url
 
 
+class BrowserUnreachable(RuntimeError):
+    """La navegación no llegó a completarse tras agotar los reintentos.
+
+    Hermana de `BrowserHTTPError`, y por el mismo motivo: quien llama tiene que poder distinguir
+    **«no llegó respuesta»** de **«llegó una respuesta que dice 404»**. Lo primero es un fallo
+    nuestro o de la red —la hoja no está retirada, es que no la hemos podido ver—; lo segundo es
+    información de la tienda. Confundirlos es lo que convierte un timeout en bajas falsas.
+    """
+
+    def __init__(self, url: str, causa: BaseException) -> None:
+        # Solo la primera línea de la causa: el mensaje de Playwright arrastra un "Call log" de
+        # varias líneas que repite la URL que ya está aquí, y una pasada con unas cuantas hojas
+        # lentas convertiría el log en un muro. La excepción original sigue encadenada (`from`).
+        detalle = str(causa).splitlines()[0] if str(causa).strip() else type(causa).__name__
+        self.motivo = f"{type(causa).__name__}: {detalle}"
+        super().__init__(f"GET {url} -> {self.motivo}")
+        self.url = url
+
+
 class BrowserSession:
     """Context manager que abre un Chromium con perfil realista y lo cierra al salir."""
 
@@ -74,9 +100,16 @@ class BrowserSession:
         self._browser: Browser | None = None
         self._context: BrowserContext | None = None
         self._page: Page | None = None
+        # Clase base de los errores de Playwright (`TimeoutError` hereda de ella). Se resuelve al
+        # abrir el navegador y no al importar el módulo, para no romper el import perezoso que
+        # documenta la cabecera: los tests de parseo no deben necesitar Playwright instalado.
+        self._pw_error: type[BaseException] = Exception
 
     def __enter__(self) -> BrowserSession:
+        from playwright.sync_api import Error as PlaywrightError
         from playwright.sync_api import sync_playwright
+
+        self._pw_error = PlaywrightError
 
         args = list(_LAUNCH_ARGS)
         if self._config.browser_headless:
@@ -127,11 +160,24 @@ class BrowserSession:
         time.sleep(wait * random.uniform(0.8, 1.2))
 
     def goto(self, url: str) -> int:
-        """Navega a una página de documento (siembra cookies de Akamai). Devuelve el status."""
+        """Navega a una página de documento (siembra cookies de Akamai). Devuelve el status.
+
+        Reintenta ante fallo de navegación por lo mismo que `get_html`, y aquí importa igual: si la
+        siembra de cookies de Sfera eleva, se lleva por delante la hoja que iba a listarse después.
+        """
         assert self._page is not None, "usar dentro del context manager"
-        self._polite_pause()
-        resp = self._page.goto(url, wait_until="domcontentloaded")
-        return resp.status if resp is not None else 0
+        retries = self._config.request_retries
+        for attempt in range(retries + 1):
+            self._polite_pause()
+            try:
+                resp = self._page.goto(url, wait_until="domcontentloaded")
+            except self._pw_error as exc:
+                if attempt == retries:
+                    raise BrowserUnreachable(url, exc) from exc
+                self._backoff(attempt)
+                continue
+            return resp.status if resp is not None else 0
+        return 0  # inalcanzable (el último intento retorna o eleva), tranquiliza a mypy
 
     def bloquear(self, patron: str) -> None:
         """Aborta en el navegador toda petición que case con `patron` (glob de Playwright).
@@ -169,7 +215,7 @@ class BrowserSession:
         )
 
     def get_html(self, url: str, espera_selector: str | None = None) -> tuple[int, str]:
-        """Navega y devuelve `(status, HTML)`, con reintentos ante 429/5xx.
+        """Navega y devuelve `(status, HTML)`, con reintentos ante 429/5xx y fallos de navegación.
 
         Para tiendas cuyo dato viaja en la propia página (SSR) en vez de en una API: Hipercor
         publica el listado y la ficha en un `dataLayer`/`ld+json` embebidos, y su `robots.txt`
@@ -182,12 +228,24 @@ class BrowserSession:
         cuesta más que la propia navegación. Si no llega, se devuelve lo que haya: quien llama
         decide, y en la ingesta un detalle que no llega es un producto que no se actualiza, no un
         producto que se da de baja.
+
+        Si la navegación no llega a completarse (timeout, `net::ERR_*`) se reintenta con el mismo
+        backoff que un 429, y agotados los intentos eleva `BrowserUnreachable`. No es un caso raro:
+        en una tienda que va por navegador es **el fallo transitorio más probable de todos**, y
+        hasta #107 se colaba fuera del bucle —cuando no llega respuesta no hay status que mirar— y
+        una sola hoja lenta tumbaba la pasada entera.
         """
         assert self._page is not None, "usar dentro del context manager"
         retries = self._config.request_retries
         for attempt in range(retries + 1):
             self._polite_pause()
-            resp = self._page.goto(url, wait_until="domcontentloaded")
+            try:
+                resp = self._page.goto(url, wait_until="domcontentloaded")
+            except self._pw_error as exc:
+                if attempt == retries:
+                    raise BrowserUnreachable(url, exc) from exc
+                self._backoff(attempt)
+                continue
             status = resp.status if resp is not None else 0
             if status not in _RETRYABLE_STATUS or attempt == retries:
                 if espera_selector is not None and status == 200:
@@ -202,13 +260,24 @@ class BrowserSession:
         return 0, ""  # inalcanzable (el último intento retorna), tranquiliza a mypy
 
     def get_json(self, url: str) -> Any:
-        """GET de una API del mismo origen (fingerprint+cookies del navegador) con reintentos."""
+        """GET de una API del mismo origen (fingerprint+cookies del navegador) con reintentos.
+
+        Un fallo de red se reintenta como un 5xx y, agotados los intentos, eleva
+        `BrowserUnreachable`: es «no he podido verlo», no «ya no está», y esa distinción es la que
+        impide que un timeout acabe en bajas falsas.
+        """
         assert self._page is not None, "usar dentro del context manager"
         retries = self._config.request_retries
         timeout_ms = self._config.browser_nav_timeout * 1000
         for attempt in range(retries + 1):
             self._polite_pause()
-            resp = self._page.request.get(url, timeout=timeout_ms)
+            try:
+                resp = self._page.request.get(url, timeout=timeout_ms)
+            except self._pw_error as exc:
+                if attempt == retries:
+                    raise BrowserUnreachable(url, exc) from exc
+                self._backoff(attempt)
+                continue
             if resp.ok:
                 return resp.json()
             if resp.status not in _RETRYABLE_STATUS or attempt == retries:

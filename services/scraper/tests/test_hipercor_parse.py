@@ -32,6 +32,7 @@ rompa los tests.
 
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -40,7 +41,9 @@ import pytest
 
 from scraper.config import Config
 from scraper.stores.base import DelistCandidate, ScrapeScope
+from scraper.stores.browser import BrowserUnreachable
 from scraper.stores.hipercor import (
+    _MAX_FICHAS_FALLIDAS,
     CATEGORIES,
     CategoryConfig,
     DetailUnavailable,
@@ -74,11 +77,12 @@ def load_html(nombre: str) -> str:
 class SesionFalsa:
     """Doble de `BrowserSession`: sirve HTML por URL, sin navegador ni red.
 
-    `respuestas` mapea URL -> (status, html). Una URL no registrada responde 404, que es lo que
-    la tienda hace de verdad con una ficha retirada.
+    `respuestas` mapea URL -> (status, html), o -> una excepción a elevar, que es como se simula
+    lo que `BrowserSession` hace cuando la navegación no llega a completarse. Una URL no
+    registrada responde 404, que es lo que la tienda hace de verdad con una ficha retirada.
     """
 
-    def __init__(self, respuestas: dict[str, tuple[int, str]]) -> None:
+    def __init__(self, respuestas: dict[str, tuple[int, str] | BaseException]) -> None:
         self.respuestas = respuestas
         self.pedidas: list[str] = []
         self.bloqueados: list[str] = []
@@ -98,10 +102,15 @@ class SesionFalsa:
 
     def get_html(self, url: str, espera_selector: str | None = None) -> tuple[int, str]:
         self.pedidas.append(url)
-        return self.respuestas.get(url, (404, ""))
+        respuesta = self.respuestas.get(url, (404, ""))
+        if isinstance(respuesta, BaseException):
+            raise respuesta
+        return respuesta
 
 
-def _tienda(respuestas: dict[str, tuple[int, str]], cats: list[CategoryConfig]) -> HipercorStore:
+def _tienda(
+    respuestas: dict[str, tuple[int, str] | BaseException], cats: list[CategoryConfig]
+) -> HipercorStore:
     sesion = SesionFalsa(respuestas)
     return HipercorStore(_CFG, categories=cats, session_factory=lambda: sesion)
 
@@ -361,7 +370,9 @@ def test_parse_pdp_descarta_variantes_sin_precio_o_sin_sku() -> None:
 # --- recorrido completo -----------------------------------------------------------------------
 
 
-def _respuestas_de_hoja(cat: CategoryConfig, paginas: list[str]) -> dict[str, tuple[int, str]]:
+def _respuestas_de_hoja(
+    cat: CategoryConfig, paginas: list[str]
+) -> dict[str, tuple[int, str] | BaseException]:
     return {
         HipercorStore.grid_url(cat.category_path, i + 1): (200, load_html(nombre))
         for i, nombre in enumerate(paginas)
@@ -417,6 +428,84 @@ def test_list_catalog_no_da_por_vacio_lo_que_no_ha_podido_leer() -> None:
         )
         assert list(tienda.list_catalog()) == []
         assert tienda.scan_report().failed_scopes == {ScrapeScope("niña", "ropa", "vestidos")}
+
+
+def test_list_catalog_sobrevive_a_un_timeout_de_navegacion(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """#107: la hoja 32 tardó y se llevó por delante las 31 ya leídas. Nunca más.
+
+    `BrowserUnreachable` no la conoce `_iter_category` —solo convierte `LeafGone` y
+    `LeafUnreadable`—, así que subía hasta `ingest` y abortaba la pasada entera. Ahora la hoja
+    cuenta como caída, que es lo que de verdad ha pasado: no la hemos podido ver.
+    """
+    respuestas = _respuestas_de_hoja(
+        _VESTIDOS,
+        [
+            "hipercor_rejilla_nina_vestidos.html",
+            "hipercor_rejilla_nina_vestidos.html",
+            "hipercor_rejilla_ultima_pagina.html",
+        ],
+    )
+    url_caida = HipercorStore.grid_url(_ZAPATOS.category_path, 1)
+    respuestas[url_caida] = BrowserUnreachable(
+        url_caida, TimeoutError("Page.goto: Timeout 45000ms exceeded")
+    )
+    tienda = _tienda(respuestas, [_VESTIDOS, _ZAPATOS])
+
+    with caplog.at_level(logging.WARNING):
+        entradas = list(tienda.list_catalog())
+    informe = tienda.scan_report()
+
+    assert entradas, "la hoja que sí respondió tiene que ingerirse igual"
+    assert {e.section for e in entradas} == {"ropa"}
+    assert (informe.leaves_total, informe.leaves_failed) == (2, 1)
+    # Fuera de las bajas: lo que no se ha visto en esa hoja no está retirado.
+    assert informe.failed_scopes == {ScrapeScope("niña", "zapateria", "zapatos")}
+    assert "zapatos" in caplog.text, "perder una hoja no puede ser silencioso"
+
+
+def test_fetch_details_aguanta_timeouts_sueltos_y_aborta_ante_una_racha() -> None:
+    """El contador es de fichas SEGUIDAS, y la diferencia no es cosmética (#107).
+
+    Una pasada en frío son 1.224 navegaciones en 3 h 27 min: a esa escala unos cuantos timeouts
+    dispersos son ruido normal, y contarlos acumulados tiraba una pasada entera que iba bien. Una
+    racha, en cambio, es la tienda cerrándonos la puerta, y esa sí tiene que abortar.
+    """
+    base = _respuestas_de_hoja(_ZAPATOS, ["hipercor_rejilla_zapatos_nina.html"])
+    tienda = _tienda(dict(base), [_ZAPATOS])
+    entradas = list(tienda.list_catalog())
+    urls = [
+        tienda._urls[e.retailer_product_id]
+        for e in entradas
+        if e.retailer_product_id in tienda._urls
+    ]
+    ficha = load_html("hipercor_ficha_zapato.html")
+    assert len(urls) >= 2 * _MAX_FICHAS_FALLIDAS + 1, "el fixture ya no trae fichas para este caso"
+
+    def _timeout(url: str) -> BrowserUnreachable:
+        return BrowserUnreachable(url, TimeoutError("Page.goto: Timeout 45000ms exceeded"))
+
+    # Alternando desde la primera: nunca dos seguidos, pero MÁS en total que el tope. Con el
+    # contador acumulado de antes esto abortaba; es exactamente el caso que #107 quiere permitir.
+    alternas = dict(base)
+    for i, url in enumerate(urls):
+        alternas[url] = _timeout(url) if i % 2 == 0 else (200, ficha)
+    dispersos = sum(1 for i in range(len(urls)) if i % 2 == 0)
+    assert dispersos > _MAX_FICHAS_FALLIDAS, "sin pasar del tope el caso no probaría nada"
+    intercalada = _tienda(alternas, [_ZAPATOS])
+    productos = list(intercalada.fetch_details(list(intercalada.list_catalog())))
+    assert productos, "unos timeouts dispersos no pueden costar la pasada"
+
+    # Seguidos: la puerta está cerrada y guardar este catálogo sería guardar uno mutilado.
+    seguidas = dict(base)
+    for url in urls[: _MAX_FICHAS_FALLIDAS + 1]:
+        seguidas[url] = _timeout(url)
+    for url in urls[_MAX_FICHAS_FALLIDAS + 1 :]:
+        seguidas[url] = (200, ficha)
+    racha = _tienda(seguidas, [_ZAPATOS])
+    with pytest.raises(DetailUnavailable):
+        list(racha.fetch_details(list(racha.list_catalog())))
 
 
 def test_fetch_details_pide_la_ficha_de_lo_que_salio_en_el_listado() -> None:
