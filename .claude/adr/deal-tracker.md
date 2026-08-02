@@ -530,6 +530,19 @@ Corolario aprendido en la misma sesión: **cuando una capa revienta, no se ejecu
 Con Lefties sin Chromium, el segundo error salía derivado («usa la API async») y tapaba la causa
 real. Un vigía que apunta a la pista falsa es peor que uno que dice una sola cosa cierta.
 
+**Y el límite que hay que tener presente al leerlo en verde: el vigía no dice nada de la ingesta.**
+Responde «¿nos dejan entrar?» —hojas vivas y parseo de 5 productos, sin escribir en base de datos—,
+así que una tienda puede llevar semanas con el vigía en verde y un CronJob desplegado **sin haber
+ingerido jamás**. Medido el 02/08/2026 sobre `scrape_run` de los dos entornos: **lefties e hipercor
+tienen cero pasadas en `dev` y cero en `qa`** (en `dev` ni siquiera tienen fila en `retailer`, que
+se crea en la primera), y la base de `qa` solo contiene zara y sfera. Las dos llevaban semanas
+saliendo 38/38 y 32/32 hojas vivas. La causa no es un fallo, es el diseño: en `dev` los CronJobs
+nacen `suspend: true` y la pasada se dispara a mano, y en `qa` se desbloquearon tarde. Pero la
+consecuencia es que hay scrapers en producción cuyo pipeline completo —detalle, ingesta,
+altas/bajas— no se ha ejercido nunca contra una base de datos real, y **ninguna de las señales
+visibles lo delata**: ni el registro, ni el manifiesto, ni el vigía. La comprobación que sí lo dice
+es una consulta a `scrape_run` por tienda, y cuesta un minuto (#99, #93).
+
 ### El género `unisex` es la norma del barefoot, no una excepción
 
 El brief pide separar **niño/niña**, y durante tres tiendas eso se implementó como igualdad exacta
