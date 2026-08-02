@@ -29,6 +29,12 @@ check-categories retailer="zara":
 tree retailer="sfera" root="ninos":
     cd {{scraper_dir}} && .venv/bin/python -m scraper.run --retailer {{retailer}} --tree {{root}}
 
+# Vigía en vivo de TODAS las tiendas del registro: hojas + smoke de parseo, sin ingerir ni avisar.
+# Es la comprobación de "¿nos siguen dejando entrar?" que en el cluster corre semanalmente (#67).
+# `just vigia --retailer cacles` para una sola. Necesita DATABASE_URL definida aunque no toque la BD.
+vigia *args:
+    cd {{scraper_dir}} && .venv/bin/python -m scraper.vigia --dry-run {{args}}
+
 # Lint + formato + tipos + tests.
 check:
     cd {{scraper_dir}} && .venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy && .venv/bin/pytest

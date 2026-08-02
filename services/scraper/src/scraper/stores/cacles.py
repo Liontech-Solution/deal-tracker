@@ -36,8 +36,10 @@ Tres cosas que hay que tener presentes al tocar este fichero:
 4. **Delante de Shopify hay un Cloudflare que ficha la huella TLS del cliente**, y ese 429 no se
    parece en nada al anterior aunque comparta código: llega con `Retry-After: 60`, el cuerpo dice
    `local_rate_limited`, y **no se arregla esperando** porque no depende del ritmo. Por eso el
-   cliente usa `contexto_sin_alpn()`; el porqué, medido, está en `scraper/tls.py`. Al distinguirlos,
-   mirar el cuerpo: si pone `local_rate_limited`, es la huella; si no, es el presupuesto.
+   cliente usa `contexto_sin_alpn()`; el porqué, medido, está en `scraper/tls.py`. Los distingue
+   `es_429_de_huella()` mirando el cuerpo, y `_get_json` los trata distinto: el del presupuesto se
+   reintenta, el de la huella se eleva a la primera (#67). Antes el código los trataba igual aunque
+   este texto ya explicara la diferencia, y esperar por el segundo solo gastaba la ventana del job.
 
 Las funciones `parse_*` son puras (JSON -> dataclasses) y se testean con fixtures.
 """
@@ -57,7 +59,7 @@ import httpx
 
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
-from ..tls import contexto_sin_alpn
+from ..tls import HuellaTLSRechazada, contexto_sin_alpn, error_de_huella, es_429_de_huella
 from .base import (
     GONE_STATUS,
     DelistCandidate,
@@ -433,7 +435,15 @@ class CaclesStore:
             time.sleep(base * random.uniform(0.5, 1.5))
 
     def _get_json(self, client: httpx.Client, url: str) -> Any:
-        """GET con reintentos y backoff exponencial + jitter ante throttling/errores de red."""
+        """GET con reintentos y backoff exponencial + jitter ante throttling/errores de red.
+
+        Los dos 429 que documenta la cabecera de este módulo se tratan **distinto**, que es lo que
+        antes no pasaba: el del presupuesto de Shopify se reintenta (esperar es exactamente lo que
+        hay que hacer) y el de la huella TLS se eleva a la primera. Esperar por el segundo está
+        medido que no arregla nada, y sale caro: con los ajustes del CronJob (6 reintentos, backoff
+        8 s y `Retry-After: 60`) son ~10,5 min de `activeDeadlineSeconds` quemados para acabar
+        elevando igual, con un mensaje que además apunta a la causa equivocada.
+        """
         retries = self._config.request_retries
         for attempt in range(retries + 1):
             self._polite_pause()
@@ -443,6 +453,8 @@ class CaclesStore:
                 return resp.json()
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
+                if es_429_de_huella(exc.response):
+                    raise error_de_huella(exc.response) from exc
                 if status not in _RETRYABLE_STATUS or attempt == retries:
                     raise
                 self._backoff(attempt, retry_after=exc.response.headers.get("Retry-After"))
@@ -589,6 +601,16 @@ class CaclesStore:
                 url = _COLLECTION_URL.format(handle=leaf, limit=1, page=_PAGINA_INICIAL)
                 try:
                     payload = self._get_json(client, url)
+                except HuellaTLSRechazada:
+                    # El otro 429. Se nombra aquí porque este `detail` es lo único que se lee
+                    # cuando el vigía canta, y "HTTP 429" a secas manda a la pista falsa.
+                    yield LeafHealth(
+                        scope,
+                        leaf,
+                        None,
+                        "HTTP 429 local_rate_limited: huella TLS rechazada, no es el ritmo "
+                        "(revisa scraper/tls.py contra la versión de httpcore instalada)",
+                    )
                 except httpx.HTTPStatusError as exc:
                     yield LeafHealth(scope, leaf, None, f"HTTP {exc.response.status_code}")
                 except (httpx.TransportError, ValueError) as exc:

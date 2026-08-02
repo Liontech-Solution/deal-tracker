@@ -63,6 +63,10 @@ Reglas que el revisor va a mirar:
 Añade la entrada en `stores/registry.py`. Es literalmente una línea; si no la añades el
 scraper no existe para `python -m scraper.run --retailer <slug>`.
 
+Registrar la tienda la mete **automáticamente** en el vigía (`scraper/vigia.py`, #67), que recorre
+`available_slugs()`, y en su CronJob del cluster, que no nombra tiendas. Lo que sí tienes que poner
+tú es `check_leaves()` (§4b): sin él la tienda entra en el vigía pero sin nada que sondear.
+
 ## 4. Baja de productos (opcional pero muy recomendable)
 
 La ausencia en el listado es una señal **indirecta**: un bloqueo o una reestructura de
@@ -70,6 +74,18 @@ categorías la falsea. Si la tienda deja sondear un producto concreto, implement
 `probe_alive()`. Semántica de tres estados con dos valores: `True` vivo, `False` retirado,
 **ausente del mapa** = no concluyente. La ingesta solo da de baja lo confirmado; devolver
 `False` ante un error de red provocaría bajas masivas falsas.
+
+## 4b. Sondeo de categorías (`check_leaves()`) — no es opcional de hecho
+
+El `Protocol` `SupportsLeafHealth` se llama capacidad opcional, pero **`just check` falla si tu
+tienda no lo implementa** (`test_toda_tienda_registrada_tiene_vigilancia`). Es deliberado: sin él,
+una categoría que caduque deja de ingerirse en silencio y no hay quien se entere. Devuelve un
+`LeafHealth` por hoja con `alive=True|False|None` (None = fallo del sondeo, **no** retirada) y mete
+en `detail` lo que respondió la tienda, que es lo único que se lee cuando el vigía canta.
+
+Si de verdad la tienda no se puede sondear por hojas, la salida es declararlo en
+`SIN_VIGILANCIA_DE_HOJAS` (en `scraper/vigia.py`) **con el motivo escrito**: una excepción
+revisable, no un olvido.
 
 ## 5. Tests
 
@@ -83,9 +99,13 @@ categorías la falsea. Si la tienda deja sondear un producto concreto, implement
 ## 6. Verificar
 
 ```bash
-just dry-run <slug>   # pasada completa sin escribir en BD
-just check            # ruff + ruff format --check + mypy + pytest
+just dry-run <slug>              # pasada completa sin escribir en BD
+just vigia --retailer <slug>     # hojas + smoke de parseo, como lo verá el vigía semanal
+just check                       # ruff + ruff format --check + mypy + pytest
 ```
 
 `just dry-run` es el que de verdad valida el scraper: los tests solo prueban el parsing
 contra una foto congelada de la web.
+
+`just vigia --retailer <slug>` es la comprobación de que la tienda queda **vigilada**: si la salida
+dice `sin vigilancia de hojas`, te falta `check_leaves()` (§4b) y `just check` ya está en rojo.
