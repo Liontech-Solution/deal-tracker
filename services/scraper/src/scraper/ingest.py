@@ -780,10 +780,17 @@ def ingest(
                 cur, retailer_id, run_ts, safe_scopes, delist_min_misses, probe.blocked_ids
             )
 
+            # `clock_timestamp()` y no `now()`: toda la pasada va en UNA transacción (ver la
+            # cabecera del módulo) y `now()` devuelve la hora de INICIO de la transacción, así que
+            # con él `finished_at` salía igual que `started_at` y toda pasada con éxito registraba
+            # duración cero. El camino de fallo no lo sufría —`_record_failed_run` abre transacción
+            # nueva—, o sea que hasta ahora lo único que sabíamos cronometrar era lo que reventaba.
+            # Importa al fijar el `activeDeadlineSeconds` del CronJob de cada tienda: la ingesta es
+            # atómica, y pasarse del deadline no es perder la pasada, es no poblar nunca.
             cur.execute(
                 """
                 UPDATE scrape_run
-                SET finished_at = now(), status = 'success',
+                SET finished_at = clock_timestamp(), status = 'success',
                     products_seen = %s, variants_seen = %s, errors = %s
                 WHERE id = %s
                 """,
