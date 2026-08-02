@@ -33,6 +33,12 @@ cuesta una petición por producto (una navegación real, ~450 KB), a diferencia 
 sirve desde la caché del listado. El detalle condicional por huella (#16) no es un ahorro
 cómodo en esta tienda, es lo que la hace viable.
 
+Y tiene una contrapartida que conviene saber antes de tocar `SCRAPER_DETAIL_MAX_AGE_DAYS`: la
+rejilla **no da stock por talla**, solo un estado global del producto. Así que una talla que se
+agota (o vuelve) sin que cambien ni el precio ni ese estado no se entera hasta el refresco
+forzado — hasta 7 días con el valor por defecto. Bajar ese knob mejora la frescura del stock a
+cambio de fichas, que aquí es a cambio de minutos de pasada.
+
 Ids estables: producto `code_a` (`A56615356`), variante el `sku` de la talla
 (`001081182601955028`). En esta tienda **cada color es un producto distinto** (dos referencias
 para la misma sandalia en nude y en verde), así que el color viaja a nivel de ficha.
@@ -53,6 +59,7 @@ catálogo del género entero.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
@@ -75,6 +82,8 @@ from .base import (
 )
 from .browser import BrowserSession
 
+_LOG = logging.getLogger(__name__)
+
 SLUG = "hipercor"  # a nivel de módulo: las funciones puras de parseo también lo necesitan
 BASE_URL = "https://www.hipercor.es/"
 _ROOT = "https://www.hipercor.es"
@@ -82,6 +91,11 @@ _ROOT = "https://www.hipercor.es"
 # Tope de guarda por si `total_pages` viniera anómalo (evita un bucle desbocado). Agotarlo NO
 # cuenta como hoja sana: ver `_iter_category`.
 _MAX_PAGES = 60
+
+# Fichas ilegibles (403, 5xx tras reintentos) que se toleran antes de abortar la pasada. Sueltas
+# son ruido —y la confirmación activa impide que se conviertan en bajas—, pero en cantidad
+# significan que la tienda ha dejado de dejarnos entrar, y eso no se guarda como catálogo bueno.
+_MAX_FICHAS_FALLIDAS = 5
 
 # Tope de fotos por color, mismo criterio que en Zara y Sfera. Hoy la PDP da una sola por
 # referencia (el color es el producto), pero el tope evita sorpresas si eso cambia.
@@ -109,8 +123,11 @@ _SELECTOR_TALLAS = '[id^="size_option_"]'
 # el 02/08/2026 sobre 5 fichas, con el mismo número de variantes parseadas).
 _RECURSOS_INUTILES = ("image", "font", "media", "stylesheet")
 
-# Enlace a ficha dentro de la rejilla: de ahí sale la URL con la que se pide el detalle.
-_PDP_HREF_RE = re.compile(r'href="(/moda-y-accesorios/(A\d+)-[^"]*?)"')
+# Enlace a ficha dentro de la rejilla: de ahí sale la URL con la que se pide el detalle. No se
+# fija la sección de la ruta (`/moda-y-accesorios/`): lo estable es la forma
+# `/{sección}/A########-`, y atarse a la de hoy convertiría un renombrado de la tienda en fichas
+# que dejarían de pedirse.
+_PDP_HREF_RE = re.compile(r'href="(/[a-z0-9-]+/(A\d+)-[^"]*?)"')
 
 # Opción del selector de tallas de la ficha: el id lleva NUESTRO sku de variante y la etiqueta
 # accesible la talla. Es el respaldo cuando la ficha se agota entera y pierde el `ProductGroup`.
@@ -121,6 +138,10 @@ _SIZE_OPTION_RE = re.compile(
 
 class LeafGone(RuntimeError):
     """La hoja ya no existe: 404, o 200 sirviendo el catálogo de un ancestro (#54)."""
+
+
+class DetailUnavailable(RuntimeError):
+    """La tienda ha dejado de servir fichas. No es que los productos se hayan retirado."""
 
 
 class LeafUnreadable(RuntimeError):
@@ -532,9 +553,12 @@ def parse_pdp(html: str, cat: CategoryConfig, url: str | None = None) -> Scraped
     precios_dl = producto_dl.get("price") if isinstance(producto_dl.get("price"), dict) else {}
     assert isinstance(precios_dl, dict)
 
-    # El `ProductGroup` no lleva el id de producto en el ld+json de la forma suelta, así que el
-    # `code_a` del dataLayer es el respaldo — y es el mismo campo que usa el listado.
-    pid = _texto(producto_ld.get("productGroupID")) or _texto(producto_dl.get("code_a"))
+    # Manda `code_a`, que es el id con el que la entrada llegó del listado; `productGroupID` es
+    # solo el respaldo (la forma agotada del ld+json no lo trae). El orden importa: los dos campos
+    # los genera la plantilla por su cuenta, y si divergieran, preferir el del ld+json partiría el
+    # producto en dos filas —una nueva sin huella, que pediría ficha cada día, y la vieja dejando
+    # de verse hasta que la histéresis la descatalogara— con el histórico de precio roto en dos.
+    pid = _texto(producto_dl.get("code_a")) or _texto(producto_ld.get("productGroupID"))
     nombre = _texto(producto_ld.get("name")) or _texto(producto_dl.get("name"))
     if pid is None or nombre is None:
         return None
@@ -593,6 +617,15 @@ def parse_pdp(html: str, cat: CategoryConfig, url: str | None = None) -> Scraped
         en_stock = _disponible(offers)
         for sku, talla in _tallas_del_selector(html):
             variantes.append(_variante(sku, talla, precio, en_stock))
+        if not variantes:
+            # Tercer caso, y el que menos se ve venir: producto de **talla única** (`group_by`
+            # vale `"None"` y no hay selector). No es una ficha ilegible —tiene precio, stock y
+            # foto—, simplemente no hay nada que elegir. Su sku de variante viaja en el
+            # `dataLayer`; el `sku` del ld+json aquí es el gtin y no sirve. Sin esto se perdían
+            # 12 de los 289 zapatos, todos patucos de recién nacido: justo el público del brief.
+            sku_unico = _texto(producto_dl.get("variant"))
+            if sku_unico is not None:
+                variantes.append(_variante(sku_unico, None, precio, en_stock))
         urls_foto = _fotos_de_galeria(suelto)
     if not variantes:
         return None
@@ -690,6 +723,14 @@ class HipercorStore:
             if not crudos:
                 break  # la tienda dice que aquí ya no hay nada
             enlaces = extraer_enlaces(html)
+            if not enlaces:
+                # La rejilla trae productos pero ninguna URL de ficha: ha cambiado la forma de sus
+                # enlaces. Sin URL no se puede pedir el detalle **de ninguno**, y esos productos
+                # dejarían de refrescarse en silencio hasta caer por histéresis. Es un fallo
+                # nuestro de parseo, así que la hoja se marca como no leída, no como vaciada.
+                raise LeafUnreadable(
+                    f"{cat.category_path} p{page}: {len(crudos)} productos y ningún enlace a ficha"
+                )
             for entrada, producto in parse_listing(dl, cat):
                 url = enlaces.get(entrada.retailer_product_id)
                 if url is not None:
@@ -744,9 +785,20 @@ class HipercorStore:
         )
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
+        """Pide la ficha de cada entrada. Una navegación por producto: aquí está el coste.
+
+        Distingue con cuidado **«ya no está»** de **«no he podido verlo»**, que es la confusión
+        que provoca bajas falsas: un producto que sale en el listado y cuya ficha no llega no
+        recibe `last_seen_at`, así que a las `SCRAPER_DELIST_MIN_MISSES` pasadas lo descatalogan
+        —y las redes de `ingest.py` no lo ven, porque su ámbito sigue lleno en el listado—. Solo
+        `GONE_STATUS` significa retirado; un 403 de Akamai o un 5xx que agota reintentos es
+        problema nuestro, y por encima de `_MAX_FICHAS_FALLIDAS` la pasada se aborta entera en
+        vez de guardar un catálogo mutilado que parece sano (mismo criterio que `zara.py`).
+        """
         pendientes = list(entries)
         if not pendientes:
             return
+        fallos = 0
         with self._session_factory() as session:
             session.bloquear(_RUTA_VETADA)
             session.descartar_recursos(_RECURSOS_INUTILES)
@@ -755,8 +807,23 @@ class HipercorStore:
                 if url is None:
                     continue  # sin URL no hay ficha que pedir (no salió en esta pasada)
                 status, html = session.get_html(url, _SELECTOR_TALLAS)
+                if status in GONE_STATUS:
+                    continue  # retirado entre el listado y ahora: lo resuelven las bajas
                 if status != 200:
-                    continue  # 404 = retirado entre el listado y ahora; lo resuelven las bajas
+                    fallos += 1
+                    _LOG.warning(
+                        "hipercor: ficha %s -> HTTP %s (%d fallo/s en esta pasada)",
+                        entry.retailer_product_id,
+                        status,
+                        fallos,
+                    )
+                    if fallos > _MAX_FICHAS_FALLIDAS:
+                        raise DetailUnavailable(
+                            f"{fallos} fichas seguidas sin poder leerse (última: HTTP {status}). "
+                            "No es que los productos se hayan retirado: es que la tienda no nos "
+                            "deja verlos, así que la pasada se aborta sin escribir."
+                        )
+                    continue
                 producto = parse_pdp(html, self._categoria_de(entry), url)
                 if producto is not None:
                     yield producto

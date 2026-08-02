@@ -151,13 +151,20 @@ class BrowserSession:
         la página, no descargas. Medido en Hipercor, cuyas fichas hay que pedir de una en una:
         4,10 s -> 3,55 s por ficha con **el mismo dato** (mismas variantes). Además es cortesía,
         porque el ahorro de tráfico se lo lleva también la tienda.
+
+        Lo que no descarta lo pasa al siguiente handler con `fallback()`, **no** con `continue_()`,
+        y esa diferencia no es cosmética: Playwright evalúa las rutas de la última registrada a la
+        primera y se para en cuanto una resuelve la petición. Con `continue_()`, este patrón
+        `**/*` se comía todas las peticiones y dejaba **sin efecto** el veto de `bloquear()`
+        —comprobado en vivo: el handler de `/api` no llegaba a invocarse nunca—. Con `fallback()`
+        el orden de registro deja de importar.
         """
         assert self._page is not None, "usar dentro del context manager"
         conjunto = set(tipos)
         self._page.route(
             "**/*",
             lambda route: (
-                route.abort() if route.request.resource_type in conjunto else route.continue_()
+                route.abort() if route.request.resource_type in conjunto else route.fallback()
             ),
         )
 

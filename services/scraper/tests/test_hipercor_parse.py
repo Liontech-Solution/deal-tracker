@@ -21,6 +21,9 @@ Qué cubre cada una:
 - `hipercor_ficha_agotada.html` — el **segundo esquema** de la tienda, que solo aparece cuando el
   producto se agota entero: sin `ProductGroup`, un `Product` suelto cuyo `sku` es el gtin, y las
   tallas únicamente en el selector. Está rebajada, así que cubre además el tachado.
+- `hipercor_ficha_talla_unica.html` — el **tercer esquema**: producto de talla única
+  (`group_by: "None"`), sin `ProductGroup` y sin selector. Su sku de variante solo está en el
+  `dataLayer`; el del `ld+json` es el gtin.
 - `hipercor_ficha_retirada.html` — id inventado: 404 sin `ld+json` de producto.
 
 Las categorías se eligen **por atributos, no por índice**, para que reordenar `CATEGORIES` no
@@ -40,6 +43,7 @@ from scraper.stores.base import DelistCandidate, ScrapeScope
 from scraper.stores.hipercor import (
     CATEGORIES,
     CategoryConfig,
+    DetailUnavailable,
     HipercorStore,
     es_espejismo,
     extraer_data_layer,
@@ -309,6 +313,24 @@ def test_parse_pdp_pliega_la_talla_escrita_dos_veces() -> None:
     assert [v.size for v in producto.variants] == ["11-12 años"]
 
 
+def test_parse_pdp_de_talla_unica_no_se_queda_fuera_del_catalogo() -> None:
+    """Patucos de recién nacido: ni `ProductGroup` ni selector, porque no hay nada que elegir.
+
+    Medido en una pasada real: eran 12 de los 289 zapatos, y sin este caso desaparecían del
+    catálogo en silencio (el listado los ve, la ficha no producía producto). El sku sale del
+    `dataLayer`; usar el del `ld+json` metería el gtin como id de variante.
+    """
+    producto = parse_pdp(load_html("hipercor_ficha_talla_unica.html"), _ZAPATOS)
+    assert producto is not None
+    assert producto.retailer_product_id == "A57503828"
+    assert len(producto.variants) == 1
+    variante = producto.variants[0]
+    assert variante.size is None, "talla única: no inventamos una talla que la tienda no da"
+    assert variante.retailer_variant_id == "001003671000994666"
+    assert variante.retailer_variant_id != "2102676556114", "eso es el gtin, no el sku"
+    assert variante.in_stock and variante.price == Decimal("10.00")
+
+
 def test_parse_pdp_devuelve_none_ante_una_ficha_retirada() -> None:
     # 404 con `dataLayer` de error y sin `ld+json` de producto: no hay nada que ingerir.
     html = load_html("hipercor_ficha_retirada.html")
@@ -427,6 +449,71 @@ def test_fetch_details_se_salta_lo_que_ya_no_esta() -> None:
 
 
 # --- vigía y bajas ----------------------------------------------------------------------------
+
+
+def test_fetch_details_distingue_retirado_de_bloqueo() -> None:
+    """Un 404 es una baja; un 403 es que no nos dejan mirar, y confundirlos descataloga vivos.
+
+    El producto sigue saliendo en el listado, así que las redes de `ingest.py` no ven caer nada:
+    simplemente su ficha no llega, no se le toca `last_seen_at` y a las dos pasadas cae por
+    histéresis. Por eso un bloqueo repetido tiene que abortar la pasada, no ir en silencio.
+    """
+    cat = _ZAPATOS
+    respuestas = _respuestas_de_hoja(cat, ["hipercor_rejilla_zapatos_nina.html"])
+    tienda = _tienda(respuestas, [cat])
+    entradas = list(tienda.list_catalog())
+
+    # 404: se salta sin ruido (la sesión falsa responde 404 a lo no registrado).
+    assert list(tienda.fetch_details(entradas[:1])) == []
+
+    # 403 repetido: la pasada se aborta en vez de guardar un catálogo mutilado.
+    bloqueadas = dict(respuestas)
+    for url in tienda._urls.values():
+        bloqueadas[url] = (403, "")
+    bloqueada = _tienda(bloqueadas, [cat])
+    entradas = list(bloqueada.list_catalog())
+    with pytest.raises(DetailUnavailable):
+        list(bloqueada.fetch_details(entradas))
+
+
+def test_list_catalog_no_se_traga_una_rejilla_sin_enlaces_a_ficha() -> None:
+    """Productos sí, enlaces no: han cambiado la forma de las URLs.
+
+    Sin URL no se puede pedir el detalle de NINGUNO, y esos productos se quedarían sin refrescar
+    hasta caer por histéresis. Es fallo nuestro de parseo, así que la hoja se cuenta como no
+    leída (su ámbito sale de las bajas) en vez de ingerirse a medias.
+    """
+    html = load_html("hipercor_rejilla_nina_vestidos.html")
+    sin_enlaces = html[: html.index("</script>") + len("</script>")] + "</body></html>"
+    tienda = _tienda(
+        {HipercorStore.grid_url(_VESTIDOS.category_path, 1): (200, sin_enlaces)}, [_VESTIDOS]
+    )
+    assert list(tienda.list_catalog()) == []
+    assert tienda.scan_report().failed_scopes == {ScrapeScope("niña", "ropa", "vestidos")}
+
+
+def test_el_id_de_producto_lo_manda_el_datalayer() -> None:
+    """`code_a` gana a `productGroupID`, que es el respaldo.
+
+    Los dos campos los genera la plantilla por su cuenta. Si divergieran y mandara el del
+    `ld+json`, el producto entraría como uno nuevo —sin huella, pidiendo ficha cada día— mientras
+    el viejo dejaba de verse hasta que la histéresis lo descatalogara, partiendo su histórico.
+    """
+    import json
+
+    grupo = {
+        "@type": "ProductGroup",
+        "name": "Prenda",
+        "productGroupID": "A-DEL-LDJSON",
+        "hasVariant": [{"sku": "s1", "size": "4 años", "offers": {"price": 10}}],
+    }
+    html = (
+        '<script>dataLayer = [{"product":{"code_a":"A-DEL-DATALAYER","name":"Prenda"}}];</script>'
+        f'<script type="application/ld+json">{json.dumps(grupo)}</script>'
+    )
+    producto = parse_pdp(html, _VESTIDOS)
+    assert producto is not None
+    assert producto.retailer_product_id == "A-DEL-DATALAYER"
 
 
 def test_check_leaves_distingue_viva_de_espejismo_de_bloqueo() -> None:
