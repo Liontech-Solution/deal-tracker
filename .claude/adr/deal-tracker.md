@@ -213,6 +213,31 @@ En los dos casos las redes de seguridad se apoyan en `GONE_STATUS` y quedan cieg
 `ScanReport` cuente ninguna caída. **Al añadir una tienda, probar una ruta inventada antes de fiarse
 del 404** — es la primera comprobación del recon, no la última.
 
+**La tienda publica su árbol: preguntárselo sale más barato que adivinarlo.** Corolario de lo
+anterior — si una ruta inventada no se distingue de una real por la respuesta, la lista de rutas no
+puede salir de nuestra cabeza. Sfera lo publica en `data.filters._menubar`, faceta `type:
+"categories"`, con `slugs`/`count`/`has_children`; solo aparece con `showDimensions` **distinto de
+`none`**, y `none` es justo lo que usa la ingesta (payload más ligero), así que son dos URLs sobre
+el mismo endpoint. Esa faceta se descartó en #33 por no servir para clasificar barefoot, que era
+cierto y llevó a no volver a mirarla en tres issues.
+
+Lo que costó no preguntar, medido en #56: el rango bebé tiene **20 hojas reales** y buscarlas
+copiando los nombres de la rama 6-14 encontraba **4**. La asimetría entre rangos no es solo de qué
+categorías existen, es de **cómo se llaman**, y justo en las gordas: `pantalones-y-leggings` (30
+productos) donde 6-14 tiene `pantalones` y `leggings` separadas, `blusas-y-camisetas` donde tiene
+`camisetas` y `camisas-y-blusas`. Sfera pasó de **300 a 491 productos** al mapear las 12 que caen en
+el brief, con cero colisiones de id. Y el mismo agujero sigue abierto en la rama 6-14 (#72).
+
+La capacidad es opcional y hermana de `SupportsLeafHealth`, porque son dos preguntas distintas:
+`--check-categories` contesta «¿sigue vivo lo que ingiero?» y falla por lo accionable;
+`SupportsCategoryTree` / `--tree` contesta «¿qué existe que no esté ingiriendo?» y solo informa.
+
+Dos trampas del endpoint que no se ven sin pedirlo en vivo, y que valen como aviso para la próxima
+faceta de este tipo: para una categoría **sin descendencia** la faceta responde con el rastro de
+**ancestros** en vez de hijos (`ninos/mini` devuelve «Sfera España» y «Niños»), y el nodo raíz de la
+tienda viene **sin `slugs` ni `link`**. Se resuelve filtrando a descendientes estrictos de la raíz
+pedida: una hoja devuelve lista vacía, que es la respuesta honesta a «qué cuelga de aquí».
+
 Dos corolarios que costaron dinero descubrir:
 
 - **El final de la paginación se decide con los productos CRUDOS, no con los parseados.** El parseo

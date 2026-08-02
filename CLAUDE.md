@@ -37,6 +37,7 @@ just setup                    # venv + editable install with dev deps
 just run [retailer]           # scrape (default zara), applies migrations first
 just dry-run [retailer]       # scrape without writing to DB
 just check-categories         # probe category leaves; fails if any expired (no ingest)
+just tree [retailer] [root]   # list the category tree the store publishes, marking what we ingest
 just check                    # ruff + ruff format --check + mypy + pytest
 just docker-build             # image build (context = repo root)
 
