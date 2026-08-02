@@ -377,6 +377,13 @@ contrato del proyecto. `detect_changes` no sirve como señal de caducidad —`in
 git en vivo, así que `base_sha == head_sha` siempre—, pero el reindexado es incremental y tarda
 segundos, así que sale más barato hacerlo siempre.
 
-**El reindexado puede dejar `adr_present: false`** y borrar el ADR del grafo sin avisar (visto el
-31/07/2026). Por eso el fichero es la fuente de verdad: mirar siempre ese campo en la salida de
-`index_repository` y republicar desde `.claude/adr/` si viene en falso.
+**El reindexado BORRA el ADR del grafo, siempre.** Se vio el 31/07/2026 y quedó medido el
+02/08/2026: dos `index_repository` seguidos devolvieron `adr_present: false`, el segundo habiendo
+republicado el ADR entre uno y otro (`manage_adr --mode sections` pasó de 16 secciones a lista
+vacía). No es un fallo intermitente ni depende del modo.
+
+La consecuencia operativa es de **orden, no de vigilancia**: republicar desde `.claude/adr/` tiene
+que ser el **último** paso de la sesión, después del último reindexado. Republicar y luego
+reindexar «por si acaso» deja el grafo sin ADR, que es justo el estado en el que la siguiente
+sesión arranca a ciegas. Y por eso el fichero versionado es la fuente de verdad: el grafo pierde
+esto cada vez.

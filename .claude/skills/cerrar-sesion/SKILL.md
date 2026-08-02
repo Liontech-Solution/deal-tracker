@@ -36,13 +36,18 @@ La fuente de verdad del ADR es el fichero versionado de cada repo:
 Está en git porque el grafo es **local a cada equipo**: es lo que permite reconstruirlo en el otro
 portátil y revisarlo en un PR como cualquier otro documento.
 
-De paso, la salida de `index_repository` trae `adr_present`. Si alguna vez viene `false`, el grafo
-ha perdido el ADR y se re-publica desde el fichero:
+**Reindexar borra el ADR del grafo, siempre.** No es intermitente: `index_repository` devuelve
+`adr_present: false` y `manage_adr --mode sections` se queda en lista vacía, aunque lo hubieras
+republicado un minuto antes (medido el 02/08/2026, dos veces seguidas). Así que republicar es el
+**último** paso de la sesión — si reindexas después «por si acaso», lo vuelves a perder:
 
 ```bash
 codebase-memory-mcp cli manage_adr --project <proyecto> --mode update \
   --content "$(cat .claude/adr/<proyecto>.md)"
 ```
+
+Y compruébalo de verdad con `manage_adr --mode sections`, que lee el grafo. El `adr_present` de
+`index_repository` solo te dice cómo quedó **en ese momento**.
 
 ## 3. ¿Cambia el ADR lo aprendido hoy?
 
