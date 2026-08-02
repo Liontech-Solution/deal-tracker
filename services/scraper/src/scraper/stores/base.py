@@ -227,6 +227,50 @@ class SupportsLeafHealth(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class CategoryNode:
+    """Una categoría del árbol **tal y como lo publica la tienda**, no como lo mapeamos nosotros.
+
+    Es la respuesta a «qué hojas existen de verdad», que es distinta de «qué hojas ingerimos»
+    (`CATEGORIES`) y de «siguen vivas las que ingerimos» (`LeafHealth`). Existe porque adivinar
+    rutas copiándolas de otra rama es exactamente como se llega a una hoja que no existe, y hay
+    tiendas donde eso no da 404 (Sfera devuelve el catálogo del padre, #54).
+    """
+
+    # Identificador en el vocabulario de la tienda, el mismo que `LeafHealth.leaf`.
+    path: str
+    title: str  # cómo la llama la tienda de cara al usuario
+    # Productos que la tienda declara. `None` = no lo dice, que NO es lo mismo que 0.
+    count: int | None
+    depth: int  # niveles por debajo de la raíz pedida (1 = hija directa)
+    has_children: bool
+
+
+@runtime_checkable
+class SupportsCategoryTree(Protocol):
+    """Capacidad OPCIONAL: enumerar el árbol de categorías que la tienda publica.
+
+    Es la herramienta de reconocimiento para decidir **cobertura**: qué hay ahí fuera que no
+    estemos ingiriendo. No participa en la pasada ni en las bajas; se ejecuta a mano.
+    """
+
+    def category_tree(self, root: str) -> Iterable[CategoryNode]:
+        """Categorías publicadas por debajo de `root`, de arriba abajo.
+
+        Solo descendientes de `root`: una hoja sin descendencia devuelve **lista vacía**, que es
+        la respuesta honesta a «qué cuelga de aquí».
+        """
+        ...
+
+    def mapped_leaves(self) -> Iterable[str]:
+        """Hojas configuradas hoy, en el mismo vocabulario que `CategoryNode.path`.
+
+        Sirve para cruzar el árbol publicado con lo que ingerimos y que el informe pueda decir
+        qué falta, que es la única pregunta que justifica pedir el árbol.
+        """
+        ...
+
+
 @runtime_checkable
 class SupportsScanReport(Protocol):
     """Capacidad OPCIONAL: contar las hojas que se cayeron durante `list_catalog()`.

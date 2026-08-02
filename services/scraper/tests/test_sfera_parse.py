@@ -274,6 +274,47 @@ def test_la_ropa_de_sfera_no_recibe_marca_barefoot() -> None:
     assert products and all(p.barefoot is None for p in products)
 
 
+# --- #56 La ropa del rango bebé, que se talla en meses -------------------------------------
+
+_BEBE_NINO_CAMISETAS = CategoryConfig("ninos/bebe-nino/camisetas", "niño", "ropa", "camisetas")
+
+
+def test_la_ropa_de_bebe_se_talla_en_meses_y_se_guarda_cruda() -> None:
+    """El rango bebé estrena una forma de talla que no había en el catálogo: los meses.
+
+    El scraper **no** canonicaliza —de eso se encarga `size_canon` en SQL— así que lo único que
+    tiene que hacer aquí es deshacer el duplicado de `valueMain` ('2-3 Meses/2-3 Meses') y
+    guardar el resto tal cual, **incluida la caja**: la tienda escribe 'Meses' en unas tallas y
+    'meses' en otras dentro del MISMO producto, y eso es un dato sobre la tienda, no ruido que
+    toque limpiar aquí.
+    """
+    payload = load_fixture("sfera_firefly_ninos_bebe_nino_camisetas.json")
+    products = parse_products(products_of(payload), _BEBE_NINO_CAMISETAS)
+    assert len(products) == 3
+
+    tallas = {v.size for p in products for v in p.variants}
+    assert tallas == {
+        "2-3 Meses",
+        "3-4 Meses",
+        "6-9 meses",
+        "9-12 meses",
+        "12-18 meses",
+        "18-24 meses",
+    }
+    assert all("/" not in (v.size or "") for p in products for v in p.variants)
+
+
+def test_la_ropa_de_bebe_hereda_el_ambito_de_su_hoja() -> None:
+    """Género y sección salen de `CategoryConfig`, no del slug: `bebe-nino` -> `niño`/`ropa`."""
+    payload = load_fixture("sfera_firefly_ninos_bebe_nino_camisetas.json")
+    products = parse_products(products_of(payload), _BEBE_NINO_CAMISETAS)
+
+    assert all(p.gender == "niño" and p.section == "ropa" for p in products)
+    assert all(p.category == "camisetas" for p in products)
+    assert all(p.barefoot is None for p in products), "es ropa: la pregunta barefoot no aplica"
+    assert all(p.variants and p.url and p.image_url for p in products)
+
+
 # --- #41 Una categoría retirada no tumba las demás -----------------------------------------
 
 _CATS_SCAN = [

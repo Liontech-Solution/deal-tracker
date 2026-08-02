@@ -17,7 +17,13 @@ from . import db
 from .config import Config, load_dotenv
 from .ingest import CatalogScanAborted, ingest
 from .migrate import apply_migrations
-from .stores.base import BaseStore, SupportsLeafHealth, SupportsScanReport
+from .stores.base import (
+    BaseStore,
+    CategoryNode,
+    SupportsCategoryTree,
+    SupportsLeafHealth,
+    SupportsScanReport,
+)
 from .stores.registry import available_slugs, get_store
 
 
@@ -38,6 +44,11 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--check-categories",
         action="store_true",
         help="sondea las hojas de categoría y sale != 0 si alguna ha caducado (no ingiere)",
+    )
+    parser.add_argument(
+        "--tree",
+        metavar="RUTA",
+        help="lista las categorías que la tienda publica bajo RUTA y marca cuáles ingerimos",
     )
     return parser.parse_args(argv)
 
@@ -104,6 +115,65 @@ def _check_categories(config: Config, slug: str) -> int:
     return 0
 
 
+def _tree(config: Config, slug: str, root: str) -> int:
+    """Enumera el árbol de categorías que publica la tienda. Devuelve el código de salida.
+
+    Es una herramienta de RECONOCIMIENTO, no un vigía: informa y sale 0 pase lo que pase. El que
+    falla por lo accionable es `--check-categories`, y son preguntas distintas — aquel comprueba
+    que lo que ingerimos sigue vivo, este enseña lo que existe y no estamos ingiriendo.
+
+    Existe porque en algunas tiendas no se pueden adivinar las rutas: Sfera devuelve 200 con el
+    catálogo del padre a una ruta que no existe (#54), así que probar nombres copiados de otra
+    rama no distingue una hoja real de una inventada. La faceta de categorías sí.
+
+    **Lo ya descubierto se imprime aunque la bajada se corte a medias.** El árbol se recorre rama
+    a rama, y en estas tiendas un 403 suelto de Akamai es rutina: perder el recon entero —y las
+    peticiones que costó— por el último tramo sería justo lo contrario de para lo que sirve. Se
+    dice qué falló, y sigue saliendo 0: quien lo lanza está mirando la salida.
+    """
+    store = get_store(slug, config)
+    if not isinstance(store, SupportsCategoryTree):
+        print(f"{slug} no sabe enumerar sus categorías (no implementa SupportsCategoryTree)")
+        return 0
+
+    mapeadas = set(store.mapped_leaves())
+    nodos: list[CategoryNode] = []
+    fallo: str | None = None
+    try:
+        # Se acumula a medida que llega, no con `list(...)`: si el generador revienta a mitad,
+        # `list` no devuelve nada parcial y se pierde todo lo que ya se había leído.
+        for nodo in store.category_tree(root):
+            nodos.append(nodo)
+    except Exception as exc:  # red, bloqueo, respuesta ilegible: se informa y se sigue
+        fallo = f"{type(exc).__name__}: {exc}"
+
+    sin_mapear = 0
+    lineas: list[str] = []
+    for nodo in nodos:
+        marca = "✓" if nodo.path in mapeadas else "·"
+        if nodo.path not in mapeadas:
+            sin_mapear += 1
+        sangria = "  " * nodo.depth
+        # `None` y 0 son cosas distintas: «no lo dice» frente a «hoja real y vacía».
+        cuenta = "     ?" if nodo.count is None else f"{nodo.count:>6}"
+        hijos = " ▸" if nodo.has_children else ""
+        lineas.append(f"  {marca} {sangria}{nodo.path:<44}{cuenta}  {nodo.title}{hijos}")
+
+    if nodos:
+        print(f"{slug} · árbol de {root}: {len(nodos)} categorías, {sin_mapear} sin mapear")
+        for linea in lineas:
+            print(linea)
+        print("  ✓ = ya en CATEGORIES · · = existe y no la ingerimos · ▸ = tiene hijas")
+    elif fallo is None:
+        print(f"{slug}: {root} no publica ninguna categoría por debajo (¿es ya una hoja?).")
+
+    if fallo is not None:
+        print(
+            f"⚠ el recorrido se cortó antes de acabar ({fallo}): el árbol de arriba está a medias."
+        )
+    return 0
+
+
 def _dry_run(config: Config, slug: str) -> int:
     store = get_store(slug, config)
     entries = list(store.list_catalog())
@@ -126,6 +196,9 @@ def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     args = _parse_args(argv)
     config = Config.from_env()
+
+    if args.tree:
+        return _tree(config, args.retailer, args.tree)
 
     if args.check_categories:
         return _check_categories(config, args.retailer)
