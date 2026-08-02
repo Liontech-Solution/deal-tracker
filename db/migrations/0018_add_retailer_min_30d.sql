@@ -1,0 +1,25 @@
+-- El mínimo de los últimos 30 días que declara LA PROPIA TIENDA, por la directiva Ómnibus.
+--
+-- Hasta ahora el detector de descuentos engañosos solo tenía una fuente: nuestro propio
+-- `price_history`. Eso le da una limitación de nacimiento — no puede decir nada de lo que pasó
+-- antes de que empezáramos a mirar, y arranca mudo con cada producto nuevo. C&A publica en el
+-- listado el mínimo de 30 días al que está obligada por Ómnibus, así que por primera vez tenemos
+-- **la cifra del retailer** para contrastar contra la nuestra. Cuando las dos discrepan, la
+-- discrepancia ES la señal.
+--
+-- Medido el 02/08/2026 sobre las 364 variantes de C&A que traen precio tachado Y este campo:
+-- **67 (18 %) anuncian descuento mientras la tienda declara haberlas vendido más baratas dentro
+-- de esos 30 días**. Ejemplo real: camiseta a 4,99 € «antes 9,99 €», con mínimo declarado de
+-- 4,24 €. Ese caso es indistinguible de una oferta buena mirando solo el tachado.
+--
+-- Va en `price_history` y no en `variant` porque es un hecho **por observación**: la tienda lo
+-- recalcula a diario y su valor de hoy no dice nada del de la semana pasada. Guardarlo por
+-- variante machacaría precisamente la serie que lo hace útil.
+--
+-- Sin backfill posible, y esta vez no por descuido sino porque el dato no existe hacia atrás:
+-- nadie publica el histórico de sus mínimos declarados. Las filas anteriores quedan en NULL.
+--
+-- OJO al leerla: NULL significa **«esta tienda no lo declara»**, no «no hubo mínimo». Hoy solo la
+-- puebla C&A; Zara, Sfera, Lefties y Cacles la dejarán siempre a NULL. Cualquier consulta que la
+-- use tiene que tratar el NULL como ausencia de información, nunca como un cero ni como un empate.
+ALTER TABLE price_history ADD COLUMN retailer_min_30d NUMERIC(10, 2);

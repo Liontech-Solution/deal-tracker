@@ -305,8 +305,8 @@ def _record_price(
     cur.execute(
         """
         INSERT INTO price_history (variant_id, price, currency, list_price, discount_pct,
-                                   in_stock, scraped_at, scrape_run_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                   retailer_min_30d, in_stock, scraped_at, scrape_run_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             variant_id,
@@ -314,6 +314,7 @@ def _record_price(
             "EUR",
             variant.list_price,
             _discount_pct(variant.price, variant.list_price),
+            variant.retailer_min_30d,
             variant.in_stock,
             run_ts,
             run_id,
