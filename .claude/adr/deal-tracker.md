@@ -108,6 +108,18 @@ cronjobs con `suspend: true` y matching con `--dry-run`. El overlay de QA los le
 Dev se queda con los defaults y se dispara a mano:
 `kubectl -n deal-tracker-dev create job X --from=cronjob/deal-tracker-scraper-zara`.
 
+Desde el 02/08/2026 **QA corre los cinco cronjobs, con cadencia semanal** (lunes, 05:30→07:00,
+conservando los desfases de base) en vez de la diaria. Estuvieron suspendidos meses con el
+argumento de que QA no es prod; el argumento se sostiene, el efecto colateral no: sin pasadas,
+`price_history` no crecía, y **sin re-observaciones el detector de descuentos inflados no tiene con
+qué comparar** — el propio dato que da sentido al producto. Semanal es la cadencia mínima que
+resuelve eso sin pedirle a las tiendas siete veces lo mismo. Ojo a lo que enciende: el matching de
+QA, sin `--dry-run` y con `TELEGRAM_BOT_TOKEN`, **manda mensajes reales**.
+
+La única excepción a `suspend: true` en `base` es el **vigía** (ver más abajo): un vigía pausado no
+vigila. Lo pausa **dev**, no por prudencia sino porque dev y QA comparten cluster y salen por la
+misma IP — preguntarlo dos veces es el doble de peticiones a cambio de cero señal.
+
 **Un CronJob por tienda**, porque los perfiles divergen: Zara es httpx (1 CPU / 1Gi), Sfera arrastra
 Chromium (2Gi, `emptyDir` escribible, `HOME`/`TMPDIR` redirigidos, `runAsUser: 10001`). Comparten
 imagen (~900 MB), así que el primer arranque en un nodo nuevo paga ~2m20s de pull.
@@ -317,6 +329,15 @@ Tres cosas que llevarse:
   cuesta segundos y separa las dos hipótesis; sin esa comparación, el diagnóstico natural («me he
   pasado pidiendo») es plausible, encaja con los hechos y es falso.
 
+Desde el 02/08/2026 esa distinción **está en el código y no solo aquí**: `es_429_de_huella()` mira
+el cuerpo y el de la huella se eleva a la primera (`HuellaTLSRechazada`) en vez de reintentarse.
+No es una optimización, es que reintentarlo era activamente malo: con los ajustes del CronJob
+(6 reintentos, backoff 8 s y el `Retry-After: 60`) son **~10,5 min de `activeDeadlineSeconds`**
+quemados para acabar elevando igual, y con un mensaje que apunta a la causa equivocada. El techo
+`httpx<0.29` en `pyproject.toml` está por lo mismo: el arreglo se apoya en un detalle **interno**
+de httpcore (que llame a `set_alpn_protocols()` sobre el contexto que recibe), así que el bump
+tiene que ser un PR donde toque re-verificarlo.
+
 ### Que la web esté tras Akamai no significa que su API lo esté
 
 Medido en el recon de #70 (02/08/2026), y corrige un supuesto que la épica #4 arrastraba desde
@@ -347,6 +368,42 @@ Corolario del mismo recon: **una API abierta puede pedir una cabecera tonta**. C
 `403 Not allowed` a todo lo que no lleve `origin`, y con `content-type` + `origin` entra sin cookies,
 sin UA y sin las `x-*` que manda su propio front. Antes de concluir «nos bloquean», probar la matriz
 de cabeceras además de la matriz de clientes de la sección anterior.
+### Un scraper se rompe de dos maneras y solo una se ve
+
+Que la tienda **cambie** (una hoja caduca, el JSON cambia de forma) sale en el resumen de la
+pasada. Que la tienda deje de **dejarnos entrar** es silencioso, y es el modo de fallo caro: el
+arreglo de la huella TLS se apoya en un detalle interno de httpcore, así que un bump de
+dependencias puede devolvernos al 429 sin que nadie se entere hasta que alguien mire los logs
+semanas después. La señal existía —`--check-categories`, los tests `*_LIVE=1`— pero solo corría a
+mano, y nadie la lanza tres semanas después, que es justo cuando hace falta.
+
+De ahí el **vigía** (`scraper/vigia.py`, `python -m scraper.vigia`, CronJob semanal). Tres
+decisiones que no son obvias:
+
+- **Corre en el cluster, no en GitHub Actions.** Es lo contrario de lo que pide el instinto (un
+  workflow programado es más barato y avisa solo). Pero la pregunta que responde no es «¿la tienda
+  está viva?» sino «**¿nos deja entrar a nosotros?**», y eso depende de por dónde salimos a
+  internet: un runner de GitHub tiene otra IP y otra reputación ante Cloudflare/Akamai, así que
+  contestaría por otro. Un vigía que mide a un tercero da tanto falsos positivos como falsas
+  tranquilidades.
+- **Lo gobierna el registro, no una lista.** Recorre `available_slugs()` y su CronJob no nombra
+  tiendas, así que **registrar una tienda es vigilarla** — y, a diferencia del scraper, el vigía es
+  la parte del seam que *no* obliga a tocar el repo de manifiestos al añadir una. Lo que el
+  registro no puede garantizar (que la tienda implemente `check_leaves()`) lo cubre un meta-test
+  que rompe `just check`. La capa de parseo es genérica sobre `BaseStore` por la misma razón:
+  cubrir a las tiendas que todavía no existen sin que nadie tenga que acordarse de nada.
+- **No puede ser pytest.** La imagen solo copia `src`, así que lo que corra en el cluster tiene que
+  vivir ahí. Los tests `*_LIVE=1` se quedan como herramienta de mano, no como vigilancia.
+
+La política de veredicto es la misma que ya tenía `--check-categories` y **se comparte, no se
+copia** (`vigia.revisar_hojas`): solo lo accionable rompe, un 403 suelto de Akamai avisa y sigue.
+Medido el 02/08/2026 sobre las cuatro tiendas, esa tolerancia se ejerció a la primera: sfera 18/19
+hojas, con la que faltaba dando 403. Un vigía con falsas alarmas rutinarias acaba silenciado, que
+es peor que no tenerlo.
+
+Corolario aprendido en la misma sesión: **cuando una capa revienta, no se ejecuta la siguiente**.
+Con Lefties sin Chromium, el segundo error salía derivado («usa la API async») y tapaba la causa
+real. Un vigía que apunta a la pista falsa es peor que uno que dice una sola cosa cierta.
 
 ### El género `unisex` es la norma del barefoot, no una excepción
 
