@@ -9,24 +9,33 @@ metadata:
 ---
 
 Esta máquina no tiene `postgres`, `psql` ni `pg_isready` instalados (ver
-[[kubeconfig-location]]), pero **sí tiene `docker` funcionando sin sudo**. Para los tests de
-ingesta y para probar el scraper contra las tiendas reales **no hace falta el cluster**:
+[[kubeconfig-location]]), **ni `docker` ni `podman`** — comprobado el 02/08/2026; lo que este
+apunte decía antes («sí tiene docker funcionando sin sudo») ya no vale y cuesta un rodeo creérselo.
+Para los tests de ingesta y para probar el scraper contra las tiendas reales **sigue sin hacer
+falta el cluster**, pero la Postgres se levanta en espacio de usuario, sin root: paquetes Arch
+`postgresql` + `postgresql-libs` + `numactl` extraídos a un prefijo local y arrancados con
+`initdb`/`pg_ctl` fijando `LD_LIBRARY_PATH`. El detalle, con sus dos gotchas de locale, está en la
+memoria de usuario `dev-local-postgres`.
 
-```bash
-docker run -d --rm --name dt-test-pg -e POSTGRES_PASSWORD=test \
-  -e POSTGRES_DB=deal_tracker_test -p 55432:5432 postgres:16-alpine
-TEST_DATABASE_URL="postgresql://postgres:test@127.0.0.1:55432/deal_tracker_test" .venv/bin/pytest
-```
-
-Con eso corren los ~30 tests de ingesta que si no se saltan, y usando la misma URL como
-`DATABASE_URL` se puede hacer una pasada real completa (`python -m scraper.run --migrate`) y
-consultarla con `docker exec dt-test-pg psql`. Acordarse de `docker stop dt-test-pg` al acabar.
+Un atajo que ahorra los dos gotchas: crear el cluster con
+`initdb --auth=trust --username=postgres --encoding=UTF8 --locale=C.UTF-8`. Así cualquier
+`CREATE DATABASE` hereda UTF8 + ctype `C.UTF-8` y sirve **a la vez** para los tests del scraper
+(ingesta incluida) y para los del web, que con ctype `C` fallan en `color-canon`.
 
 La verificación **del despliegue** sí va contra el cluster:
 
-**SQL contra la BD de dev**: pod efímero `postgres:16-alpine` + ConfigMap montado en `/sql`,
-tomando `DATABASE_URL` del secret `deal-tracker-config` del namespace `deal-tracker-dev`. El pod
-`pgrun` que hay en el namespace es el ejemplo a copiar.
+**SQL contra la BD de dev o de qa**, sin montar nada y sin escribir en el cluster:
+
+```bash
+kubectl -n deal-tracker-dev exec deploy/deal-tracker-web -- node -e "
+const postgres=require('postgres'); const sql=postgres(process.env.DATABASE_URL,{max:1});
+(async()=>{ console.table(await sql\`SELECT ...\`); await sql.end(); })()"
+```
+
+El pod del web ya tiene el cliente `postgres` y la `DATABASE_URL` del entorno, así que es un
+`exec` y nada más. Es bastante más barato que el pod efímero `postgres:16-alpine` + ConfigMap que
+recomendaba este apunte, y funciona con el modo de permisos automático. Sirve igual para
+`deal-tracker-qa`.
 
 **Pasada de scraper a mano**: los CronJobs están `suspend: true` en dev. `kubectl create job
 --from=cronjob/...` **no admite añadir env**, así que hay que volcar el `jobTemplate` a un Job y
@@ -36,18 +45,19 @@ ponerle la etiqueta `app.kubernetes.io/instance: deal-tracker` ni dejarle el `ow
 
 **Para probar un cambio de scraper EN DEV hay que mergear a `main`**: el CI solo publica imagen en
 `push` a main; en los PR el build es solo validación. (Para probar el cambio *en sí*, la Postgres
-en docker de arriba llega y no exige mergear nada.) Una vez publicada, se puede fijar el tag
+local de arriba llega y no exige mergear nada.) Una vez publicada, se puede fijar el tag
 `sha-<7>` directamente en el Job sin esperar a que ArgoCD sincronice.
 
 La API de dev es alcanzable sin port-forward: `svc/deal-tracker-web` es LoadBalancer en
 `192.169.2.16`. `limit` máximo del catálogo = 100, hay que paginar.
 
-**Para MEDIR el vocabulario de dev no hace falta tocar el cluster, y conviene no tocarlo**: el
-modo automático de permisos bloquea los escritos con `kubectl` (crear el ConfigMap y el pod de
-arriba, y también `kubectl exec` contra el pod de CNPG), así que ese camino se queda a medias.
+**Para MEDIR el vocabulario de dev tampoco hace falta tocar el cluster**:
 `GET /api/catalog/facets?barefoot=all` devuelve **la lista completa de colores, tallas, categorías
 y tiendas vivas** — es un GET público, lo mismo que pide la SPA. Con eso volcado a un CSV y
-cargado en la Postgres de docker se miden en local cosas como cuántos valores funde una
-normalización, sin datos inventados. `?barefoot=all` es imprescindible: por defecto la faceta va
+cargado en la Postgres local se miden cosas como cuántos valores funde una
+normalización, sin datos inventados. Ojo con lo que la faceta **no** dice: lista las tiendas con
+producto vivo, así que una tienda registrada que no aparece puede no haber ingerido nunca (fue así
+con lefties e hipercor, #99 y #93) — eso se ve en `scrape_run`, no aquí.
+`?barefoot=all` es imprescindible: por defecto la faceta va
 acotada a `si` y esconde parte del catálogo. Para saber **de qué tienda** es cada valor,
 `GET /api/catalog/products?color=<valor>&barefoot=all&limit=100` y mirar `retailerName`.
