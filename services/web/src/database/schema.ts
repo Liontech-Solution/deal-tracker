@@ -108,6 +108,9 @@ export const priceHistory = pgTable('price_history', {
   currency: text('currency').notNull().default('EUR'),
   listPrice: numeric('list_price', { precision: 10, scale: 2 }),
   discountPct: numeric('discount_pct', { precision: 5, scale: 2 }),
+  // Mínimo de 30 días que declara la propia tienda (Ómnibus). NULL = la tienda no lo declara,
+  // que no es lo mismo que "no hubo mínimo". Ver 0018_add_retailer_min_30d.sql.
+  retailerMin30d: numeric('retailer_min_30d', { precision: 10, scale: 2 }),
   inStock: boolean('in_stock').notNull().default(true),
   scrapedAt: timestamp('scraped_at', { withTimezone: true }).notNull().defaultNow(),
   scrapeRunId: bigint('scrape_run_id', { mode: 'number' }),

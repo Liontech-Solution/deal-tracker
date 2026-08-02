@@ -57,6 +57,11 @@ class ScrapedVariant:
     list_price: Decimal | None  # precio original/tachado, si la tienda lo expone
     in_stock: bool
     url: str | None = None
+    # Mínimo de los últimos 30 días **declarado por la tienda** (directiva Ómnibus). No es una
+    # observación nuestra: es lo que el retailer publica, y ahí está su valor — permite contrastar
+    # nuestro histórico contra el suyo en vez de tener que creernos el precio tachado. `None` = esta
+    # tienda no lo declara (hoy solo lo hace C&A), que NO es lo mismo que "no hubo mínimo".
+    retailer_min_30d: Decimal | None = None
 
 
 @dataclass(frozen=True)
