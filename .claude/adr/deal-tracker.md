@@ -239,7 +239,7 @@ scrapers distintos.** Hipercor y Sfera publican la misma regla:
 
 O sea: la tienda que ya está en producción está limpia, y no por suerte. Y la nueva no podía usar
 la API que el recon había mapeado. Rodearlo no era una opción; el criterio ya estaba fijado cuando
-#81 mandó Springfield a "solo lo que su robots permite" en vez de forzar su rejilla.
+la issue #81 mandó Springfield a "solo lo que su robots permite" en vez de forzar su rejilla.
 
 **El camino permitido puede traer MÁS dato que la API.** En Hipercor las páginas de categoría y de
 ficha no están vetadas y son SSR: la rejilla embebe un `dataLayer` con id estable, precio, **precio
