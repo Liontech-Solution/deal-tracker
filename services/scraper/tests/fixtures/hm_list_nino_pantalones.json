@@ -1,0 +1,1069 @@
+{
+ "requestDateTime": "2026-08-02T14:27:13.997Z",
+ "responseSource": "Elevate",
+ "pagination": {
+  "currentPage": 1,
+  "nextPageNum": 2,
+  "totalPages": 5
+ },
+ "plpList": {
+  "productList": [
+   {
+    "id": "1260878002",
+    "trackingId": "OzY7IzsxMjYwODc4MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+    "productName": "Joggers con interior cepillado",
+    "modelImage": "https://image.hm.com/assets/hm/2e/1f/2e1f9416a0e44781633dd43e430890d2e6be80e8.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/2e/1f/2e1f9416a0e44781633dd43e430890d2e6be80e8.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/2e/1f/2e1f9416a0e44781633dd43e430890d2e6be80e8.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/2e/1f/2e1f9416a0e44781633dd43e430890d2e6be80e8.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1260878002.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 9.99,
+      "minPrice": 9.99,
+      "maxPrice": 9.99,
+      "formattedPrice": "9,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1260878002",
+      "url": "/es_es/productpage.1260878002.html",
+      "colorName": "Gris jaspeado",
+      "colorCode": "AAAAAA",
+      "trackingId": "OzY7IzsxMjYwODc4MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/2e/1f/2e1f9416a0e44781633dd43e430890d2e6be80e8.jpg"
+     },
+     {
+      "articleId": "1260878001",
+      "url": "/es_es/productpage.1260878001.html",
+      "colorName": "Negro",
+      "colorCode": "272628",
+      "trackingId": "OzY7IzsxMjYwODc4MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/51/24/512401ba78a770ab3774d01ed456e80d4fe2e6fe.jpg"
+     },
+     {
+      "articleId": "1260878010",
+      "url": "/es_es/productpage.1260878010.html",
+      "colorName": "Azul",
+      "colorCode": "54586D",
+      "trackingId": "OzY7IzsxMjYwODc4MDEwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/f0/bf/f0bf44e65890ce8e204248393a19c0417f3cfb36.jpg"
+     },
+     {
+      "articleId": "1260878009",
+      "url": "/es_es/productpage.1260878009.html",
+      "colorName": "Turquesa empolvado",
+      "colorCode": "728991",
+      "trackingId": "OzY7IzsxMjYwODc4MDA5OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/35/4f/354f6f3a85cdc26c5834600a1d6a24079cefa813.jpg"
+     },
+     {
+      "articleId": "1260878008",
+      "url": "/es_es/productpage.1260878008.html",
+      "colorName": "Beige marl",
+      "colorCode": "A9A39B",
+      "trackingId": "OzY7IzsxMjYwODc4MDA4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/a5/a5/a5a510daf0458e07a6ea6d02527e0a4097e5bc14.jpg"
+     },
+     {
+      "articleId": "1260878024",
+      "url": "/es_es/productpage.1260878024.html",
+      "colorName": "Azul marino",
+      "colorCode": "2C303E",
+      "trackingId": "OzY7IzsxMjYwODc4MDI0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/a4/3b/a43b14a9ae19a29f9347d04c41d8df61654eba8b.jpg"
+     },
+     {
+      "articleId": "1260878016",
+      "url": "/es_es/productpage.1260878016.html",
+      "colorName": "Rojo teja",
+      "colorCode": "913B34",
+      "trackingId": "OzY7IzsxMjYwODc4MDE2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/96/cd/96cdeaccad5689deebefb6125e3a01212c008f73.jpg"
+     },
+     {
+      "articleId": "1260878026",
+      "url": "/es_es/productpage.1260878026.html",
+      "colorName": "Gris oscuro",
+      "colorCode": "3A3A3D",
+      "trackingId": "OzY7IzsxMjYwODc4MDI2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/df/f2/dff2439e673d2d846517268d4a9ea8eb7dadcd79.jpg"
+     },
+     {
+      "articleId": "1260878014",
+      "url": "/es_es/productpage.1260878014.html",
+      "colorName": "Azul claro",
+      "colorCode": "86A5C0",
+      "trackingId": "OzY7IzsxMjYwODc4MDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/e6/6a/e66adac9600774d0f3624d3e800bf6781ef53841.jpg"
+     },
+     {
+      "articleId": "1260878022",
+      "url": "/es_es/productpage.1260878022.html",
+      "colorName": "Turquesa claro",
+      "colorCode": "8B9797",
+      "trackingId": "OzY7IzsxMjYwODc4MDIyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/c6/b6/c6b62bd45a6d44f83eb4c48add5ea2260afc0697.jpg"
+     },
+     {
+      "articleId": "1260878020",
+      "url": "/es_es/productpage.1260878020.html",
+      "colorName": "Verde",
+      "colorCode": "648468",
+      "trackingId": "OzY7IzsxMjYwODc4MDIwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/eb/b2/ebb24cba2cac31e82e7639a3eb05a81ba8c17f9a.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/f9/54/f954fed4c22e3271eea70c551e92feafc83df6f9.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Gris jaspeado",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "AAAAAA",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "gris_808080",
+    "mainCatCode": "kids_boys_clothing_basics"
+   },
+   {
+    "id": "1260878001",
+    "trackingId": "OzY7IzsxMjYwODc4MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+    "productName": "Joggers con interior cepillado",
+    "modelImage": "https://image.hm.com/assets/hm/51/24/512401ba78a770ab3774d01ed456e80d4fe2e6fe.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/51/24/512401ba78a770ab3774d01ed456e80d4fe2e6fe.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/51/24/512401ba78a770ab3774d01ed456e80d4fe2e6fe.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/51/24/512401ba78a770ab3774d01ed456e80d4fe2e6fe.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1260878001.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 9.99,
+      "minPrice": 9.99,
+      "maxPrice": 9.99,
+      "formattedPrice": "9,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1260878001",
+      "url": "/es_es/productpage.1260878001.html",
+      "colorName": "Negro",
+      "colorCode": "272628",
+      "trackingId": "OzY7IzsxMjYwODc4MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/51/24/512401ba78a770ab3774d01ed456e80d4fe2e6fe.jpg"
+     },
+     {
+      "articleId": "1260878002",
+      "url": "/es_es/productpage.1260878002.html",
+      "colorName": "Gris jaspeado",
+      "colorCode": "AAAAAA",
+      "trackingId": "OzY7IzsxMjYwODc4MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/2e/1f/2e1f9416a0e44781633dd43e430890d2e6be80e8.jpg"
+     },
+     {
+      "articleId": "1260878010",
+      "url": "/es_es/productpage.1260878010.html",
+      "colorName": "Azul",
+      "colorCode": "54586D",
+      "trackingId": "OzY7IzsxMjYwODc4MDEwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/f0/bf/f0bf44e65890ce8e204248393a19c0417f3cfb36.jpg"
+     },
+     {
+      "articleId": "1260878009",
+      "url": "/es_es/productpage.1260878009.html",
+      "colorName": "Turquesa empolvado",
+      "colorCode": "728991",
+      "trackingId": "OzY7IzsxMjYwODc4MDA5OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/35/4f/354f6f3a85cdc26c5834600a1d6a24079cefa813.jpg"
+     },
+     {
+      "articleId": "1260878008",
+      "url": "/es_es/productpage.1260878008.html",
+      "colorName": "Beige marl",
+      "colorCode": "A9A39B",
+      "trackingId": "OzY7IzsxMjYwODc4MDA4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/a5/a5/a5a510daf0458e07a6ea6d02527e0a4097e5bc14.jpg"
+     },
+     {
+      "articleId": "1260878024",
+      "url": "/es_es/productpage.1260878024.html",
+      "colorName": "Azul marino",
+      "colorCode": "2C303E",
+      "trackingId": "OzY7IzsxMjYwODc4MDI0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/a4/3b/a43b14a9ae19a29f9347d04c41d8df61654eba8b.jpg"
+     },
+     {
+      "articleId": "1260878016",
+      "url": "/es_es/productpage.1260878016.html",
+      "colorName": "Rojo teja",
+      "colorCode": "913B34",
+      "trackingId": "OzY7IzsxMjYwODc4MDE2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/96/cd/96cdeaccad5689deebefb6125e3a01212c008f73.jpg"
+     },
+     {
+      "articleId": "1260878026",
+      "url": "/es_es/productpage.1260878026.html",
+      "colorName": "Gris oscuro",
+      "colorCode": "3A3A3D",
+      "trackingId": "OzY7IzsxMjYwODc4MDI2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/df/f2/dff2439e673d2d846517268d4a9ea8eb7dadcd79.jpg"
+     },
+     {
+      "articleId": "1260878014",
+      "url": "/es_es/productpage.1260878014.html",
+      "colorName": "Azul claro",
+      "colorCode": "86A5C0",
+      "trackingId": "OzY7IzsxMjYwODc4MDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/e6/6a/e66adac9600774d0f3624d3e800bf6781ef53841.jpg"
+     },
+     {
+      "articleId": "1260878022",
+      "url": "/es_es/productpage.1260878022.html",
+      "colorName": "Turquesa claro",
+      "colorCode": "8B9797",
+      "trackingId": "OzY7IzsxMjYwODc4MDIyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/c6/b6/c6b62bd45a6d44f83eb4c48add5ea2260afc0697.jpg"
+     },
+     {
+      "articleId": "1260878020",
+      "url": "/es_es/productpage.1260878020.html",
+      "colorName": "Verde",
+      "colorCode": "648468",
+      "trackingId": "OzY7IzsxMjYwODc4MDIwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/eb/b2/ebb24cba2cac31e82e7639a3eb05a81ba8c17f9a.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/ff/7a/ff7aa63245cfc47c10b6db6829f99d4dc4739d6c.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Negro",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "272628",
+    "colourShades": "Carbón",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "negro_000000",
+    "mainCatCode": "kids_boys_clothing_basics"
+   },
+   {
+    "id": "1260878010",
+    "trackingId": "OzY7IzsxMjYwODc4MDEwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+    "productName": "Joggers con interior cepillado",
+    "modelImage": "https://image.hm.com/assets/hm/f0/bf/f0bf44e65890ce8e204248393a19c0417f3cfb36.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/f0/bf/f0bf44e65890ce8e204248393a19c0417f3cfb36.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/f0/bf/f0bf44e65890ce8e204248393a19c0417f3cfb36.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/f0/bf/f0bf44e65890ce8e204248393a19c0417f3cfb36.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1260878010.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 9.99,
+      "minPrice": 9.99,
+      "maxPrice": 9.99,
+      "formattedPrice": "9,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1260878010",
+      "url": "/es_es/productpage.1260878010.html",
+      "colorName": "Azul",
+      "colorCode": "54586D",
+      "trackingId": "OzY7IzsxMjYwODc4MDEwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/f0/bf/f0bf44e65890ce8e204248393a19c0417f3cfb36.jpg"
+     },
+     {
+      "articleId": "1260878002",
+      "url": "/es_es/productpage.1260878002.html",
+      "colorName": "Gris jaspeado",
+      "colorCode": "AAAAAA",
+      "trackingId": "OzY7IzsxMjYwODc4MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/2e/1f/2e1f9416a0e44781633dd43e430890d2e6be80e8.jpg"
+     },
+     {
+      "articleId": "1260878001",
+      "url": "/es_es/productpage.1260878001.html",
+      "colorName": "Negro",
+      "colorCode": "272628",
+      "trackingId": "OzY7IzsxMjYwODc4MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/51/24/512401ba78a770ab3774d01ed456e80d4fe2e6fe.jpg"
+     },
+     {
+      "articleId": "1260878009",
+      "url": "/es_es/productpage.1260878009.html",
+      "colorName": "Turquesa empolvado",
+      "colorCode": "728991",
+      "trackingId": "OzY7IzsxMjYwODc4MDA5OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/35/4f/354f6f3a85cdc26c5834600a1d6a24079cefa813.jpg"
+     },
+     {
+      "articleId": "1260878008",
+      "url": "/es_es/productpage.1260878008.html",
+      "colorName": "Beige marl",
+      "colorCode": "A9A39B",
+      "trackingId": "OzY7IzsxMjYwODc4MDA4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/a5/a5/a5a510daf0458e07a6ea6d02527e0a4097e5bc14.jpg"
+     },
+     {
+      "articleId": "1260878024",
+      "url": "/es_es/productpage.1260878024.html",
+      "colorName": "Azul marino",
+      "colorCode": "2C303E",
+      "trackingId": "OzY7IzsxMjYwODc4MDI0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/a4/3b/a43b14a9ae19a29f9347d04c41d8df61654eba8b.jpg"
+     },
+     {
+      "articleId": "1260878016",
+      "url": "/es_es/productpage.1260878016.html",
+      "colorName": "Rojo teja",
+      "colorCode": "913B34",
+      "trackingId": "OzY7IzsxMjYwODc4MDE2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/96/cd/96cdeaccad5689deebefb6125e3a01212c008f73.jpg"
+     },
+     {
+      "articleId": "1260878026",
+      "url": "/es_es/productpage.1260878026.html",
+      "colorName": "Gris oscuro",
+      "colorCode": "3A3A3D",
+      "trackingId": "OzY7IzsxMjYwODc4MDI2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/df/f2/dff2439e673d2d846517268d4a9ea8eb7dadcd79.jpg"
+     },
+     {
+      "articleId": "1260878014",
+      "url": "/es_es/productpage.1260878014.html",
+      "colorName": "Azul claro",
+      "colorCode": "86A5C0",
+      "trackingId": "OzY7IzsxMjYwODc4MDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/e6/6a/e66adac9600774d0f3624d3e800bf6781ef53841.jpg"
+     },
+     {
+      "articleId": "1260878022",
+      "url": "/es_es/productpage.1260878022.html",
+      "colorName": "Turquesa claro",
+      "colorCode": "8B9797",
+      "trackingId": "OzY7IzsxMjYwODc4MDIyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/c6/b6/c6b62bd45a6d44f83eb4c48add5ea2260afc0697.jpg"
+     },
+     {
+      "articleId": "1260878020",
+      "url": "/es_es/productpage.1260878020.html",
+      "colorName": "Verde",
+      "colorCode": "648468",
+      "trackingId": "OzY7IzsxMjYwODc4MDIwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/eb/b2/ebb24cba2cac31e82e7639a3eb05a81ba8c17f9a.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/27/28/27280b026c885bd6ca24c85f9df044b2a1a4dda0.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "54586D",
+    "colourShades": "Azul vivo|Azul cobalto|Azul oscuro|Índigo|Azul marino|Azul real",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 0
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "azul_0000ff",
+    "mainCatCode": "kids_boys_clothing_basics"
+   },
+   {
+    "id": "1234419002",
+    "trackingId": "OzY7IzsxMjM0NDE5MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+    "productName": "Pantalón en pana de algodón",
+    "modelImage": "https://image.hm.com/assets/hm/28/ca/28ca66c40ff101c1f47c2ee93c774b1e2319d197.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/28/ca/28ca66c40ff101c1f47c2ee93c774b1e2319d197.jpg",
+     "altText": "Los pantalones Adorables de H&M presentan un diseño de frente en pana azul oscuro, con un ajuste relajado. Los bolsillos laterales discretos son visibles con las manos descansando dentro, y los pantalones están estilizados con puños vueltos.",
+     "assetType": "Lookbook"
+    },
+    "productImage": "https://image.hm.com/assets/hm/36/c0/36c0accd0d7f7aad378b815d022fdc6a83dce996.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/36/c0/36c0accd0d7f7aad378b815d022fdc6a83dce996.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1234419002.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 24.99,
+      "minPrice": 24.99,
+      "maxPrice": 24.99,
+      "formattedPrice": "24,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1234419002",
+      "url": "/es_es/productpage.1234419002.html",
+      "colorName": "Azul marino",
+      "colorCode": "40424E",
+      "trackingId": "OzY7IzsxMjM0NDE5MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/36/c0/36c0accd0d7f7aad378b815d022fdc6a83dce996.jpg"
+     },
+     {
+      "articleId": "1234419012",
+      "url": "/es_es/productpage.1234419012.html",
+      "colorName": "Turquesa empolvado",
+      "colorCode": "6B797B",
+      "trackingId": "OzY7IzsxMjM0NDE5MDEyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/30/05/3005a912b873e7e7fdb5c16b4dfb80119d238db8.jpg"
+     },
+     {
+      "articleId": "1234419007",
+      "url": "/es_es/productpage.1234419007.html",
+      "colorName": "Rosa claro",
+      "colorCode": "A17471",
+      "trackingId": "OzY7IzsxMjM0NDE5MDA3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/43/be/43becb20e60f0adbefbf113a795725a89688d669.jpg"
+     },
+     {
+      "articleId": "1234419011",
+      "url": "/es_es/productpage.1234419011.html",
+      "colorName": "Verde caqui",
+      "colorCode": "575549",
+      "trackingId": "OzY7IzsxMjM0NDE5MDExOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/5f/5c/5f5ca72d24e66df929e7c7ca0f6227685dc963e2.jpg"
+     },
+     {
+      "articleId": "1234419014",
+      "url": "/es_es/productpage.1234419014.html",
+      "colorName": "Marrón",
+      "colorCode": "4E423E",
+      "trackingId": "OzY7IzsxMjM0NDE5MDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/48/bf/48bf1c52713b5f35ef668d112ab5eefdc108450d.jpg"
+     }
+    ],
+    "productMarkers": [
+     {
+      "text": "H&M Adorables",
+      "type": "custom"
+     }
+    ],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/2d/96/2d96fee742b1b19af2560601825f663e63e25370.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/d0/44/d044aed4959f9620620927c69433eb7fed69ea37.jpg",
+      "altText": "Un conjunto infantil, presentado desde una perspectiva frontal, ligeramente en ángulo, presenta un suéter de punto beige claro con un patrón Fair Isle de motivos de copos de nieve en color granate y azul claro en el pecho, y muestra puños y dobladillo acanalados. Bajo el suéter, hay pantalones de pana azul oscuro con acanalado vertical, que presentan un corte de pierna ancha y dobladillos con vuelto, completados con zapatillas color tostado con cordones blancos y una correa con cierre de gancho y bucle.",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/0d/a0/0da06602a3befc8df2316827b68a9291b7782d9f.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/a5/49/a549672055695f5dd64f01791d1d0130e63d642c.jpg",
+      "assetType": "DescriptiveDetail"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/65/0c/650ce68e4156f9afff7e534f6b1a14f5316e7dc1.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul marino",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "40424E",
+    "colourShades": "Azul vivo|Azul cobalto|Azul oscuro|Índigo|Azul marino|Azul real",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "productMarkerText": "H&M Adorables",
+    "colorWithNames": "azul_0000ff",
+    "mainCatCode": "kids_adorables_viewall_boy"
+   },
+   {
+    "id": "1260878009",
+    "trackingId": "OzY7IzsxMjYwODc4MDA5OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+    "productName": "Joggers con interior cepillado",
+    "modelImage": "https://image.hm.com/assets/hm/35/4f/354f6f3a85cdc26c5834600a1d6a24079cefa813.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/35/4f/354f6f3a85cdc26c5834600a1d6a24079cefa813.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/35/4f/354f6f3a85cdc26c5834600a1d6a24079cefa813.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/35/4f/354f6f3a85cdc26c5834600a1d6a24079cefa813.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1260878009.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 9.99,
+      "minPrice": 9.99,
+      "maxPrice": 9.99,
+      "formattedPrice": "9,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1260878009",
+      "url": "/es_es/productpage.1260878009.html",
+      "colorName": "Turquesa empolvado",
+      "colorCode": "728991",
+      "trackingId": "OzY7IzsxMjYwODc4MDA5OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/35/4f/354f6f3a85cdc26c5834600a1d6a24079cefa813.jpg"
+     },
+     {
+      "articleId": "1260878002",
+      "url": "/es_es/productpage.1260878002.html",
+      "colorName": "Gris jaspeado",
+      "colorCode": "AAAAAA",
+      "trackingId": "OzY7IzsxMjYwODc4MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/2e/1f/2e1f9416a0e44781633dd43e430890d2e6be80e8.jpg"
+     },
+     {
+      "articleId": "1260878001",
+      "url": "/es_es/productpage.1260878001.html",
+      "colorName": "Negro",
+      "colorCode": "272628",
+      "trackingId": "OzY7IzsxMjYwODc4MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/51/24/512401ba78a770ab3774d01ed456e80d4fe2e6fe.jpg"
+     },
+     {
+      "articleId": "1260878010",
+      "url": "/es_es/productpage.1260878010.html",
+      "colorName": "Azul",
+      "colorCode": "54586D",
+      "trackingId": "OzY7IzsxMjYwODc4MDEwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/f0/bf/f0bf44e65890ce8e204248393a19c0417f3cfb36.jpg"
+     },
+     {
+      "articleId": "1260878008",
+      "url": "/es_es/productpage.1260878008.html",
+      "colorName": "Beige marl",
+      "colorCode": "A9A39B",
+      "trackingId": "OzY7IzsxMjYwODc4MDA4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/a5/a5/a5a510daf0458e07a6ea6d02527e0a4097e5bc14.jpg"
+     },
+     {
+      "articleId": "1260878024",
+      "url": "/es_es/productpage.1260878024.html",
+      "colorName": "Azul marino",
+      "colorCode": "2C303E",
+      "trackingId": "OzY7IzsxMjYwODc4MDI0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/a4/3b/a43b14a9ae19a29f9347d04c41d8df61654eba8b.jpg"
+     },
+     {
+      "articleId": "1260878016",
+      "url": "/es_es/productpage.1260878016.html",
+      "colorName": "Rojo teja",
+      "colorCode": "913B34",
+      "trackingId": "OzY7IzsxMjYwODc4MDE2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/96/cd/96cdeaccad5689deebefb6125e3a01212c008f73.jpg"
+     },
+     {
+      "articleId": "1260878026",
+      "url": "/es_es/productpage.1260878026.html",
+      "colorName": "Gris oscuro",
+      "colorCode": "3A3A3D",
+      "trackingId": "OzY7IzsxMjYwODc4MDI2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/df/f2/dff2439e673d2d846517268d4a9ea8eb7dadcd79.jpg"
+     },
+     {
+      "articleId": "1260878014",
+      "url": "/es_es/productpage.1260878014.html",
+      "colorName": "Azul claro",
+      "colorCode": "86A5C0",
+      "trackingId": "OzY7IzsxMjYwODc4MDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/e6/6a/e66adac9600774d0f3624d3e800bf6781ef53841.jpg"
+     },
+     {
+      "articleId": "1260878022",
+      "url": "/es_es/productpage.1260878022.html",
+      "colorName": "Turquesa claro",
+      "colorCode": "8B9797",
+      "trackingId": "OzY7IzsxMjYwODc4MDIyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/c6/b6/c6b62bd45a6d44f83eb4c48add5ea2260afc0697.jpg"
+     },
+     {
+      "articleId": "1260878020",
+      "url": "/es_es/productpage.1260878020.html",
+      "colorName": "Verde",
+      "colorCode": "648468",
+      "trackingId": "OzY7IzsxMjYwODc4MDIwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Mzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/eb/b2/ebb24cba2cac31e82e7639a3eb05a81ba8c17f9a.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/47/1f/471f3b9f19fc86acfff341dbce3fe9bdcfb102b1.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Turquesa empolvado",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "728991",
+    "colourShades": "Aguamarina|Azul petróleo",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "turquesa_40e0d0",
+    "mainCatCode": "kids_boys_clothing_basics"
+   },
+   {
+    "id": "1234419012",
+    "trackingId": "OzY7IzsxMjM0NDE5MDEyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Nzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+    "productName": "Pantalón en pana de algodón",
+    "modelImage": "https://image.hm.com/assets/hm/30/05/3005a912b873e7e7fdb5c16b4dfb80119d238db8.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/30/05/3005a912b873e7e7fdb5c16b4dfb80119d238db8.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/30/05/3005a912b873e7e7fdb5c16b4dfb80119d238db8.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/30/05/3005a912b873e7e7fdb5c16b4dfb80119d238db8.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1234419012.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 24.99,
+      "minPrice": 24.99,
+      "maxPrice": 24.99,
+      "formattedPrice": "24,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1234419012",
+      "url": "/es_es/productpage.1234419012.html",
+      "colorName": "Turquesa empolvado",
+      "colorCode": "6B797B",
+      "trackingId": "OzY7IzsxMjM0NDE5MDEyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Nzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/30/05/3005a912b873e7e7fdb5c16b4dfb80119d238db8.jpg"
+     },
+     {
+      "articleId": "1234419002",
+      "url": "/es_es/productpage.1234419002.html",
+      "colorName": "Azul marino",
+      "colorCode": "40424E",
+      "trackingId": "OzY7IzsxMjM0NDE5MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Nzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/36/c0/36c0accd0d7f7aad378b815d022fdc6a83dce996.jpg"
+     },
+     {
+      "articleId": "1234419007",
+      "url": "/es_es/productpage.1234419007.html",
+      "colorName": "Rosa claro",
+      "colorCode": "A17471",
+      "trackingId": "OzY7IzsxMjM0NDE5MDA3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Nzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/43/be/43becb20e60f0adbefbf113a795725a89688d669.jpg"
+     },
+     {
+      "articleId": "1234419011",
+      "url": "/es_es/productpage.1234419011.html",
+      "colorName": "Verde caqui",
+      "colorCode": "575549",
+      "trackingId": "OzY7IzsxMjM0NDE5MDExOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Nzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/5f/5c/5f5ca72d24e66df929e7c7ca0f6227685dc963e2.jpg"
+     },
+     {
+      "articleId": "1234419014",
+      "url": "/es_es/productpage.1234419014.html",
+      "colorName": "Marrón",
+      "colorCode": "4E423E",
+      "trackingId": "OzY7IzsxMjM0NDE5MDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1Nzs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy90cm91c2VyczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/48/bf/48bf1c52713b5f35ef668d112ab5eefdc108450d.jpg"
+     }
+    ],
+    "productMarkers": [
+     {
+      "text": "H&M Adorables",
+      "type": "custom"
+     }
+    ],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/89/f0/89f0086da7a2c7dcd5ee7e739d458f3d6e6c522a.jpg",
+      "assetType": "DescriptiveDetail"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/4b/b9/4bb9539da95e365811c5226cb10ea4bd8370f4a5.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Turquesa empolvado",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "6B797B",
+    "colourShades": "Azul petróleo|Aguamarina",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": true,
+    "isLiquidPixelUrl": false,
+    "productMarkerText": "H&M Adorables",
+    "colorWithNames": "turquesa_40e0d0",
+    "mainCatCode": "kids_adorables_viewall_boy"
+   }
+  ],
+  "numberOfHits": 321
+ }
+}

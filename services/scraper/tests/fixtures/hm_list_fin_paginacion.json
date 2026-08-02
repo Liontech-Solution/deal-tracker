@@ -1,0 +1,13 @@
+{
+ "requestDateTime": "2026-08-02T14:26:17.546Z",
+ "responseSource": "Elevate",
+ "pagination": {
+  "prevPageNum": 8,
+  "currentPage": 9,
+  "totalPages": 1
+ },
+ "plpList": {
+  "productList": [],
+  "numberOfHits": 48
+ }
+}

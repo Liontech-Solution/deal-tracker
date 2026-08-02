@@ -1,0 +1,827 @@
+"""Scraper de H&M (hm.com): la tienda cuya hoja muerta responde 200 con una página llena.
+
+Entra por la API de listado, que vive en **otro host que el escaparate**:
+
+  - listado:  GET https://api.hm.com/search-services/v1/es_es/listing/resultpage
+  - escaparate: https://www2.hm.com  (Akamai; 403 a `curl`, `wget` y `httpx`)
+
+El 403 de Akamai es solo del escaparate. `api.hm.com` responde **200 a `httpx` pelado, sin una sola
+cabecera** — ni User-Agent, ni `origin`, ni cookies. Así que esta tienda **no necesita
+`BrowserSession`** para la pasada, al contrario de lo que la épica supuso durante meses. El
+navegador solo se usó una vez, en el reconocimiento, para leer cosas que Akamai no deja leer a un
+cliente plano (ver «Cumplimiento» y `CATEGORIES`).
+
+Como en Cacles, C&A e Hipercor, **el listado ya es el detalle**: trae colores, tallas, stock,
+precios e imágenes, así que `fetch_details()` sirve de caché sin una sola petición extra. El
+catálogo infantil entero son ~158 peticiones y ~100 s.
+
+── LO IMPORTANTE DE ESTE FICHERO ──────────────────────────────────────────────────────────────────
+
+**1. `categoryId` no selecciona nada; el selector es `pageId`. Y un `pageId` que no resuelve no da
+404, ni lista vacía, ni el catálogo del padre: devuelve el cubo entero de `categoryId`.**
+
+Es la cuarta forma de mentir de una hoja muerta que se encuentra en este proyecto —404 honesto en
+Zara, catálogo del padre en Sfera (#54), lista vacía indistinguible del fin de paginación en Cacles—
+y la única que **no se detecta ni por status ni por vacío**. Una hoja renombrada seguiría
+«funcionando» e ingiriendo productos de otra categoría en silencio, y la red de seguridad por umbral
+de `ingest.py` no vería caer nada porque no cae nada.
+
+Que la caída sea al cubo de `categoryId` es justo lo que la hace detectable, y se comprobó cambiando
+solo ese parámetro (02/08/2026):
+
+    pageId=/canario/inexistente  categoryId=kids_all       -> 9713 productos
+    pageId=/canario/inexistente  categoryId=kids_shoes     ->  244
+    pageId=/canario/inexistente  categoryId=kids_clothing  -> 4113
+
+De ahí `es_espejismo()`: se pide **una** ruta deliberadamente inventada por pasada (el canario) y se
+compara con ella la primera página de cada hoja. Es el mismo patrón que `is_mirage` en `sfera.py`,
+cambiando el padre por el canario — que además es mejor, porque no hace falta saber cuál es el
+padre.
+
+**Se comparan los IDS, no `numberOfHits`.** El contador del cubo deriva entre peticiones
+consecutivas (9713 -> 9710 en segundos, según entra y sale stock), así que una igualdad exacta de
+contador declara viva una hoja muerta, que es el error caro. Medido sobre las hojas reales: solape
+con el canario del **100 %** en las muertas y del **0-8 %** en las vivas (el 8 % es una hoja ancha
+que legítimamente comparte producto con el cubo), así que el umbral de 0,5 tiene holgura de sobra
+por los dos lados.
+
+**2. Una fila del listado es un producto+color, no un producto.** `id` = `1343222003` son 7 dígitos
+de modelo y 3 de color, y **la misma raíz aparece en varias filas de la misma hoja** (medido: 36
+filas -> 27 raíces, con raíces repetidas hasta 3 veces). Así que aquí NO se deduplica con «gana la
+primera» como en Cacles o C&A: eso tiraría colores reales. Se **agrupa** por raíz, y por eso
+`list_catalog()` acumula antes de emitir — las filas hermanas de un modelo pueden caer en páginas
+distintas, e incluso en hojas distintas.
+
+**3. El 9,3 % del catálogo sale publicado a la vez en niño y en niña**, y eso lo decide el género.
+Medido el 02/08/2026 sobre las 59 hojas: **317 raíces de 3401**. Un dedup «gana la primera» las
+habría dejado todas en el género de la hoja declarada antes, sacándolas de la otra sección — que es
+exactamente el fallo que la #98 destapó en Hipercor. Aquí se resuelve al agrupar: una raíz que sale
+en hojas de géneros distintos es `unisex`, que el catálogo y el matching ya tratan como «sale en
+niño y en niña» (ver `services/web/src/catalog/gender.sql.ts`). La sección y la categoría, en
+cambio, sí las fija la primera hoja que lo trajo.
+
+**4. Las tallas invierten el convenio del resto de tiendas, y por eso se remodelan aquí.** Zara e
+Hipercor sirven la edad delante y los centímetros en el paréntesis (`5-6 años (116 cm)`); H&M sirve
+`122/128 (6-8Y)` y `74 (6-9M)`. Y `size_canon` (`db/migrations/0020_…`) descarta los paréntesis, que
+es justo donde H&M pone la edad: `'122/128 (6-8Y)'` saldría **`122-128`** y `'74 (6-9M)'` saldría
+**`74`** — sin edad, y colisionando con el espacio de los números de pie, que es la ambigüedad que
+costó la #64. `_talla()` le da la vuelta a la etiqueta ANTES de emitirla, así que la función de la
+base la reconoce por su regla de años/meses y devuelve `6-8 años` y `6-9 meses`, el mismo
+vocabulario que ya producen las otras tiendas. Se remodela en la tienda y no en una migración nueva
+a propósito: hay precedente (`sfera.py:_normalize_size`, `hipercor.py`), no exige reconstruir el
+índice de `size_canon` y no toca lo que las otras cinco tiendas ya producen.
+
+**5. Esta tienda no tiene `probe_alive`.** No hay endpoint de producto suelto: el buscador
+(`pageSource=SEARCH&q=<id>`) devuelve el cubo del canario para CUALQUIER `q`, incluso para un id
+vivo, y la única ficha está en `www2` (403). Así que las bajas se apoyan solo en la histéresis
+(`SCRAPER_DELIST_MIN_MISSES`) y en el acotado por ámbito. Se declara aquí porque no tenerlo es una
+decisión medida, no un olvido.
+
+**6. Hoy no hay ni un solo descuento en infantil.** Barrido completo del 02/08/2026: **0 de 6518
+filas** traen más de un precio; todas son `whitePrice`. La forma del tachado se midió en otro
+departamento de la misma API (`/ladies/sale/view-all`): un producto rebajado trae **dos** entradas
+en `prices[]`, `redPrice` (el que se paga) y `whitePrice` (el tachado). `_precios()` está escrito
+contra esa forma, así que el día que rebajen infantil no hay que tocar nada — pero conviene saber
+que ese camino **no se ha ejercido todavía con dato de niño**.
+
+Paginación, sin ambigüedad ninguna (a diferencia de C&A, donde arrancar en 1 se saltaba un tercio de
+cada hoja): **arranca en 1 y la tienda lo dice** — `page=0` responde `422` con
+`{"page":[{"code":"positive","message":"page number must be greater than 0"}]}`. El fin es limpio:
+pedir más allá de `totalPages` devuelve 200 con 0 productos, `numberOfHits` y `totalPages` intactos
+y **sin `nextPageNum`**. El tamaño de página sube a **72** (con 80 o más responde 422).
+
+Cumplimiento (comprobado el 02/08/2026): el `robots.txt` de `www2.hm.com` devuelve 403 a `curl` y a
+`wget` incluso con UA de Chrome, pero **Chromium lo descarga con normalidad** — el mismo hallazgo
+que resolvió Hipercor (#92). Su bloque `User-Agent: *` veta carrito, checkout, login, `/reviews/`,
+`/assets/`, `*/search-results.html*`, `/*.product-article-` y `*/index.*.html`: **nada que toque ni
+las rutas de categoría ni la ficha de producto**, y no declara `Crawl-delay`. `api.hm.com` **no
+sirve `robots.txt`**: devuelve `503 DNS failure` del edge de Akamai, así que en ese host no hay nada
+que obedecer. Las reglas son prefijos desde la raíz de CADA host, y la API vive en otro host que el
+escaparate — que es justo el detalle que en Hipercor tumbó el diseño entero.
+
+Las funciones `parse_*`, `es_espejismo()` y `_talla()` son puras y se testean con fixtures.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import logging
+import random
+import re
+import time
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
+from typing import Any
+
+import httpx
+
+from ..barefoot import classify as classify_barefoot
+from ..config import Config
+from .base import (
+    LeafHealth,
+    ListingEntry,
+    ScanReport,
+    ScrapedImage,
+    ScrapedProduct,
+    ScrapedVariant,
+    ScrapeScope,
+)
+
+logger = logging.getLogger(__name__)
+
+SLUG = "hm"  # va en `--retailer`, en `retailer.slug` y en el nombre del CronJob
+BASE_URL = "https://www2.hm.com"
+_API_URL = "https://api.hm.com/search-services/v1/es_es/listing/resultpage"
+
+# El cubo al que cae un `pageId` que no resuelve. Se manda el mismo en todas las peticiones para que
+# un solo canario por pasada valga para todas las hojas.
+_CATEGORY_ID = "kids_all"
+# Ruta deliberadamente inventada: la respuesta a esto ES el cubo, y con ella se reconocen las hojas
+# muertas. Lleva el nombre del proyecto para que, si alguien la ve en los logs de H&M, se entienda.
+_CANARIO_PAGE_ID = "/deal-tracker/esta-hoja-no-existe"
+# Fracción de la primera página que ha de coincidir con el canario para llamarlo espejismo. Medido:
+# 100 % en las hojas muertas, 0-8 % en las vivas.
+_SOLAPE_ESPEJISMO = 0.5
+
+# Los 7 primeros dígitos de `id` son el modelo; los 3 últimos, el color.
+_LONGITUD_RAIZ = 7
+
+# 72 es el máximo que acepta la API (con 80 responde 422).
+_PAGE_SIZE = 72
+_PAGINA_INICIAL = 1
+# Tope de guarda. La hoja más grande hoy son 470 productos = 7 páginas; treinta dan margen de sobra.
+_MAX_PAGES = 30
+
+# Códigos que merece la pena reintentar (throttling / errores transitorios del servidor).
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+# `sizes[].stock` es un código, no una cantidad: en 659 tallas medidas solo aparecen 0 y 2. Se trata
+# como lo hace C&A con `isAvailable` — manda el criterio de la tienda, no una cuenta nuestra.
+_SIN_STOCK = 0
+
+
+@dataclass(frozen=True)
+class CategoryConfig:
+    """Una hoja del catálogo que recorremos.
+
+    `page_id` es la ruta que la propia tienda usa para seleccionar la categoría. **No se puede
+    adivinar**: se probaron 18 rutas plausibles de bebé (`/kids/baby`, `/kids/baby-boy/clothing`,
+    `/kids/newborn-0-9m/clothing`…) y las 18 devolvieron el cubo, porque bebé no cuelga de `/kids`
+    sino que es un departamento aparte, `/baby`. Ver `CATEGORIES`.
+    """
+
+    page_id: str
+    gender: str  # niño | niña | unisex
+    section: str  # ropa | zapateria
+    category: str  # nuestro vocabulario, no el suyo
+
+
+# Las 59 hojas, **preguntadas a la tienda y verificadas una a una con el canario** (02/08/2026), no
+# adivinadas. H&M no publica árbol —no hay endpoint de navegación y las 30 facetas de la respuesta
+# vienen con `values: []`, así que esta tienda NO implementa `SupportsCategoryTree`—, pero la propia
+# página de categoría de `www2` trae embebido el menú entero: 507 rutas `/kids/…` y 183 `/baby/…`.
+# Se leyó una vez con Chromium (el escaparate es Akamai) y de ahí salen éstas. Para repetirlo:
+#
+#   BrowserSession.get_html("https://www2.hm.com/es_es/ninos/nina/ropa/vestidos.html")
+#   -> re.findall(r"/(?:kids|baby)/[a-z0-9\-/]+", html)
+#
+# Dos cosas que ese árbol destapó y que ninguna ruta adivinada habría dado:
+#
+#   - **El rango 9-14 años es una rama aparte** (`/kids/boys-9-14y/…`), así que quedarse con
+#     `/kids/boys/…` habría dejado fuera la mitad del catálogo por edad. Es el mismo agujero que la
+#     #72 en Sfera.
+#   - **Bebé y recién nacido cuelgan de `/baby`, no de `/kids`.**
+#
+# Las hojas de bebé y de 9-14 se mapean a LAS MISMAS categorías que las de 4-8, igual que hizo
+# Hipercor: el vocabulario del catálogo no se parte por rango de edad —no hay eje de edad en el
+# esquema ni en las facetas—, el rango se ve por la talla. `recien nacido` va como `unisex` porque
+# su rama no separa niño de niña, que es lo mismo que se decidió para `zapatos-infantiles/bebe`.
+#
+# Fuera a propósito, por no ser del brief: accesorios, baño, disfraces, ropa de deporte, conjuntos,
+# abrigos, calcetines, packs, básicos y las ramas transversales de promoción (`last-chance`,
+# `new-arrivals`, `seasonal-trending`, `shop-by-product`), que solapan con las de género y
+# duplicarían el trabajo para los mismos productos.
+def _hojas_de_rama(rama: str, gender: str, *, bebe: bool) -> list[CategoryConfig]:
+    """Las hojas del brief dentro de una rama de género, con los nombres que usa cada rango.
+
+    Los slugs de H&M no son uniformes entre ramas: la camiseta de niño es `t-shirts-shirts` y la de
+    niña `tops-t-shirts`; la sudadera es `jumpers-sweatshirts` en niños y `jumpers-cardigans` en
+    bebé. Se escribe una vez aquí en vez de repetir 59 líneas a mano.
+    """
+    camisetas = "t-shirts-shirts" if gender == "niño" else "tops-t-shirts"
+    sudaderas = "jumpers-cardigans" if bebe else "jumpers-sweatshirts"
+    pantalones = "trousers-leggings" if rama.endswith("/newborn") else "trousers"
+    hojas = [
+        CategoryConfig(f"{rama}/clothing/{pantalones}", gender, "ropa", "pantalones"),
+        CategoryConfig(f"{rama}/clothing/shorts", gender, "ropa", "pantalones"),
+        CategoryConfig(f"{rama}/clothing/{camisetas}", gender, "ropa", "camisetas"),
+        CategoryConfig(f"{rama}/clothing/{sudaderas}", gender, "ropa", "sudaderas"),
+        # En bebé la prenda base es el body y no hay hoja de ropa interior, igual que en Hipercor.
+        CategoryConfig(
+            f"{rama}/clothing/{'bodysuits' if bebe else 'underwear'}",
+            gender,
+            "ropa",
+            "ropa-interior",
+        ),
+        # El pijama entra en `ropa-interior` como en Hipercor (`pijamas-y-batas`): el brief no tiene
+        # slug para él y dejarlo fuera perdería ~700 prendas.
+        CategoryConfig(f"{rama}/clothing/nightwear", gender, "ropa", "ropa-interior"),
+        CategoryConfig(f"{rama}/shoes", gender, "zapateria", "zapatos"),
+    ]
+    if gender != "niño":
+        # La falda va a `vestidos` por el mismo motivo que en C&A e Hipercor: no hay slug propio en
+        # el brief y estrenar uno crearía una categoría que ninguna otra tienda alimenta.
+        hojas.append(CategoryConfig(f"{rama}/clothing/dresses", gender, "ropa", "vestidos"))
+        if not bebe:
+            hojas.append(CategoryConfig(f"{rama}/clothing/skirts", gender, "ropa", "vestidos"))
+    if not bebe:
+        hojas.insert(1, CategoryConfig(f"{rama}/clothing/jeans", gender, "ropa", "pantalones"))
+    return hojas
+
+
+CATEGORIES: list[CategoryConfig] = [
+    *_hojas_de_rama("/kids/boys", "niño", bebe=False),
+    *_hojas_de_rama("/kids/boys-9-14y", "niño", bebe=False),
+    *_hojas_de_rama("/kids/girls", "niña", bebe=False),
+    *_hojas_de_rama("/kids/girls-9-14y", "niña", bebe=False),
+    *_hojas_de_rama("/baby/boys", "niño", bebe=True),
+    *_hojas_de_rama("/baby/girls", "niña", bebe=True),
+    *_hojas_de_rama("/baby/newborn", "unisex", bebe=True),
+]
+
+
+class HojaEspejismo(Exception):
+    """La hoja no resuelve: la tienda ha devuelto el cubo de `categoryId` en su lugar."""
+
+
+def _decimal(value: Any) -> Decimal | None:
+    """H&M da los precios como número JSON (`14.99`), no en céntimos.
+
+    Se pasa por `str()` antes del `Decimal` a propósito: `Decimal(14.99)` arrastraría la basura
+    binaria del float.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return Decimal(str(value)).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def raiz(article_id: str) -> str:
+    """El modelo dentro del id de artículo: `'1343222003'` -> `'1343222'`.
+
+    Recorta y no interpreta: si algún día un id viniera más corto, devolverlo entero es mejor que
+    inventarse un identificador que agruparía productos distintos.
+    """
+    return article_id[:_LONGITUD_RAIZ]
+
+
+# `122/128 (6-8Y)`, `74 (6-9M)`, `92 (1½-2Y)`, `170 (14Y+)`, `44 (<0-1M)`: centímetros delante y la
+# edad en el paréntesis, con `<` y `+` como adornos de los extremos abiertos.
+_RE_TALLA = re.compile(
+    r"^\s*(?P<cm>\d+(?:/\d+)?)\s*\(\s*<?\s*(?P<edad>\d+(?:[½.]\d*)?(?:\s*-\s*\d+(?:[½.]\d*)?)?)"
+    r"\s*(?P<unidad>[YM])\s*\+?\s*\)\s*$"
+)
+_UNIDADES = {"Y": "años", "M": "meses"}
+
+
+def _talla(label: str | None) -> str | None:
+    """Le da la vuelta a la etiqueta de H&M para que `size_canon` la entienda.
+
+        '122/128 (6-8Y)' -> '6-8 años (122/128 cm)'   -> canónica '6-8 años'
+        '74 (6-9M)'      -> '6-9 meses (74 cm)'       -> canónica '6-9 meses'
+        '92 (1½-2Y)'     -> '1½-2 años (92 cm)'       -> canónica '1.5-2 años'
+
+    El `½` se conserva tal cual: `size_canon` ya lo traduce a `.5` (lo usa el rango mini de Zara) y
+    respetarlo distingue 1½ años (86 cm) de 2 años (92 cm), que son tallas distintas.
+
+    Lo que no encaja se devuelve **crudo**, que es lo correcto para las tallas de calzado
+    (`'24/25'`, `'31'`), donde el número ya es el número de pie y `size_canon` lo lee bien.
+
+    LÍMITE DECLARADO, medido: la regla de `size_canon` que separa número de pie de edad exige que
+    los dos extremos del rango sean >= 15 (ver `0017_size_canon_rango_de_pie.sql`), así que las
+    tallas de calzado de bebé `'12/13'` y `'14/15'` salen como `'12-13 años'` y `'14-15 años'`. Son
+    **12 variantes de las 2712 de zapatería**, y arreglarlo no es cosa de esta tienda: por debajo de
+    15 las dos lecturas son plausibles desde el texto y la que decide es la sección, que la función
+    de la base no conoce.
+    """
+    if label is None:
+        return None
+    m = _RE_TALLA.match(label)
+    if not m:
+        return label.strip() or None
+    edad = re.sub(r"\s*-\s*", "-", m.group("edad"))
+    return f"{edad} {_UNIDADES[m.group('unidad')]} ({m.group('cm')} cm)"
+
+
+def _precios(raw: Mapping[str, Any]) -> tuple[Decimal | None, Decimal | None]:
+    """`(precio, tachado)` a partir de `prices[]`.
+
+    Un producto rebajado trae DOS entradas: `redPrice` es lo que se paga y `whitePrice` el tachado.
+    Uno sin rebaja trae solo `whitePrice`. Hoy en infantil no hay ninguno rebajado (0 de 6518), así
+    que se decide por el tipo y no por «el menor de los dos», que sería adivinar.
+
+    El tachado solo cuenta si es estrictamente MAYOR, la misma guarda que en Cacles (donde venía
+    igual al precio en 248 de 428 productos) y en C&A.
+    """
+    por_tipo: dict[str, Decimal] = {}
+    for p in raw.get("prices") or []:
+        if not isinstance(p, dict):
+            continue
+        valor = _decimal(p.get("price"))
+        tipo = p.get("priceType")
+        if valor is not None and isinstance(tipo, str):
+            por_tipo.setdefault(tipo, valor)
+    blanco = por_tipo.get("whitePrice")
+    rojo = por_tipo.get("redPrice")
+    if rojo is None:
+        return blanco, None
+    tachado = blanco if blanco is not None and blanco > rojo else None
+    return rojo, tachado
+
+
+@dataclass(frozen=True)
+class Fila:
+    """Una fila del listado: un producto **en un color concreto**, con sus tallas.
+
+    No es un producto nuestro: `ScrapedProduct` agrupa todas las filas que comparten `raiz`.
+    """
+
+    article_id: str
+    raiz: str
+    name: str
+    color: str | None
+    url: str | None
+    price: Decimal
+    list_price: Decimal | None
+    in_stock_global: bool
+    images: tuple[str, ...]
+    tallas: tuple[tuple[str, str | None, bool], ...]  # (id de talla, etiqueta, con stock)
+
+
+def parse_filas(payload: Any) -> list[Fila]:
+    """Convierte una página del listado en filas. Puro: sin red.
+
+    Descarta lo que no se puede seguir —sin id, sin precio o sin tallas—, y lo hace aquí para que
+    quien decide el fin de la paginación cuente los productos **crudos** y no éstos.
+    """
+    lista = _plp(payload)
+    filas: list[Fila] = []
+    for raw in lista.get("productList") or []:
+        if not isinstance(raw, dict):
+            continue
+        article = raw.get("id")
+        if not isinstance(article, str) or not article:
+            continue
+        precio, tachado = _precios(raw)
+        if precio is None:
+            continue  # sin precio no hay nada que vigilar
+        tallas = tuple(
+            (str(t.get("id")), _talla(t.get("label")), t.get("stock") != _SIN_STOCK)
+            for t in raw.get("sizes") or []
+            if isinstance(t, dict) and t.get("id") is not None
+        )
+        if not tallas:
+            continue
+        url = raw.get("url")
+        imagenes = tuple(
+            img["url"]
+            for img in raw.get("images") or []
+            if isinstance(img, dict) and isinstance(img.get("url"), str)
+        )
+        estado = (raw.get("availability") or {}).get("stockState")
+        filas.append(
+            Fila(
+                article_id=article,
+                raiz=raiz(article),
+                name=str(raw.get("productName") or ""),
+                color=(str(raw.get("colorName")).strip() or None) if raw.get("colorName") else None,
+                url=f"{BASE_URL}{url}" if isinstance(url, str) and url else None,
+                price=precio,
+                list_price=tachado,
+                in_stock_global=estado != "OutOfStock",
+                images=imagenes or ((raw["productImage"],) if raw.get("productImage") else ()),
+                tallas=tallas,
+            )
+        )
+    return filas
+
+
+def _plp(payload: Any) -> Mapping[str, Any]:
+    """Saca `plpList` de la respuesta, o eleva diciendo qué ha llegado."""
+    if not isinstance(payload, dict):
+        raise ValueError(f"{SLUG}: respuesta que no es un objeto JSON")
+    lista = payload.get("plpList")
+    if not isinstance(lista, dict):
+        raise ValueError(f"{SLUG}: la respuesta no trae plpList")
+    return lista
+
+
+def ids_de_pagina(payload: Any) -> list[str]:
+    """Los ids de artículo de una página, en orden. Puro: es lo que compara `es_espejismo()`."""
+    return [
+        raw["id"]
+        for raw in _plp(payload).get("productList") or []
+        if isinstance(raw, dict) and isinstance(raw.get("id"), str)
+    ]
+
+
+def es_espejismo(ids_hoja: Sequence[str], ids_canario: Sequence[str]) -> bool:
+    """`True` si la hoja ha devuelto el cubo en vez de su catálogo. Puro: sin red.
+
+    Compara los ids de la primera página contra los del canario. Ver el punto (1) de la cabecera:
+    NO se compara `numberOfHits`, que deriva entre peticiones y declararía viva una hoja muerta.
+
+    Una página vacía no prueba nada aquí y devuelve `False`: quien llama ya la trata aparte, igual
+    que hacen `sfera.py` y `cacles.py`.
+    """
+    if not ids_hoja or not ids_canario:
+        return False
+    comunes = len(set(ids_hoja) & set(ids_canario))
+    return comunes / len(set(ids_hoja)) >= _SOLAPE_ESPEJISMO
+
+
+def _variantes(filas: Iterable[Fila]) -> list[ScrapedVariant]:
+    """Una `ScrapedVariant` por (color × talla) de todas las filas del mismo modelo.
+
+    En H&M el precio cuelga del COLOR —cada fila trae el suyo—, así que se replica en cada talla de
+    esa fila. Es lo mismo que hace C&A y por el mismo motivo: nuestro modelo sigue el precio por
+    talla, y una tienda que hoy no diferencie puede diferenciar mañana.
+    """
+    variantes: list[ScrapedVariant] = []
+    for fila in filas:
+        for talla_id, etiqueta, con_stock in fila.tallas:
+            variantes.append(
+                ScrapedVariant(
+                    # `{articleId}-{sizeId}`: el articleId ya lleva el color, así que el par
+                    # identifica la variante sin depender del nombre del color, que es texto.
+                    retailer_variant_id=f"{fila.article_id}-{talla_id}",
+                    size=etiqueta,
+                    color=fila.color,
+                    sku=f"{fila.article_id}-{talla_id}",
+                    price=fila.price,
+                    list_price=fila.list_price,
+                    in_stock=con_stock and fila.in_stock_global,
+                    url=fila.url,
+                    # H&M no publica el mínimo de 30 días de la directiva Ómnibus (hoy solo C&A).
+                    retailer_min_30d=None,
+                )
+            )
+    return variantes
+
+
+def _imagenes(filas: Iterable[Fila], colores_con_variantes: set[str | None]) -> list[ScrapedImage]:
+    """Galería, atribuyendo cada foto al color que retrata.
+
+    El color sale del MISMO campo que alimenta `ScrapedVariant.color` (`colorName`), que es lo que
+    pide `base.ScrapedImage`. Un color sin variantes utilizables no aporta fotos.
+    """
+    imagenes: list[ScrapedImage] = []
+    for fila in filas:
+        if fila.color not in colores_con_variantes:
+            continue
+        for url in fila.images:
+            imagenes.append(ScrapedImage(color=fila.color, url=url))
+    return imagenes
+
+
+def producto(filas: Sequence[Fila], scope: ScrapeScope) -> ScrapedProduct | None:
+    """Junta las filas de un mismo modelo en un producto. Puro: sin red.
+
+    `filas` va en el orden en que las trajo el listado, así que el nombre, la URL y la foto primaria
+    son las del primer color visto — que es el que la tienda enseña primero.
+    """
+    variantes = _variantes(filas)
+    if not variantes:
+        return None
+    colores = {v.color for v in variantes}
+    imagenes = _imagenes(filas, colores)
+    primera = filas[0]
+    return ScrapedProduct(
+        retailer_product_id=primera.raiz,
+        name=primera.name,
+        gender=scope.gender,
+        section=scope.section,
+        category=scope.category,
+        url=primera.url,
+        variants=variantes,
+        barefoot=classify_barefoot(
+            retailer=SLUG,
+            retailer_product_id=primera.raiz,
+            section=scope.section,
+            category=scope.category,
+            # Solo hay el nombre: el listado no trae descripción ni composición. Basta para lo que
+            # H&M sí nombra — «Zapatillas de casa barefoot» está en el catálogo de hoy.
+            texts=[f.name for f in filas],
+        ),
+        image_url=imagenes[0].url if imagenes else None,
+        images=imagenes,
+    )
+
+
+def product_signature(product: ScrapedProduct) -> str:
+    """Huella del producto: precio y stock por variante, ordenados y estables.
+
+    Entra el stock además del precio porque aquí el listado ya es el detalle: no hay una segunda
+    petición que fuese a recogerlo, así que sin el stock en la huella un cambio de disponibilidad no
+    se llegaría a ingerir nunca. Es el mismo razonamiento que en Cacles y C&A.
+    """
+    partes = [f"{v.retailer_variant_id}:{v.price}:{int(v.in_stock)}" for v in product.variants]
+    return "|".join(sorted(partes))
+
+
+class HMStore:
+    """Scraper de H&M. Implementa el Protocol BaseStore."""
+
+    slug = SLUG
+    name = "H&M"
+    base_url = BASE_URL
+
+    def __init__(self, config: Config, categories: list[CategoryConfig] | None = None) -> None:
+        self._config = config
+        self._categories = categories if categories is not None else CATEGORIES
+        self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
+        self._cache: dict[str, ScrapedProduct] = {}
+        self._canario: list[str] | None = None
+
+    # --- red ---------------------------------------------------------------------------------
+
+    def _client(self) -> httpx.Client:
+        """`api.hm.com` entra sin una sola cabecera; se manda UA igualmente, por educación."""
+        return httpx.Client(
+            headers={"User-Agent": self._config.user_agent, "Accept": "application/json"},
+            timeout=self._config.request_timeout,
+            follow_redirects=True,
+        )
+
+    def _polite_pause(self) -> None:
+        """Pausa base entre peticiones con jitter (una cadencia fija es más detectable)."""
+        base = self._config.request_delay
+        if base > 0:
+            time.sleep(base * random.uniform(0.5, 1.5))
+
+    def _params(self, page_id: str, page: int) -> dict[str, Any]:
+        return {
+            "pageSource": "PLP",
+            "page": page,
+            "sort": "RELEVANCE",
+            "pageId": page_id,
+            "page-size": _PAGE_SIZE,
+            "categoryId": _CATEGORY_ID,
+            "touchPoint": "DESKTOP",
+            "skipStockCheck": "false",
+        }
+
+    def _get_json(self, client: httpx.Client, page_id: str, page: int) -> Any:
+        retries = self._config.request_retries
+        for attempt in range(retries + 1):
+            self._polite_pause()
+            try:
+                resp = client.get(_API_URL, params=self._params(page_id, page))
+                resp.raise_for_status()
+                return resp.json()
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                if status not in _RETRYABLE_STATUS or attempt == retries:
+                    raise
+                self._backoff(attempt, exc.response.headers.get("Retry-After"))
+            except httpx.TransportError:
+                if attempt == retries:
+                    raise
+                self._backoff(attempt)
+        raise AssertionError("inalcanzable")  # pragma: no cover
+
+    def _backoff(self, attempt: int, retry_after: str | None = None) -> None:
+        """Espera exponencial (respeta `Retry-After` si viene) con jitter."""
+        wait = self._config.retry_backoff * (2**attempt)
+        if retry_after:
+            # La cabecera admite también una fecha HTTP: no la interpretamos, y en ese caso manda
+            # el backoff exponencial en vez de reventar.
+            with contextlib.suppress(ValueError):
+                wait = max(wait, float(retry_after))
+        time.sleep(wait * random.uniform(0.8, 1.2))
+
+    def _ids_canario(self, client: httpx.Client) -> list[str]:
+        """Los ids del cubo, pedidos **una vez por pasada** y cacheados.
+
+        Si esto falla, falla la pasada: sin canario no hay forma de distinguir una hoja muerta de
+        una viva, y seguir sería ingerir el cubo entero repartido por 59 categorías.
+        """
+        if self._canario is None:
+            self._canario = ids_de_pagina(self._get_json(client, _CANARIO_PAGE_ID, _PAGINA_INICIAL))
+            logger.info("%s: canario con %d ids de referencia", SLUG, len(self._canario))
+        return self._canario
+
+    # --- contrato ----------------------------------------------------------------------------
+
+    def scopes(self) -> Iterable[ScrapeScope]:
+        """Los ámbitos declarados **más su equivalente `unisex`**.
+
+        Lo segundo no es cosmético: el 9,3 % de los modelos sale en hojas de los dos géneros y se
+        emite como `unisex` (ver el punto 3 de la cabecera), así que un ámbito `unisex` que no se
+        declarase aquí no se contaría como escaneado y sus productos no se podrían descatalogar
+        nunca. Es el mismo motivo por el que `cacles.py` declara el producto cartesiano de lo que su
+        parser PUEDE emitir en vez de lo que dicen sus hojas.
+        """
+        declarados = [ScrapeScope(c.gender, c.section, c.category) for c in self._categories]
+        unisex = [ScrapeScope("unisex", s.section, s.category) for s in declarados]
+        return list(dict.fromkeys([*declarados, *unisex]))
+
+    def list_catalog(self) -> Iterable[ListingEntry]:
+        """Recorre las hojas y emite un producto por modelo.
+
+        **Acumula la pasada entera antes de emitir**, a diferencia de las demás tiendas. Hacen falta
+        las dos cosas y ninguna se puede decidir con una página delante: agrupar los colores de un
+        modelo, que se reparten entre páginas y hojas, y ver si un modelo sale en hojas de géneros
+        distintos, que es lo que lo hace `unisex`. Son 6518 filas: la memoria da igual, y el ámbito
+        de una entrada ya emitida no se puede corregir.
+        """
+        self._scan = ScanReport()
+        self._cache = {}
+        self._canario = None
+        filas_por_raiz: dict[str, list[Fila]] = {}
+        hojas_por_raiz: dict[str, list[CategoryConfig]] = {}
+
+        with self._client() as client:
+            for cat in self._categories:
+                filas = self._leer_hoja(client, cat)
+                if filas is None:
+                    continue  # hoja caída: ya está contada y su ámbito fuera de las bajas
+                for fila in filas:
+                    filas_por_raiz.setdefault(fila.raiz, [])
+                    hojas_por_raiz.setdefault(fila.raiz, [])
+                    if fila.article_id not in {f.article_id for f in filas_por_raiz[fila.raiz]}:
+                        filas_por_raiz[fila.raiz].append(fila)
+                    if cat not in hojas_por_raiz[fila.raiz]:
+                        hojas_por_raiz[fila.raiz].append(cat)
+
+        for raiz_modelo, filas in filas_por_raiz.items():
+            scope = _ambito(hojas_por_raiz[raiz_modelo])
+            prod = producto(filas, scope)
+            if prod is None:
+                continue
+            self._cache[raiz_modelo] = prod
+            yield ListingEntry(
+                retailer_product_id=raiz_modelo,
+                signature=product_signature(prod),
+                gender=scope.gender,
+                section=scope.section,
+                category=scope.category,
+            )
+
+    def _leer_hoja(self, client: httpx.Client, cat: CategoryConfig) -> list[Fila] | None:
+        """Todas las páginas de una hoja, o `None` si la hoja está caída.
+
+        Devuelve la lista completa en vez de un generador porque quien llama necesita la pasada
+        entera antes de emitir nada (ver `list_catalog`).
+        """
+        scope = ScrapeScope(cat.gender, cat.section, cat.category)
+        acumuladas: list[Fila] = []
+        truncada = True  # solo deja de serlo al ver el final real de la paginación
+        for page in range(_PAGINA_INICIAL, _PAGINA_INICIAL + _MAX_PAGES):
+            payload = self._get_json(client, cat.page_id, page)
+            ids = ids_de_pagina(payload)
+            if page == _PAGINA_INICIAL:
+                if es_espejismo(ids, self._ids_canario(client)):
+                    # LA PARTE IMPORTANTE DE ESTE FICHERO. La hoja no resuelve y la tienda ha
+                    # devuelto el cubo: ingerirlo metería miles de productos de otras categorías
+                    # bajo este ámbito, y con 200 en todas las peticiones.
+                    self._hoja_comprometida(
+                        scope,
+                        f"la hoja {cat.page_id!r} devolvió el cubo de {_CATEGORY_ID!r} "
+                        "(espejismo), así que se trata como retirada",
+                    )
+                    return None
+                if not ids:
+                    self._hoja_comprometida(
+                        scope,
+                        f"la hoja {cat.page_id!r} devolvió 0 productos en su primera página, "
+                        "así que se trata como retirada",
+                    )
+                    return None
+            elif not ids:
+                truncada = False
+                break
+            acumuladas.extend(parse_filas(payload))
+            if len(ids) < _PAGE_SIZE or not (payload.get("pagination") or {}).get("nextPageNum"):
+                # Una página incompleta ES la última, y `nextPageNum` desaparece al llegar al
+                # final: con cualquiera de las dos señales sobra la petición que solo servía para
+                # que la tienda respondiera vacío.
+                truncada = False
+                break
+        if truncada:
+            # Se agotó el tope de páginas sin llegar al final: se ha visto SOLO una parte de la
+            # hoja. Contarla como sana sería el peor de los dos errores — lo que no se ha llegado a
+            # mirar no está retirado, y a las `delist_min_misses` pasadas se descatalogaría solo por
+            # no haber cabido en el tope.
+            self._hoja_comprometida(
+                scope,
+                f"{cat.page_id!r} agotó el tope de {_MAX_PAGES} páginas sin llegar al final, "
+                "así que el catálogo leído está incompleto",
+            )
+            return None
+        self._scan.leaf_ok()
+        return acumuladas
+
+    def _hoja_comprometida(self, scope: ScrapeScope, motivo: str) -> None:
+        """Cuenta la hoja como caída y saca su ámbito de las bajas de esta pasada.
+
+        Saca **también el ámbito `unisex` equivalente**: un modelo que salía en las dos ramas de
+        género deja de verse en las dos en cuanto cae una, y entonces se emitiría con el género de
+        la rama superviviente en vez de `unisex`. Sin esto, una hoja caída daría de baja productos
+        del ámbito `unisex` que siguen perfectamente vivos.
+
+        Ese ámbito extra se añade a `failed_scopes` **sin pasar por `leaf_gone()`**, que además de
+        registrar el ámbito cuenta una hoja: contarla dos veces inflaría `dead_ratio` y dispararía
+        `SCRAPER_SCAN_MAX_DEAD_RATIO` antes de tiempo. Es una hoja caída, no dos.
+        """
+        self._scan.leaf_gone(scope)
+        if scope.gender != "unisex":
+            self._scan.failed_scopes.add(ScrapeScope("unisex", scope.section, scope.category))
+        logger.warning("%s: %s; se omiten las bajas de ese ámbito", SLUG, motivo)
+
+    def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
+        # El listado ya trajo el detalle completo (colores, tallas, precios y fotos vienen en el
+        # mismo JSON), así que se sirve desde caché sin una sola petición extra.
+        for entry in entries:
+            prod = self._cache.get(entry.retailer_product_id)
+            if prod is not None:
+                yield prod
+
+    def scan_report(self) -> ScanReport:
+        """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""
+        return self._scan
+
+    # --- capacidades opcionales --------------------------------------------------------------
+
+    def check_leaves(self) -> Iterable[LeafHealth]:
+        """Sondea las hojas configuradas. Ver `stores.base.SupportsLeafHealth`.
+
+        Una petición por hoja más una del canario. El veredicto sale de compararlas: aquí una hoja
+        muerta no da 404 ni lista vacía, da el cubo entero con 200.
+
+        No hay `SupportsAliveProbe` que complemente esto (ver el punto 5 de la cabecera), así que
+        este sondeo es lo único que avisa de que una hoja ha cambiado de nombre.
+        """
+        with self._client() as client:
+            try:
+                canario = self._ids_canario(client)
+            except (httpx.HTTPError, ValueError) as exc:
+                # Sin canario no hay veredicto posible para NINGUNA hoja, y decir «viva» sería
+                # peor que callar: el vigía trata `None` como aviso, que es lo que esto es.
+                for cat in self._categories:
+                    yield LeafHealth(
+                        ScrapeScope(cat.gender, cat.section, cat.category),
+                        cat.page_id,
+                        None,
+                        f"no se pudo pedir el canario ({type(exc).__name__}), "
+                        "así que no hay con qué reconocer un espejismo",
+                    )
+                return
+            for cat in self._categories:
+                scope = ScrapeScope(cat.gender, cat.section, cat.category)
+                try:
+                    payload = self._get_json(client, cat.page_id, _PAGINA_INICIAL)
+                    ids = ids_de_pagina(payload)
+                except httpx.HTTPStatusError as exc:
+                    yield LeafHealth(scope, cat.page_id, None, f"HTTP {exc.response.status_code}")
+                except (httpx.TransportError, ValueError) as exc:
+                    yield LeafHealth(scope, cat.page_id, None, f"{type(exc).__name__}: {exc}")
+                else:
+                    if es_espejismo(ids, canario):
+                        yield LeafHealth(
+                            scope,
+                            cat.page_id,
+                            False,
+                            f"espejismo: devuelve el cubo de {_CATEGORY_ID!r}",
+                        )
+                    else:
+                        total = _plp(payload).get("numberOfHits")
+                        yield LeafHealth(
+                            scope,
+                            cat.page_id,
+                            bool(ids),
+                            f"{len(ids)} productos en la 1ª página (la tienda declara {total})",
+                        )
+
+
+def _ambito(hojas: Sequence[CategoryConfig]) -> ScrapeScope:
+    """El ámbito de un modelo a partir de las hojas en las que ha aparecido.
+
+    **El género es `unisex` cuando el modelo sale en hojas de géneros distintos**, que es lo que la
+    tienda está diciendo al publicarlo en las dos ramas: 317 modelos de 3401 (9,3 %) el 02/08/2026.
+    El catálogo y el matching ya tratan `unisex` como «sale en niño y en niña», así que no hace
+    falta vocabulario nuevo — solo detectar el cruce, que es lo que la #98 echó en falta en
+    Hipercor.
+
+    La sección y la categoría, en cambio, las fija **la primera hoja** que trajo el modelo, como en
+    el resto de tiendas. Un modelo que salga en `pantalones` de una rama y en `ropa-interior` de
+    otra se queda con la primera: cruzar categorías es raro y no hay forma de decir «las dos».
+    """
+    generos = {h.gender for h in hojas}
+    reales = generos - {"unisex"}
+    primera = hojas[0]
+    gender = "unisex" if len(reales) != 1 else reales.pop()
+    return ScrapeScope(gender, primera.section, primera.category)

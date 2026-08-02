@@ -1,0 +1,560 @@
+{
+ "requestDateTime": "2026-08-02T14:26:15.480Z",
+ "responseSource": "Elevate",
+ "pagination": {
+  "currentPage": 1,
+  "nextPageNum": 2,
+  "totalPages": 3
+ },
+ "plpList": {
+  "productList": [
+   {
+    "id": "0827318018",
+    "trackingId": "OzY7IzswODI3MzE4MDE4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+    "productName": "Pack de 5 bodies de algodón",
+    "modelImage": "https://image.hm.com/assets/hm/9e/18/9e18d0306e7cf6737af83cac33e74d1e38a990a7.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/9e/18/9e18d0306e7cf6737af83cac33e74d1e38a990a7.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/9e/18/9e18d0306e7cf6737af83cac33e74d1e38a990a7.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/9e/18/9e18d0306e7cf6737af83cac33e74d1e38a990a7.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.0827318018.html",
+    "showPriceMarker": false,
+    "comparativePrice": 3.2,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 15.99,
+      "minPrice": 15.99,
+      "maxPrice": 15.99,
+      "formattedPrice": "15,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "0827318018",
+      "url": "/es_es/productpage.0827318018.html",
+      "colorName": "Beige/Blanco",
+      "colorCode": "DFD7CA",
+      "trackingId": "OzY7IzswODI3MzE4MDE4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/9e/18/9e18d0306e7cf6737af83cac33e74d1e38a990a7.jpg"
+     },
+     {
+      "articleId": "0827318033",
+      "url": "/es_es/productpage.0827318033.html",
+      "colorName": "Rosa empolvado claro/Floral",
+      "colorCode": "C7B4A6",
+      "trackingId": "OzY7IzswODI3MzE4MDMzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/cb/ee/cbeec230f99f0a40d968bd883bde72eba5f50720.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/d2/7e/d27ea2325407c39e079bc9021c6adb4e4f2f9893.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Beige/Blanco",
+    "quantity": "5",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "DFD7CA",
+    "colourShades": "Crudo|Marfil|Gris topo|Trigo",
+    "isMultipack": true,
+    "sizes": [
+     {
+      "id": "004",
+      "label": "62 (2-4M)",
+      "stock": 2
+     },
+     {
+      "id": "003",
+      "label": "56 (1-2M)",
+      "stock": 2
+     },
+     {
+      "id": "006",
+      "label": "74 (6-9M)",
+      "stock": 2
+     },
+     {
+      "id": "005",
+      "label": "68 (4-6M)",
+      "stock": 2
+     },
+     {
+      "id": "002",
+      "label": "50 (0-1M)",
+      "stock": 2
+     },
+     {
+      "id": "001",
+      "label": "44 (<0-1M)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "blanco_ffffff|beige_f5f5dc",
+    "comparativeFormattedPrice": "3,20 €",
+    "mainCatCode": "kids_new_born_clothing_bodysuits_shortsleeve"
+   },
+   {
+    "id": "1159381043",
+    "trackingId": "OzY7IzsxMTU5MzgxMDQzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+    "productName": "Pack de 5 bodies de algodón",
+    "modelImage": "https://image.hm.com/assets/hm/74/4c/744ca33f87c241e1e4c4d786955d773cc1db25af.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/74/4c/744ca33f87c241e1e4c4d786955d773cc1db25af.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/74/4c/744ca33f87c241e1e4c4d786955d773cc1db25af.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/74/4c/744ca33f87c241e1e4c4d786955d773cc1db25af.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1159381043.html",
+    "showPriceMarker": false,
+    "comparativePrice": 3.6,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 17.99,
+      "minPrice": 17.99,
+      "maxPrice": 17.99,
+      "formattedPrice": "17,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1159381043",
+      "url": "/es_es/productpage.1159381043.html",
+      "colorName": "Azul claro/Dinosaurios",
+      "colorCode": "CDD6DF",
+      "trackingId": "OzY7IzsxMTU5MzgxMDQzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/74/4c/744ca33f87c241e1e4c4d786955d773cc1db25af.jpg"
+     },
+     {
+      "articleId": "1159381042",
+      "url": "/es_es/productpage.1159381042.html",
+      "colorName": "Azul claro/Flores",
+      "colorCode": "E8D5D4",
+      "trackingId": "OzY7IzsxMTU5MzgxMDQyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/b1/88/b18872e81161e4afe44ce08b391ef6b09e227fdc.jpg"
+     },
+     {
+      "articleId": "1159381041",
+      "url": "/es_es/productpage.1159381041.html",
+      "colorName": "Rosa/Bayas",
+      "colorCode": "D99DAC",
+      "trackingId": "OzY7IzsxMTU5MzgxMDQxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/6d/59/6d594a7a5c20234cf7a2b007d31e79d4551d9da4.jpg"
+     },
+     {
+      "articleId": "1159381035",
+      "url": "/es_es/productpage.1159381035.html",
+      "colorName": "Beige claro/Perros",
+      "colorCode": "DAD6D3",
+      "trackingId": "OzY7IzsxMTU5MzgxMDM1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/a7/58/a758c7a9b9604f22de2754a310648d2cd2ca2b02.jpg"
+     },
+     {
+      "articleId": "1159381026",
+      "url": "/es_es/productpage.1159381026.html",
+      "colorName": "Rosa/Rayas",
+      "colorCode": "B4A7BF",
+      "trackingId": "OzY7IzsxMTU5MzgxMDI2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/6c/32/6c328b433e74c5e0782e76a934563c909bb2baa9.jpg"
+     },
+     {
+      "articleId": "1159381029",
+      "url": "/es_es/productpage.1159381029.html",
+      "colorName": "Beige/Bunny",
+      "colorCode": "C2B097",
+      "trackingId": "OzY7IzsxMTU5MzgxMDI5OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/43/25/4325adda5984dd142c4b12e0213f9c95c7798c1c.jpg"
+     },
+     {
+      "articleId": "1159381039",
+      "url": "/es_es/productpage.1159381039.html",
+      "colorName": "Rosa/Corazones",
+      "colorCode": "D1C7DB",
+      "trackingId": "OzY7IzsxMTU5MzgxMDM5OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/d7/e9/d7e9d00373d0155fea776b802ddcca30a238aa8d.jpg"
+     },
+     {
+      "articleId": "1159381038",
+      "url": "/es_es/productpage.1159381038.html",
+      "colorName": "Blanco/Animales",
+      "colorCode": "C3BEB7",
+      "trackingId": "OzY7IzsxMTU5MzgxMDM4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/28/75/287500c2309ca846dec37d4b191c740dba19fccd.jpg"
+     },
+     {
+      "articleId": "1159381027",
+      "url": "/es_es/productpage.1159381027.html",
+      "colorName": "Verde claro/Frutas",
+      "colorCode": "ECC0AB",
+      "trackingId": "OzY7IzsxMTU5MzgxMDI3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/15/39/153902333c9b3e231680c2d6f019e5321609e6c1.jpg"
+     },
+     {
+      "articleId": "1159381032",
+      "url": "/es_es/productpage.1159381032.html",
+      "colorName": "Rosa/Corazones",
+      "colorCode": "BB797E",
+      "trackingId": "OzY7IzsxMTU5MzgxMDMyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/32/89/3289ca1fb25410055a70fd50bbcce8d7a797024a.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/c7/cd/c7cdb43f49a6133f1afa77ffe69bf4c1082a5e74.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul claro/Dinosaurios",
+    "quantity": "5",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "CDD6DF",
+    "isMultipack": true,
+    "sizes": [
+     {
+      "id": "006",
+      "label": "74 (6-9M)",
+      "stock": 2
+     },
+     {
+      "id": "007",
+      "label": "80 (9-12M)",
+      "stock": 2
+     },
+     {
+      "id": "004",
+      "label": "62 (2-4M)",
+      "stock": 2
+     },
+     {
+      "id": "005",
+      "label": "68 (4-6M)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "86 (12-18M)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "002",
+      "label": "50 (0-1M)",
+      "stock": 2
+     },
+     {
+      "id": "003",
+      "label": "56 (1-2M)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "azul_0000ff|blanco_ffffff|multi_000000",
+    "comparativeFormattedPrice": "3,60 €",
+    "mainCatCode": "kids_baby_boy_clothing_bodysuits_shortsleeve"
+   },
+   {
+    "id": "1145130017",
+    "trackingId": "OzY7IzsxMTQ1MTMwMDE3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+    "productName": "Pack de 3 bodies sin mangas",
+    "modelImage": "https://image.hm.com/assets/hm/06/c7/06c7365b051ee2a588a9aaa2894e1e038da01dbb.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/06/c7/06c7365b051ee2a588a9aaa2894e1e038da01dbb.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/06/c7/06c7365b051ee2a588a9aaa2894e1e038da01dbb.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/06/c7/06c7365b051ee2a588a9aaa2894e1e038da01dbb.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1145130017.html",
+    "showPriceMarker": false,
+    "comparativePrice": 4.33,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 12.99,
+      "minPrice": 12.99,
+      "maxPrice": 12.99,
+      "formattedPrice": "12,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1145130017",
+      "url": "/es_es/productpage.1145130017.html",
+      "colorName": "Turquesa/Rosa claro",
+      "colorCode": "EDE4BE",
+      "trackingId": "OzY7IzsxMTQ1MTMwMDE3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/06/c7/06c7365b051ee2a588a9aaa2894e1e038da01dbb.jpg"
+     },
+     {
+      "articleId": "1145130001",
+      "url": "/es_es/productpage.1145130001.html",
+      "colorName": "Beige/Blanco",
+      "colorCode": "D0C9C0",
+      "trackingId": "OzY7IzsxMTQ1MTMwMDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/64/09/64092b707049de66c2239ff546c6343bf1ce727b.jpg"
+     },
+     {
+      "articleId": "1145130014",
+      "url": "/es_es/productpage.1145130014.html",
+      "colorName": "Blanco",
+      "colorCode": "ECEDEC",
+      "trackingId": "OzY7IzsxMTQ1MTMwMDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/ce/79/ce795bcc1590837f381ce00ecd9000dc76157c17.jpg"
+     },
+     {
+      "articleId": "1145130015",
+      "url": "/es_es/productpage.1145130015.html",
+      "colorName": "Azul claro/Beige claro",
+      "colorCode": "C2D3E8",
+      "trackingId": "OzY7IzsxMTQ1MTMwMDE1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/43/7e/437e7c66ee2dbd8bc3f3643af8881bdb1aa2fcd3.jpg"
+     },
+     {
+      "articleId": "1145130011",
+      "url": "/es_es/productpage.1145130011.html",
+      "colorName": "Rosa empolvado claro/Beige",
+      "colorCode": "E1CDC6",
+      "trackingId": "OzY7IzsxMTQ1MTMwMDExOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/1f/ba/1fba156f14026a2c1e7483cbf08a5d11713c2efd.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/bf/24/bf249f7c8d91bd65a0b86f9142a47aca5897bc03.jpg",
+      "assetType": "DescriptiveDetail"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/3e/6c/3e6c7cdaf722ab736813618d8a728e0dac57e6ee.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Turquesa/Rosa claro",
+    "quantity": "3",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "EDE4BE",
+    "colourShades": "Amarillo pastel|Crema",
+    "isMultipack": true,
+    "sizes": [
+     {
+      "id": "011",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "004",
+      "label": "62 (2-4M)",
+      "stock": 2
+     },
+     {
+      "id": "005",
+      "label": "68 (4-6M)",
+      "stock": 2
+     },
+     {
+      "id": "002",
+      "label": "50 (0-1M)",
+      "stock": 2
+     },
+     {
+      "id": "003",
+      "label": "56 (1-2M)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "86 (12-18M)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "006",
+      "label": "74 (6-9M)",
+      "stock": 2
+     },
+     {
+      "id": "007",
+      "label": "80 (9-12M)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "amarillo_ffff00|rosa_ffc0cb|turquesa_40e0d0",
+    "comparativeFormattedPrice": "4,33 €",
+    "mainCatCode": "kids_baby_boy_clothing_bodysuits_sleeveless"
+   },
+   {
+    "id": "0754107139",
+    "trackingId": "OzY7IzswNzU0MTA3MTM5OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0OzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+    "productName": "Conjunto de punto con motivo estampado 3 piezas",
+    "modelImage": "https://image.hm.com/assets/hm/92/5d/925d3ff5fdd6edc9ea582dd06f856e76a3777260.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/92/5d/925d3ff5fdd6edc9ea582dd06f856e76a3777260.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/92/5d/925d3ff5fdd6edc9ea582dd06f856e76a3777260.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/92/5d/925d3ff5fdd6edc9ea582dd06f856e76a3777260.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.0754107139.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 15.99,
+      "minPrice": 15.99,
+      "maxPrice": 15.99,
+      "formattedPrice": "15,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "0754107139",
+      "url": "/es_es/productpage.0754107139.html",
+      "colorName": "Crema/Winnie the Pooh",
+      "colorCode": "DFD7CA",
+      "trackingId": "OzY7IzswNzU0MTA3MTM5OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0OzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/92/5d/925d3ff5fdd6edc9ea582dd06f856e76a3777260.jpg"
+     },
+     {
+      "articleId": "0754107135",
+      "url": "/es_es/productpage.0754107135.html",
+      "colorName": "Turquesa/Mickey Mouse",
+      "colorCode": "AAB1AD",
+      "trackingId": "OzY7IzswNzU0MTA3MTM1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0OzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/6a/9f/6a9fde5374ec058fdb0109c053fadf93286cf4a8.jpg"
+     },
+     {
+      "articleId": "0754107137",
+      "url": "/es_es/productpage.0754107137.html",
+      "colorName": "Crema/Minnie Mouse",
+      "colorCode": "ECE7E1",
+      "trackingId": "OzY7IzswNzU0MTA3MTM3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0OzQ3OyM7IzsvYmFieS9uZXdib3JuL2Nsb3RoaW5nL2JvZHlzdWl0czsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/05/19/05196889b8aff0d4e17796ac7be995436041150a.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/bd/bc/bdbc739fd4e2bfdd49849b9b339b2915d6dde53b.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Crema/Winnie the Pooh",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "DFD7CA",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "006",
+      "label": "74 (6-9M)",
+      "stock": 2
+     },
+     {
+      "id": "004",
+      "label": "62 (2-4M)",
+      "stock": 2
+     },
+     {
+      "id": "005",
+      "label": "68 (4-6M)",
+      "stock": 2
+     },
+     {
+      "id": "002",
+      "label": "50 (0-1M)",
+      "stock": 2
+     },
+     {
+      "id": "003",
+      "label": "56 (1-2M)",
+      "stock": 2
+     }
+    ],
+    "newArrival": true,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "beige_f5f5dc|blanco_ffffff",
+    "mainCatCode": "kids_baby_boy_clothing_bodysuits_longsleeve"
+   }
+  ],
+  "numberOfHits": 203
+ }
+}
