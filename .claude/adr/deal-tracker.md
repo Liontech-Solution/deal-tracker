@@ -346,6 +346,23 @@ petición haya vuelto: el bucle que iba a reintentar con el hash nuevo nunca lle
 que la auto-reparación existía sobre el papel y no se disparaba jamás. Lo destapó un test, no la
 revisión.
 
+**Y el reverso, que costó una pasada de tres horas y media: a veces no vino nada, y un bucle que
+mira el status no se entera.** El de `BrowserSession.get_html` reintentaba ante 429/5xx —o sea, ante
+el status de *una respuesta que llegó*—, así que un `Page.goto: Timeout` elevaba por encima del
+bucle y subía hasta `ingest`. Con el agravante de que en una tienda que va por navegador ese es el
+fallo transitorio **más probable de todos**: la segunda pasada de Hipercor (02/08/2026) murió a los
+28 minutos por una hoja lenta, la 32 de 32, llevándose las 31 ya leídas. El mismo agujero que #41
+tapó para los 404, por un camino que aquella no cubrió, y compartido con Sfera por venir de la
+sesión de navegador. La regla que se generaliza: **el reintento tiene que cubrir el fallo que no
+trae status**, y lo que quede se absorbe como hoja ilegible —«no la he podido ver», que no es «está
+vacía»— porque quien decide si han sido demasiadas es `SCRAPER_SCAN_MAX_DEAD_RATIO`. Barrer ancho es
+seguro precisamente porque ese umbral sigue puesto: se pierde una hoja, no el criterio.
+
+Su contrapartida hay que tenerla presente al dimensionar deadlines: con los reintentos, una hoja que
+la tienda no sirve pasa de costar 45 s a ~3 min, así que un bloqueo **total** tarda ~100 min en
+llegar al umbral que aborta en vez de ~25. Sale a cuenta porque el caso frecuente es el timeout
+suelto y el raro es el bloqueo entero, pero el número entra en el cálculo.
+
 ### El árbol de categorías de una tienda no es lo que parece
 
 Dos cosas medidas sobre Zara y Sfera que se repiten y conviene dar por supuestas al mapear la
@@ -567,7 +584,7 @@ Corolario del mismo recon: **una API abierta puede pedir una cabecera tonta**. C
 `403 Not allowed` a todo lo que no lleve `origin`, y con `content-type` + `origin` entra sin cookies,
 sin UA y sin las `x-*` que manda su propio front. Antes de concluir «nos bloquean», probar la matriz
 de cabeceras además de la matriz de clientes de la sección anterior.
-### Un scraper se rompe de dos maneras y solo una se ve
+### Un scraper se rompe de dos maneras y solo una se ve (y la segunda tiene grados)
 
 Que la tienda **cambie** (una hoja caduca, el JSON cambia de forma) sale en el resumen de la
 pasada. Que la tienda deje de **dejarnos entrar** es silencioso, y es el modo de fallo caro: el
@@ -622,6 +639,24 @@ un minuto**, y la secuencia para cerrar el círculo al añadir tienda es mergear
 CI → **comprobar que ArgoCD ha sincronizado la imagen en el CronJob** (disparar antes muere con
 `Tienda desconocida`) → disparar el job a mano → leer el log. Diez minutos de reloj, casi todos de
 espera.
+
+**Y el segundo grado, que el vigía tampoco ve: «nos dejan entrar» no es binario.** Puede estar la
+puerta abierta y el paso regulado, y el vigía solo sabe leer la puerta. Medido el 02/08/2026 (#107)
+el día después de la pasada en frío de Hipercor —1.224 navegaciones de ficha en 3 h 27 min contra el
+mismo host—: la tienda dejó de dejar entrar **al cluster** (timeout desde el pod, HTTP 200 en 9,2 s
+desde fuera, la misma URL), y ese bloqueo duro remitió solo en menos de 3 h 45 min. Pero el mismo
+sondeo del vigía, a la misma hora desde los dos sitios, tardó **24 min 28 s desde el pod contra
+2 min 04 s desde fuera**: ×11,8, con veredicto `✔ todas nos dejan entrar` en ambos. El veredicto era
+**cierto**; lo que no publicaba era el tiempo, que es donde estaba la única señal. Dos cosas que se
+generalizan:
+
+- **La duración delata el throttling, el veredicto no**, y hacer el smoke más pesado no lo arregla:
+  con la puerta abierta también saldría verde, solo que más despacio (#111).
+- **El factor local→cluster no es una constante del hardware.** El ×2,0 de la pasada en frío era CPU
+  estrangulada; el ×11,8 es reputación gastada ante la tienda, y se paga justo después de la pasada
+  que más falta hacía. O sea que un `activeDeadlineSeconds` calculado sobre un cluster limpio no
+  tiene por qué valer la semana siguiente, y lo que protege de verdad no es un techo más alto sino
+  que **fallar sea barato**.
 
 ### El género `unisex` es la norma del barefoot, no una excepción
 
