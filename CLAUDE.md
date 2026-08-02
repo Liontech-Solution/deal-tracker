@@ -38,6 +38,7 @@ just run [retailer]           # scrape (default zara), applies migrations first
 just dry-run [retailer]       # scrape without writing to DB
 just check-categories         # probe category leaves; fails if any expired (no ingest)
 just tree [retailer] [root]   # list the category tree the store publishes, marking what we ingest
+just vigia                    # live smoke of every registered store (leaves + parse), no ingest
 just check                    # ruff + ruff format --check + mypy + pytest
 just docker-build             # image build (context = repo root)
 
@@ -110,7 +111,20 @@ Neither owns them.
 
 **Adding a retailer touches two repos.** The scraper entry in `registry.py` is not enough — without
 a CronJob in the manifests repo it never runs in the cluster. The `nueva-tienda` skill walks the
-whole flow, and `revisor-robustez-scraper` audits what fixture tests can't catch.
+whole flow, and `revisor-robustez-scraper` audits what fixture tests can't catch. The **vigía** is
+the exception that needs no second repo: it iterates `available_slugs()` and its CronJob names no
+stores, so registering a retailer watches it.
+
+**A store breaks in two ways and only one is visible.** That the store *changed* shows up in the
+pass summary; that the store stopped *letting us in* is silent — the Cacles TLS fix leans on an
+httpcore internal, and a bump that breaks it brings back a 429 that reads like something else. So
+`python -m scraper.vigia` (`just vigia`) sweeps every registered store weekly from the cluster:
+category leaves plus a generic parse smoke on 5 products, opening one GitHub issue when it finds
+something actionable. It runs **in the cluster and not in CI** on purpose — the question is whether
+the stores let *us* in, and a GitHub runner exits from a different IP with a different reputation.
+Two consequences worth knowing: it is the only CronJob shipping `suspend: false` (a paused watchdog
+is the problem it exists to solve, so dev pauses it instead, to avoid asking twice), and
+`check_leaves()` is effectively mandatory — `just check` fails for a registered store that lacks it.
 
 **Local verification does not need the cluster.** A throwaway Postgres in Docker covers the
 ingestion tests and a real full pass. The dev cluster is only for verifying **deployment**, and that
@@ -122,8 +136,12 @@ These are facts about the running system, not plans:
 
 - **Deployment target:** an existing **k3s cluster**. Scheduled CronJobs re-scrape per retailer
   (one job per store — the profiles diverge: Zara is light httpx, Sfera needs 2Gi for Chromium) plus
-  a daily matching job. They ship `suspend: true` by default, so in dev a pass is fired by hand:
+  a matching job and the vigía. Base ships them `suspend: true` (the vigía is the one exception), so
+  in **dev** a pass is fired by hand:
   `kubectl -n deal-tracker-dev create job <name> --from=cronjob/deal-tracker-scraper-<slug>`.
+  In **QA** the four scrapers and matching run **weekly** (Mondays, staggered 05:30→07:00) and the
+  vigía on Thursdays: QA is not production, so it only needs enough passes to grow `price_history`
+  and let someone experiment. Note that QA's matching sends **real Telegram messages**.
 - **Database:** the **CNPG** cluster `platform-postgres-dev` in namespace `data-dev` — *not* the
   cluster's `postgresql-generic`. It also holds the price-history time series.
 - **Auth/login:** **Keycloak**, already deployed in the cluster. The web service is a resource
