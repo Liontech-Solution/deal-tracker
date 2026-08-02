@@ -17,10 +17,11 @@ and `deal-tracker-qa` (semver releases, public at `dealtracker-qa.liontechsoluti
 
 Retailers implemented: **Zara** (public AJAX JSON endpoints), **Sfera** (headless Chromium — it sits
 behind Akamai), **Lefties**, **Cacles Barefoot** (Shopify `products.json`; the first *natively*
-barefoot store, so `barefoot='si'` is declared per-store instead of guessed) and **Hipercor**
-(headless Chromium, and the first store scraped **through its own pages** rather than an API: its
-`robots.txt` disallows `/api`, so the listing and the product sheet are read from the `dataLayer` and
-the `ld+json` each page embeds). Still pending from the brief: Mango Kids, H&M, Springfield Kids, C&A.
+barefoot store, so `barefoot='si'` is declared per-store instead of guessed), **C&A** (GraphQL
+persisted query; the only one that publishes the Ómnibus 30-day minimum) and **Hipercor** (headless
+Chromium, and the first store scraped **through its own pages** rather than an API: its `robots.txt`
+disallows `/api`, so the listing and the product sheet are read from the `dataLayer` and the
+`ld+json` each page embeds). Still pending from the brief: Mango Kids, H&M, Springfield Kids.
 
 > **Deeper architectural context lives in the ADR**, not in this file. Read it before any change
 > that crosses services or reaches k8s — it documents the contract between this repo and the
