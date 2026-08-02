@@ -4,10 +4,15 @@
 scraper_dir := "services/scraper"
 
 # Crea el venv e instala el servicio scraper con sus dependencias de desarrollo.
+# Incluye el navegador de Playwright a propósito (#91): vive en ~/.cache/ms-playwright, FUERA del
+# venv, así que sin este paso un entorno nuevo se servía de lo que hubiera cacheado antes — o no
+# arrancaba. Idempotente: si el build que pide esta versión ya está, no descarga nada (~150 MB la
+# primera vez por máquina).
 setup:
     python -m venv {{scraper_dir}}/.venv
     {{scraper_dir}}/.venv/bin/pip install --upgrade pip
     {{scraper_dir}}/.venv/bin/pip install -e "{{scraper_dir}}[dev]"
+    {{scraper_dir}}/.venv/bin/playwright install chromium
 
 # Aplica las migraciones pendientes (usa DATABASE_URL del entorno / .env).
 migrate:

@@ -19,10 +19,20 @@ dependencies = [
     # un contrato: si httpx dejara de necesitarlo, el CronJob de Cacles reventaría al arrancar.
     "certifi",
     "psycopg[binary]>=3.2",
-    # Navegador headless para tiendas tras anti-bot (Akamai): ejecuta el sensor JS y
-    # obtiene cookies válidas. Solo lo usan las tiendas que lo necesitan (p.ej. Sfera);
-    # el binario de Chromium se instala aparte (`playwright install chromium`).
-    "playwright>=1.49",
+    # Navegador headless para tiendas tras anti-bot (Akamai): ejecuta el sensor JS y obtiene
+    # cookies válidas. Solo lo usan las tiendas que lo necesitan (Sfera e Hipercor); el binario de
+    # Chromium NO viene en el paquete, se instala aparte (`playwright install chromium`, que es lo
+    # que hace `just setup`; en la imagen lo hace el Dockerfile).
+    #
+    # Techo a propósito, con el mismo argumento que el de httpx: cada versión mayor de Playwright
+    # trae OTRO build de Chromium, y las dos tiendas que lo usan están tras Akamai, que identifica
+    # al navegador por su huella. El techo no impide que la huella cambie —de eso avisa el vigía
+    # (#67)—, obliga a que el bump sea un PR donde toque re-verificarlo con `scraper.vigia`.
+    # Y de paso arregla la fricción local que abrió #91: los navegadores viven en
+    # `~/.cache/ms-playwright`, FUERA del venv y compartidos entre ellos, así que sin techo un venv
+    # nuevo pide un build que nadie ha descargado (medido el 02/08/2026: la 1.62 busca
+    # `chromium-1234` y lo cacheado era el `chromium-1228` de la 1.61).
+    "playwright>=1.49,<1.62",
 ]
 
 [project.optional-dependencies]
