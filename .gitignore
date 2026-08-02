@@ -59,3 +59,11 @@ tmp/
 # === Sistema operativo ===
 .DS_Store
 Thumbs.db
+
+# === Herramientas locales ===
+# Worktrees de git que se crean dentro del repo al trabajar en varias issues a la vez.
+# Son copias del propio repo: sin esta línea aparecen como untracked y es fácil commitearlas.
+.claude/worktrees/
+# Artefactos que deja el MCP de Playwright (snapshots, logs de consola, volcados de red)
+# en el directorio desde el que se lanza.
+.playwright-mcp/
