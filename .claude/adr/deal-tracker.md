@@ -220,6 +220,50 @@ escrita en el contrato con seguridad, que se cayó en cuanto alguien consultó l
 Antes de escribir en el contrato que algo no se puede o que algo es siempre así, comprobar sobre los
 datos de quién —y de qué— se está hablando. La consulta cuesta un minuto.
 
+### El `robots.txt` decide el diseño del scraper, y a veces no es el que parece
+
+Medido el 02/08/2026 al implementar Hipercor (#79/#88), y corrige dos supuestos del recon de #70.
+
+**El `robots.txt` que devuelve 403 a `curl` se lee con Chromium.** Hipercor, Sfera y H&M lo sirven
+tras Akamai, y el recon los dio por "no comprobables" — quedó escrito como límite declarado en tres
+issues. Basta una navegación con el navegador que esas tiendas ya obligan a usar. Hay que hacerlo
+**antes** de elegir el endpoint, porque puede tumbar la elección entera.
+
+**`Disallow: /api` es un prefijo desde la raíz, y por eso dos tiendas de la misma casa acaban con
+scrapers distintos.** Hipercor y Sfera publican la misma regla:
+
+| tienda | ruta de su firefly | ¿le aplica? |
+|---|---|---|
+| **Hipercor** | `/api/firefly/vuestore/…` | **sí** — la ruta empieza por `/api` |
+| **Sfera** | `/es/api/sfera-es/firefly/…` | **no** — empieza por `/es` |
+
+O sea: la tienda que ya está en producción está limpia, y no por suerte. Y la nueva no podía usar
+la API que el recon había mapeado. Rodearlo no era una opción; el criterio ya estaba fijado cuando
+#81 mandó Springfield a "solo lo que su robots permite" en vez de forzar su rejilla.
+
+**El camino permitido puede traer MÁS dato que la API.** En Hipercor las páginas de categoría y de
+ficha no están vetadas y son SSR: la rejilla embebe un `dataLayer` con id estable, precio, **precio
+tachado** y estado —o sea, huella para el detalle condicional—, y la ficha un `ld+json` con talla,
+precio y **stock por talla**. Comprobado abortando `/api/**` en el propio navegador: con la ruta
+vetada muerta, la página sigue trayendo todo. Antes de descartar una tienda por su robots, mirar
+qué publica en lo que sí permite.
+
+**Lo que cambia es el coste, y eso es contrato con el repo de manifiestos.** Leer la ficha por su
+página cuesta **una navegación por producto** (3,55 s medidos) en vez de salir de la caché del
+listado como en Sfera. Consecuencias: la huella del listado deja de ser un ahorro cómodo y pasa a
+ser lo que hace viable la tienda; el `activeDeadlineSeconds` sube a 3 h (pasada en frío ~90 min con
+ingesta atómica); y `SCRAPER_DETAIL_REFRESH_MAX` baja a 250 — justo lo contrario que en Sfera, donde
+refrescar es gratis. Descartar imágenes, fuentes y CSS en el navegador baja el coste un 13 % con el
+mismo dato, y de paso ahorra tráfico a la tienda.
+
+**El veto se cumple en el código, no en la intención** (`BrowserSession.bloquear()`): una página
+SSR puede pedir la ruta vetada al hidratarse aunque el scraper no la escriba nunca. Con una trampa
+que costó una auditoría descubrir: **Playwright evalúa las rutas de la última registrada a la
+primera y se para en la que resuelve la petición**, así que un handler `**/*` que llame a
+`route.continue_()` —el que descarta imágenes— se come todas y deja el bloqueo **sin ejecutarse
+jamás**, sin error ni aviso. Se arregla con `route.fallback()`, que sí cede al siguiente handler.
+No lo veía ningún test: el doble de test no pasa por Playwright.
+
 ### Un 200 no prueba nada: hay que verificar QUÉ vino, no si vino
 
 La sección siguiente cataloga cómo miente una hoja muerta. C&A (02/08/2026) enseñó que el problema
