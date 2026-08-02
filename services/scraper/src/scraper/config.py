@@ -52,6 +52,10 @@ class Config:
     browser_headless: bool = True
     browser_nav_timeout: float = 45.0  # segundos para goto() y peticiones del navegador
     browser_channel: str | None = None
+    # Espera máxima a que el JS de la página escriba lo que el servidor no manda en el documento
+    # inicial (en Hipercor, el `ProductGroup` con las tallas). Solo la usan las tiendas que leen
+    # la página en vez de una API; agotarla no es un error, es un detalle que no llega.
+    browser_hydrate_timeout: float = 10.0
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
@@ -79,6 +83,7 @@ class Config:
             browser_headless=env.get("SCRAPER_BROWSER_HEADLESS", "1")
             not in ("0", "false", "False"),
             browser_nav_timeout=float(env.get("SCRAPER_BROWSER_NAV_TIMEOUT", "45")),
+            browser_hydrate_timeout=float(env.get("SCRAPER_BROWSER_HYDRATE_TIMEOUT", "10")),
             browser_channel=env.get("SCRAPER_BROWSER_CHANNEL") or None,
         )
 

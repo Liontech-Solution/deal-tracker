@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import random
 import time
+from collections.abc import Collection
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
 
@@ -131,6 +132,74 @@ class BrowserSession:
         self._polite_pause()
         resp = self._page.goto(url, wait_until="domcontentloaded")
         return resp.status if resp is not None else 0
+
+    def bloquear(self, patron: str) -> None:
+        """Aborta en el navegador toda petición que case con `patron` (glob de Playwright).
+
+        Existe para que una prohibición del `robots.txt` la garantice el código y no la buena
+        intención: en Hipercor `/api` está vetado, y una página puede pedirlo al hidratarse sin
+        que el scraper lo escriba en ninguna URL. Bloqueándolo aquí, si alguna vez el dato
+        dependiera de esa ruta, la pasada se quedaría sin él —visible— en vez de colarse.
+        """
+        assert self._page is not None, "usar dentro del context manager"
+        self._page.route(patron, lambda route: route.abort())
+
+    def descartar_recursos(self, tipos: Collection[str]) -> None:
+        """Aborta los tipos de recurso indicados (`image`, `font`, `stylesheet`, `media`…).
+
+        Es peso que el scraper no lee: las fotos que guardamos son URLs que vienen en el JSON de
+        la página, no descargas. Medido en Hipercor, cuyas fichas hay que pedir de una en una:
+        4,10 s -> 3,55 s por ficha con **el mismo dato** (mismas variantes). Además es cortesía,
+        porque el ahorro de tráfico se lo lleva también la tienda.
+
+        Lo que no descarta lo pasa al siguiente handler con `fallback()`, **no** con `continue_()`,
+        y esa diferencia no es cosmética: Playwright evalúa las rutas de la última registrada a la
+        primera y se para en cuanto una resuelve la petición. Con `continue_()`, este patrón
+        `**/*` se comía todas las peticiones y dejaba **sin efecto** el veto de `bloquear()`
+        —comprobado en vivo: el handler de `/api` no llegaba a invocarse nunca—. Con `fallback()`
+        el orden de registro deja de importar.
+        """
+        assert self._page is not None, "usar dentro del context manager"
+        conjunto = set(tipos)
+        self._page.route(
+            "**/*",
+            lambda route: (
+                route.abort() if route.request.resource_type in conjunto else route.fallback()
+            ),
+        )
+
+    def get_html(self, url: str, espera_selector: str | None = None) -> tuple[int, str]:
+        """Navega y devuelve `(status, HTML)`, con reintentos ante 429/5xx.
+
+        Para tiendas cuyo dato viaja en la propia página (SSR) en vez de en una API: Hipercor
+        publica el listado y la ficha en un `dataLayer`/`ld+json` embebidos, y su `robots.txt`
+        veta `/api`, así que la página **es** la fuente. Devuelve el status en vez de elevar
+        porque un 404 aquí es información (producto retirado), no un fallo.
+
+        `espera_selector` aguarda a que ese elemento exista antes de leer el HTML: hay partes que
+        el servidor no manda en el documento inicial y pinta el JS (en Hipercor, el selector de
+        tallas). Se espera por **selector y no sondeando el HTML**, que en páginas de medio mega
+        cuesta más que la propia navegación. Si no llega, se devuelve lo que haya: quien llama
+        decide, y en la ingesta un detalle que no llega es un producto que no se actualiza, no un
+        producto que se da de baja.
+        """
+        assert self._page is not None, "usar dentro del context manager"
+        retries = self._config.request_retries
+        for attempt in range(retries + 1):
+            self._polite_pause()
+            resp = self._page.goto(url, wait_until="domcontentloaded")
+            status = resp.status if resp is not None else 0
+            if status not in _RETRYABLE_STATUS or attempt == retries:
+                if espera_selector is not None and status == 200:
+                    with contextlib.suppress(Exception):  # sin el elemento, se devuelve lo que hay
+                        self._page.wait_for_selector(
+                            espera_selector,
+                            state="attached",
+                            timeout=self._config.browser_hydrate_timeout * 1000,
+                        )
+                return status, self._page.content()
+            self._backoff(attempt)
+        return 0, ""  # inalcanzable (el último intento retorna), tranquiliza a mypy
 
     def get_json(self, url: str) -> Any:
         """GET de una API del mismo origen (fingerprint+cookies del navegador) con reintentos."""
