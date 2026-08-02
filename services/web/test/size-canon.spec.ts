@@ -52,6 +52,9 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
     // Meses, que no pueden confundirse con años.
     { canonica: '12-18 meses', formas: ['12-18 meses (86 cm)'] },
     { canonica: '1-3 meses', formas: ['1-3 meses (62 cm)'] },
+    // Y el singular (#73): las dos formas reales que había en `qa` el 02/08/2026, una por regla.
+    { canonica: '1 mes', formas: ['1 mes', '1 Mes'] },
+    { canonica: '1 año', formas: ['1 año', '1 años (17-19)', '1'] },
     // Número suelto: por debajo de 15 es edad (ropa de Sfera), por encima es pie.
     { canonica: '4 años', formas: ['4', '4 años (104 cm)'] },
     { canonica: '11 años', formas: ['11'] },
@@ -120,6 +123,31 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
     expect(await canon('20-21')).toBe('20-21'); // el menor rango de pie real
   });
 
+  /**
+   * El singular (#73). El defecto venía de la 0014, que escribió las unidades como literales en
+   * plural, y no se veía hasta que la ropa de bebé de Sfera trajo meses sueltos.
+   *
+   * Las tres reglas que pueden emitir un número solo están cubiertas, incluida la 4 —que la issue
+   * daba por sospecha y resultó tener dato real en `qa`: `1 años (17-19)`—. Los rangos no pueden
+   * fallar aquí porque su salida lleva siempre dos números.
+   */
+  it('usa el singular cuando el número es 1, y solo entonces', async () => {
+    expect(await canon('1 mes')).toBe('1 mes'); // regla 2
+    expect(await canon('1 año')).toBe('1 año'); // regla 4
+    expect(await canon('1')).toBe('1 año'); // regla 6
+
+    // La frontera: todo lo demás sigue en plural, y '1.5' NO es '1'.
+    expect(await canon('2 meses')).toBe('2 meses');
+    expect(await canon('2 años')).toBe('2 años');
+    expect(await canon('1.5 años')).toBe('1.5 años');
+    expect(await canon('1½ años (86 cm)')).toBe('1.5 años');
+    // Y un 1 que forma parte de otro número no cuenta como singular.
+    expect(await canon('21 meses')).toBe('21 meses');
+    expect(await canon('11 años')).toBe('11 años');
+    expect(await canon('1-2 meses')).toBe('1-2 meses');
+    expect(await canon('1-2 años (92 cm)')).toBe('1-2 años');
+  });
+
   it('es idempotente sobre su propia salida', async () => {
     for (const { canonica } of equivalencias) {
       expect(await canon(canonica)).toBe(canonica);
@@ -143,11 +171,13 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
       '8-9 años',
       '1.5 años',
       '18-24 meses',
+      '1 mes', // #73: el singular no cambia `size_sort`, que busca 'mes' y lo encuentra igual
     ];
     const [{ v: ordenada }] = await sql<{ v: string[] }[]>`
       SELECT array_agg(t ORDER BY size_sort(t), t) AS v
       FROM unnest(${sql.array(ropa)}::text[]) AS t`;
     expect(ordenada).toEqual([
+      '1 mes', // 1/12 de año: delante de '1-3 meses', que empieza igual pero abarca más
       '1-3 meses',
       '1.5 años',
       '18-24 meses', // 1,5-2 años: cae donde le toca, no al final por empezar por "1"
