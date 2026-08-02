@@ -46,6 +46,7 @@ se testean con fixtures capturados de la API real.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from decimal import Decimal
@@ -66,6 +67,8 @@ from .base import (
     ScrapeScope,
 )
 from .browser import BrowserHTTPError, BrowserSession
+
+_LOG = logging.getLogger(__name__)
 
 SLUG = "sfera"  # a nivel de módulo porque las funciones puras de parseo también lo necesitan
 BASE_ROOT = "https://www.sfera.com/es"
@@ -632,6 +635,22 @@ class SferaStore:
                     continue
                 except LeafMirage:
                     # El 404 que esta tienda no da: la ruta ya no existe (#54). Mismo trato.
+                    self._scan.leaf_gone(scope)
+                    continue
+                except Exception as exc:
+                    # Red ancha a propósito (#107): un timeout de navegación —el fallo transitorio
+                    # más probable en una tienda que va por navegador— se colaba por aquí y tumbaba
+                    # la pasada entera, incluidas las hojas ya leídas. Cualquier fallo que llegue
+                    # hasta aquí es «no he podido ver esta hoja», que es justo lo que `leaf_gone`
+                    # trata: su ámbito queda fuera de las bajas. Barrer tan ancho es seguro porque
+                    # `SCRAPER_SCAN_MAX_DEAD_RATIO` sigue abortando si caen demasiadas — se pierde
+                    # una hoja, no el criterio.
+                    _LOG.warning(
+                        "sfera: hoja %s ilegible (%s: %s)",
+                        cat.category_path,
+                        type(exc).__name__,
+                        exc,
+                    )
                     self._scan.leaf_gone(scope)
                     continue
                 self._scan.leaf_ok()
