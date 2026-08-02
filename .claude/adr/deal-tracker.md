@@ -22,7 +22,7 @@ Monorepo **poliglota**, dos servicios que no se llaman entre sí:
 - `services/web` — **NestJS** (`@nestjs/*`, drizzle-orm, postgres, passport-jwt + jwks-rsa para
   validar tokens Keycloak) y frontend **React/Vite** en `services/web/frontend`, servido por el
   propio Nest vía `@nestjs/serve-static`. Gestor de paquetes: **pnpm**.
-- `db/migrations` — **SQL crudo neutro** (`0001_init.sql` … `0018_add_retailer_min_30d.sql`).
+- `db/migrations` — **SQL crudo neutro** (`0001_init.sql` … `0019_size_canon_singular.sql`).
 
 Imágenes: `ghcr.io/liontech-solution/deal-tracker-scraper` y `-web`. Contexto de build en la **raíz
 del repo**, no en el directorio del servicio.
@@ -315,11 +315,31 @@ copiando los nombres de la rama 6-14 encontraba **4**. La asimetría entre rango
 categorías existen, es de **cómo se llaman**, y justo en las gordas: `pantalones-y-leggings` (30
 productos) donde 6-14 tiene `pantalones` y `leggings` separadas, `blusas-y-camisetas` donde tiene
 `camisetas` y `camisas-y-blusas`. Sfera pasó de **300 a 491 productos** al mapear las 12 que caen en
-el brief, con cero colisiones de id. Y el mismo agujero sigue abierto en la rama 6-14 (#72).
+el brief, con cero colisiones de id. El mismo agujero estaba abierto en la rama 6-14 y se cerró
+igual (#72, 02/08/2026): cuatro hojas de `pantalones` sin mapear —`leggings`, `shorts-y-bermudas`
+en los dos géneros y `vaqueros` **solo en niña**, que mapeada en niño y no en niña le daba al
+catálogo un sesgo de género que no respondía a nada de la tienda—, +55 productos y cero colisiones
+entre las siete hojas de pantalones.
 
 La capacidad es opcional y hermana de `SupportsLeafHealth`, porque son dos preguntas distintas:
 `--check-categories` contesta «¿sigue vivo lo que ingiero?» y falla por lo accionable;
 `SupportsCategoryTree` / `--tree` contesta «¿qué existe que no esté ingiriendo?» y solo informa.
+
+**El árbol dice la verdad sobre lo que hay, pero ni es exhaustivo ni sabe cuánto.** Dos cosas
+medidas en Sfera el 02/08/2026 que matizan el «única fuente fiable» de arriba, y que se descubren
+solo al cruzar la faceta con el listado:
+
+- **El `count` de la faceta NO es lo que sirve la hoja.** Declara **8** en `ninos/nina/leggings` y
+  el listado da **18**; declara **4** en `ninos/nino/shorts-y-bermudas` y da **15**. Sirve para
+  orientarse sobre qué hojas pesan; **no** para dimensionar una pasada, elegir el
+  `activeDeadlineSeconds` de su CronJob ni decidir si una hoja merece la pena.
+- **Una hoja puede no salir en el árbol y estar viva.** `ninos/nino/vaqueros` no aparece en la
+  faceta y sin embargo sirve **7 productos**, y el sondeo la da viva. Así que **la ausencia no
+  prueba la baja** — para eso está `check_leaves()`, que la pide. Lo fiable es la otra dirección:
+  lo que sale, existe.
+
+Las dos tienen el mismo corolario práctico: `--tree` sirve para **descubrir**, no para **medir**.
+En cuanto la cifra importe —cuánto ingiere una hoja, si una desapareció— hay que pedir el listado.
 
 Dos trampas del endpoint que no se ven sin pedirlo en vivo, y que valen como aviso para la próxima
 faceta de este tipo: para una categoría **sin descendencia** la faceta responde con el rastro de
@@ -542,13 +562,22 @@ contrato del proyecto. `detect_changes` no sirve como señal de caducidad —`in
 git en vivo, así que `base_sha == head_sha` siempre—, pero el reindexado es incremental y tarda
 segundos, así que sale más barato hacerlo siempre.
 
-**El reindexado BORRA el ADR del grafo, siempre.** Se vio el 31/07/2026 y quedó medido el
-02/08/2026: dos `index_repository` seguidos devolvieron `adr_present: false`, el segundo habiendo
-republicado el ADR entre uno y otro (`manage_adr --mode sections` pasó de 16 secciones a lista
-vacía). No es un fallo intermitente ni depende del modo.
+**El reindexado PUEDE borrar el ADR del grafo, y no se puede predecir cuál de las dos cosas pasa.**
+Esta sección afirmaba «siempre», con el «no es un fallo intermitente» explícito, a partir de dos
+medidas del 31/07 y el 02/08/2026 (`adr_present: false` las dos veces, y `manage_adr --mode
+sections` pasando de 16 secciones a lista vacía). **Ese "siempre" es falso**: el 02/08/2026 por la
+tarde, un `index_repository` en modo `full` sobre este mismo repo devolvió `adr_present: true`, y
+`--mode sections` seguía listando las 16 secciones y `--mode get` devolvía el contenido entero.
 
-La consecuencia operativa es de **orden, no de vigilancia**: republicar desde `.claude/adr/` tiene
-que ser el **último** paso de la sesión, después del último reindexado. Republicar y luego
-reindexar «por si acaso» deja el grafo sin ADR, que es justo el estado en el que la siguiente
-sesión arranca a ciegas. Y por eso el fichero versionado es la fuente de verdad: el grafo pierde
-esto cada vez.
+Es el cuarto escarmiento del mismo tipo que ya colecciona la sección de canonicalización
+(#49, #51, #64): una frase escrita aquí con seguridad, que se cae en cuanto alguien vuelve a
+medir. Y tiene un agravante propio — se escribió *sobre la propia herramienta con la que se
+escribe*, así que nadie iba a cuestionarla desde el código.
+
+La consecuencia operativa **no cambia**, y por eso el error no llegó a costar nada: republicar
+desde `.claude/adr/` sigue siendo el **último** paso de la sesión, después del último reindexado.
+Con el comportamiento indeterminado, ese orden es lo único que garantiza el resultado en los dos
+casos. Lo que sí cambia es la comprobación: **no asumir en ninguna de las dos direcciones**, mirar
+`manage_adr --mode sections` al terminar — el `adr_present` de `index_repository` solo describe
+cómo quedó en ese instante. Y por eso el fichero versionado es la fuente de verdad: el grafo puede
+perder esto en cualquier momento.
