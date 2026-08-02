@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 842d188a-5bed-4fff-9049-9f5776ad8a66
-  modified: 2026-07-31T09:52:13.305Z
+  modified: 2026-08-02T22:21:41.380Z
 ---
 
 Esta máquina no tiene `postgres`, `psql` ni `pg_isready` instalados (ver
@@ -19,8 +19,26 @@ memoria de usuario `dev-local-postgres`.
 
 Un atajo que ahorra los dos gotchas: crear el cluster con
 `initdb --auth=trust --username=postgres --encoding=UTF8 --locale=C.UTF-8`. Así cualquier
-`CREATE DATABASE` hereda UTF8 + ctype `C.UTF-8` y sirve **a la vez** para los tests del scraper
-(ingesta incluida) y para los del web, que con ctype `C` fallan en `color-canon`.
+`CREATE DATABASE` hereda UTF8 + ctype `C.UTF-8` y sirve para los tests del scraper (ingesta
+incluida) y para los del web.
+
+**Pero eso ya no basta para el web**: desde #105 los specs de canónica y de plegado de la búsqueda
+se ejecutan contra DOS bases, y la segunda tiene que reproducir la del cluster, que es
+`UTF8 | C | C` (`datcollate` y `datctype` a `C` a secas, en dev y en qa). Se crea en el mismo
+servidor, sin otro `initdb`:
+
+```sql
+CREATE DATABASE deal_tracker_ctype_c TEMPLATE template0 ENCODING 'UTF8'
+  LC_COLLATE 'C' LC_CTYPE 'C';   -- TEMPLATE template0 es obligatorio para cambiar el locale
+```
+
+y se pasa en `TEST_DATABASE_URL_CTYPE_C` junto a `TEST_DATABASE_URL`. Sin ella los specs no fallan:
+**se saltan**, que es peor de lo que parece — con el locale bueno `lower('ÍNDIGO')` da `'índigo'` y
+todo sale verde mientras el cluster hace otra cosa.
+
+Los paquetes de Postgres se extraen sin sudo desde un mirror de Arch (`postgresql`,
+`postgresql-libs` y `numactl`, que hace falta para el binario del servidor) a
+`~/.local/share/pgsql-local`, y los binarios necesitan `LD_LIBRARY_PATH=<prefijo>/usr/lib`.
 
 La verificación **del despliegue** sí va contra el cluster:
 
