@@ -6,6 +6,7 @@ from collections.abc import Callable
 
 from ..config import Config
 from .base import BaseStore
+from .c_and_a import CAndAStore
 from .cacles import CaclesStore
 from .lefties import LeftiesStore
 from .sfera import SferaStore
@@ -17,6 +18,7 @@ _STORES: dict[str, Callable[[Config], BaseStore]] = {
     SferaStore.slug: SferaStore,
     LeftiesStore.slug: LeftiesStore,
     CaclesStore.slug: CaclesStore,
+    CAndAStore.slug: CAndAStore,
 }
 
 

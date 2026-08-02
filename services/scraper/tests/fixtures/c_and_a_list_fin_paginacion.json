@@ -1,0 +1,15 @@
+{
+ "data": {
+  "list": {
+   "ipimId": "3-7-1",
+   "page": 3,
+   "productCount": 172,
+   "algoliaTracking": {
+    "queryId": null,
+    "indexName": "prod_products_ES_es"
+   },
+   "products": [],
+   "hasSaleProducts": true
+  }
+ }
+}

@@ -1,0 +1,5681 @@
+{
+ "data": {
+  "list": {
+   "ipimId": "3-1-7",
+   "page": 1,
+   "productCount": 98,
+   "algoliaTracking": {
+    "queryId": null,
+    "indexName": "prod_products_ES_es"
+   },
+   "products": [
+    {
+     "__typename": "ListProduct",
+     "usim": "2256714",
+     "uri": "/es/es/shop/lazo-conjunto-cardigan-y-camiseta-de-manga-larga-2-prendas-2256714/1",
+     "name": "Lazo - conjunto - cárdigan y camiseta de manga larga - 2 prendas",
+     "categoryIpimId": "3-1-1-3",
+     "collectionLabel": null,
+     "flag": "NEW",
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 61,
+     "isSet": true,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": "Still",
+     "variants": [
+      {
+       "uri": "/es/es/shop/lazo-conjunto-cardigan-y-camiseta-de-manga-larga-2-prendas-2256714/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1778096905/2256714-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1778096905/2256714-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "92",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256714_1_092",
+         "skuId": "2256714.1.092",
+         "quantity": 45
+        },
+        {
+         "label": "98",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256714_1_098",
+         "skuId": "2256714.1.098",
+         "quantity": 118
+        },
+        {
+         "label": "104",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256714_1_104",
+         "skuId": "2256714.1.104",
+         "quantity": 151
+        },
+        {
+         "label": "110",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256714_1_110",
+         "skuId": "2256714.1.110",
+         "quantity": 178
+        },
+        {
+         "label": "116",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256714_1_116",
+         "skuId": "2256714.1.116",
+         "quantity": 202
+        },
+        {
+         "label": "122",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256714_1_122",
+         "skuId": "2256714.1.122",
+         "quantity": 232
+        },
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256714_1_128",
+         "skuId": "2256714.1.128",
+         "quantity": 193
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256714_1_134",
+         "skuId": "2256714.1.134",
+         "quantity": 188
+        },
+        {
+         "label": "140",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256714_1_140",
+         "skuId": "2256714.1.140",
+         "quantity": 170
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "azul / crema",
+        "image": {
+         "url": "",
+         "file": "v1778096931/2256714-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 19.99,
+        "grossPriceFormatted": "19,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2256714",
+      "price": 19.99,
+      "color": "1",
+      "viewIDs": [
+       "8",
+       "9",
+       "10",
+       "13"
+      ],
+      "sizes": [
+       "92",
+       "98",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailable": [
+       "92",
+       "98",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesIds": [
+       "092",
+       "098",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailableIds": [
+       "092",
+       "098",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailableQuantities": [
+       45,
+       118,
+       151,
+       178,
+       202,
+       232,
+       193,
+       188,
+       170
+      ],
+      "sale": false
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2268655",
+     "uri": "/es/es/shop/nirvana-sudadera-con-capucha-2268655/1",
+     "name": "Nirvana - sudadera con capucha",
+     "categoryIpimId": "3-2-1-13",
+     "collectionLabel": null,
+     "flag": "NEW",
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 62,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/nirvana-sudadera-con-capucha-2268655/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1785498311/2268655-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1783979121/2268655-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268655_1_128",
+         "skuId": "2268655.1.128",
+         "quantity": 17
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268655_1_134",
+         "skuId": "2268655.1.134",
+         "quantity": 29
+        },
+        {
+         "label": "140",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268655_1_140",
+         "skuId": "2268655.1.140",
+         "quantity": 33
+        },
+        {
+         "label": "146",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268655_1_146",
+         "skuId": "2268655.1.146",
+         "quantity": 54
+        },
+        {
+         "label": "152",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268655_1_152",
+         "skuId": "2268655.1.152",
+         "quantity": 60
+        },
+        {
+         "label": "158",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268655_1_158",
+         "skuId": "2268655.1.158",
+         "quantity": 59
+        },
+        {
+         "label": "164",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268655_1_164",
+         "skuId": "2268655.1.164",
+         "quantity": 50
+        },
+        {
+         "label": "170",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268655_1_170",
+         "skuId": "2268655.1.170",
+         "quantity": 23
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "lila",
+        "image": {
+         "url": "",
+         "file": "v1783979113/2268655-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 22.99,
+        "grossPriceFormatted": "22,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2268655",
+      "price": 22.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesAvailable": [
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesIds": [
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesAvailableIds": [
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesAvailableQuantities": [
+       17,
+       29,
+       33,
+       54,
+       60,
+       59,
+       50,
+       23
+      ],
+      "sale": false
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2259828",
+     "uri": "/es/es/shop/lazos-sudadera-brillos-de-rayas-2259828/1",
+     "name": "Lazos - sudadera - brillos - de rayas",
+     "categoryIpimId": "3-1-7-3",
+     "collectionLabel": null,
+     "flag": "NEW",
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 63,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/lazos-sudadera-brillos-de-rayas-2259828/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1776873739/2259828-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1776873739/2259828-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "92",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2259828_1_092",
+         "skuId": "2259828.1.092",
+         "quantity": 46
+        },
+        {
+         "label": "98",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2259828_1_098",
+         "skuId": "2259828.1.098",
+         "quantity": 97
+        },
+        {
+         "label": "104",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2259828_1_104",
+         "skuId": "2259828.1.104",
+         "quantity": 120
+        },
+        {
+         "label": "110",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2259828_1_110",
+         "skuId": "2259828.1.110",
+         "quantity": 158
+        },
+        {
+         "label": "116",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2259828_1_116",
+         "skuId": "2259828.1.116",
+         "quantity": 165
+        },
+        {
+         "label": "122",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2259828_1_122",
+         "skuId": "2259828.1.122",
+         "quantity": 164
+        },
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2259828_1_128",
+         "skuId": "2259828.1.128",
+         "quantity": 156
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2259828_1_134",
+         "skuId": "2259828.1.134",
+         "quantity": 167
+        },
+        {
+         "label": "140",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2259828_1_140",
+         "skuId": "2259828.1.140",
+         "quantity": 144
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "rosa / rojo",
+        "image": {
+         "url": "",
+         "file": "v1776873744/2259828-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 12.99,
+        "grossPriceFormatted": "12,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2259828",
+      "price": 12.99,
+      "color": "1",
+      "viewIDs": [
+       "8",
+       "11",
+       "13"
+      ],
+      "sizes": [
+       "92",
+       "98",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailable": [
+       "92",
+       "98",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesIds": [
+       "092",
+       "098",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailableIds": [
+       "092",
+       "098",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailableQuantities": [
+       46,
+       97,
+       120,
+       158,
+       165,
+       164,
+       156,
+       167,
+       144
+      ],
+      "sale": false
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2263065",
+     "uri": "/es/es/shop/jersey-de-canale-2263065/1",
+     "name": "Jersey - de canalé",
+     "categoryIpimId": "3-1-7-1",
+     "collectionLabel": "Premium",
+     "flag": null,
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 64,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": true,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/jersey-de-canale-2263065/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1780412775/2263065-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1780412775/2263065-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "116",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2263065_1_116",
+         "skuId": "2263065.1.116",
+         "quantity": 15
+        },
+        {
+         "label": "122",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2263065_1_122",
+         "skuId": "2263065.1.122",
+         "quantity": 22
+        },
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2263065_1_128",
+         "skuId": "2263065.1.128",
+         "quantity": 26
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2263065_1_134",
+         "skuId": "2263065.1.134",
+         "quantity": 33
+        },
+        {
+         "label": "140",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2263065_1_140",
+         "skuId": "2263065.1.140",
+         "quantity": 32
+        },
+        {
+         "label": "146",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2263065_1_146",
+         "skuId": "2263065.1.146",
+         "quantity": 32
+        },
+        {
+         "label": "152",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2263065_1_152",
+         "skuId": "2263065.1.152",
+         "quantity": 36
+        },
+        {
+         "label": "158",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2263065_1_158",
+         "skuId": "2263065.1.158",
+         "quantity": 26
+        },
+        {
+         "label": "164",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2263065_1_164",
+         "skuId": "2263065.1.164",
+         "quantity": 31
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "rosa",
+        "image": {
+         "url": "",
+         "file": "v1780412796/2263065-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 17.99,
+        "grossPriceFormatted": "17,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2263065",
+      "price": 17.99,
+      "color": "1",
+      "viewIDs": [
+       "8",
+       "11",
+       "13"
+      ],
+      "sizes": [
+       "116",
+       "122",
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164"
+      ],
+      "sizesAvailable": [
+       "116",
+       "122",
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164"
+      ],
+      "sizesIds": [
+       "116",
+       "122",
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164"
+      ],
+      "sizesAvailableIds": [
+       "116",
+       "122",
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164"
+      ],
+      "sizesAvailableQuantities": [
+       15,
+       22,
+       26,
+       33,
+       32,
+       32,
+       36,
+       26,
+       31
+      ],
+      "sale": false
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2268419",
+     "uri": "/es/es/shop/conjunto-top-y-camiseta-de-manga-larga-2-prendas-2268419/1",
+     "name": "Conjunto - top y camiseta de manga larga - 2 prendas",
+     "categoryIpimId": "3-1-7-1",
+     "collectionLabel": null,
+     "flag": null,
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 65,
+     "isSet": true,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": "Still",
+     "variants": [
+      {
+       "uri": "/es/es/shop/conjunto-top-y-camiseta-de-manga-larga-2-prendas-2268419/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1782912188/2268419-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1782912188/2268419-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "92",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268419_1_092",
+         "skuId": "2268419.1.092",
+         "quantity": 19
+        },
+        {
+         "label": "98",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268419_1_098",
+         "skuId": "2268419.1.098",
+         "quantity": 34
+        },
+        {
+         "label": "104",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268419_1_104",
+         "skuId": "2268419.1.104",
+         "quantity": 39
+        },
+        {
+         "label": "110",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268419_1_110",
+         "skuId": "2268419.1.110",
+         "quantity": 43
+        },
+        {
+         "label": "116",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268419_1_116",
+         "skuId": "2268419.1.116",
+         "quantity": 41
+        },
+        {
+         "label": "122",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268419_1_122",
+         "skuId": "2268419.1.122",
+         "quantity": 42
+        },
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268419_1_128",
+         "skuId": "2268419.1.128",
+         "quantity": 35
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268419_1_134",
+         "skuId": "2268419.1.134",
+         "quantity": 18
+        },
+        {
+         "label": "140",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2268419_1_140",
+         "skuId": "2268419.1.140",
+         "quantity": 16
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "blanco roto",
+        "image": {
+         "url": "",
+         "file": "v1782912174/2268419-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 12.99,
+        "grossPriceFormatted": "12,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2268419",
+      "price": 12.99,
+      "color": "1",
+      "viewIDs": [
+       "8",
+       "9",
+       "10",
+       "13"
+      ],
+      "sizes": [
+       "92",
+       "98",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailable": [
+       "92",
+       "98",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesIds": [
+       "092",
+       "098",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailableIds": [
+       "092",
+       "098",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailableQuantities": [
+       19,
+       34,
+       39,
+       43,
+       41,
+       42,
+       35,
+       18,
+       16
+      ],
+      "sale": false
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2260064",
+     "uri": "/es/es/shop/conjunto-sudadera-con-cremallera-y-capucha-pantalon-de-deporte-y-top-3-prendas-2260064/2",
+     "name": "Conjunto - sudadera con cremallera y capucha, pantalón de deporte y top - 3 prendas",
+     "categoryIpimId": "3-1-1-1",
+     "collectionLabel": null,
+     "flag": null,
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 66,
+     "isSet": true,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": "Still",
+     "variants": [
+      {
+       "uri": "/es/es/shop/conjunto-sudadera-con-cremallera-y-capucha-pantalon-de-deporte-y-top-3-prendas-2260064/2",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1785519157/2260064-2-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1779364349/2260064-2-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2260064_2_128",
+         "skuId": "2260064.2.128",
+         "quantity": 38
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2260064_2_134",
+         "skuId": "2260064.2.134",
+         "quantity": 53
+        },
+        {
+         "label": "140",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2260064_2_140",
+         "skuId": "2260064.2.140",
+         "quantity": 90
+        },
+        {
+         "label": "146",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2260064_2_146",
+         "skuId": "2260064.2.146",
+         "quantity": 120
+        },
+        {
+         "label": "152",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2260064_2_152",
+         "skuId": "2260064.2.152",
+         "quantity": 112
+        },
+        {
+         "label": "158",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2260064_2_158",
+         "skuId": "2260064.2.158",
+         "quantity": 104
+        },
+        {
+         "label": "164",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2260064_2_164",
+         "skuId": "2260064.2.164",
+         "quantity": 62
+        },
+        {
+         "label": "170",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2260064_2_170",
+         "skuId": "2260064.2.170",
+         "quantity": 24
+        }
+       ],
+       "color": {
+        "colorCode": "2",
+        "label": "gris jaspeado",
+        "image": {
+         "url": "",
+         "file": "v1779364362/2260064-2-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 29.99,
+        "grossPriceFormatted": "29,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2260064",
+      "price": 29.99,
+      "color": "2",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesAvailable": [
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesIds": [
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesAvailableIds": [
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesAvailableQuantities": [
+       38,
+       53,
+       90,
+       120,
+       112,
+       104,
+       62,
+       24
+      ],
+      "sale": false
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2266076",
+     "uri": "/es/es/shop/lilo-stitch-sudadera-con-capucha-2266076/1",
+     "name": "Lilo & Stitch - sudadera con capucha",
+     "categoryIpimId": "3-2-1-39",
+     "collectionLabel": null,
+     "flag": null,
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 67,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/lilo-stitch-sudadera-con-capucha-2266076/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1785261824/2266076-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1781607035/2266076-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2266076_1_128",
+         "skuId": "2266076.1.128",
+         "quantity": 58
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2266076_1_134",
+         "skuId": "2266076.1.134",
+         "quantity": 80
+        },
+        {
+         "label": "140",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2266076_1_140",
+         "skuId": "2266076.1.140",
+         "quantity": 88
+        },
+        {
+         "label": "146",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2266076_1_146",
+         "skuId": "2266076.1.146",
+         "quantity": 82
+        },
+        {
+         "label": "152",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2266076_1_152",
+         "skuId": "2266076.1.152",
+         "quantity": 66
+        },
+        {
+         "label": "158",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2266076_1_158",
+         "skuId": "2266076.1.158",
+         "quantity": 46
+        },
+        {
+         "label": "164",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2266076_1_164",
+         "skuId": "2266076.1.164",
+         "quantity": 38
+        },
+        {
+         "label": "170",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2266076_1_170",
+         "skuId": "2266076.1.170",
+         "quantity": 17
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "gris claro jaspeado",
+        "image": {
+         "url": "",
+         "file": "v1781607052/2266076-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 22.99,
+        "grossPriceFormatted": "22,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2266076",
+      "price": 22.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "13",
+       "14",
+       "17"
+      ],
+      "sizes": [
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesAvailable": [
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesIds": [
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesAvailableIds": [
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesAvailableQuantities": [
+       58,
+       80,
+       88,
+       82,
+       66,
+       46,
+       38,
+       17
+      ],
+      "sale": false
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2256712",
+     "uri": "/es/es/shop/cardigan-2256712/1",
+     "name": "Cárdigan",
+     "categoryIpimId": "3-1-7-1",
+     "collectionLabel": null,
+     "flag": null,
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 68,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/cardigan-2256712/2",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1776781140/2256712-2-08.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1776781140/2256712-2-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "92",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_2_092",
+         "skuId": "2256712.2.092",
+         "quantity": 20
+        },
+        {
+         "label": "98",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_2_098",
+         "skuId": "2256712.2.098",
+         "quantity": 28
+        },
+        {
+         "label": "104",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_2_104",
+         "skuId": "2256712.2.104",
+         "quantity": 37
+        },
+        {
+         "label": "110",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_2_110",
+         "skuId": "2256712.2.110",
+         "quantity": 43
+        },
+        {
+         "label": "116",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_2_116",
+         "skuId": "2256712.2.116",
+         "quantity": 38
+        },
+        {
+         "label": "122",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_2_122",
+         "skuId": "2256712.2.122",
+         "quantity": 51
+        },
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_2_128",
+         "skuId": "2256712.2.128",
+         "quantity": 31
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_2_134",
+         "skuId": "2256712.2.134",
+         "quantity": 39
+        },
+        {
+         "label": "140",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_2_140",
+         "skuId": "2256712.2.140",
+         "quantity": 20
+        }
+       ],
+       "color": {
+        "colorCode": "2",
+        "label": "rosa",
+        "image": {
+         "url": "",
+         "file": "v1776781151/2256712-2-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 12.99,
+        "grossPriceFormatted": "12,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      },
+      {
+       "uri": "/es/es/shop/cardigan-2256712/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1776700082/2256712-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1776700082/2256712-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "92",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_1_092",
+         "skuId": "2256712.1.092",
+         "quantity": 23
+        },
+        {
+         "label": "98",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_1_098",
+         "skuId": "2256712.1.098",
+         "quantity": 40
+        },
+        {
+         "label": "104",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_1_104",
+         "skuId": "2256712.1.104",
+         "quantity": 58
+        },
+        {
+         "label": "110",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_1_110",
+         "skuId": "2256712.1.110",
+         "quantity": 54
+        },
+        {
+         "label": "116",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_1_116",
+         "skuId": "2256712.1.116",
+         "quantity": 57
+        },
+        {
+         "label": "122",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_1_122",
+         "skuId": "2256712.1.122",
+         "quantity": 61
+        },
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_1_128",
+         "skuId": "2256712.1.128",
+         "quantity": 64
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_1_134",
+         "skuId": "2256712.1.134",
+         "quantity": 53
+        },
+        {
+         "label": "140",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256712_1_140",
+         "skuId": "2256712.1.140",
+         "quantity": 23
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "azul claro",
+        "image": {
+         "url": "",
+         "file": "v1776700075/2256712-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 12.99,
+        "grossPriceFormatted": "12,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 2,
+     "tracking": {
+      "id": "2256712",
+      "price": 12.99,
+      "color": "2",
+      "viewIDs": [
+       "8",
+       "11",
+       "13"
+      ],
+      "sizes": [
+       "92",
+       "98",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailable": [
+       "92",
+       "98",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesIds": [
+       "092",
+       "098",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailableIds": [
+       "092",
+       "098",
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailableQuantities": [
+       20,
+       28,
+       37,
+       43,
+       38,
+       51,
+       31,
+       39,
+       20
+      ],
+      "sale": false
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2256927",
+     "uri": "/es/es/shop/cardigan-2256927/1",
+     "name": "Cárdigan",
+     "categoryIpimId": "3-1-7-1",
+     "collectionLabel": "Premium",
+     "flag": null,
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 69,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": true,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/cardigan-2256927/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1775046899/2256927-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1775046899/2256927-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "104",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256927_1_104",
+         "skuId": "2256927.1.104",
+         "quantity": 9
+        },
+        {
+         "label": "110",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256927_1_110",
+         "skuId": "2256927.1.110",
+         "quantity": 9
+        },
+        {
+         "label": "116",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256927_1_116",
+         "skuId": "2256927.1.116",
+         "quantity": 10
+        },
+        {
+         "label": "122",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256927_1_122",
+         "skuId": "2256927.1.122",
+         "quantity": 8
+        },
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256927_1_128",
+         "skuId": "2256927.1.128",
+         "quantity": 34
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256927_1_134",
+         "skuId": "2256927.1.134",
+         "quantity": 39
+        },
+        {
+         "label": "140",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256927_1_140",
+         "skuId": "2256927.1.140",
+         "quantity": 34
+        },
+        {
+         "label": "146",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256927_1_146",
+         "skuId": "2256927.1.146",
+         "quantity": 64
+        },
+        {
+         "label": "152",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256927_1_152",
+         "skuId": "2256927.1.152",
+         "quantity": 71
+        },
+        {
+         "label": "158",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256927_1_158",
+         "skuId": "2256927.1.158",
+         "quantity": 55
+        },
+        {
+         "label": "164",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2256927_1_164",
+         "skuId": "2256927.1.164",
+         "quantity": 69
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "rosa",
+        "image": {
+         "url": "",
+         "file": "v1775046893/2256927-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 17.99,
+        "grossPriceFormatted": "17,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2256927",
+      "price": 17.99,
+      "color": "1",
+      "viewIDs": [
+       "8",
+       "11",
+       "13"
+      ],
+      "sizes": [
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164"
+      ],
+      "sizesAvailable": [
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164"
+      ],
+      "sizesIds": [
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164"
+      ],
+      "sizesAvailableIds": [
+       "104",
+       "110",
+       "116",
+       "122",
+       "128",
+       "134",
+       "140",
+       "146",
+       "152",
+       "158",
+       "164"
+      ],
+      "sizesAvailableQuantities": [
+       9,
+       9,
+       10,
+       8,
+       34,
+       39,
+       34,
+       64,
+       71,
+       55,
+       69
+      ],
+      "sale": false
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2258482",
+     "uri": "/es/es/shop/corazon-sudadera-con-cremallera-y-capucha-2258482/1",
+     "name": "Corazón - sudadera con cremallera y capucha",
+     "categoryIpimId": "3-2-42-6",
+     "collectionLabel": null,
+     "flag": null,
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 70,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/corazon-sudadera-con-cremallera-y-capucha-2258482/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1778260180/2258482-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1778260180/2258482-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "122",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2258482_1_122",
+         "skuId": "2258482.1.122",
+         "quantity": 19
+        },
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2258482_1_128",
+         "skuId": "2258482.1.128",
+         "quantity": 54
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2258482_1_134",
+         "skuId": "2258482.1.134",
+         "quantity": 63
+        },
+        {
+         "label": "140",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2258482_1_140",
+         "skuId": "2258482.1.140",
+         "quantity": 73
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "rosa",
+        "image": {
+         "url": "",
+         "file": "v1778260195/2258482-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 12.99,
+        "grossPriceFormatted": "12,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2258482",
+      "price": 12.99,
+      "color": "1",
+      "viewIDs": [
+       "8",
+       "11",
+       "13"
+      ],
+      "sizes": [
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailable": [
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesIds": [
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailableIds": [
+       "122",
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailableQuantities": [
+       19,
+       54,
+       63,
+       73
+      ],
+      "sale": false
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2252869",
+     "uri": "/es/es/shop/kuromi-sudadera-con-capucha-2252869/1",
+     "name": "Kuromi - sudadera con capucha",
+     "categoryIpimId": "3-2-1-7",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 71,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/kuromi-sudadera-con-capucha-2252869/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1759405386/2252869-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1758530489/2252869-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "158",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252869_1_158",
+         "skuId": "2252869.1.158",
+         "quantity": 27
+        },
+        {
+         "label": "164",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252869_1_164",
+         "skuId": "2252869.1.164",
+         "quantity": 40
+        },
+        {
+         "label": "170",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252869_1_170",
+         "skuId": "2252869.1.170",
+         "quantity": 31
+        },
+        {
+         "label": "176",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252869_1_176",
+         "skuId": "2252869.1.176",
+         "quantity": 26
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "blanco roto",
+        "image": {
+         "url": "",
+         "file": "v1758530492/2252869-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 11.99,
+        "grossPriceFormatted": "11,99 €",
+        "strikePrice": 22.99,
+        "strikePriceFormatted": "22,99 €",
+        "discountFlag": "-16%",
+        "lowestPrice30Days": 14.39,
+        "lowestPrice30DaysFormatted": "14,39 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2252869",
+      "price": 11.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "158",
+       "164",
+       "170",
+       "176"
+      ],
+      "sizesAvailable": [
+       "158",
+       "164",
+       "170",
+       "176"
+      ],
+      "sizesIds": [
+       "158",
+       "164",
+       "170",
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "158",
+       "164",
+       "170",
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       27,
+       40,
+       31,
+       26
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2251723",
+     "uri": "/es/es/shop/miercoles-sudadera-2251723/1",
+     "name": "Miércoles - sudadera",
+     "categoryIpimId": "3-2-1-13",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 72,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/miercoles-sudadera-2251723/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1759326163/2251723-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1755958883/2251723-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "158",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251723_1_158",
+         "skuId": "2251723.1.158",
+         "quantity": 28
+        },
+        {
+         "label": "164",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251723_1_164",
+         "skuId": "2251723.1.164",
+         "quantity": 17
+        },
+        {
+         "label": "170",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251723_1_170",
+         "skuId": "2251723.1.170",
+         "quantity": 4
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "blanco",
+        "image": {
+         "url": "",
+         "file": "v1755958886/2251723-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 9.99,
+        "grossPriceFormatted": "9,99 €",
+        "strikePrice": 19.99,
+        "strikePriceFormatted": "19,99 €",
+        "discountFlag": "-25%",
+        "lowestPrice30Days": 13.49,
+        "lowestPrice30DaysFormatted": "13,49 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2251723",
+      "price": 9.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesAvailable": [
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesIds": [
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesAvailableIds": [
+       "158",
+       "164",
+       "170"
+      ],
+      "sizesAvailableQuantities": [
+       28,
+       17,
+       4
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2242000",
+     "uri": "/es/es/shop/conjunto-jersey-y-falda-2-prendas-2242000/1",
+     "name": "Conjunto - jersey y falda - 2 prendas",
+     "categoryIpimId": "3-1-7-1",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 73,
+     "isSet": true,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": "Still",
+     "variants": [
+      {
+       "uri": "/es/es/shop/conjunto-jersey-y-falda-2-prendas-2242000/2",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1761218000/2242000-2-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1758004718/2242000-2-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "104",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2242000_2_104",
+         "skuId": "2242000.2.104",
+         "quantity": 5
+        }
+       ],
+       "color": {
+        "colorCode": "2",
+        "label": "negro",
+        "image": {
+         "url": "",
+         "file": "v1758004723/2242000-2-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 14.99,
+        "grossPriceFormatted": "14,99 €",
+        "strikePrice": 29.99,
+        "strikePriceFormatted": "29,99 €",
+        "discountFlag": "-25%",
+        "lowestPrice30Days": 19.99,
+        "lowestPrice30DaysFormatted": "19,99 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2242000",
+      "price": 14.99,
+      "color": "2",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "104"
+      ],
+      "sizesAvailable": [
+       "104"
+      ],
+      "sizesIds": [
+       "104"
+      ],
+      "sizesAvailableIds": [
+       "104"
+      ],
+      "sizesAvailableQuantities": [
+       5
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2248333",
+     "uri": "/es/es/shop/smileyworld-conjunto-sudadera-con-capucha-y-pantalon-de-deporte-2-prendas-2248333/1",
+     "name": "SmileyWorld® - conjunto - sudadera con capucha y pantalón de deporte - 2 prendas",
+     "categoryIpimId": "3-2-1-13",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 74,
+     "isSet": true,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": "Still",
+     "variants": [
+      {
+       "uri": "/es/es/shop/smileyworld-conjunto-sudadera-con-capucha-y-pantalon-de-deporte-2-prendas-2248333/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1755180855/2248333-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1755504920/2248333-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2248333_1_128",
+         "skuId": "2248333.1.128",
+         "quantity": 36
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "negro / blanco",
+        "image": {
+         "url": "",
+         "file": "v1755504926/2248333-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 27.99,
+        "grossPriceFormatted": "27,99 €",
+        "strikePrice": 34.99,
+        "strikePriceFormatted": "34,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 23.79,
+        "lowestPrice30DaysFormatted": "23,79 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2248333",
+      "price": 27.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "128"
+      ],
+      "sizesAvailable": [
+       "128"
+      ],
+      "sizesIds": [
+       "128"
+      ],
+      "sizesAvailableIds": [
+       "128"
+      ],
+      "sizesAvailableQuantities": [
+       36
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2251728",
+     "uri": "/es/es/shop/harry-potter-conjunto-sudadera-y-falda-pantalon-2-prendas-2251728/1",
+     "name": "Harry Potter - conjunto - sudadera y falda pantalón - 2 prendas",
+     "categoryIpimId": "3-2-1-33",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 75,
+     "isSet": true,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": "Still",
+     "variants": [
+      {
+       "uri": "/es/es/shop/harry-potter-conjunto-sudadera-y-falda-pantalon-2-prendas-2251728/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1760010720/2251728-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1758703231/2251728-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "170",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251728_1_170",
+         "skuId": "2251728.1.170",
+         "quantity": 14
+        },
+        {
+         "label": "176",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251728_1_176",
+         "skuId": "2251728.1.176",
+         "quantity": 1
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "negro",
+        "image": {
+         "url": "",
+         "file": "v1758703235/2251728-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 24.99,
+        "grossPriceFormatted": "24,99 €",
+        "strikePrice": 34.99,
+        "strikePriceFormatted": "34,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 22.49,
+        "lowestPrice30DaysFormatted": "22,49 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2251728",
+      "price": 24.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "13",
+       "14",
+       "17"
+      ],
+      "sizes": [
+       "170",
+       "176"
+      ],
+      "sizesAvailable": [
+       "170",
+       "176"
+      ],
+      "sizesIds": [
+       "170",
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "170",
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       14,
+       1
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2245087",
+     "uri": "/es/es/shop/lilo-stitch-jersey-2245087/1",
+     "name": "Lilo & Stitch - jersey",
+     "categoryIpimId": "3-1-7-1",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 76,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/lilo-stitch-jersey-2245087/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1755941992/2245087-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1755941992/2245087-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "122",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2245087_1_122",
+         "skuId": "2245087.1.122",
+         "quantity": 23
+        },
+        {
+         "label": "128",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2245087_1_128",
+         "skuId": "2245087.1.128",
+         "quantity": 3
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "blanco roto",
+        "image": {
+         "url": "",
+         "file": "v1755941995/2245087-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 12.99,
+        "grossPriceFormatted": "12,99 €",
+        "strikePrice": 17.99,
+        "strikePriceFormatted": "17,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 11.04,
+        "lowestPrice30DaysFormatted": "11,04 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2245087",
+      "price": 12.99,
+      "color": "1",
+      "viewIDs": [
+       "8",
+       "9",
+       "12"
+      ],
+      "sizes": [
+       "122",
+       "128"
+      ],
+      "sizesAvailable": [
+       "122",
+       "128"
+      ],
+      "sizesIds": [
+       "122",
+       "128"
+      ],
+      "sizesAvailableIds": [
+       "122",
+       "128"
+      ],
+      "sizesAvailableQuantities": [
+       23,
+       3
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2251729",
+     "uri": "/es/es/shop/brooklyn-conjunto-sudadera-con-capucha-y-top-2-prendas-2251729/1",
+     "name": "Brooklyn - conjunto - sudadera con capucha y top - 2 prendas",
+     "categoryIpimId": "3-1-1-1",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 77,
+     "isSet": true,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": "Still",
+     "variants": [
+      {
+       "uri": "/es/es/shop/brooklyn-conjunto-sudadera-con-capucha-y-top-2-prendas-2251729/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1757929173/2251729-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1755508623/2251729-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "176",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251729_1_176",
+         "skuId": "2251729.1.176",
+         "quantity": 12
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "rosa oscuro",
+        "image": {
+         "url": "",
+         "file": "v1755508626/2251729-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 15.99,
+        "grossPriceFormatted": "15,99 €",
+        "strikePrice": 22.99,
+        "strikePriceFormatted": "22,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 13.59,
+        "lowestPrice30DaysFormatted": "13,59 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2251729",
+      "price": 15.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "6",
+       "8",
+       "9",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "176"
+      ],
+      "sizesAvailable": [
+       "176"
+      ],
+      "sizesIds": [
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       12
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2246080",
+     "uri": "/es/es/shop/harry-potter-conjunto-sudadera-y-falda-2-prendas-2246080/1",
+     "name": "Harry Potter - conjunto - sudadera y falda - 2 prendas",
+     "categoryIpimId": "3-2-1-33",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 78,
+     "isSet": true,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": "Still",
+     "variants": [
+      {
+       "uri": "/es/es/shop/harry-potter-conjunto-sudadera-y-falda-2-prendas-2246080/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1751459715/2246080-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1750682027/2246080-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "170",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2246080_1_170",
+         "skuId": "2246080.1.170",
+         "quantity": 4
+        },
+        {
+         "label": "176",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2246080_1_176",
+         "skuId": "2246080.1.176",
+         "quantity": 2
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "blanco",
+        "image": {
+         "url": "",
+         "file": "v1750682030/2246080-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 17.99,
+        "grossPriceFormatted": "17,99 €",
+        "strikePrice": 34.99,
+        "strikePriceFormatted": "34,99 €",
+        "discountFlag": "-15%",
+        "lowestPrice30Days": 21.24,
+        "lowestPrice30DaysFormatted": "21,24 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2246080",
+      "price": 17.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "170",
+       "176"
+      ],
+      "sizesAvailable": [
+       "170",
+       "176"
+      ],
+      "sizesIds": [
+       "170",
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "170",
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       4,
+       2
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2252893",
+     "uri": "/es/es/shop/cinnamoroll-sudadera-con-capucha-2252893/1",
+     "name": "Cinnamoroll - sudadera con capucha",
+     "categoryIpimId": "3-2-1-7",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 79,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/cinnamoroll-sudadera-con-capucha-2252893/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1760957989/2252893-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1758530455/2252893-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "158",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252893_1_158",
+         "skuId": "2252893.1.158",
+         "quantity": 13
+        },
+        {
+         "label": "164",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252893_1_164",
+         "skuId": "2252893.1.164",
+         "quantity": 43
+        },
+        {
+         "label": "170",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252893_1_170",
+         "skuId": "2252893.1.170",
+         "quantity": 30
+        },
+        {
+         "label": "176",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252893_1_176",
+         "skuId": "2252893.1.176",
+         "quantity": 24
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "blanco roto",
+        "image": {
+         "url": "",
+         "file": "v1758530458/2252893-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 11.99,
+        "grossPriceFormatted": "11,99 €",
+        "strikePrice": 22.99,
+        "strikePriceFormatted": "22,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 10.79,
+        "lowestPrice30DaysFormatted": "10,79 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2252893",
+      "price": 11.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "158",
+       "164",
+       "170",
+       "176"
+      ],
+      "sizesAvailable": [
+       "158",
+       "164",
+       "170",
+       "176"
+      ],
+      "sizesIds": [
+       "158",
+       "164",
+       "170",
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "158",
+       "164",
+       "170",
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       13,
+       43,
+       30,
+       24
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2251724",
+     "uri": "/es/es/shop/cinnamoroll-sudadera-con-capucha-2251724/1",
+     "name": "Cinnamoroll - sudadera con capucha",
+     "categoryIpimId": "3-2-1-7",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 80,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/cinnamoroll-sudadera-con-capucha-2251724/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1758908443/2251724-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1757684008/2251724-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "170",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251724_1_170",
+         "skuId": "2251724.1.170",
+         "quantity": 12
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "blanco roto",
+        "image": {
+         "url": "",
+         "file": "v1757684011/2251724-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 11.99,
+        "grossPriceFormatted": "11,99 €",
+        "strikePrice": 22.99,
+        "strikePriceFormatted": "22,99 €",
+        "discountFlag": "-16%",
+        "lowestPrice30Days": 14.39,
+        "lowestPrice30DaysFormatted": "14,39 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2251724",
+      "price": 11.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "170"
+      ],
+      "sizesAvailable": [
+       "170"
+      ],
+      "sizesIds": [
+       "170"
+      ],
+      "sizesAvailableIds": [
+       "170"
+      ],
+      "sizesAvailableQuantities": [
+       12
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2246085",
+     "uri": "/es/es/shop/cinnamoroll-sudadera-2246085/1",
+     "name": "Cinnamoroll - sudadera",
+     "categoryIpimId": "3-2-1-7",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 81,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/cinnamoroll-sudadera-2246085/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1753353743/2246085-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1752499851/2246085-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "176",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2246085_1_176",
+         "skuId": "2246085.1.176",
+         "quantity": 6
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "rosa oscuro",
+        "image": {
+         "url": "",
+         "file": "v1752499856/2246085-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 9.99,
+        "grossPriceFormatted": "9,99 €",
+        "strikePrice": 19.99,
+        "strikePriceFormatted": "19,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 8.99,
+        "lowestPrice30DaysFormatted": "8,99 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2246085",
+      "price": 9.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "17"
+      ],
+      "sizes": [
+       "176"
+      ],
+      "sizesAvailable": [
+       "176"
+      ],
+      "sizesIds": [
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       6
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2252904",
+     "uri": "/es/es/shop/los-angeles-sudadera-2252904/1",
+     "name": "Los Ángeles - sudadera",
+     "categoryIpimId": "3-1-7-3",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 82,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/los-angeles-sudadera-2252904/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1760010532/2252904-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1759754789/2252904-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "176",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252904_1_176",
+         "skuId": "2252904.1.176",
+         "quantity": 1
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "negro",
+        "image": {
+         "url": "",
+         "file": "v1759754794/2252904-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 12.99,
+        "grossPriceFormatted": "12,99 €",
+        "strikePrice": 17.99,
+        "strikePriceFormatted": "17,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 11.69,
+        "lowestPrice30DaysFormatted": "11,69 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2252904",
+      "price": 12.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "176"
+      ],
+      "sizesAvailable": [
+       "176"
+      ],
+      "sizesIds": [
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       1
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2252907",
+     "uri": "/es/es/shop/lilo-stitch-sudadera-2252907/1",
+     "name": "Lilo & Stitch - sudadera",
+     "categoryIpimId": "3-2-1-39",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 83,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/lilo-stitch-sudadera-2252907/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1760595093/2252907-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1759409082/2252907-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252907_1_128",
+         "skuId": "2252907.1.128",
+         "quantity": 50
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252907_1_134",
+         "skuId": "2252907.1.134",
+         "quantity": 26
+        },
+        {
+         "label": "140",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252907_1_140",
+         "skuId": "2252907.1.140",
+         "quantity": 6
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "negro",
+        "image": {
+         "url": "",
+         "file": "v1759409085/2252907-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 14.99,
+        "grossPriceFormatted": "14,99 €",
+        "strikePrice": 19.99,
+        "strikePriceFormatted": "19,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 12.74,
+        "lowestPrice30DaysFormatted": "12,74 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2252907",
+      "price": 14.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailable": [
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesIds": [
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailableIds": [
+       "128",
+       "134",
+       "140"
+      ],
+      "sizesAvailableQuantities": [
+       50,
+       26,
+       6
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2248638",
+     "uri": "/es/es/shop/sudadera-con-capucha-2248638/1",
+     "name": "Sudadera con capucha",
+     "categoryIpimId": "3-1-23-1",
+     "collectionLabel": null,
+     "flag": null,
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 84,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/sudadera-con-capucha-2248638/2",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1769084440/2248638-2-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1761660245/2248638-2-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2248638_2_134",
+         "skuId": "2248638.2.134",
+         "quantity": 10
+        }
+       ],
+       "color": {
+        "colorCode": "2",
+        "label": "azul claro",
+        "image": {
+         "url": "",
+         "file": "v1761660249/2248638-2-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 15.99,
+        "grossPriceFormatted": "15,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      },
+      {
+       "uri": "/es/es/shop/sudadera-con-capucha-2248638/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1763731205/2248638-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1761660287/2248638-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "128",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2248638_1_128",
+         "skuId": "2248638.1.128",
+         "quantity": 3
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2248638_1_134",
+         "skuId": "2248638.1.134",
+         "quantity": 7
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "beis",
+        "image": {
+         "url": "",
+         "file": "v1761660291/2248638-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 15.99,
+        "grossPriceFormatted": "15,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 2,
+     "tracking": {
+      "id": "2248638",
+      "price": 15.99,
+      "color": "2",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "134"
+      ],
+      "sizesAvailable": [
+       "134"
+      ],
+      "sizesIds": [
+       "134"
+      ],
+      "sizesAvailableIds": [
+       "134"
+      ],
+      "sizesAvailableQuantities": [
+       10
+      ],
+      "sale": false
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2251718",
+     "uri": "/es/es/shop/austin-sudadera-2251718/1",
+     "name": "Austin - sudadera",
+     "categoryIpimId": "3-1-7-3",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 85,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/austin-sudadera-2251718/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1756473871/2251718-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1755958912/2251718-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251718_1_128",
+         "skuId": "2251718.1.128",
+         "quantity": 11
+        },
+        {
+         "label": "140",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251718_1_140",
+         "skuId": "2251718.1.140",
+         "quantity": 1
+        },
+        {
+         "label": "152",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251718_1_152",
+         "skuId": "2251718.1.152",
+         "quantity": 25
+        },
+        {
+         "label": "158",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251718_1_158",
+         "skuId": "2251718.1.158",
+         "quantity": 11
+        },
+        {
+         "label": "164",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251718_1_164",
+         "skuId": "2251718.1.164",
+         "quantity": 16
+        },
+        {
+         "label": "176",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251718_1_176",
+         "skuId": "2251718.1.176",
+         "quantity": 8
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "burdeos",
+        "image": {
+         "url": "",
+         "file": "v1755958916/2251718-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 9.99,
+        "grossPriceFormatted": "9,99 €",
+        "strikePrice": 19.99,
+        "strikePriceFormatted": "19,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 8.49,
+        "lowestPrice30DaysFormatted": "8,49 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2251718",
+      "price": 9.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "17"
+      ],
+      "sizes": [
+       "128",
+       "140",
+       "152",
+       "158",
+       "164",
+       "176"
+      ],
+      "sizesAvailable": [
+       "128",
+       "140",
+       "152",
+       "158",
+       "164",
+       "176"
+      ],
+      "sizesIds": [
+       "128",
+       "140",
+       "152",
+       "158",
+       "164",
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "128",
+       "140",
+       "152",
+       "158",
+       "164",
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       11,
+       1,
+       25,
+       11,
+       16,
+       8
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2247039",
+     "uri": "/es/es/shop/nueva-york-sudadera-con-capucha-2247039/1",
+     "name": "Nueva York - sudadera con capucha",
+     "categoryIpimId": "3-1-7-3",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 86,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/nueva-york-sudadera-con-capucha-2247039/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1750681181/2247039-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1747992625/2247039-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2247039_1_128",
+         "skuId": "2247039.1.128",
+         "quantity": 9
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "negro",
+        "image": {
+         "url": "",
+         "file": "v1747992628/2247039-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 9.99,
+        "grossPriceFormatted": "9,99 €",
+        "strikePrice": 19.99,
+        "strikePriceFormatted": "19,99 €",
+        "discountFlag": "-14%",
+        "lowestPrice30Days": 11.69,
+        "lowestPrice30DaysFormatted": "11,69 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2247039",
+      "price": 9.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "17"
+      ],
+      "sizes": [
+       "128"
+      ],
+      "sizesAvailable": [
+       "128"
+      ],
+      "sizesIds": [
+       "128"
+      ],
+      "sizesAvailableIds": [
+       "128"
+      ],
+      "sizesAvailableQuantities": [
+       9
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2248364",
+     "uri": "/es/es/shop/kuromi-conjunto-sudadera-con-capucha-y-top-2-prendas-2248364/1",
+     "name": "Kuromi - conjunto - sudadera con capucha y top - 2 prendas",
+     "categoryIpimId": "3-1-1-1",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 87,
+     "isSet": true,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": "Still",
+     "variants": [
+      {
+       "uri": "/es/es/shop/kuromi-conjunto-sudadera-con-capucha-y-top-2-prendas-2248364/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1753684929/2248364-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1753086839/2248364-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "164",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2248364_1_164",
+         "skuId": "2248364.1.164",
+         "quantity": 10
+        },
+        {
+         "label": "170",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2248364_1_170",
+         "skuId": "2248364.1.170",
+         "quantity": 39
+        },
+        {
+         "label": "176",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2248364_1_176",
+         "skuId": "2248364.1.176",
+         "quantity": 31
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "beige claro",
+        "image": {
+         "url": "",
+         "file": "v1753086842/2248364-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 11.99,
+        "grossPriceFormatted": "11,99 €",
+        "strikePrice": 22.99,
+        "strikePriceFormatted": "22,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 10.79,
+        "lowestPrice30DaysFormatted": "10,79 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2248364",
+      "price": 11.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "6",
+       "8",
+       "9",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "164",
+       "170",
+       "176"
+      ],
+      "sizesAvailable": [
+       "164",
+       "170",
+       "176"
+      ],
+      "sizesIds": [
+       "164",
+       "170",
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "164",
+       "170",
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       10,
+       39,
+       31
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2252861",
+     "uri": "/es/es/shop/billie-eilish-sudadera-2252861/1",
+     "name": "Billie Eilish - sudadera",
+     "categoryIpimId": "3-2-1-13",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 88,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/billie-eilish-sudadera-2252861/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1759924064/2252861-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1759222006/2252861-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252861_1_128",
+         "skuId": "2252861.1.128",
+         "quantity": 6
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "negro",
+        "image": {
+         "url": "",
+         "file": "v1759222010/2252861-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 9.99,
+        "grossPriceFormatted": "9,99 €",
+        "strikePrice": 19.99,
+        "strikePriceFormatted": "19,99 €",
+        "discountFlag": "-25%",
+        "lowestPrice30Days": 13.49,
+        "lowestPrice30DaysFormatted": "13,49 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2252861",
+      "price": 9.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "128"
+      ],
+      "sizesAvailable": [
+       "128"
+      ],
+      "sizesIds": [
+       "128"
+      ],
+      "sizesAvailableIds": [
+       "128"
+      ],
+      "sizesAvailableQuantities": [
+       6
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2248107",
+     "uri": "/es/es/shop/smileyworld-sudadera-2248107/1",
+     "name": "SmileyWorld® - sudadera",
+     "categoryIpimId": "3-2-1-13",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 89,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/smileyworld-sudadera-2248107/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1753353513/2248107-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1752899595/2248107-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "176",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2248107_1_176",
+         "skuId": "2248107.1.176",
+         "quantity": 1
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "blanco",
+        "image": {
+         "url": "",
+         "file": "v1752899598/2248107-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 9.99,
+        "grossPriceFormatted": "9,99 €",
+        "strikePrice": 19.99,
+        "strikePriceFormatted": "19,99 €",
+        "discountFlag": "-9%",
+        "lowestPrice30Days": 11.04,
+        "lowestPrice30DaysFormatted": "11,04 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2248107",
+      "price": 9.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "176"
+      ],
+      "sizesAvailable": [
+       "176"
+      ],
+      "sizesIds": [
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       1
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2243765",
+     "uri": "/es/es/shop/cazadora-de-lentejuelas-2243765/1",
+     "name": "Cazadora de lentejuelas",
+     "categoryIpimId": "3-1-7-3",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 90,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/cazadora-de-lentejuelas-2243765/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1750842831/2243765-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1750842831/2243765-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "92",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2243765_1_092",
+         "skuId": "2243765.1.092",
+         "quantity": 17
+        },
+        {
+         "label": "98",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2243765_1_098",
+         "skuId": "2243765.1.098",
+         "quantity": 50
+        },
+        {
+         "label": "104",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2243765_1_104",
+         "skuId": "2243765.1.104",
+         "quantity": 68
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "rosa oscuro",
+        "image": {
+         "url": "",
+         "file": "v1750842835/2243765-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 22.99,
+        "grossPriceFormatted": "22,99 €",
+        "strikePrice": 27.99,
+        "strikePriceFormatted": "27,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 19.54,
+        "lowestPrice30DaysFormatted": "19,54 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2243765",
+      "price": 22.99,
+      "color": "1",
+      "viewIDs": [
+       "8",
+       "9",
+       "12"
+      ],
+      "sizes": [
+       "92",
+       "98",
+       "104"
+      ],
+      "sizesAvailable": [
+       "92",
+       "98",
+       "104"
+      ],
+      "sizesIds": [
+       "092",
+       "098",
+       "104"
+      ],
+      "sizesAvailableIds": [
+       "092",
+       "098",
+       "104"
+      ],
+      "sizesAvailableQuantities": [
+       17,
+       50,
+       68
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2252477",
+     "uri": "/es/es/shop/ositos-de-peluche-sudadera-con-capucha-2252477/1",
+     "name": "Ositos de peluche - sudadera con capucha",
+     "categoryIpimId": "3-1-7-3",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 91,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/ositos-de-peluche-sudadera-con-capucha-2252477/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1759405543/2252477-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1757424716/2252477-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "176",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2252477_1_176",
+         "skuId": "2252477.1.176",
+         "quantity": 1
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "blanco roto",
+        "image": {
+         "url": "",
+         "file": "v1757424719/2252477-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 9.99,
+        "grossPriceFormatted": "9,99 €",
+        "strikePrice": 19.99,
+        "strikePriceFormatted": "19,99 €",
+        "discountFlag": "-30%",
+        "lowestPrice30Days": 14.39,
+        "lowestPrice30DaysFormatted": "14,39 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2252477",
+      "price": 9.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "176"
+      ],
+      "sizesAvailable": [
+       "176"
+      ],
+      "sizesIds": [
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       1
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2246094",
+     "uri": "/es/es/shop/cinnamoroll-sudadera-con-capucha-2246094/1",
+     "name": "Cinnamoroll - sudadera con capucha",
+     "categoryIpimId": "3-2-1-7",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 92,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/cinnamoroll-sudadera-con-capucha-2246094/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1750849965/2246094-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1747402019/2246094-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "170",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2246094_1_170",
+         "skuId": "2246094.1.170",
+         "quantity": 5
+        },
+        {
+         "label": "176",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2246094_1_176",
+         "skuId": "2246094.1.176",
+         "quantity": 12
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "blanco",
+        "image": {
+         "url": "",
+         "file": "v1747402022/2246094-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 11.99,
+        "grossPriceFormatted": "11,99 €",
+        "strikePrice": 22.99,
+        "strikePriceFormatted": "22,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 10.79,
+        "lowestPrice30DaysFormatted": "10,79 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2246094",
+      "price": 11.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "170",
+       "176"
+      ],
+      "sizesAvailable": [
+       "170",
+       "176"
+      ],
+      "sizesIds": [
+       "170",
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "170",
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       5,
+       12
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2248638",
+     "uri": "/es/es/shop/sudadera-con-capucha-2248638/1",
+     "name": "Sudadera con capucha",
+     "categoryIpimId": "3-1-23-1",
+     "collectionLabel": null,
+     "flag": null,
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 93,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/sudadera-con-capucha-2248638/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1763731205/2248638-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1761660287/2248638-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "128",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2248638_1_128",
+         "skuId": "2248638.1.128",
+         "quantity": 3
+        },
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2248638_1_134",
+         "skuId": "2248638.1.134",
+         "quantity": 7
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "beis",
+        "image": {
+         "url": "",
+         "file": "v1761660291/2248638-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 15.99,
+        "grossPriceFormatted": "15,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      },
+      {
+       "uri": "/es/es/shop/sudadera-con-capucha-2248638/2",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1769084440/2248638-2-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1761660245/2248638-2-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "134",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2248638_2_134",
+         "skuId": "2248638.2.134",
+         "quantity": 10
+        }
+       ],
+       "color": {
+        "colorCode": "2",
+        "label": "azul claro",
+        "image": {
+         "url": "",
+         "file": "v1761660249/2248638-2-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 15.99,
+        "grossPriceFormatted": "15,99 €",
+        "strikePrice": null,
+        "strikePriceFormatted": null,
+        "discountFlag": null,
+        "lowestPrice30Days": null,
+        "lowestPrice30DaysFormatted": null,
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 2,
+     "tracking": {
+      "id": "2248638",
+      "price": 15.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "128",
+       "134"
+      ],
+      "sizesAvailable": [
+       "128",
+       "134"
+      ],
+      "sizesIds": [
+       "128",
+       "134"
+      ],
+      "sizesAvailableIds": [
+       "128",
+       "134"
+      ],
+      "sizesAvailableQuantities": [
+       3,
+       7
+      ],
+      "sale": false
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2247438",
+     "uri": "/es/es/shop/nueva-york-jersey-2247438/1",
+     "name": "Nueva York - jersey",
+     "categoryIpimId": "3-1-7-1",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 94,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/nueva-york-jersey-2247438/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1759405759/2247438-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1758703542/2247438-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "128",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2247438_1_128",
+         "skuId": "2247438.1.128",
+         "quantity": 11
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "azul oscuro",
+        "image": {
+         "url": "",
+         "file": "v1758703545/2247438-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 9.99,
+        "grossPriceFormatted": "9,99 €",
+        "strikePrice": 19.99,
+        "strikePriceFormatted": "19,99 €",
+        "discountFlag": "-30%",
+        "lowestPrice30Days": 14.39,
+        "lowestPrice30DaysFormatted": "14,39 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2247438",
+      "price": 9.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "17"
+      ],
+      "sizes": [
+       "128"
+      ],
+      "sizesAvailable": [
+       "128"
+      ],
+      "sizesIds": [
+       "128"
+      ],
+      "sizesAvailableIds": [
+       "128"
+      ],
+      "sizesAvailableQuantities": [
+       11
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2244316",
+     "uri": "/es/es/shop/jersey-2244316/1",
+     "name": "Jersey",
+     "categoryIpimId": "3-1-7-1",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 95,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/jersey-2244316/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1750683484/2244316-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1749087588/2244316-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "122",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2244316_1_122",
+         "skuId": "2244316.1.122",
+         "quantity": 1
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "beis",
+        "image": {
+         "url": "",
+         "file": "v1749087592/2244316-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 8.99,
+        "grossPriceFormatted": "8,99 €",
+        "strikePrice": 17.99,
+        "strikePriceFormatted": "17,99 €",
+        "discountFlag": null,
+        "lowestPrice30Days": 8.09,
+        "lowestPrice30DaysFormatted": "8,09 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2244316",
+      "price": 8.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "17"
+      ],
+      "sizes": [
+       "122"
+      ],
+      "sizesAvailable": [
+       "122"
+      ],
+      "sizesIds": [
+       "122"
+      ],
+      "sizesAvailableIds": [
+       "122"
+      ],
+      "sizesAvailableQuantities": [
+       1
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2251681",
+     "uri": "/es/es/shop/miercoles-conjunto-sudadera-con-capucha-y-top-2-prendas-2251681/1",
+     "name": "Miércoles - conjunto - sudadera con capucha y top - 2 prendas",
+     "categoryIpimId": "3-1-1-1",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 96,
+     "isSet": true,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": "Still",
+     "variants": [
+      {
+       "uri": "/es/es/shop/miercoles-conjunto-sudadera-con-capucha-y-top-2-prendas-2251681/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1758994929/2251681-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1756099220/2251681-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "170",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251681_1_170",
+         "skuId": "2251681.1.170",
+         "quantity": 36
+        },
+        {
+         "label": "176",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2251681_1_176",
+         "skuId": "2251681.1.176",
+         "quantity": 57
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "blanco",
+        "image": {
+         "url": "",
+         "file": "v1756099224/2251681-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 6.99,
+        "grossPriceFormatted": "6,99 €",
+        "strikePrice": 22.99,
+        "strikePriceFormatted": "22,99 €",
+        "discountFlag": "-48%",
+        "lowestPrice30Days": 13.59,
+        "lowestPrice30DaysFormatted": "13,59 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2251681",
+      "price": 6.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "6",
+       "8",
+       "9",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "170",
+       "176"
+      ],
+      "sizesAvailable": [
+       "170",
+       "176"
+      ],
+      "sizesIds": [
+       "170",
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "170",
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       36,
+       57
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2254577",
+     "uri": "/es/es/shop/cardigan-2254577/5",
+     "name": "Cárdigan",
+     "categoryIpimId": "3-1-7-1",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": false,
+     "prudsysTrackingToken": null,
+     "brand": {
+      "name": "Marca: C&A"
+     },
+     "algoliaPosition": 97,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/cardigan-2254577/5",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1773739104/2254577-5-08.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1773739104/2254577-5-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "92",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2254577_5_092",
+         "skuId": "2254577.5.092",
+         "quantity": 1
+        },
+        {
+         "label": "110",
+         "available": "LIMITED",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2254577_5_110",
+         "skuId": "2254577.5.110",
+         "quantity": 1
+        }
+       ],
+       "color": {
+        "colorCode": "5",
+        "label": "fucsia",
+        "image": {
+         "url": "",
+         "file": "v1773739097/2254577-5-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 6.99,
+        "grossPriceFormatted": "6,99 €",
+        "strikePrice": 12.99,
+        "strikePriceFormatted": "12,99 €",
+        "discountFlag": "-30%",
+        "lowestPrice30Days": 9.99,
+        "lowestPrice30DaysFormatted": "9,99 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2254577",
+      "price": 6.99,
+      "color": "5",
+      "viewIDs": [
+       "8",
+       "11",
+       "13"
+      ],
+      "sizes": [
+       "92",
+       "110"
+      ],
+      "sizesAvailable": [
+       "92",
+       "110"
+      ],
+      "sizesIds": [
+       "092",
+       "110"
+      ],
+      "sizesAvailableIds": [
+       "092",
+       "110"
+      ],
+      "sizesAvailableQuantities": [
+       1,
+       1
+      ],
+      "sale": true
+     },
+     "imageType": null
+    },
+    {
+     "__typename": "ListProduct",
+     "usim": "2246076",
+     "uri": "/es/es/shop/hello-kitty-y-amigos-sudadera-con-capucha-2246076/1",
+     "name": "Hello Kitty y amigos - sudadera con capucha",
+     "categoryIpimId": "3-2-1-7",
+     "collectionLabel": null,
+     "flag": "SALE",
+     "isSustainable": true,
+     "prudsysTrackingToken": null,
+     "brand": null,
+     "algoliaPosition": 98,
+     "isSet": null,
+     "isMultipack": null,
+     "isBestseller": null,
+     "isLargeSizes": false,
+     "isMadeInGermany": false,
+     "isMaternityWear": false,
+     "isSoftTouch": false,
+     "isPremium": false,
+     "isOnlineExclusive": false,
+     "productOverruleCategoryImageView": null,
+     "variants": [
+      {
+       "uri": "/es/es/shop/hello-kitty-y-amigos-sudadera-con-capucha-2246076/1",
+       "isAvailable": true,
+       "modelImage": {
+        "url": "",
+        "file": "v1750682064/2246076-1-01.jpg",
+        "folder": "/productimages"
+       },
+       "variantImage": {
+        "url": "",
+        "file": "v1748089915/2246076-1-08.jpg",
+        "folder": "/productimages"
+       },
+       "sizes": [
+        {
+         "label": "176",
+         "available": "AVAILABLE",
+         "isAvailable": true,
+         "isPublished": true,
+         "IsOnsitePromotion": false,
+         "itemUsim": "2246076_1_176",
+         "skuId": "2246076.1.176",
+         "quantity": 8
+        }
+       ],
+       "color": {
+        "colorCode": "1",
+        "label": "blanco roto",
+        "image": {
+         "url": "",
+         "file": "v1748089919/2246076-1-00.jpg",
+         "folder": "/productimages"
+        }
+       },
+       "price": {
+        "grossPrice": 11.99,
+        "grossPriceFormatted": "11,99 €",
+        "strikePrice": 22.99,
+        "strikePriceFormatted": "22,99 €",
+        "discountFlag": "-25%",
+        "lowestPrice30Days": 15.99,
+        "lowestPrice30DaysFormatted": "15,99 €",
+        "lowestPrice30DaysDiscountFlag": null,
+        "currency": "EUR"
+       }
+      }
+     ],
+     "variantCount": 1,
+     "tracking": {
+      "id": "2246076",
+      "price": 11.99,
+      "color": "1",
+      "viewIDs": [
+       "1",
+       "3",
+       "5",
+       "8",
+       "11",
+       "12",
+       "13",
+       "17"
+      ],
+      "sizes": [
+       "176"
+      ],
+      "sizesAvailable": [
+       "176"
+      ],
+      "sizesIds": [
+       "176"
+      ],
+      "sizesAvailableIds": [
+       "176"
+      ],
+      "sizesAvailableQuantities": [
+       8
+      ],
+      "sale": true
+     },
+     "imageType": null
+    }
+   ],
+   "hasSaleProducts": true
+  }
+ }
+}
