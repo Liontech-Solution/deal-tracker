@@ -114,6 +114,22 @@ class CategoryConfig:
 CATEGORIES: list[CategoryConfig] = [
     # --- niña ---
     CategoryConfig("ninos/nina/pantalones", "niña", "ropa", "pantalones"),
+    # Las tres siguientes salieron de enumerar el árbol con `--tree` (#72), no de adivinar. Son
+    # `pantalones` del brief y llevaban fuera desde el principio por lo mismo que las de bebé en
+    # #56: `CATEGORIES` se escribió desde las categorías del brief buscando el slug que pegara, y
+    # aquí probar rutas a ojo no delata el error (una ruta inventada devuelve el catálogo del
+    # padre, #54). `vaqueros` es la que más cantaba: en niño SÍ estaba mapeada, así que el catálogo
+    # tenía un sesgo de género que no responde a nada de la tienda — era un olvido nuestro.
+    #
+    # Van DESPUÉS de `pantalones` a propósito: `list_catalog()` deduplica con «gana la primera»,
+    # así que un producto que aparezca en dos hojas conserva el mapeo que ya tenía. Medido el
+    # 02/08/2026 sobre las SIETE hojas de `pantalones` (las cuatro nuevas y las tres que ya
+    # estaban): 125 ids, **0 en más de una hoja**. Y las cuatro aportan 9 + 18 + 13 + 15 = 55
+    # productos, que es exactamente el delta del `--dry-run` (493 → 548, 2471 → 2711 variantes),
+    # así que tampoco chocan con el resto del catálogo.
+    CategoryConfig("ninos/nina/vaqueros", "niña", "ropa", "pantalones"),
+    CategoryConfig("ninos/nina/leggings", "niña", "ropa", "pantalones"),
+    CategoryConfig("ninos/nina/shorts-y-bermudas", "niña", "ropa", "pantalones"),
     CategoryConfig("ninos/nina/camisetas", "niña", "ropa", "camisetas"),
     CategoryConfig("ninos/nina/camisas-y-blusas", "niña", "ropa", "camisetas"),
     CategoryConfig("ninos/nina/sudaderas", "niña", "ropa", "sudaderas"),
@@ -125,6 +141,7 @@ CATEGORIES: list[CategoryConfig] = [
     # --- niño ---
     CategoryConfig("ninos/nino/pantalones", "niño", "ropa", "pantalones"),
     CategoryConfig("ninos/nino/vaqueros", "niño", "ropa", "pantalones"),
+    CategoryConfig("ninos/nino/shorts-y-bermudas", "niño", "ropa", "pantalones"),
     CategoryConfig("ninos/nino/camisetas-y-polos", "niño", "ropa", "camisetas"),
     CategoryConfig("ninos/nino/camisas", "niño", "ropa", "camisetas"),
     CategoryConfig("ninos/nino/sudaderas", "niño", "ropa", "sudaderas"),
