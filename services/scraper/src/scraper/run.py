@@ -6,6 +6,9 @@ Uso:
 
 En dev local se ejecuta a mano; en el cluster lo invocará un CronJob de k8s
 (definido en el repo de manifiestos, no aquí).
+
+`--check-categories` es la versión a mano y sobre una tienda de lo que `scraper.vigia` hace
+programado y sobre todas: comparten la regla de veredicto, no una copia de ella.
 """
 
 from __future__ import annotations
@@ -17,14 +20,9 @@ from . import db
 from .config import Config, load_dotenv
 from .ingest import CatalogScanAborted, ingest
 from .migrate import apply_migrations
-from .stores.base import (
-    BaseStore,
-    CategoryNode,
-    SupportsCategoryTree,
-    SupportsLeafHealth,
-    SupportsScanReport,
-)
+from .stores.base import BaseStore, CategoryNode, SupportsCategoryTree, SupportsScanReport
 from .stores.registry import available_slugs, get_store
+from .vigia import Informe, revisar_hojas
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -66,53 +64,21 @@ def _report_dead_leaves(store: BaseStore) -> None:
 
 
 def _check_categories(config: Config, slug: str) -> int:
-    """Sondeo preventivo de las hojas de categoría. Devuelve el código de salida.
+    """Sondeo preventivo de las hojas de categoría de UNA tienda. Devuelve el código de salida.
 
     Es la vigilancia que faltaba: la pasada ya no muere por una hoja caducada, pero mientras nadie
     la arregle esa categoría deja de ingerirse, y hoy eso solo se ve en el resumen de un job que
     nadie mira.
 
-    **Solo falla por lo accionable.** Una hoja RETIRADA pide un id nuevo, así que sale != 0. Una
-    hoja SIN VEREDICTO se avisa pero no rompe: medido contra Sfera, un chequeo normal ya trae un
-    403 suelto de Akamai, y un vigía que da falsas alarmas rutinarias acaba silenciado — que es
-    peor que no tenerlo. La excepción es que **ninguna** hoja se confirme viva: eso ya no es un
-    blip, es un bloqueo, y sí debe cantar.
+    La regla de veredicto (**solo falla por lo accionable**: RETIRADA rompe, SIN VEREDICTO avisa, y
+    que ninguna esté viva rompe porque ya es un bloqueo) vive en `vigia.revisar_hojas` y aquí solo
+    se invoca. Tenerla en dos sitios sería pedir que se separasen: esto y el vigía (#67) responden a
+    la misma pregunta, uno a mano sobre una tienda y otro programado sobre todas.
     """
-    store = get_store(slug, config)
-    if not isinstance(store, SupportsLeafHealth):
-        print(f"{slug} no sabe sondear sus categorías (no implementa SupportsLeafHealth)")
-        return 0
-
-    vivas = 0
-    retiradas: list[str] = []
-    sin_veredicto: list[str] = []
-    for leaf in store.check_leaves():
-        ambito = f"{leaf.scope.gender}/{leaf.scope.section}/{leaf.scope.category}"
-        linea = f"  {leaf.leaf}  ({ambito})  {leaf.detail}"
-        if leaf.alive:
-            vivas += 1
-        elif leaf.alive is False:
-            retiradas.append(linea)
-        else:
-            sin_veredicto.append(linea)
-
-    total = vivas + len(retiradas) + len(sin_veredicto)
-    print(f"{slug}: {vivas}/{total} hojas de categoría vivas.")
-    if retiradas:
-        print(f"✖ {len(retiradas)} RETIRADAS — busca sus ids nuevos y actualiza CATEGORIES:")
-        for linea in retiradas:
-            print(linea)
-    if sin_veredicto:
-        print(f"⚠ {len(sin_veredicto)} sin veredicto (fallo del sondeo, no retirada confirmada):")
-        for linea in sin_veredicto:
-            print(linea)
-
-    if retiradas:
-        return 1
-    if total and not vivas:
-        print("✖ ninguna hoja confirmada viva: esto no es un blip, es un bloqueo.")
-        return 1
-    return 0
+    informe = Informe(slug)
+    revisar_hojas(get_store(slug, config), informe)
+    print(informe.render())
+    return 0 if informe.esta_bien else 1
 
 
 def _tree(config: Config, slug: str, root: str) -> int:
