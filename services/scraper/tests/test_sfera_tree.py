@@ -422,6 +422,56 @@ def test_el_genero_de_una_hoja_sale_de_su_rama_no_del_slug() -> None:
     assert por_ruta["ninos/bebe-nino/bermudas-y-petos"].gender == "niño"
 
 
+def test_los_pantalones_del_rango_6_14_estan_completos() -> None:
+    """Las cuatro hojas que #72 rescató, y que el árbol publica desde siempre.
+
+    Se escaparon igual que las de bebé en #56 —el slug se adivinó desde el brief en vez de
+    enumerar la tienda— y no las delataba ninguna red: aquí una ruta que no existe devuelve el
+    catálogo del padre, no un 404 (#54), así que nadie las echaba de menos.
+    """
+    por_ruta = {c.category_path: c for c in CATEGORIES}
+    for ruta, genero in (
+        ("ninos/nina/vaqueros", "niña"),
+        ("ninos/nina/leggings", "niña"),
+        ("ninos/nina/shorts-y-bermudas", "niña"),
+        ("ninos/nino/shorts-y-bermudas", "niño"),
+    ):
+        cat = por_ruta[ruta]
+        assert (cat.gender, cat.section, cat.category) == (genero, "ropa", "pantalones"), ruta
+
+
+def test_los_vaqueros_existen_en_los_dos_generos() -> None:
+    """EL defecto que motivó #72, y la razón de que este test exista aparte.
+
+    `ninos/nino/vaqueros` estaba mapeada y `ninos/nina/vaqueros` no, así que los pantalones de
+    niña enseñaban un sesgo de género que no responde a nada de la tienda: las dos hojas existen
+    en el árbol de Sfera. Un olvido nuestro, no un dato.
+    """
+    generos = {c.gender for c in CATEGORIES if c.category_path.endswith("/vaqueros")}
+    assert generos == {"niño", "niña"}
+
+
+def test_las_hojas_nuevas_no_estrenan_ningun_ambito() -> None:
+    """Las cuatro son `pantalones` de un género que ya se recorría.
+
+    Mismo argumento que en #56 y por el mismo motivo: el ámbito es la unidad con la que se acotan
+    las BAJAS, así que una hoja que estrenara ámbito abriría superficie nueva para descatalogar.
+    """
+    nuevas = {
+        "ninos/nina/vaqueros",
+        "ninos/nina/leggings",
+        "ninos/nina/shorts-y-bermudas",
+        "ninos/nino/shorts-y-bermudas",
+    }
+    previos = {
+        ScrapeScope(c.gender, c.section, c.category)
+        for c in CATEGORIES
+        if c.category_path not in nuevas
+    }
+    for cat in (c for c in CATEGORIES if c.category_path in nuevas):
+        assert ScrapeScope(cat.gender, cat.section, cat.category) in previos
+
+
 def test_las_hojas_fuera_del_brief_siguen_fuera() -> None:
     """Baño, ropa deportiva y abrigos existen en el árbol y NO se ingieren, igual que en 6-14.
 
@@ -436,5 +486,13 @@ def test_las_hojas_fuera_del_brief_siguen_fuera() -> None:
         "ninos/bebe-nino/ropa-deportiva",
         "ninos/bebe-nina/abrigos-y-cazadoras",
         "ninos/bebe-nino/abrigos-y-cazadoras",
+        # Las de 6-14, enumeradas con `--tree` al rescatar las cuatro de #72: lo que quedó fuera
+        # quedó fuera a sabiendas, no por no haberlo mirado.
+        "ninos/nina/ropa-deportiva",
+        "ninos/nina/accesorios",
+        "ninos/nina/abrigos-y-cazadoras",
+        "ninos/nino/banadores",
+        "ninos/nino/accesorios",
+        "ninos/nino/abrigos-y-cazadoras",
     ):
         assert fuera not in configuradas

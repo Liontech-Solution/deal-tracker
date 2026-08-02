@@ -240,12 +240,23 @@ class CategoryNode:
     (`CATEGORIES`) y de «siguen vivas las que ingerimos» (`LeafHealth`). Existe porque adivinar
     rutas copiándolas de otra rama es exactamente como se llega a una hoja que no existe, y hay
     tiendas donde eso no da 404 (Sfera devuelve el catálogo del padre, #54).
+
+    ⚠️ Enumera lo que la tienda PUBLICA, y eso puede quedarse corto: `ninos/nino/vaqueros` no sale
+    en el árbol de Sfera del 02/08/2026 y sin embargo sirve 7 productos y el sondeo de hojas la da
+    viva. O sea que **la ausencia de una hoja aquí no prueba que esté muerta** — para eso está
+    `check_leaves()`, que la pide. Lo que sí es fiable es lo contrario: lo que sale, existe.
     """
 
     # Identificador en el vocabulario de la tienda, el mismo que `LeafHealth.leaf`.
     path: str
     title: str  # cómo la llama la tienda de cara al usuario
-    # Productos que la tienda declara. `None` = no lo dice, que NO es lo mismo que 0.
+    # Productos que la tienda DECLARA. `None` = no lo dice, que NO es lo mismo que 0.
+    #
+    # Y «declara» no es «sirve»: medido en Sfera el 02/08/2026 al rescatar las hojas de #72, la
+    # faceta decía 8 en `ninos/nina/leggings` y el listado dio 18, y 4 en
+    # `ninos/nino/shorts-y-bermudas` contra 15. Sirve para orientarse sobre qué hojas existen y
+    # cuáles pesan; NO sirve para dimensionar una pasada ni para decidir si merece la pena una
+    # hoja. Para eso hay que pedir el listado.
     count: int | None
     depth: int  # niveles por debajo de la raíz pedida (1 = hija directa)
     has_children: bool
