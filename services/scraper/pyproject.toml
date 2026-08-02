@@ -20,9 +20,21 @@ dependencies = [
     "certifi",
     "psycopg[binary]>=3.2",
     # Navegador headless para tiendas tras anti-bot (Akamai): ejecuta el sensor JS y
-    # obtiene cookies válidas. Solo lo usan las tiendas que lo necesitan (p.ej. Sfera);
-    # el binario de Chromium se instala aparte (`playwright install chromium`).
-    "playwright>=1.49",
+    # obtiene cookies válidas. Lo usan Sfera e Hipercor; el binario de Chromium se instala
+    # aparte (`playwright install chromium`, ya en `just setup` y en el Dockerfile).
+    #
+    # Techo a propósito, por el mismo motivo que el de httpx y no por el que parece. Lo que se
+    # ve primero es la fricción local: cada versión de playwright pide un build concreto de
+    # Chromium, los builds se comparten entre venvs en `~/.cache/ms-playwright`, y sin techo un
+    # venv nuevo instala una versión que pide un build que no está cacheado — así que Sfera e
+    # Hipercor mueren pidiendo `playwright install` mientras `just check` sigue verde, porque
+    # los tests de parseo son herméticos (#91). Eso lo arregla el `playwright install` de
+    # `just setup`.
+    # El techo está por lo otro: **una versión nueva de Chromium cambia la huella del navegador**,
+    # y las dos tiendas que lo usan están detrás de Akamai. Sin techo, un `docker build` cualquier
+    # día se lleva esa huella nueva al cluster sin que nadie la mire. Con techo, el bump es un PR
+    # donde toca re-verificar (`python -m scraper.vigia --retailer sfera hipercor`).
+    "playwright>=1.49,<1.62",
 ]
 
 [project.optional-dependencies]
