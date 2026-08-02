@@ -8,7 +8,7 @@ Both services are **built and deployed**. This is a **polyglot monorepo**: scrap
 **Python** (`services/scraper`), user experience in **Node/TS** (`services/web`, NestJS API +
 React/Vite SPA + Telegram bot). The two services never call each other — they integrate through the
 **shared Postgres**, whose schema is the contract as neutral SQL in `db/migrations` (`0001` …
-`0016`). The `scraper` service owns writes to `retailer`/`product`/`variant`/`price_history`/
+`0020`). The `scraper` service owns writes to `retailer`/`product`/`variant`/`price_history`/
 `scrape_run`; the `web` service owns `app_user` (Telegram link included)/`interest`/`notification`/
 `job_state`.
 

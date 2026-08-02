@@ -22,7 +22,7 @@ Monorepo **poliglota**, dos servicios que no se llaman entre sí:
 - `services/web` — **NestJS** (`@nestjs/*`, drizzle-orm, postgres, passport-jwt + jwks-rsa para
   validar tokens Keycloak) y frontend **React/Vite** en `services/web/frontend`, servido por el
   propio Nest vía `@nestjs/serve-static`. Gestor de paquetes: **pnpm**.
-- `db/migrations` — **SQL crudo neutro** (`0001_init.sql` … `0019_size_canon_singular.sql`).
+- `db/migrations` — **SQL crudo neutro** (`0001_init.sql` … `0020_size_canon_rango_colapsado.sql`).
 
 Imágenes: `ghcr.io/liontech-solution/deal-tracker-scraper` y `-web`. Contexto de build en la **raíz
 del repo**, no en el directorio del servicio.
@@ -37,9 +37,12 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
   y bajas. El **web** posee `app_user` (con el vínculo de Telegram), `interest`, `notification` y
   `job_state`.
 - Las tiendas son **pluggable**: `stores/base.py` define `BaseStore`, `stores/registry.py` mapea
-  slug → factoría. Hoy: `zara` (endpoints AJAX JSON públicos), `sfera` (Chromium, detrás de
-  Akamai), `lefties`, `cacles` (Shopify, `products.json` público) y `c-and-a` (GraphQL con
-  persisted query, httpx puro). Añadir tienda = añadir entrada en el registry.
+  slug → factoría. Hoy son **siete**: `zara` (endpoints AJAX JSON públicos), `sfera` (Chromium,
+  detrás de Akamai), `lefties` (Chromium, API `itxrest` de Inditex), `cacles` (Shopify,
+  `products.json` público), `c-and-a` (GraphQL con persisted query, httpx puro), `hipercor`
+  (Chromium, leída **por sus páginas** porque su `robots.txt` veta `/api`) y `hm` (httpx pelado
+  contra `api.hm.com`, que es otro host que el escaparate). Añadir tienda = añadir entrada en el
+  registry. Las siete tienen catálogo ingerido en `dev` desde el 02/08/2026.
 - **`price_history.retailer_min_30d` (0018) es el primer dato del contrato que no observamos
   nosotros**: es el mínimo de 30 días que la tienda **declara** por la directiva Ómnibus. Importa
   porque el detector de descuentos engañosos vivía de una sola fuente —nuestro propio histórico—,
@@ -148,6 +151,19 @@ decide por cómo scrapea la tienda, no por ser un scraper**, y el rango es ampli
 de Zara son 2219 peticiones de detalle y 30 min, la de C&A son 46 peticiones, 37 s y 60 MiB de pico
 de RSS. Copiar el manifiesto de Zara para una tienda nueva sobredimensiona.
 
+**El eje que decide el coste son las peticiones por ficha, no si hace falta navegador.** Es la
+intuición equivocada más fácil de tener aquí, porque el primer scraper con Chromium (Sfera) llegó
+pidiendo 2Gi. Medido el 02/08/2026 con dos tiendas que van **las dos** por Chromium tras Akamai:
+Hipercor tarda **3 h 26 min** (navega una vez por ficha: 1224 navegaciones) y Lefties **3 min 2 s**
+(699 productos, pero el detalle va en lotes de 20 ids y el listado son 38 peticiones sin paginar).
+Setenta veces de diferencia con la misma tecnología. Y el pod va capado a 1 CPU, así que el coste
+por ficha medido en la máquina de desarrollo va **×2** en el cluster (medido en Hipercor: 1 h 42
+extrapolada → 3 h 27 real, estrangulado de principio a fin). Consecuencia para el
+`activeDeadlineSeconds`: dimensionarlo por la **pasada en frío**, que se paga una vez pero decide si
+la tienda llega a existir — la ingesta es atómica, así que pasarse no es perder una pasada, es que
+el catálogo no se pueble **nunca**. Hipercor consumió el 115 % de su deadline (no cabía) y Lefties
+el 5 % del suyo.
+
 **Base de datos real**: cluster CNPG `platform-postgres-dev` en el namespace `data-dev` — *no* el
 `postgresql-generic` del cluster. QA es público en `dealtracker-qa.liontechsolution.com` a través
 del túnel compartido `cloudflared` (la ruta se configura en el panel de Zero Trust, no en Git).
@@ -238,8 +254,16 @@ El límite conocido de ese umbral 15, y ya por el otro extremo: H&M vende calzad
 `12/13` y `14/15`, que salen como `12-13 años`. Son 12 variantes de 2712, pero **colisionan con
 una talla de ropa real** (`12-13 años` existe y es numerosa), así que esta vez no es cosmético.
 Por debajo de 15 las dos lecturas son plausibles desde el texto y quien desambigua es la sección,
-que la función no conoce — y meterla en la firma es justo lo que #64 descartó por el índice. Sin
-decidir, en #103.
+que la función no conoce — y meterla en la firma es justo lo que #64 descartó por el índice.
+
+**Se decide declararlo y no tocar la función, y esta vez con la medida hecha** (#103, 02/08/2026):
+la consulta sobre las **siete** tiendas ingeridas devuelve **solo esas 12 variantes de H&M**. La
+sospecha era que los patucos de Cacles, Hipercor o Lefties aportarían más, y es falsa por partida
+doble: los de Hipercor son de **talla única** (entran con `size` a NULL) y los de Cacles y Lefties
+se tallan con **número suelto**, así que el patrón `^N-N$` por debajo de 15 es más raro de lo que
+parecía. Cambiar la firma a `size_canon(size, section)` costaría los dos consumidores y el índice
+funcional para 12 filas. La consulta de arriba es la señal barata que hace que esta decisión no
+caduque en silencio: el día que salga otra tienda, la opción vuelve a estar sobre la mesa.
 
 ### El `robots.txt` decide el diseño del scraper, y a veces no es el que parece
 
@@ -583,15 +607,21 @@ real. Un vigía que apunta a la pista falsa es peor que uno que dice una sola co
 **Y el límite que hay que tener presente al leerlo en verde: el vigía no dice nada de la ingesta.**
 Responde «¿nos dejan entrar?» —hojas vivas y parseo de 5 productos, sin escribir en base de datos—,
 así que una tienda puede llevar semanas con el vigía en verde y un CronJob desplegado **sin haber
-ingerido jamás**. Medido el 02/08/2026 sobre `scrape_run` de los dos entornos: **lefties e hipercor
-tienen cero pasadas en `dev` y cero en `qa`** (en `dev` ni siquiera tienen fila en `retailer`, que
-se crea en la primera), y la base de `qa` solo contiene zara y sfera. Las dos llevaban semanas
-saliendo 38/38 y 32/32 hojas vivas. La causa no es un fallo, es el diseño: en `dev` los CronJobs
-nacen `suspend: true` y la pasada se dispara a mano, y en `qa` se desbloquearon tarde. Pero la
-consecuencia es que hay scrapers en producción cuyo pipeline completo —detalle, ingesta,
-altas/bajas— no se ha ejercido nunca contra una base de datos real, y **ninguna de las señales
-visibles lo delata**: ni el registro, ni el manifiesto, ni el vigía. La comprobación que sí lo dice
-es una consulta a `scrape_run` por tienda, y cuesta un minuto (#99, #93).
+ingerido jamás**. Medido el 02/08/2026 sobre `scrape_run`: **lefties e hipercor tenían cero pasadas
+en `dev` y cero en `qa`** (en `dev` ni siquiera fila en `retailer`, que se crea en la primera), las
+dos llevando semanas saliendo 38/38 y 32/32 hojas vivas. La causa no era un fallo sino el diseño:
+en `dev` los CronJobs nacen `suspend: true` y la pasada se dispara a mano, y en `qa` se
+desbloquearon tarde. La consecuencia sí era grave — scrapers en producción cuyo pipeline completo
+(detalle, ingesta, altas/bajas) no se había ejercido nunca contra una base de datos real, y
+**ninguna de las señales visibles lo delataba**: ni el registro, ni el manifiesto, ni el vigía.
+
+Resuelto el mismo día para las tres tiendas que lo tenían (#93 hipercor, #99 lefties, y H&M al
+mergearse), así que hoy las siete tienen catálogo en `dev`. Lo que queda es el método, que es lo
+que se repetirá: **la comprobación que lo dice es una consulta a `scrape_run` por tienda y cuesta
+un minuto**, y la secuencia para cerrar el círculo al añadir tienda es mergear → esperar el bump de
+CI → **comprobar que ArgoCD ha sincronizado la imagen en el CronJob** (disparar antes muere con
+`Tienda desconocida`) → disparar el job a mano → leer el log. Diez minutos de reloj, casi todos de
+espera.
 
 ### El género `unisex` es la norma del barefoot, no una excepción
 
@@ -612,8 +642,11 @@ poder explicársela. Mismo trato y misma razón que `matching/deal-rule.sql.ts`.
 filtraría nada nuevo y sugeriría tres estanterías donde el brief pide dos.
 
 **Y no es solo del barefoot: cualquier tienda con hojas por género publica producto en las dos.**
-Medido en las dos tiendas que se han mirado, y en las dos sale del mismo orden: **161 de 1227 en
-Hipercor (13 %)** y **317 de 3401 en H&M (9,3 %)**. Con el dedup habitual de «gana la primera», ese
+Medido en tres: **161 de 1227 en Hipercor (13 %)**, **317 de 3401 en H&M (9,3 %)** y **14 de 699 en
+Lefties (2,0 %)**. El fenómeno es universal; **la magnitud no**, y conviene no extrapolarla — con
+las dos primeras parecía que rondaba el 10 % siempre, y la tercera lo desmiente por un orden de
+magnitud. O sea que en una tienda nueva hay que **medirlo, no estimarlo**: cuesta un recorrido del
+listado sin pedir una sola ficha (33 s en Lefties). Con el dedup habitual de «gana la primera», ese
 producto se queda con el género de la hoja declarada antes y **desaparece de la otra sección** — en
 Hipercor, un padre que filtre «Niño» en zapatería ve 47 productos donde la tienda publica 140
 (#98). El vocabulario para decirlo ya existe y es este `unisex`; lo que falta es **detectar el
@@ -633,6 +666,32 @@ de las dos ramas, el modelo cruzado se emitiría con el género de la supervivie
 hoja los declare, porque un ámbito no declarado no cuenta como escaneado y sus productos no se
 descatalogan nunca — el mismo motivo por el que Cacles declara el producto cartesiano de lo que su
 parser *puede* emitir.
+
+### Una variante no es siempre una cosa comprable, y el aviso da eso por hecho
+
+El modelo asume que `(producto, talla, color)` identifica una prenda comprable, y `variant` la
+representa con el id que da la tienda. **En tres de las siete tiendas eso es falso**: publican la
+misma talla y el mismo color **dos veces, con dos SKU distintos** bajo el mismo modelo. Medido el
+02/08/2026: **979 variantes en Lefties** (78 de sus 699 productos), **925 en H&M**, **89 en
+Hipercor**; Zara, Sfera, Cacles y C&A a cero. Comprobado contra el JSON crudo de Lefties, así que es
+dato de la tienda y no artefacto del parseo — dos referencias suyas agrupadas bajo un mismo
+`productParentId`, probablemente una reposición.
+
+El identificador **no** es el problema: los SKU son distintos y estables (segunda pasada de Lefties
+con `missing_streak = 0` en las 9165 variantes). El problema es lo que cuelga de esa suposición:
+
+- **El aviso se duplica.** `notification` deduplica por `UNIQUE (interest_id, variant_id,
+  price_event_key)`, y son dos `variant_id`. Como el precio de las dos caras **coincide siempre**
+  (815 de 815 grupos), cuando una baja bajan las dos: dos mensajes de Telegram con el mismo
+  producto, talla, color y precio. Es justo el fallo que esa UNIQUE existía para evitar, entrando
+  por la puerta que no vigila.
+- **El stock por talla queda ambiguo.** Las dos caras discrepan en el stock en **387 de 815 grupos
+  (47 %)**, así que la disponibilidad real de esa talla es el `OR` de las dos y hoy no se calcula.
+
+Sin decidir dónde se resuelve (tienda, catálogo o aviso) — es #108. Lo que sí conviene saber al
+añadir tienda: **la comprobación es una línea** (`count(*) - count(distinct (p.id, v.size,
+v.color))`) y no la hace ningún test con fixtures, porque el patrón solo aparece con el catálogo
+entero delante.
 
 ### El vocabulario de categorías diverge entre tiendas, y es deliberado
 
