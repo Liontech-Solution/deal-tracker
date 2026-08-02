@@ -67,7 +67,12 @@ pnpm lint && pnpm typecheck && pnpm test
 Config comes from the environment (`.env`, see `.env.example` at the root for the scraper and
 `services/web/.env.example` for the web). `DATABASE_URL` is required by both. `TEST_DATABASE_URL`
 gates the scraper's ingestion tests — they are **skipped** if unset, so a green `just check` without
-it proves less than it looks.
+it proves less than it looks. The web has a **second** one, `TEST_DATABASE_URL_CTYPE_C`, and it is
+the same trap one level deeper: the cluster's database is `UTF8 | C | C`, and with ctype `C`
+`lower()` does not lowercase accented letters, so `size_canon`, `color_canon` and the search fold
+behave differently there than under CI's locale. Without that second database those specs skip and
+everything looks green (#105). Create it on the same server:
+`CREATE DATABASE deal_tracker_ctype_c TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C';`
 
 Everything `KEYCLOAK_*` and `TELEGRAM_*` is **optional by design**: with them unset the auth is off
 (the SPA works as a public catalog, user endpoints return 401) and the matching job forces
