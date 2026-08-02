@@ -194,6 +194,11 @@ forma es ya el patrón para cualquier campo de texto que venga de las tiendas:
    se comprueba en un minuto y conviene hacerlo, porque olvidarlo no rompe nada visible: se cuenta el
    mismo filtro con y sin índice (`SET enable_indexscan/bitmapscan = off`) y los dos números tienen
    que coincidir. Medido en la 0017 dejando fuera el `REINDEX` a propósito: 0 contra 12.
+6. **El resultado depende del `ctype` de la base, así que hay que probarlo con el del cluster.** Las
+   dos funciones empiezan plegando la caja, y `lower()` **no baja las letras acentuadas** bajo ctype
+   `C` — que es el de la CNPG: `deal_tracker` y `deal_tracker_qa` son `UTF8 | C | C`. Se pliega con
+   un `translate()` explícito (0021) y **nunca con `lower()` a secas**. Detalle en el apartado de
+   abajo, que es donde está lo transportable.
 
 **Un mismo texto puede significar cosas distintas, y la sección NO es lo que lo decide.** `size_canon`
 leía `25-34` o `20 /21` como rango de EDAD cuando en Cacles son números de pie: plantillas vendidas
@@ -264,6 +269,48 @@ se tallan con **número suelto**, así que el patrón `^N-N$` por debajo de 15 e
 parecía. Cambiar la firma a `size_canon(size, section)` costaría los dos consumidores y el índice
 funcional para 12 filas. La consulta de arriba es la señal barata que hace que esta decisión no
 caduque en silencio: el día que salga otra tienda, la opción vuelve a estar sobre la mesa.
+
+**La base del cluster es `UTF8 | C | C`, y eso condiciona toda normalización escrita en SQL.** Con
+ctype `C`, `lower('ÍNDIGO')` devuelve `'Índigo'` y `lower('11/12 AÑOS')` devuelve `'11/12 aÑos'`:
+el color no se plegaba y la talla dejaba de casar con el patrón `a[nñ]o`, así que caía hasta la regla
+«irreconocible» y salía cruda. **748 variantes** en `dev` con la canónica a medias y **dos chips
+partidos** en la faceta, con el daño de siempre — filtrar por «marrón» enseñaba media lista y un
+interés sobre un chip no casaba con las prendas del otro. Tres cosas que quedan de ahí (#105, 0021):
+
+- **Se pliega con `translate()`, no con `COLLATE "es-ES-x-icu"`.** El collation ataría el esquema a
+  que exista en el servidor, y el migrador del web corre como initContainer: si no está, no arranca
+  el servicio. Mismo criterio que llevó a evitar `unaccent` en la búsqueda.
+- **Un helper SQL llamado desde una función indexada NO funciona.** Lo natural es factorizar el
+  plegado en un `lower_es(text)` y llamarlo desde las dos. Desde PostgreSQL 15 las operaciones de
+  mantenimiento (`CREATE INDEX`, `REINDEX`, `VACUUM FULL`, `CLUSTER`) corren con `search_path`
+  restringido a `pg_catalog, pg_temp`: el nombre de la función indexada se resuelve por OID y
+  sobrevive, pero **un nombre escrito dentro de su cuerpo se resuelve al ejecutar** y ya no hay
+  `public`. Medidas las tres variantes: sin cualificar **ni siquiera deja crear el índice**
+  (`ERROR: function lower_es(text) does not exist ... during inlining`), `public.lower_es(...)`
+  funciona y el `translate()` en línea funciona. Se duplica el literal antes que clavar el nombre
+  del esquema en el contrato SQL, que sería el único sitio del repo que lo hace y se rompería en
+  silencio y solo al reindexar. Vale para cualquier futuro intento de factorizar estas funciones.
+- **El arnés de test tiene que correr con el ctype del cluster.** El defecto llevaba desde la 0014 y
+  nadie lo vio porque CI levanta `postgres:16-alpine` con su locale por defecto, donde
+  `lower('ÍNDIGO')` sí da `'índigo'`: los specs estaban en verde mientras el cluster hacía otra cosa.
+  Ahora hay una segunda base (`TEST_DATABASE_URL_CTYPE_C`, creada con
+  `TEMPLATE template0 ... LC_CTYPE 'C'`) y los specs de canónica y de búsqueda corren contra las dos.
+  Sin ella **no fallan: se saltan**, que es el modo de fallo peligroso. Es la versión de laboratorio
+  del principio que ya rige el vigía: probar donde la pregunta se responde de verdad.
+
+El corolario general, que va más allá de estas dos funciones: **cualquier cosa que dependa del
+locale da un veredicto distinto según dónde se ejecute la consulta**, así que medir contra una
+Postgres local con otro locale —o contra CI— puede confirmar lo contrario de lo que hace producción.
+
+**La búsqueda por texto pliega distinto a propósito, y tenía el mismo agujero.** `fold()`
+(`catalog.service.ts`) pliega caja **y** acento, al revés que las canónicas, que conservan el acento
+porque un chip es una etiqueta que se enseña. Su tabla de `translate()` solo llevaba minúsculas
+acentuadas y el `lower()` de delante se daba por suficiente: con ctype `C`, `PANTALÓN` era invisible
+al teclear «pantalon» — **694 productos vivos** en `dev` (zara 679, lefties 11, c-and-a 3, sfera 1).
+De paso queda cerrada la duda que arrastraba esa decisión desde #38: `pg_trgm` y `unaccent` **están
+disponibles y marcadas `trusted`** en dev y en QA, y el usuario de la app tiene `CREATE` sobre la
+base, así que desde PG 13 puede instalarlas **sin ser superusuario**. La premisa que descartó las
+extensiones era falsa; el índice GIN trigram está disponible el día que el catálogo lo pida.
 
 ### El `robots.txt` decide el diseño del scraper, y a veces no es el que parece
 
