@@ -196,8 +196,8 @@ sobre todo en la segunda: en Zara **78 de 86** referencias barefoot no se inger�
 este producto existe para encontrar. Y el árbol **no es simétrico** entre rangos: la mayoría de
 categorías de ropa de Sfera no existen en bebé.
 
-**Una hoja muerta casi nunca da 404, y cada tienda miente de una forma distinta.** Ya van dos, con
-formas opuestas y la misma consecuencia:
+**Una hoja muerta casi nunca da 404, y cada tienda miente de una forma distinta.** Ya van **cuatro**
+formas distintas (recon de #70, 02/08/2026), y la consecuencia siempre es la misma:
 
 - **Sfera responde 200 con el catálogo del padre** a una ruta que no existe (`ninos/nina/loquesea` →
   las 30 páginas de `ninos/nina`). El sondeo de `--check-categories` informa «12 productos, viva», y
@@ -208,10 +208,26 @@ formas opuestas y la misma consecuencia:
   muerta pasa por «este ámbito se ha quedado sin productos», que es exactamente el disparador de una
   baja masiva. Y la misma respuesta es el fin normal de la paginación, así que hay que desambiguarla
   por posición: vacía en la **primera** página es hoja retirada, a partir de la segunda es el final.
+- **H&M devuelve una página LLENA Y PLAUSIBLE**, y es la peor de las cuatro. Su `categoryId` es
+  decorativo —el selector real es `pageId`— y un `pageId` inventado (`/ruta/totalmente/inventada`)
+  responde 908 hits y 36 productos, ni 404 ni vacío ni el padre. **No se detecta por status ni por
+  vacío**: una hoja renombrada sigue «funcionando» e ingiere productos de otra categoría en silencio,
+  sin que caiga nada que las redes de seguridad puedan contar. La única defensa barata es que la hoja
+  declare qué espera y se contraste con lo devuelto (en H&M, el `mainCatCode` de los productos).
+- **Hipercor repite el espejismo de Sfera** —es el mismo firefly— pero trae el antídoto: su
+  `data.paginatedDatalayer.page.hierarchy` refleja la ruta **realmente resuelta**, así que basta
+  compararla con la pedida, sin cotejar ids de la primera página. Seis rutas inventadas a mano
+  devolvieron las seis el catálogo del padre, en silencio.
 
-En los dos casos las redes de seguridad se apoyan en `GONE_STATUS` y quedan ciegas, sin que
+Y una que **sí lo resuelve bien**, que conviene tener como referencia de lo que se le puede pedir a
+una tienda: **C&A** distingue las dos situaciones con un solo campo — hoja inexistente da 200 con
+`productCount: 0`, y hoja viva pasada de página da 200 con el `productCount` intacto. Es la trampa de
+Cacles con el desambiguador incluido, sin heurística posicional.
+
+En todos los casos las redes de seguridad se apoyan en `GONE_STATUS` y quedan ciegas, sin que
 `ScanReport` cuente ninguna caída. **Al añadir una tienda, probar una ruta inventada antes de fiarse
-del 404** — es la primera comprobación del recon, no la última.
+del 404** — es la primera comprobación del recon, no la última. Y probar **varias**: en Hipercor, las
+seis rutas plausibles que se inventaron eran todas falsas y todas parecían vivas.
 
 **La tienda publica su árbol: preguntárselo sale más barato que adivinarlo.** Corolario de lo
 anterior — si una ruta inventada no se distingue de una real por la respuesta, la lista de rutas no
@@ -300,6 +316,37 @@ Tres cosas que llevarse:
 - **Antes de culpar al ritmo, comparar clientes.** Un `curl` con las cabeceras exactas del scraper
   cuesta segundos y separa las dos hipótesis; sin esa comparación, el diagnóstico natural («me he
   pasado pidiendo») es plausible, encaja con los hechos y es falso.
+
+### Que la web esté tras Akamai no significa que su API lo esté
+
+Medido en el recon de #70 (02/08/2026), y corrige un supuesto que la épica #4 arrastraba desde
+julio: la nota de «la 2ª tienda tras Akamai (Mango, H&M o Lefties) reusando `BrowserSession`» daba
+por hecho que un 403 en la portada obliga a Chromium. De las cinco tiendas pendientes del brief,
+**solo una lo obliga**:
+
+| tienda | front | API de listado | ¿navegador? |
+|---|---|---|---|
+| **H&M** | `www2.hm.com` 403 (Akamai, hasta para `robots.txt`) | **`api.hm.com`, otro host, 200 a httpx SIN cabeceras** | no |
+| **Mango** | `shop.mango.com` pone `_abck`/`bm_sz` | mismo host, **200 con solo UA de Chrome** | no |
+| **C&A** | Cloudflare, 200 | mismo host, 200 con `content-type` + **`origin`** | no |
+| **Hipercor** | 403 (Akamai, cookie `_bman`) | mismo host, **403 a curl, wget, httpx y httpx sin ALPN** | **sí** |
+
+Tres cosas que llevarse:
+
+- **El anti-bot se despliega por host y por ruta, no por marca.** Antes de asumir Chromium, buscar
+  el host de la API en `browser_network_requests` y **reintentarlo desde fuera del navegador**. Es
+  una petición y decide entre un CronJob de 1Gi y uno de 2Gi.
+- **Distinguir «Akamai está presente» de «Akamai exige el sensor JS».** Que la respuesta traiga
+  `_abck`/`bm_sz` no implica que haga falta ejecutarlo: en Mango basta un User-Agent de navegador.
+  El 403 sin UA y el 200 con UA, contra la misma URL y en el mismo minuto, separan los dos casos.
+- **Esto es contrato con el repo de manifiestos**, no una curiosidad: el perfil de recursos del
+  CronJob de cada tienda sale de aquí (Zara httpx 1Gi vs Sfera Chromium 2Gi). Elegir mal el perfil
+  es pagar 2Gi por tienda para siempre, o que el pod muera sin memoria.
+
+Corolario del mismo recon: **una API abierta puede pedir una cabecera tonta**. C&A responde
+`403 Not allowed` a todo lo que no lleve `origin`, y con `content-type` + `origin` entra sin cookies,
+sin UA y sin las `x-*` que manda su propio front. Antes de concluir «nos bloquean», probar la matriz
+de cabeceras además de la matriz de clientes de la sección anterior.
 
 ### El género `unisex` es la norma del barefoot, no una excepción
 
