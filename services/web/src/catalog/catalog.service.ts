@@ -62,10 +62,28 @@ const DEAL_COLUMNS: DealSqlColumns = {
  * Sin índice: el catálogo son unos pocos miles de productos y la consulta ya recorre `price_history`
  * entero en la CTE `latest`, así que el plegado no es el cuello de botella. Si algún día lo fuera,
  * la salida es `pg_trgm` + índice GIN sobre esta misma expresión.
+ *
+ * LAS MAYÚSCULAS ACENTUADAS VAN EN LA TABLA, y no basta con el `lower()` de delante (#105). En la
+ * base del cluster el ctype es `C`, y con ese ctype `lower()` **no baja las letras acentuadas**:
+ * `lower('PANTALÓN')` da 'pantalÓn', la 'Ó' no está en la mitad izquierda de esta tabla y el
+ * producto se queda fuera de la búsqueda. No es un caso de borde: el 02/08/2026 había **694
+ * productos vivos con mayúscula acentuada en el nombre** en `dev` (zara 679, lefties 11, c-and-a 3,
+ * sfera 1), y son justo los de las tiendas que escriben el nombre entero en mayúsculas.
+ *
+ * La mitad derecha repite el mismo alfabeto sin acentos: aquí se pliegan las dos cosas —caja y
+ * acento— porque buscar «pantalon» debe encontrar «PANTALÓN». Es lo contrario de lo que hacen
+ * `size_canon` y `color_canon`, que pliegan la caja y **conservan** el acento (0015 y 0021): el
+ * chip de la faceta es una etiqueta que se enseña, y esto es un buscador.
+ *
+ * De ahí que el `translate` vaya DESPUÉS del `lower` aquí y ANTES en las dos funciones canónicas, y
+ * no es un descuido: allí el plegado tiene que ocurrir antes para que las reglas de la talla vean
+ * ya 'años' y no 'aÑos'; aquí basta con repescar lo que el `lower` no bajó, porque el destino es
+ * ASCII de todas formas.
  */
 function fold(expr: SQL): SQL {
   return sql`translate(lower((${expr})::text),
-    'áàäâãéèëêíìïîóòöôõúùüûñç', 'aaaaaeeeeiiiiooooouuuunc')`;
+    'áàäâãéèëêíìïîóòöôõúùüûñçÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇ',
+    'aaaaaeeeeiiiiooooouuuuncaaaaaeeeeiiiiooooouuuunc')`;
 }
 
 /**

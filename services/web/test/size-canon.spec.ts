@@ -2,16 +2,23 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type postgres from 'postgres';
 
 import { runMigrations } from '../src/database/migrate';
-import { makeSql, TEST_DB } from './helpers';
+import { BASES_CANON, saltarSiNoHayBase, makeSqlAt } from './helpers';
 
 /**
- * `size_canon` / `size_sort` (migraciones 0014 y 0017; issues #43 y #64).
+ * `size_canon` / `size_sort` (migraciones 0014, 0017 y 0021; issues #43, #64 y #105).
  *
  * Los casos NO son inventados: son los valores distintos que había en `dev` —los 121 del 30/07/2026
- * con Zara y Sfera, más los que estrenó Cacles el 01/08/2026— reducidos a los que documentan una
- * regla. Si una tienda futura trae una forma nueva, se añade aquí antes de tocar la función.
+ * con Zara y Sfera, más los que estrenó Cacles el 01/08/2026 y los que trajo Hipercor el
+ * 02/08/2026— reducidos a los que documentan una regla. Si una tienda futura trae una forma nueva,
+ * se añade aquí antes de tocar la función.
+ *
+ * Se ejecuta contra **todas las bases configuradas** (ver `BASES_CANON`), y eso es parte del test:
+ * la canónica dependía del ctype de la base (#105) y el veredicto salía distinto en CI que en el
+ * cluster. Las mismas aserciones tienen que valer en los dos sitios.
  */
-describe.skipIf(!TEST_DB)('talla canónica', () => {
+saltarSiNoHayBase('talla canónica');
+
+describe.each(BASES_CANON)('talla canónica · $nombre', ({ url }) => {
   let sql: postgres.Sql;
 
   const canon = async (value: string): Promise<string> => {
@@ -20,7 +27,7 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
   };
 
   beforeAll(async () => {
-    sql = makeSql();
+    sql = makeSqlAt(url);
     await runMigrations(sql);
   });
 
@@ -39,7 +46,7 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
     // Ropa: la altura de referencia cambia entre prendas reales, y la palabra "años" va y viene.
     {
       canonica: '11-12 años',
-      formas: ['11-12', '11-12 años', '11-12 años (148 cm)', '11-12 años (152 cm)'],
+      formas: ['11-12', '11-12 años', '11-12 años (148 cm)', '11-12 años (152 cm)', '11/12 AÑOS'],
     },
     { canonica: '12-13 años', formas: ['12-13 Años', '12-13 años (156 cm)', '12-13 años (158 cm)'] },
     { canonica: '8-9 años', formas: ['8-9 años (130 cm)', '8-9 años (131 cm)', '8-9 años (134 cm)'] },
@@ -75,6 +82,13 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
     { canonica: '36-38', formas: ['36-38'] },
     { canonica: '20-24', formas: ['20-24', '20-24 (14 a 16 cm)'] },
     { canonica: '30-34', formas: ['30-34 (20 a 22 cm)'] },
+    // La escalera de ropa de Hipercor, en MAYÚSCULAS (#105). Con ctype `C` —el de la base del
+    // cluster— `lower('11/12 AÑOS')` daba '11/12 aÑos', el patrón `a[nñ]o` no casaba y la talla caía
+    // hasta la regla 7, que devuelve el texto crudo: 5 variantes con el chip sin canonicalizar.
+    { canonica: '7-8 años', formas: ['7/8 AÑOS', '7/8 años'] },
+    { canonica: '9-10 años', formas: ['9/10 AÑOS'] },
+    { canonica: '13-14 años', formas: ['13/14 AÑOS'] },
+    { canonica: '15-16 años', formas: ['15/16 AÑOS'] }, // lleva unidad: edad, no número de pie
   ];
 
   for (const { canonica, formas } of equivalencias) {
@@ -181,6 +195,20 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
     expect(await canon('110-11')).toBe('110-11 años');
     expect(await canon('0-1 meses')).toBe('0-1 meses'); // el hermano real del '0-0' del mismo pack
     expect(await canon('1-11 meses')).toBe('1-11 meses');
+  });
+
+  /**
+   * La unidad en MAYÚSCULAS (#105). Todas las reglas buscan la unidad en minúsculas ('mes',
+   * 'a[nñ]o') sobre la entrada ya plegada, así que si el plegado no baja la vocal acentuada la
+   * talla no cae en ninguna regla y sale cruda. Hipercor es la única tienda que hoy escribe así,
+   * pero la que viene puede hacerlo igual: esto fija la propiedad, no el caso.
+   */
+  it('reconoce la unidad escrita en mayúsculas, con acento y sin él', async () => {
+    expect(await canon('6 AÑOS')).toBe('6 años');
+    expect(await canon('1 AÑO')).toBe('1 año'); // y el singular de la 0019 sigue en pie
+    expect(await canon('3 MESES')).toBe('3 meses');
+    expect(await canon('12-18 MESES (86 CM)')).toBe('12-18 meses');
+    expect(await canon('L (12-14 AÑOS) (140 CM)')).toBe('12-14 años');
   });
 
   it('es idempotente sobre su propia salida', async () => {

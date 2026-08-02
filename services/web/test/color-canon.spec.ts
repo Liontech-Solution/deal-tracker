@@ -2,16 +2,23 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type postgres from 'postgres';
 
 import { runMigrations } from '../src/database/migrate';
-import { makeSql, TEST_DB } from './helpers';
+import { BASES_CANON, saltarSiNoHayBase, makeSqlAt } from './helpers';
 
 /**
- * `color_canon` (migraciones 0015 y 0016; issues #49 y #51).
+ * `color_canon` (migraciones 0015, 0016 y 0021; issues #49, #51 y #105).
  *
  * Los casos NO son inventados: son los 220 valores distintos que había en `dev` el 31/07/2026 con
- * Zara, Sfera y Lefties ingeridas, reducidos a los que documentan una regla o un límite. Si una
- * tienda futura trae una forma nueva, se añade aquí antes de tocar la función.
+ * Zara, Sfera y Lefties ingeridas —más los que estrenó la primera ingesta de Lefties el
+ * 02/08/2026—, reducidos a los que documentan una regla o un límite. Si una tienda futura trae una
+ * forma nueva, se añade aquí antes de tocar la función.
+ *
+ * Se ejecuta contra **todas las bases configuradas** (ver `BASES_CANON`), y eso es parte del test:
+ * la canónica dependía del ctype de la base (#105) y el veredicto salía distinto en CI que en el
+ * cluster. Las mismas aserciones tienen que valer en los dos sitios.
  */
-describe.skipIf(!TEST_DB)('color canónico', () => {
+saltarSiNoHayBase('color canónico');
+
+describe.each(BASES_CANON)('color canónico · $nombre', ({ url }) => {
   let sql: postgres.Sql;
 
   const canon = async (value: string): Promise<string | null> => {
@@ -20,7 +27,7 @@ describe.skipIf(!TEST_DB)('color canónico', () => {
   };
 
   beforeAll(async () => {
-    sql = makeSql();
+    sql = makeSqlAt(url);
     await runMigrations(sql);
   });
 
@@ -42,6 +49,17 @@ describe.skipIf(!TEST_DB)('color canónico', () => {
     { canonica: 'tostado', formas: ['Tostado', 'tostado'] },
     { canonica: 'verde', formas: ['VERDE', 'Verde', 'verde'] },
     { canonica: 'verde pato', formas: ['Verde Pato', 'Verde pato'] },
+    // Los acentuados (#105). Con ctype `C` —el de la base del cluster— `lower()` no los bajaba, así
+    // que estos NO se fundían: son 743 variantes y los dos chips que salían partidos en la faceta.
+    // Lefties escribe todos sus colores en MAYÚSCULAS y por eso aporta 463 ella sola.
+    { canonica: 'marrón', formas: ['MARRÓN', 'Marrón', 'marrón'] }, // chip partido nº 1
+    { canonica: 'índigo', formas: ['ÍNDIGO', 'Índigo', 'índigo'] }, // chip partido nº 2
+    { canonica: 'gris vigoré', formas: ['GRIS VIGORÉ'] }, // 196 variantes, el peor de Lefties
+    { canonica: 'añil delavado', formas: ['AÑIL DELAVADO'] }, // la Ñ tampoco bajaba
+    { canonica: 'visón', formas: ['VISÓN'] },
+    { canonica: 'verde quirófano', formas: ['VERDE QUIRÓFANO'] },
+    { canonica: 'óxido/lunares azules', formas: ['Óxido/lunares azules'] }, // H&M
+    { canonica: 'azul / índigo', formas: ['Azul / Índigo'] }, // Zara, 12 variantes
   ];
 
   for (const { canonica, formas } of equivalencias) {
@@ -144,5 +162,25 @@ describe.skipIf(!TEST_DB)('color canónico', () => {
       expect(await canon('Índigo')).toBe('índigo');
       expect(await canon('Índigo')).not.toBe(await canon('Indigo'));
     });
+  });
+
+  /**
+   * El daño visible de #105, escrito como lo que se rompía de verdad: **un chip partido en dos**.
+   * Un padre que filtraba por «marrón» veía una parte del catálogo, y un interés dado de alta sobre
+   * un chip no casaba nunca con las prendas del otro — el fallo silencioso que motivó la 0015,
+   * reproducido por el ctype de la base en vez de por la caja que escribe la tienda.
+   *
+   * Se comprueba como equivalencia entre las formas reales medidas en `dev` el 02/08/2026, no
+   * contra un literal: lo que importa es que las dos caras acaben en el MISMO chip.
+   */
+  it('funde la caja acentuada, que es lo que partía el chip en dos (#105)', async () => {
+    expect(await canon('MARRÓN')).toBe(await canon('marrón'));
+    expect(await canon('ÍNDIGO')).toBe(await canon('índigo'));
+    expect(await canon('TONO MARRÓN')).toBe(await canon('tono marrón'));
+
+    // Y el plegado de caja NO se lleva por delante el acento, que es la decisión de la 0015: se
+    // pliega la CAJA, no el acento, así que 'marrón' y 'marron' siguen siendo dos colores.
+    expect(await canon('MARRÓN')).toBe('marrón');
+    expect(await canon('MARRÓN')).not.toBe(await canon('MARRON'));
   });
 });

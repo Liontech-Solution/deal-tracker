@@ -2,15 +2,69 @@ import { ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import postgres from 'postgres';
+import { describe, expect, it } from 'vitest';
 
 import { runMigrations } from '../src/database/migrate';
 
 /** URL de la Postgres de test. Si no está, los specs de integración se saltan (como el scraper). */
 export const TEST_DB = process.env.TEST_DATABASE_URL;
 
+/**
+ * URL de una segunda Postgres **con ctype `C`**, que es el de la base del cluster
+ * (`deal_tracker` y `deal_tracker_qa` son `UTF8 | C | C`, verificado el 02/08/2026).
+ *
+ * No es un lujo ni un duplicado: bajo ctype `C`, `lower()` **no baja las letras acentuadas**
+ * (`lower('ÍNDIGO') = 'Índigo'`), y de ahí sale #105 — 748 variantes con la canónica a medias y dos
+ * chips partidos en la faceta. El defecto llevaba desde la 0014 sin verse porque el único sitio
+ * donde se comprobaba —CI, con el locale por defecto de `postgres:16-alpine`— lo tapa. Un test que
+ * solo corra con el locale bueno no prueba lo que el cluster hace.
+ *
+ * Se crea con `TEMPLATE template0`, que es obligatorio para cambiar el locale de una base:
+ *
+ *     CREATE DATABASE deal_tracker_ctype_c
+ *       TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C';
+ */
+export const TEST_DB_CTYPE_C = process.env.TEST_DATABASE_URL_CTYPE_C;
+
+export interface BaseDeTest {
+  /** Etiqueta que sale en el nombre del suite, para saber cuál de las dos falló. */
+  nombre: string;
+  url: string;
+}
+
+/**
+ * Las bases contra las que se ejercitan las funciones del esquema (`size_canon`, `color_canon` y el
+ * plegado de la búsqueda). Se salta sola la que no esté configurada, igual que hace `TEST_DB` con
+ * el resto de specs de integración.
+ */
+export const BASES_CANON: BaseDeTest[] = [
+  { nombre: 'locale por defecto (como CI)', url: TEST_DB },
+  { nombre: 'ctype C (como el cluster)', url: TEST_DB_CTYPE_C },
+].filter((b): b is BaseDeTest => Boolean(b.url));
+
+/**
+ * Los specs que usan `describe.each(BASES_CANON)` no declaran NINGÚN suite cuando no hay base
+ * configurada, y eso vitest no lo salta: lo da por error («No test suite found in file»). Esto
+ * declara uno saltado en ese caso, para que el comportamiento sea el mismo que el `skipIf(!TEST_DB)`
+ * del resto de specs de integración: sin Postgres, se saltan; nunca fallan.
+ */
+export function saltarSiNoHayBase(nombre: string): void {
+  if (BASES_CANON.length === 0) {
+    describe.skip(nombre, () => {
+      it('necesita TEST_DATABASE_URL (y TEST_DATABASE_URL_CTYPE_C para el caso del cluster)', () => {
+        expect(true).toBe(true);
+      });
+    });
+  }
+}
+
 export function makeSql(): postgres.Sql {
   if (!TEST_DB) throw new Error('TEST_DATABASE_URL no definido');
-  return postgres(TEST_DB, { max: 1, onnotice: () => {} });
+  return makeSqlAt(TEST_DB);
+}
+
+export function makeSqlAt(url: string): postgres.Sql {
+  return postgres(url, { max: 1, onnotice: () => {} });
 }
 
 /** Aplica migraciones (idempotente) y deja las tablas vacías con identidades reiniciadas. */
