@@ -1,0 +1,847 @@
+{
+ "requestDateTime": "2026-08-02T14:26:14.874Z",
+ "responseSource": "Elevate",
+ "pagination": {
+  "currentPage": 1,
+  "nextPageNum": 2,
+  "totalPages": 3
+ },
+ "plpList": {
+  "productList": [
+   {
+    "id": "1337628003",
+    "trackingId": "OzY7IzsxMzM3NjI4MDAzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+    "productName": "Zapatillas deportivas barefoot",
+    "modelImage": "https://image.hm.com/assets/hm/aa/56/aa56742a3d8b40a12b8056618b9615d688146f41.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/aa/56/aa56742a3d8b40a12b8056618b9615d688146f41.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/aa/56/aa56742a3d8b40a12b8056618b9615d688146f41.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/aa/56/aa56742a3d8b40a12b8056618b9615d688146f41.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1337628003.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 24.99,
+      "minPrice": 24.99,
+      "maxPrice": 24.99,
+      "formattedPrice": "24,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1337628003",
+      "url": "/es_es/productpage.1337628003.html",
+      "colorName": "Rosa claro/Brillante",
+      "colorCode": "EEEDE4",
+      "trackingId": "OzY7IzsxMzM3NjI4MDAzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/aa/56/aa56742a3d8b40a12b8056618b9615d688146f41.jpg"
+     },
+     {
+      "articleId": "1337628001",
+      "url": "/es_es/productpage.1337628001.html",
+      "colorName": "Crema/Estampado de leopardo",
+      "colorCode": "EEEDE4",
+      "trackingId": "OzY7IzsxMzM3NjI4MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/8a/c3/8ac32b35752f1ff07839c7c63e184115451776cd.jpg"
+     },
+     {
+      "articleId": "1337628002",
+      "url": "/es_es/productpage.1337628002.html",
+      "colorName": "Blanco/Floral azul",
+      "colorCode": "EEEDE4",
+      "trackingId": "OzY7IzsxMzM3NjI4MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/d0/ad/d0ad26de91448b140ae703c73acd242aaa31d880.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/6d/8e/6d8e2893e14ee1865a5f46682ff750dc1fec8659.jpg",
+      "assetType": "DescriptiveStillLife"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/35/f9/35f9f947328f0724a1a381983a198bb1c18c9d52.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Rosa claro/Brillante",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "EEEDE4",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "012",
+      "label": "33",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "32",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "31",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "30",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "29",
+      "stock": 2
+     },
+     {
+      "id": "007",
+      "label": "28",
+      "stock": 2
+     },
+     {
+      "id": "006",
+      "label": "27",
+      "stock": 2
+     }
+    ],
+    "newArrival": true,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "rosa_ffc0cb|multi_000000",
+    "mainCatCode": "kids_girls_shoes_trainers"
+   },
+   {
+    "id": "1341175001",
+    "trackingId": "OzY7IzsxMzQxMTc1MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+    "productName": "Bailarinas",
+    "modelImage": "https://image.hm.com/assets/hm/bd/65/bd6540d006acac01007120d984595abdf04a1876.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/bd/65/bd6540d006acac01007120d984595abdf04a1876.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/bd/65/bd6540d006acac01007120d984595abdf04a1876.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/bd/65/bd6540d006acac01007120d984595abdf04a1876.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1341175001.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 14.99,
+      "minPrice": 14.99,
+      "maxPrice": 14.99,
+      "formattedPrice": "14,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1341175001",
+      "url": "/es_es/productpage.1341175001.html",
+      "colorName": "Rosa claro",
+      "colorCode": "DBC2C2",
+      "trackingId": "OzY7IzsxMzQxMTc1MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/bd/65/bd6540d006acac01007120d984595abdf04a1876.jpg"
+     },
+     {
+      "articleId": "1341175002",
+      "url": "/es_es/productpage.1341175002.html",
+      "colorName": "Negro",
+      "colorCode": "272627",
+      "trackingId": "OzY7IzsxMzQxMTc1MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/a0/75/a07528f3196393edf7766994f8bef3fd32e79407.jpg"
+     },
+     {
+      "articleId": "1341175004",
+      "url": "/es_es/productpage.1341175004.html",
+      "colorName": "Plateado",
+      "colorCode": "DFDEDE",
+      "trackingId": "OzY7IzsxMzQxMTc1MDA0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/45/65/456588ef039672f740fd7c189953ccbc29945a98.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/07/3e/073e12016d1e8bc81ee66dd887946f9a36993db4.jpg",
+      "assetType": "DescriptiveStillLife"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/a5/7b/a57bf664e1756d9e93c1679a139243aed5a0241c.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Rosa claro",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "DBC2C2",
+    "colourShades": "Rosa claro|Coral|Rosa palo|Rosa salmón",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "009",
+      "label": "30",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "29",
+      "stock": 2
+     },
+     {
+      "id": "007",
+      "label": "28",
+      "stock": 2
+     },
+     {
+      "id": "006",
+      "label": "27",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "33",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "32",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "31",
+      "stock": 2
+     },
+     {
+      "id": "005",
+      "label": "26",
+      "stock": 2
+     },
+     {
+      "id": "004",
+      "label": "25",
+      "stock": 2
+     },
+     {
+      "id": "003",
+      "label": "24",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "34",
+      "stock": 2
+     }
+    ],
+    "newArrival": true,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "rosa_ffc0cb",
+    "mainCatCode": "kids_girls_shoes_ballerinasflats"
+   },
+   {
+    "id": "1312488007",
+    "trackingId": "OzY7IzsxMzEyNDg4MDA3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+    "productName": "Zapatillas deportivas con motivo",
+    "modelImage": "https://image.hm.com/assets/hm/fe/e6/fee6c21aa8b05f01d021853a2f2f3efb25b9dd7b.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/fe/e6/fee6c21aa8b05f01d021853a2f2f3efb25b9dd7b.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/fe/e6/fee6c21aa8b05f01d021853a2f2f3efb25b9dd7b.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/fe/e6/fee6c21aa8b05f01d021853a2f2f3efb25b9dd7b.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1312488007.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 27.99,
+      "minPrice": 27.99,
+      "maxPrice": 27.99,
+      "formattedPrice": "27,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1312488007",
+      "url": "/es_es/productpage.1312488007.html",
+      "colorName": "Rosa claro/Hello Kitty",
+      "colorCode": "DAB6B6",
+      "trackingId": "OzY7IzsxMzEyNDg4MDA3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/fe/e6/fee6c21aa8b05f01d021853a2f2f3efb25b9dd7b.jpg"
+     },
+     {
+      "articleId": "1312488004",
+      "url": "/es_es/productpage.1312488004.html",
+      "colorName": "Negro/Minnie Mouse",
+      "colorCode": "3A3A3D",
+      "trackingId": "OzY7IzsxMzEyNDg4MDA0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/f8/24/f824c52bb54700c876c93e7d2afa2e70eb1cc4ac.jpg"
+     },
+     {
+      "articleId": "1312488001",
+      "url": "/es_es/productpage.1312488001.html",
+      "colorName": "Blanco/Minnie Mouse",
+      "colorCode": "DFD8C9",
+      "trackingId": "OzY7IzsxMzEyNDg4MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/fe/b9/feb92b209780f648757e22d1be3bc57fd580aa92.jpg"
+     },
+     {
+      "articleId": "1312488006",
+      "url": "/es_es/productpage.1312488006.html",
+      "colorName": "Azul claro/Hello Kitty",
+      "colorCode": "95A9D6",
+      "trackingId": "OzY7IzsxMzEyNDg4MDA2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/41/75/41758a1a77308c21c9b06adf2a37861a5105fd12.jpg"
+     },
+     {
+      "articleId": "1312488005",
+      "url": "/es_es/productpage.1312488005.html",
+      "colorName": "Rosa/Lilo y Stitch",
+      "colorCode": "F1678B",
+      "trackingId": "OzY7IzsxMzEyNDg4MDA1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/51/d2/51d2a434437e0dca3f56cbb7a88123903d80974f.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/9c/ba/9cbad2291e2f39dbd90ff5cae049cb03c34f119b.jpg",
+      "assetType": "DescriptiveStillLife"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/30/ad/30aded58c70bc999a1460b03711e1aa911ec934e.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Rosa claro/Hello Kitty",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "DAB6B6",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "012",
+      "label": "33",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "34",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "31",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "32",
+      "stock": 2
+     },
+     {
+      "id": "005",
+      "label": "26",
+      "stock": 2
+     },
+     {
+      "id": "006",
+      "label": "27",
+      "stock": 2
+     },
+     {
+      "id": "003",
+      "label": "24",
+      "stock": 2
+     },
+     {
+      "id": "004",
+      "label": "25",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "30",
+      "stock": 2
+     },
+     {
+      "id": "007",
+      "label": "28",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "29",
+      "stock": 2
+     }
+    ],
+    "newArrival": true,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "rosa_ffc0cb|multi_000000",
+    "mainCatCode": "kids_girls_shoes_trainers"
+   },
+   {
+    "id": "1341372001",
+    "trackingId": "OzY7IzsxMzQxMzcyMDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+    "productName": "Bailarinas",
+    "modelImage": "https://image.hm.com/assets/hm/2e/ce/2ece0741010bcfd6eb92f7c8d2e2e9c81edd2019.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/2e/ce/2ece0741010bcfd6eb92f7c8d2e2e9c81edd2019.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/2e/ce/2ece0741010bcfd6eb92f7c8d2e2e9c81edd2019.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/2e/ce/2ece0741010bcfd6eb92f7c8d2e2e9c81edd2019.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1341372001.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 17.99,
+      "minPrice": 17.99,
+      "maxPrice": 17.99,
+      "formattedPrice": "17,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1341372001",
+      "url": "/es_es/productpage.1341372001.html",
+      "colorName": "Rosa claro/Brillante",
+      "colorCode": "E0C8D0",
+      "trackingId": "OzY7IzsxMzQxMzcyMDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/2e/ce/2ece0741010bcfd6eb92f7c8d2e2e9c81edd2019.jpg"
+     },
+     {
+      "articleId": "1341372002",
+      "url": "/es_es/productpage.1341372002.html",
+      "colorName": "Negro",
+      "colorCode": "272627",
+      "trackingId": "OzY7IzsxMzQxMzcyMDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/39/d4/39d448fdbe7459447071f7f15020808ef446ad1c.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/e4/18/e418129781a52cd5f19741fc66b187890327521c.jpg",
+      "assetType": "DescriptiveStillLife"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/96/c0/96c0504e91b0537e5887b97e92f21a01d5a2a8b2.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Rosa claro/Brillante",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "E0C8D0",
+    "colourShades": "Rosa bebé|Rosa palo|Rosado",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "011",
+      "label": "32",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "31",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "34",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "33",
+      "stock": 2
+     },
+     {
+      "id": "004",
+      "label": "25",
+      "stock": 2
+     },
+     {
+      "id": "003",
+      "label": "24",
+      "stock": 2
+     },
+     {
+      "id": "006",
+      "label": "27",
+      "stock": 2
+     },
+     {
+      "id": "005",
+      "label": "26",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "29",
+      "stock": 2
+     },
+     {
+      "id": "007",
+      "label": "28",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "30",
+      "stock": 2
+     }
+    ],
+    "newArrival": true,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "rosa_ffc0cb",
+    "mainCatCode": "kids_girls_shoes_ballerinasflats"
+   },
+   {
+    "id": "1293409014",
+    "trackingId": "OzY7IzsxMjkzNDA5MDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+    "productName": "Zapatillas deportivas",
+    "modelImage": "https://image.hm.com/assets/hm/a1/48/a1485b3f1884c40c01376434e06709e3a481ecee.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/a1/48/a1485b3f1884c40c01376434e06709e3a481ecee.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/a1/48/a1485b3f1884c40c01376434e06709e3a481ecee.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/a1/48/a1485b3f1884c40c01376434e06709e3a481ecee.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1293409014.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 19.99,
+      "minPrice": 19.99,
+      "maxPrice": 19.99,
+      "formattedPrice": "19,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1293409014",
+      "url": "/es_es/productpage.1293409014.html",
+      "colorName": "Azul marino/Blanco",
+      "colorCode": "40424E",
+      "trackingId": "OzY7IzsxMjkzNDA5MDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/a1/48/a1485b3f1884c40c01376434e06709e3a481ecee.jpg"
+     },
+     {
+      "articleId": "1293409003",
+      "url": "/es_es/productpage.1293409003.html",
+      "colorName": "Crema/Negro",
+      "colorCode": "EEEDE4",
+      "trackingId": "OzY7IzsxMjkzNDA5MDAzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/ae/e6/aee6593877d29ca9794012af4a0d54ec4b75d3bf.jpg"
+     },
+     {
+      "articleId": "1293409008",
+      "url": "/es_es/productpage.1293409008.html",
+      "colorName": "Crema",
+      "colorCode": "ECEDEC",
+      "trackingId": "OzY7IzsxMjkzNDA5MDA4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/60/a8/60a8fcaa60d3f91179546c3773cb8b52a27e7f55.jpg"
+     },
+     {
+      "articleId": "1293409015",
+      "url": "/es_es/productpage.1293409015.html",
+      "colorName": "Verde caqui oscuro",
+      "colorCode": "7D7965",
+      "trackingId": "OzY7IzsxMjkzNDA5MDE1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/f0/4c/f04c37c4228907332cb8e3f867ef9af3125d0972.jpg"
+     },
+     {
+      "articleId": "1293409010",
+      "url": "/es_es/productpage.1293409010.html",
+      "colorName": "Beige claro/Bloques de color",
+      "colorCode": "DCD9CE",
+      "trackingId": "OzY7IzsxMjkzNDA5MDEwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/29/88/2988be4e71651b0d05a4e01141cb7ce1b2c35c42.jpg"
+     },
+     {
+      "articleId": "1293409007",
+      "url": "/es_es/productpage.1293409007.html",
+      "colorName": "Verde oscuro",
+      "colorCode": "314948",
+      "trackingId": "OzY7IzsxMjkzNDA5MDA3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/56/eb/56ebbcd0961ff8663b0cb187d5a54b197a8a17f9.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/4a/f6/4af64fa3d900f2ac7774ad13b4000c21b8611860.jpg",
+      "assetType": "DescriptiveStillLife"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/74/56/74560ac346519bfaed51fadaeb6e2cbdd12699b7.jpg",
+      "assetType": "DescriptiveStillLife"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul marino/Blanco",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "40424E",
+    "colourShades": "Azul marino",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "010",
+      "label": "31",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "33",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "32",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "34",
+      "stock": 2
+     },
+     {
+      "id": "005",
+      "label": "26",
+      "stock": 2
+     },
+     {
+      "id": "004",
+      "label": "25",
+      "stock": 2
+     },
+     {
+      "id": "007",
+      "label": "28",
+      "stock": 2
+     },
+     {
+      "id": "006",
+      "label": "27",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "30",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "29",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "azul_0000ff|multi_000000",
+    "mainCatCode": "kids_boys_shoes_trainers"
+   },
+   {
+    "id": "1341175002",
+    "trackingId": "OzY7IzsxMzQxMTc1MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+    "productName": "Bailarinas",
+    "modelImage": "https://image.hm.com/assets/hm/a0/75/a07528f3196393edf7766994f8bef3fd32e79407.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/a0/75/a07528f3196393edf7766994f8bef3fd32e79407.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/a0/75/a07528f3196393edf7766994f8bef3fd32e79407.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/a0/75/a07528f3196393edf7766994f8bef3fd32e79407.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1341175002.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 14.99,
+      "minPrice": 14.99,
+      "maxPrice": 14.99,
+      "formattedPrice": "14,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1341175002",
+      "url": "/es_es/productpage.1341175002.html",
+      "colorName": "Negro",
+      "colorCode": "272627",
+      "trackingId": "OzY7IzsxMzQxMTc1MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/a0/75/a07528f3196393edf7766994f8bef3fd32e79407.jpg"
+     },
+     {
+      "articleId": "1341175001",
+      "url": "/es_es/productpage.1341175001.html",
+      "colorName": "Rosa claro",
+      "colorCode": "DBC2C2",
+      "trackingId": "OzY7IzsxMzQxMTc1MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/bd/65/bd6540d006acac01007120d984595abdf04a1876.jpg"
+     },
+     {
+      "articleId": "1341175004",
+      "url": "/es_es/productpage.1341175004.html",
+      "colorName": "Plateado",
+      "colorCode": "DFDEDE",
+      "trackingId": "OzY7IzsxMzQxMTc1MDA0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9naXJscy9zaG9lczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/45/65/456588ef039672f740fd7c189953ccbc29945a98.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/db/9f/db9ffc27a8c1dc27449fef3775b4562af658daac.jpg",
+      "assetType": "DescriptiveStillLife"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/48/f4/48f43f5987689cfafce99e6483dc3d8a0e1727ea.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Negro",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "272627",
+    "colourShades": "Carbón",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "009",
+      "label": "30",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "29",
+      "stock": 2
+     },
+     {
+      "id": "007",
+      "label": "28",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "34",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "33",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "32",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "31",
+      "stock": 2
+     },
+     {
+      "id": "006",
+      "label": "27",
+      "stock": 2
+     },
+     {
+      "id": "005",
+      "label": "26",
+      "stock": 2
+     },
+     {
+      "id": "004",
+      "label": "25",
+      "stock": 2
+     },
+     {
+      "id": "003",
+      "label": "24",
+      "stock": 2
+     }
+    ],
+    "newArrival": true,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "negro_000000",
+    "mainCatCode": "kids_girls_shoes_ballerinasflats"
+   }
+  ],
+  "numberOfHits": 157
+ }
+}

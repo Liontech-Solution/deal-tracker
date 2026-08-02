@@ -1,0 +1,318 @@
+{
+ "requestDateTime": "2026-08-02T14:27:15.636Z",
+ "responseSource": "Elevate",
+ "pagination": {
+  "currentPage": 1,
+  "nextPageNum": 2,
+  "totalPages": 6
+ },
+ "plpList": {
+  "productList": [
+   {
+    "id": "1234419002",
+    "trackingId": "OzY7IzsxMjM0NDE5MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvdHJvdXNlcnM7Izs_e4",
+    "productName": "Pantalón en pana de algodón",
+    "modelImage": "https://image.hm.com/assets/hm/28/ca/28ca66c40ff101c1f47c2ee93c774b1e2319d197.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/28/ca/28ca66c40ff101c1f47c2ee93c774b1e2319d197.jpg",
+     "altText": "Los pantalones Adorables de H&M presentan un diseño de frente en pana azul oscuro, con un ajuste relajado. Los bolsillos laterales discretos son visibles con las manos descansando dentro, y los pantalones están estilizados con puños vueltos.",
+     "assetType": "Lookbook"
+    },
+    "productImage": "https://image.hm.com/assets/hm/36/c0/36c0accd0d7f7aad378b815d022fdc6a83dce996.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/36/c0/36c0accd0d7f7aad378b815d022fdc6a83dce996.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1234419002.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 24.99,
+      "minPrice": 24.99,
+      "maxPrice": 24.99,
+      "formattedPrice": "24,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1234419002",
+      "url": "/es_es/productpage.1234419002.html",
+      "colorName": "Azul marino",
+      "colorCode": "40424E",
+      "trackingId": "OzY7IzsxMjM0NDE5MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvdHJvdXNlcnM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/36/c0/36c0accd0d7f7aad378b815d022fdc6a83dce996.jpg"
+     },
+     {
+      "articleId": "1234419012",
+      "url": "/es_es/productpage.1234419012.html",
+      "colorName": "Turquesa empolvado",
+      "colorCode": "6B797B",
+      "trackingId": "OzY7IzsxMjM0NDE5MDEyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvdHJvdXNlcnM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/30/05/3005a912b873e7e7fdb5c16b4dfb80119d238db8.jpg"
+     },
+     {
+      "articleId": "1234419007",
+      "url": "/es_es/productpage.1234419007.html",
+      "colorName": "Rosa claro",
+      "colorCode": "A17471",
+      "trackingId": "OzY7IzsxMjM0NDE5MDA3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvdHJvdXNlcnM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/43/be/43becb20e60f0adbefbf113a795725a89688d669.jpg"
+     },
+     {
+      "articleId": "1234419011",
+      "url": "/es_es/productpage.1234419011.html",
+      "colorName": "Verde caqui",
+      "colorCode": "575549",
+      "trackingId": "OzY7IzsxMjM0NDE5MDExOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvdHJvdXNlcnM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/5f/5c/5f5ca72d24e66df929e7c7ca0f6227685dc963e2.jpg"
+     },
+     {
+      "articleId": "1234419014",
+      "url": "/es_es/productpage.1234419014.html",
+      "colorName": "Marrón",
+      "colorCode": "4E423E",
+      "trackingId": "OzY7IzsxMjM0NDE5MDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs0Mzs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvdHJvdXNlcnM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/48/bf/48bf1c52713b5f35ef668d112ab5eefdc108450d.jpg"
+     }
+    ],
+    "productMarkers": [
+     {
+      "text": "H&M Adorables",
+      "type": "custom"
+     }
+    ],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/2d/96/2d96fee742b1b19af2560601825f663e63e25370.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/d0/44/d044aed4959f9620620927c69433eb7fed69ea37.jpg",
+      "altText": "Un conjunto infantil, presentado desde una perspectiva frontal, ligeramente en ángulo, presenta un suéter de punto beige claro con un patrón Fair Isle de motivos de copos de nieve en color granate y azul claro en el pecho, y muestra puños y dobladillo acanalados. Bajo el suéter, hay pantalones de pana azul oscuro con acanalado vertical, que presentan un corte de pierna ancha y dobladillos con vuelto, completados con zapatillas color tostado con cordones blancos y una correa con cierre de gancho y bucle.",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/0d/a0/0da06602a3befc8df2316827b68a9291b7782d9f.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/a5/49/a549672055695f5dd64f01791d1d0130e63d642c.jpg",
+      "assetType": "DescriptiveDetail"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/65/0c/650ce68e4156f9afff7e534f6b1a14f5316e7dc1.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul marino",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "40424E",
+    "colourShades": "Azul vivo|Azul cobalto|Azul oscuro|Índigo|Azul marino|Azul real",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "productMarkerText": "H&M Adorables",
+    "colorWithNames": "azul_0000ff",
+    "mainCatCode": "kids_adorables_viewall_boy"
+   },
+   {
+    "id": "1234419012",
+    "trackingId": "OzY7IzsxMjM0NDE5MDEyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvdHJvdXNlcnM7Izs_e4",
+    "productName": "Pantalón en pana de algodón",
+    "modelImage": "https://image.hm.com/assets/hm/30/05/3005a912b873e7e7fdb5c16b4dfb80119d238db8.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/30/05/3005a912b873e7e7fdb5c16b4dfb80119d238db8.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/30/05/3005a912b873e7e7fdb5c16b4dfb80119d238db8.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/30/05/3005a912b873e7e7fdb5c16b4dfb80119d238db8.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1234419012.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 24.99,
+      "minPrice": 24.99,
+      "maxPrice": 24.99,
+      "formattedPrice": "24,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1234419012",
+      "url": "/es_es/productpage.1234419012.html",
+      "colorName": "Turquesa empolvado",
+      "colorCode": "6B797B",
+      "trackingId": "OzY7IzsxMjM0NDE5MDEyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvdHJvdXNlcnM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/30/05/3005a912b873e7e7fdb5c16b4dfb80119d238db8.jpg"
+     },
+     {
+      "articleId": "1234419002",
+      "url": "/es_es/productpage.1234419002.html",
+      "colorName": "Azul marino",
+      "colorCode": "40424E",
+      "trackingId": "OzY7IzsxMjM0NDE5MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvdHJvdXNlcnM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/36/c0/36c0accd0d7f7aad378b815d022fdc6a83dce996.jpg"
+     },
+     {
+      "articleId": "1234419007",
+      "url": "/es_es/productpage.1234419007.html",
+      "colorName": "Rosa claro",
+      "colorCode": "A17471",
+      "trackingId": "OzY7IzsxMjM0NDE5MDA3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvdHJvdXNlcnM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/43/be/43becb20e60f0adbefbf113a795725a89688d669.jpg"
+     },
+     {
+      "articleId": "1234419011",
+      "url": "/es_es/productpage.1234419011.html",
+      "colorName": "Verde caqui",
+      "colorCode": "575549",
+      "trackingId": "OzY7IzsxMjM0NDE5MDExOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvdHJvdXNlcnM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/5f/5c/5f5ca72d24e66df929e7c7ca0f6227685dc963e2.jpg"
+     },
+     {
+      "articleId": "1234419014",
+      "url": "/es_es/productpage.1234419014.html",
+      "colorName": "Marrón",
+      "colorCode": "4E423E",
+      "trackingId": "OzY7IzsxMjM0NDE5MDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvdHJvdXNlcnM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/48/bf/48bf1c52713b5f35ef668d112ab5eefdc108450d.jpg"
+     }
+    ],
+    "productMarkers": [
+     {
+      "text": "H&M Adorables",
+      "type": "custom"
+     }
+    ],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/89/f0/89f0086da7a2c7dcd5ee7e739d458f3d6e6c522a.jpg",
+      "assetType": "DescriptiveDetail"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/4b/b9/4bb9539da95e365811c5226cb10ea4bd8370f4a5.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Turquesa empolvado",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "6B797B",
+    "colourShades": "Azul petróleo|Aguamarina",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": true,
+    "isLiquidPixelUrl": false,
+    "productMarkerText": "H&M Adorables",
+    "colorWithNames": "turquesa_40e0d0",
+    "mainCatCode": "kids_adorables_viewall_boy"
+   }
+  ],
+  "numberOfHits": 385
+ }
+}

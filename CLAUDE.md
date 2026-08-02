@@ -18,10 +18,20 @@ and `deal-tracker-qa` (semver releases, public at `dealtracker-qa.liontechsoluti
 Retailers implemented: **Zara** (public AJAX JSON endpoints), **Sfera** (headless Chromium — it sits
 behind Akamai), **Lefties**, **Cacles Barefoot** (Shopify `products.json`; the first *natively*
 barefoot store, so `barefoot='si'` is declared per-store instead of guessed), **C&A** (GraphQL
-persisted query; the only one that publishes the Ómnibus 30-day minimum) and **Hipercor** (headless
+persisted query; the only one that publishes the Ómnibus 30-day minimum), **Hipercor** (headless
 Chromium, and the first store scraped **through its own pages** rather than an API: its `robots.txt`
 disallows `/api`, so the listing and the product sheet are read from the `dataLayer` and the
-`ld+json` each page embeds). Still pending from the brief: Mango Kids, H&M, Springfield Kids.
+`ld+json` each page embeds) and **H&M** (REST API on `api.hm.com`, outside the Akamai that guards
+the storefront, so plain `httpx` gets in). Still pending from the brief: Mango Kids, Springfield
+Kids.
+
+H&M is the only store so far whose **dead leaf is invisible**: an unresolvable `pageId` returns 200
+with a full, plausible page — the whole `categoryId` bucket. It is detected with a *canary*: one
+deliberately invented route per pass, whose first page is compared against each leaf's. It is also
+the only one where **a listing row is a product+colour, not a product**, so `list_catalog()`
+accumulates the pass before emitting instead of streaming page by page — which is also what lets it
+mark as `unisex` the ~10 % of models the store publishes under both genders (the bug #98 found in
+Hipercor).
 
 > **Deeper architectural context lives in the ADR**, not in this file. Read it before any change
 > that crosses services or reaches k8s — it documents the contract between this repo and the
