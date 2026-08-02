@@ -6,6 +6,7 @@ Cubre: upsert de catálogo, apilado de historial, detección de altas/bajas y el
 
 from __future__ import annotations
 
+import time
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -31,6 +32,10 @@ T4 = datetime(2026, 7, 4, 8, 0, tzinfo=UTC)
 # Muy posterior: con estas el detalle de las pasadas anteriores ya está rancio (umbral 7 días).
 T_STALE = datetime(2026, 7, 20, 8, 0, tzinfo=UTC)
 T_STALE2 = datetime(2026, 7, 21, 8, 0, tzinfo=UTC)
+
+# Lo que tarda a propósito la tienda del test del cronómetro. Suficiente para separarse del ruido
+# de una transacción vacía sin alargar `just check` de forma perceptible.
+_PAUSA_LENTA = 0.25
 
 
 class FakeStore:
@@ -972,3 +977,42 @@ def test_una_pasada_que_revienta_deja_rastro_en_scrape_run(db_conn: Any) -> None
     )
     # La tienda queda dada de alta aunque no ingiriera nada: la fila de la pasada la necesita.
     assert _scalar(db_conn, "SELECT count(*) FROM retailer") == 1
+
+
+def test_una_pasada_con_exito_registra_su_duracion(db_conn: Any) -> None:
+    """`finished_at` tiene que ser la hora real de fin, no la de inicio de la transacción.
+
+    La pasada entera va en UNA transacción, así que con `now()` —que en Postgres devuelve la hora
+    de inicio de la transacción— `finished_at` salía igual que `started_at` y toda pasada con éxito
+    quedaba registrada con duración cero. Se veía en `dev`: las cuatro pasadas buenas a 0,0 min y la
+    única con duración real era una **fallida**, porque ese camino abre transacción nueva.
+
+    Duele donde no se ve: el `activeDeadlineSeconds` de cada CronJob se fija a ojo si la BD no sabe
+    cuánto tarda la tienda, y pasarse del deadline no es perder una pasada, es no poblar nunca
+    (la ingesta es atómica).
+
+    Por eso el test mide contra una pasada que **tarda**: sin la pausa, las dos implementaciones
+    dan una diferencia indistinguible de cero y el test no probaría nada.
+    """
+
+    class TiendaLenta(FakeStore):
+        def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
+            time.sleep(_PAUSA_LENTA)
+            yield from super().fetch_details(entries)
+
+    store = TiendaLenta(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")])],
+        signatures={"A": "a1"},
+    )
+    # `run_ts` es lo que se guarda tal cual en `started_at`, así que tiene que ser de ahora para
+    # que la resta signifique algo: con las T1..T4 fijas del resto del fichero, la diferencia
+    # saldría en días y pasaría igual con la implementación vieja.
+    result = ingest(db_conn, store, run_ts=datetime.now(UTC))
+
+    duracion = _scalar(
+        db_conn,
+        "SELECT finished_at - started_at FROM scrape_run WHERE id = %s",
+        (result.scrape_run_id,),
+    )
+    assert duracion is not None
+    assert duracion.total_seconds() >= _PAUSA_LENTA / 2

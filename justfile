@@ -4,10 +4,15 @@
 scraper_dir := "services/scraper"
 
 # Crea el venv e instala el servicio scraper con sus dependencias de desarrollo.
+# El `playwright install` no es opcional: los navegadores viven en `~/.cache/ms-playwright` y se
+# comparten entre venvs, así que darlos por hecho hace que un entorno nuevo dependa de qué hubiera
+# antes en esa caché — y cuando no coincide, Sfera e Hipercor mueren al arrancar mientras
+# `just check` sigue verde (#91). Cuesta ~150 MB la primera vez por máquina; después no baja nada.
 setup:
     python -m venv {{scraper_dir}}/.venv
     {{scraper_dir}}/.venv/bin/pip install --upgrade pip
     {{scraper_dir}}/.venv/bin/pip install -e "{{scraper_dir}}[dev]"
+    {{scraper_dir}}/.venv/bin/playwright install chromium
 
 # Aplica las migraciones pendientes (usa DATABASE_URL del entorno / .env).
 migrate:
