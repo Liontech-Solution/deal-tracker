@@ -584,6 +584,7 @@ Corolario del mismo recon: **una API abierta puede pedir una cabecera tonta**. C
 `403 Not allowed` a todo lo que no lleve `origin`, y con `content-type` + `origin` entra sin cookies,
 sin UA y sin las `x-*` que manda su propio front. Antes de concluir «nos bloquean», probar la matriz
 de cabeceras además de la matriz de clientes de la sección anterior.
+
 ### Un scraper se rompe de dos maneras y solo una se ve (y la segunda tiene grados)
 
 Que la tienda **cambie** (una hoja caduca, el JSON cambia de forma) sale en el resumen de la
