@@ -34,6 +34,8 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       TEST_DATABASE_URL: postgresql://dealtracker:dealtracker@localhost:5432/deal_tracker_test
+      # Segunda base, con el ctype de la del cluster. Ver el paso que la crea, más abajo.
+      TEST_DATABASE_URL_CTYPE_C: postgresql://dealtracker:dealtracker@localhost:5432/deal_tracker_ctype_c
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
@@ -43,6 +45,19 @@ jobs:
         run: corepack enable
       - name: Instalar dependencias (lockfile congelado)
         run: pnpm install --frozen-lockfile
+      # NO SOBRA, aunque parezca la misma base dos veces (#105). El servicio de arriba levanta
+      # `postgres:16-alpine` con su locale por defecto, y ahí `lower('ÍNDIGO')` devuelve 'índigo';
+      # la base del cluster está creada con ctype `C`, donde devuelve 'Índigo' y NO baja las letras
+      # acentuadas. Por eso `size_canon`, `color_canon` y el plegado de la búsqueda salían en verde
+      # aquí mientras en el cluster dejaban 748 variantes con la canónica a medias y dos chips
+      # partidos en la faceta. Los specs de canónica y de búsqueda se ejecutan contra las DOS.
+      # `TEMPLATE template0` es obligatorio para crear una base con otro locale.
+      - name: Base con ctype C (reproduce la del cluster)
+        env:
+          PGPASSWORD: dealtracker
+        run: |
+          psql -h localhost -U dealtracker -d deal_tracker_test -v ON_ERROR_STOP=1 \
+            -c "CREATE DATABASE deal_tracker_ctype_c TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C';"
       - name: ESLint (API)
         run: pnpm lint
       - name: Typecheck API (tsc)
