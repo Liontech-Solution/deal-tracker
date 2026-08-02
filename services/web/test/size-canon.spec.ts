@@ -52,6 +52,9 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
     // Meses, que no pueden confundirse con años.
     { canonica: '12-18 meses', formas: ['12-18 meses (86 cm)'] },
     { canonica: '1-3 meses', formas: ['1-3 meses (62 cm)'] },
+    // El rango que colapsa en sí mismo (#89): la talla de recién nacido del pack de bodies de Zara,
+    // 4 variantes vivas en `qa` el 02/08/2026 y el único caso del catálogo.
+    { canonica: '0 meses', formas: ['0-0 meses (50 cm)', '0-0 meses'] },
     // Y el singular (#73): las dos formas reales que había en `qa` el 02/08/2026, una por regla.
     { canonica: '1 mes', formas: ['1 mes', '1 Mes'] },
     { canonica: '1 año', formas: ['1 año', '1 años (17-19)', '1'] },
@@ -148,6 +151,38 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
     expect(await canon('1-2 años (92 cm)')).toBe('1-2 años');
   });
 
+  /**
+   * El rango que colapsa en sí mismo (#89). El único dato real era en meses ('0-0 meses', 4
+   * variantes de Zara), pero la regla se escribió GENERAL a propósito: el rango se colapsa antes de
+   * las siete reglas, así que vale igual para años y para número de pie, y el singular de la 0019
+   * se reusa en vez de reescribirse — por eso '1-1 meses' sale '1 mes' y no '1 meses'.
+   */
+  it('colapsa el rango cuyos dos extremos coinciden, en cualquier unidad', async () => {
+    expect(await canon('0-0 meses (50 cm)')).toBe('0 meses'); // la forma real medida
+    expect(await canon('1-1 meses')).toBe('1 mes'); // el singular de la 0019, gratis
+    expect(await canon('22-22 meses')).toBe('22 meses');
+    expect(await canon('4-4 años')).toBe('4 años');
+    expect(await canon('1-1 años')).toBe('1 año');
+    expect(await canon('6/6 años')).toBe('6 años'); // la barra también es separador
+    expect(await canon('20-20')).toBe('20'); // sin unidad y por encima del umbral 15: pie
+    expect(await canon('4-4')).toBe('4 años'); // sin unidad y por debajo: edad
+  });
+
+  /**
+   * La guarda del colapso, que no es decorativa. Se implementa con una retro-referencia («el mismo
+   * texto a los dos lados»), y sin delimitar los extremos '11-110' encajaría como '11-11' dejando un
+   * '10' suelto. Las formas de aquí son reales: las tallas en cm de C&A son justo las que comparten
+   * principio ('110-116') o final.
+   */
+  it('no colapsa un rango porque un extremo empiece igual que el otro', async () => {
+    expect(await canon('110-116')).toBe('110-116');
+    expect(await canon('98-104')).toBe('98-104');
+    expect(await canon('11-110')).toBe('11-110 años');
+    expect(await canon('110-11')).toBe('110-11 años');
+    expect(await canon('0-1 meses')).toBe('0-1 meses'); // el hermano real del '0-0' del mismo pack
+    expect(await canon('1-11 meses')).toBe('1-11 meses');
+  });
+
   it('es idempotente sobre su propia salida', async () => {
     for (const { canonica } of equivalencias) {
       expect(await canon(canonica)).toBe(canonica);
@@ -172,11 +207,13 @@ describe.skipIf(!TEST_DB)('talla canónica', () => {
       '1.5 años',
       '18-24 meses',
       '1 mes', // #73: el singular no cambia `size_sort`, que busca 'mes' y lo encuentra igual
+      '0 meses', // #89: el rango colapsado tampoco lo cambia — ya ordenaba por el primer extremo
     ];
     const [{ v: ordenada }] = await sql<{ v: string[] }[]>`
       SELECT array_agg(t ORDER BY size_sort(t), t) AS v
       FROM unnest(${sql.array(ropa)}::text[]) AS t`;
     expect(ordenada).toEqual([
+      '0 meses', // recién nacido: el primero de la lista, como debe
       '1 mes', // 1/12 de año: delante de '1-3 meses', que empieza igual pero abarca más
       '1-3 meses',
       '1.5 años',
