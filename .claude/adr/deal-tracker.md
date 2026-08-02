@@ -22,7 +22,7 @@ Monorepo **poliglota**, dos servicios que no se llaman entre sí:
 - `services/web` — **NestJS** (`@nestjs/*`, drizzle-orm, postgres, passport-jwt + jwks-rsa para
   validar tokens Keycloak) y frontend **React/Vite** en `services/web/frontend`, servido por el
   propio Nest vía `@nestjs/serve-static`. Gestor de paquetes: **pnpm**.
-- `db/migrations` — **SQL crudo neutro** (`0001_init.sql` … `0016_color_canon_solo_digitos.sql`).
+- `db/migrations` — **SQL crudo neutro** (`0001_init.sql` … `0018_add_retailer_min_30d.sql`).
 
 Imágenes: `ghcr.io/liontech-solution/deal-tracker-scraper` y `-web`. Contexto de build en la **raíz
 del repo**, no en el directorio del servicio.
@@ -38,8 +38,18 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
   `job_state`.
 - Las tiendas son **pluggable**: `stores/base.py` define `BaseStore`, `stores/registry.py` mapea
   slug → factoría. Hoy: `zara` (endpoints AJAX JSON públicos), `sfera` (Chromium, detrás de
-  Akamai), `lefties`, `cacles` (Shopify, `products.json` público). Añadir tienda = añadir entrada
-  en el registry.
+  Akamai), `lefties`, `cacles` (Shopify, `products.json` público) y `c-and-a` (GraphQL con
+  persisted query, httpx puro). Añadir tienda = añadir entrada en el registry.
+- **`price_history.retailer_min_30d` (0018) es el primer dato del contrato que no observamos
+  nosotros**: es el mínimo de 30 días que la tienda **declara** por la directiva Ómnibus. Importa
+  porque el detector de descuentos engañosos vivía de una sola fuente —nuestro propio histórico—,
+  con la limitación de nacimiento de no poder decir nada de antes de que empezáramos a mirar. Ahora
+  hay con qué contrastar, y **la discrepancia entre ambas cifras es en sí misma la señal**: medido
+  en C&A el 02/08/2026, **67 de 364** variantes con precio tachado anuncian descuento mientras la
+  propia tienda declara haberlas vendido más baratas dentro de esos 30 días. Hoy solo la puebla
+  C&A; `NULL` significa **«esta tienda no lo declara»**, nunca «no hubo mínimo», y ninguna consulta
+  puede tratarlo como un cero. Se captura desde la primera pasada aunque el detector aún no lo use,
+  porque **el histórico no se reconstruye hacia atrás**.
 - **`cacles` es la primera tienda barefoot NATIVA**, y entró porque el foco barefoot (#30) dejaba la
   zapatería casi vacía: las otras tres son cadenas de moda convencional y entre ellas sumaban ~92
   referencias respetuosas. Eso convierte «tienda entera barefoot» en un caso que el modelo tiene que
@@ -86,6 +96,16 @@ Este repo produce imágenes; aquel decide qué corre.
 Consecuencia: **dev sigue `sha-<7>`, QA sigue semver**, y el binario de QA es bit a bit el que se
 validó en dev. Los `newTag` de ambos kustomizations son **machine-edited — no editar a mano**.
 
+**El corolario que ya ha mordido dos veces: en QA, capacidad nueva ≠ capacidad disponible.** Como
+QA solo avanza con un `release-qa` manual, todo lo que se mergea a `main` llega a dev al instante y
+a QA **nunca**, hasta que alguien corta versión. Así que un CronJob nuevo activado en el overlay de
+QA se programa contra una imagen que aún no tiene el código: el vigía habría fallado por
+`ModuleNotFoundError` (#67) y el scraper de C&A por `ValueError: Tienda desconocida` (#78) — los
+dos, un fallo garantizado a fecha fija. La regla es que **el CronJob de una capacidad nueva nace
+`suspend: true` en QA aunque sus hermanos estén encendidos**, con el motivo y los dos pasos
+(cortar release → poner `false`) escritos en el propio patch, no solo en el PR. En dev no aplica:
+el bump es automático.
+
 **El arm64 solo se compila en `main`, y eso es deliberado.** El cluster son Raspberry Pi, así que
 la variante arm64 es obligatoria para desplegar; pero emularla con QEMU en cada PR costaba ~9 min
 por servicio *y se tiraba* (los PR construyen con `push: false`). Medido: el job `image` de un PR
@@ -108,8 +128,9 @@ cronjobs con `suspend: true` y matching con `--dry-run`. El overlay de QA los le
 Dev se queda con los defaults y se dispara a mano:
 `kubectl -n deal-tracker-dev create job X --from=cronjob/deal-tracker-scraper-zara`.
 
-Desde el 02/08/2026 **QA corre los cinco cronjobs, con cadencia semanal** (lunes, 05:30→07:00,
-conservando los desfases de base) en vez de la diaria. Estuvieron suspendidos meses con el
+Desde el 02/08/2026 **QA corre los cronjobs con cadencia semanal** (lunes, 05:15→07:00,
+conservando los desfases de base) en vez de la diaria — todos menos `c-and-a`, por lo del párrafo
+anterior. Estuvieron suspendidos meses con el
 argumento de que QA no es prod; el argumento se sostiene, el efecto colateral no: sin pasadas,
 `price_history` no crecía, y **sin re-observaciones el detector de descuentos inflados no tiene con
 qué comparar** — el propio dato que da sentido al producto. Semanal es la cadencia mínima que
@@ -122,7 +143,10 @@ misma IP — preguntarlo dos veces es el doble de peticiones a cambio de cero se
 
 **Un CronJob por tienda**, porque los perfiles divergen: Zara es httpx (1 CPU / 1Gi), Sfera arrastra
 Chromium (2Gi, `emptyDir` escribible, `HOME`/`TMPDIR` redirigidos, `runAsUser: 10001`). Comparten
-imagen (~900 MB), así que el primer arranque en un nodo nuevo paga ~2m20s de pull.
+imagen (~900 MB), así que el primer arranque en un nodo nuevo paga ~2m20s de pull. **El perfil se
+decide por cómo scrapea la tienda, no por ser un scraper**, y el rango es amplio: la pasada en frío
+de Zara son 2219 peticiones de detalle y 30 min, la de C&A son 46 peticiones, 37 s y 60 MiB de pico
+de RSS. Copiar el manifiesto de Zara para una tienda nueva sobredimensiona.
 
 **Base de datos real**: cluster CNPG `platform-postgres-dev` en el namespace `data-dev` — *no* el
 `postgresql-generic` del cluster. QA es público en `dealtracker-qa.liontechsolution.com` a través
@@ -195,6 +219,43 @@ escrita en el contrato con seguridad, que se cayó en cuanto alguien consultó l
 
 Antes de escribir en el contrato que algo no se puede o que algo es siempre así, comprobar sobre los
 datos de quién —y de qué— se está hablando. La consulta cuesta un minuto.
+
+### Un 200 no prueba nada: hay que verificar QUÉ vino, no si vino
+
+La sección siguiente cataloga cómo miente una hoja muerta. C&A (02/08/2026) enseñó que el problema
+es más ancho: **una respuesta 200, bien formada y con la forma exacta que espera el parser puede ser
+sencillamente otra cosa**. Tres modos de fallo distintos en una sola tienda, y ninguno se detecta
+por status:
+
+- **Sin las cabeceras de locale, la API sirve el catálogo de OTRO PAÍS.** `POST /api?o=list` con
+  solo `content-type` y `origin` responde 200 con `prod_products_DE_de`: nombres en alemán, URLs
+  `/de/de/…` y precios de Alemania. Hacen falta `x-country: ES` y `x-language: es` **juntas** (cada
+  una por su lado devuelve HTML). Es el peor de los tres porque **no falla**: habría poblado el
+  catálogo con producto y precios alemanes sin que saltara ninguna red. El recon lo tuvo delante y
+  lo leyó como «las etiquetas del árbol vienen en alemán».
+- **La paginación puede arrancar en 0.** El recon usaba `page: 1` dando por hecho que era la
+  primera; es la segunda, y las páginas son **disjuntas** (60+60+52 = 172 = `productCount`).
+  Empezar en 1 se saltaba un tercio de cada hoja, en silencio.
+- **Un contrato caducado devuelve 200 con el error en el cuerpo.** Con persisted queries (APQ), un
+  `sha256Hash` que ya no existe da 200 y `{"errors":[{"extensions":{"code":
+  "PERSISTED_QUERY_NOT_FOUND"}}]}`. Un parser que vaya directo a `data.list.products` vería la
+  lista vacía en **todas** las hojas a la vez el día del despliegue, y lo leería como un catálogo
+  desaparecido. Hay que mirar `errors` **antes** que `data`.
+
+Dos consecuencias de diseño que se generalizan a las tiendas que faltan:
+
+**Un identificador de contrato que cambia con el despliegue se resuelve en ejecución, no se
+pinnea.** Van tres de la misma familia: el `buildId` de Next, el uuid de rejilla de Lefties y este
+`sha256Hash`. La forma barata es **pinnear y auto-repararse**: se usa el pinneado, y solo cuando
+falla se relee del bundle desplegado —que la propia respuesta fallida nombra con su cabecera
+`x-release-hash`—. Cero peticiones extra en régimen normal, una el día del despliegue. Resolverlo
+siempre habría costado 2,3 MB por pasada para no enterarse de nada nuevo.
+
+**Y esa detección tiene que vivir donde está el reintento, no donde está el parseo.** La primera
+implementación miraba el `PersistedQueryNotFound` en `parse_*`, que ocurre **después** de que la
+petición haya vuelto: el bucle que iba a reintentar con el hash nuevo nunca llegaba a verlo, así
+que la auto-reparación existía sobre el papel y no se disparaba jamás. Lo destapó un test, no la
+revisión.
 
 ### El árbol de categorías de una tienda no es lo que parece
 
