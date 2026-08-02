@@ -220,6 +220,27 @@ escrita en el contrato con seguridad, que se cayó en cuanto alguien consultó l
 Antes de escribir en el contrato que algo no se puede o que algo es siempre así, comprobar sobre los
 datos de quién —y de qué— se está hablando. La consulta cuesta un minuto.
 
+**Y cuando una tienda escribe la talla al revés, se le da la vuelta EN LA TIENDA, no en la
+función.** Zara e Hipercor sirven la edad delante y los centímetros en el paréntesis
+(`5-6 años (116 cm)`); H&M lo invierte: `122/128 (6-8Y)`, `74 (6-9M)`. Y `size_canon` descarta el
+paréntesis en su CTE `prep`, que es justo donde H&M pone la edad — saldrían `122-128` y `74`: sin
+edad, y cayendo en el espacio de los números de pie, que es la colisión de #64. Se remodela en
+`hm._talla()` antes de emitir, y la razón de que sea ahí y no en una migración nueva es que la
+función es **compartida y con índice detrás**: tocarla obliga a reconstruirlo (la 0014 lo deja
+avisado en mayúsculas) y a re-verificar lo que producen las otras seis tiendas, mientras que
+remodelar en la tienda no toca a nadie más y ya tenía precedente (`sfera._normalize_size`,
+`hipercor`). Comprobado contra la BD, que es lo único que lo demuestra: de nueve etiquetas reales
+de Zara e Hipercor, **cinco casan exactamente** con las canónicas de H&M; sin remodelar habrían
+sido **cero**. La regla general: la función SQL fija el **vocabulario**, y cada tienda es
+responsable de hablarlo.
+
+El límite conocido de ese umbral 15, y ya por el otro extremo: H&M vende calzado de bebé en
+`12/13` y `14/15`, que salen como `12-13 años`. Son 12 variantes de 2712, pero **colisionan con
+una talla de ropa real** (`12-13 años` existe y es numerosa), así que esta vez no es cosmético.
+Por debajo de 15 las dos lecturas son plausibles desde el texto y quien desambigua es la sección,
+que la función no conoce — y meterla en la firma es justo lo que #64 descartó por el índice. Sin
+decidir, en #103.
+
 ### El `robots.txt` decide el diseño del scraper, y a veces no es el que parece
 
 Medido el 02/08/2026 al implementar Hipercor (#79/#88), y corrige dos supuestos del recon de #70.
@@ -325,12 +346,24 @@ formas distintas (recon de #70, 02/08/2026), y la consecuencia siempre es la mis
   muerta pasa por «este ámbito se ha quedado sin productos», que es exactamente el disparador de una
   baja masiva. Y la misma respuesta es el fin normal de la paginación, así que hay que desambiguarla
   por posición: vacía en la **primera** página es hoja retirada, a partir de la segunda es el final.
-- **H&M devuelve una página LLENA Y PLAUSIBLE**, y es la peor de las cuatro. Su `categoryId` es
-  decorativo —el selector real es `pageId`— y un `pageId` inventado (`/ruta/totalmente/inventada`)
-  responde 908 hits y 36 productos, ni 404 ni vacío ni el padre. **No se detecta por status ni por
-  vacío**: una hoja renombrada sigue «funcionando» e ingiere productos de otra categoría en silencio,
-  sin que caiga nada que las redes de seguridad puedan contar. La única defensa barata es que la hoja
-  declare qué espera y se contraste con lo devuelto (en H&M, el `mainCatCode` de los productos).
+- **H&M devuelve una página LLENA Y PLAUSIBLE**, y es la peor de las cuatro. El selector real es
+  `pageId`, y uno que no resuelve no da 404, ni vacío, ni el padre. **No se detecta por status ni
+  por vacío**: una hoja renombrada sigue «funcionando» e ingiere productos de otra categoría en
+  silencio, sin que caiga nada que las redes de seguridad puedan contar. Implementada la tienda
+  (#77, 02/08/2026), la mentira resultó tener forma y por tanto detector: **cae al cubo de
+  `categoryId`**, que es un parámetro que el recon había dado por decorativo. Se ve cambiándolo
+  solo a él — `kids_all` → 9713 productos, `kids_shoes` → 244, `kids_clothing` → 4113. De ahí el
+  **canario**: una ruta deliberadamente inventada, pedida **una vez por pasada**, contra la que se
+  compara la primera página de cada hoja. Es `is_mirage` de Sfera cambiando el padre por el
+  canario, y sale más barato porque no hay que saber cuál es el padre.
+  **Se comparan los ids, no el contador**: `numberOfHits` del cubo deriva entre peticiones
+  consecutivas (9713 → 9710 en segundos), así que una igualdad exacta declara **viva una hoja
+  muerta**, que es el error caro. Solape medido: **100 %** en las muertas, **0-8 %** en las vivas.
+  La defensa que el recon proponía —que la hoja declare qué espera y se contraste con el
+  `mainCatCode` de los productos— **se probó y se descartó**: es demasiado ruidosa. Una hoja real
+  de `/kids/boys/shoes` trae `kids_boys_outerwear_rainwear` y `..._nightwear_slippers` entre sus
+  productos, y la coherencia por prefijo da 21-34 de 36 en las vivas contra 6 de 36 en el cubo —
+  rangos que se solapan demasiado para un umbral honesto.
 - **Hipercor repite el espejismo de Sfera** —es el mismo firefly— pero trae el antídoto: su
   `data.paginatedDatalayer.page.hierarchy` refleja la ruta **realmente resuelta**, así que basta
   compararla con la pedida, sin cotejar ids de la primera página. Seis rutas inventadas a mano
@@ -368,6 +401,23 @@ entre las siete hojas de pantalones.
 La capacidad es opcional y hermana de `SupportsLeafHealth`, porque son dos preguntas distintas:
 `--check-categories` contesta «¿sigue vivo lo que ingiero?» y falla por lo accionable;
 `SupportsCategoryTree` / `--tree` contesta «¿qué existe que no esté ingiriendo?» y solo informa.
+
+**Una tienda sin endpoint de árbol puede publicarlo igual, embebido en su propia página.** H&M no
+tiene faceta de categorías (los endpoints de navegación plausibles dan 404/503 y las 30 facetas de
+la respuesta vienen con `values: []`), así que no implementa `SupportsCategoryTree`. Pero **la
+página de categoría del escaparate trae el menú entero incrustado**: 507 rutas `/kids/…` y 183
+`/baby/…` en un solo HTML, que se lee una vez con Chromium (el escaparate es Akamai; la API no).
+No es capacidad de ejecución, es reconocimiento — pero cubre lo que importa, que es no sacarse las
+rutas de la cabeza. Y el resultado justifica el rodeo: se probaron **18 rutas plausibles de bebé y
+las 18 eran espejismo**, porque el árbol real dice dos cosas que nadie adivina:
+
+- **Bebé no cuelga de infantil: es un departamento hermano** (`/baby/…`, no `/kids/baby/…`).
+- **El rango 9-14 años es una rama aparte** (`/kids/boys-9-14y/…` junto a `/kids/boys/…`). Quedarse
+  con la primera habría dejado fuera media tienda por edad — el mismo agujero que #56 y #72 en
+  Sfera, ahora con la variante de que las dos ramas se llaman **casi** igual.
+
+Generaliza: al mapear una tienda, el rango de edad y el «departamento» pueden ser **hermanos** de
+la rama que ya tienes, no hijos, y por eso no aparecen bajando desde ella.
 
 **El árbol dice la verdad sobre lo que hay, pero ni es exhaustivo ni sabe cuánto.** Dos cosas
 medidas en Sfera el 02/08/2026 que matizan el «única fuente fiable» de arriba, y que se descubren
@@ -560,6 +610,29 @@ poder explicársela. Mismo trato y misma razón que `matching/deal-rule.sql.ts`.
 
 `unisex` **no se ofrece como chip** en la faceta: ya está incluido en Niño y en Niña, así que no
 filtraría nada nuevo y sugeriría tres estanterías donde el brief pide dos.
+
+**Y no es solo del barefoot: cualquier tienda con hojas por género publica producto en las dos.**
+Medido en las dos tiendas que se han mirado, y en las dos sale del mismo orden: **161 de 1227 en
+Hipercor (13 %)** y **317 de 3401 en H&M (9,3 %)**. Con el dedup habitual de «gana la primera», ese
+producto se queda con el género de la hoja declarada antes y **desaparece de la otra sección** — en
+Hipercor, un padre que filtre «Niño» en zapatería ve 47 productos donde la tienda publica 140
+(#98). El vocabulario para decirlo ya existe y es este `unisex`; lo que falta es **detectar el
+cruce**, y eso solo se puede hacer con el listado entero delante, porque `list_catalog()` emite
+según recorre y el ámbito de una entrada ya emitida no se corrige.
+
+El coste de acumular está medido y no es el obstáculo que parecía: **91 MiB de pico** con la pasada
+entera de H&M en memoria (3397 productos, 43362 variantes). En H&M salió gratis porque había que
+acumular de todas formas —sus filas de listado son producto+**color** y los colores de un modelo se
+reparten entre páginas—, y de ahí `hm._ambito()`: géneros distintos → `unisex`; sección y categoría
+las fija la primera hoja, porque cruzar géneros tiene vocabulario y cruzar categorías no.
+
+Dos efectos de segundo orden que trae ese diseño y que no son evidentes: al marcar una hoja de
+género como caída hay que sacar de las bajas **también el ámbito `unisex` equivalente** (si cae una
+de las dos ramas, el modelo cruzado se emitiría con el género de la superviviente y su ámbito
+`unisex` parecería vacío); y `scopes()` tiene que **declarar los ámbitos `unisex`** aunque ninguna
+hoja los declare, porque un ámbito no declarado no cuenta como escaneado y sus productos no se
+descatalogan nunca — el mismo motivo por el que Cacles declara el producto cartesiano de lo que su
+parser *puede* emitir.
 
 ### El vocabulario de categorías diverge entre tiendas, y es deliberado
 
