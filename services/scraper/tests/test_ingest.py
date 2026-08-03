@@ -921,6 +921,95 @@ def test_la_reclasificacion_pisa_el_valor_anterior(db_conn: Any) -> None:
     )
 
 
+# --- #139 Reparto de género y género rancio -----------------------------------------------
+
+
+def test_el_reparto_de_genero_sale_del_listado_de_la_pasada(db_conn: Any) -> None:
+    """El otro eje del brief, publicado por la pasada en vez de por una consulta a mano.
+
+    Sale del listado y no de la base a propósito: es lo que ESTA pasada ha decidido, que es justo
+    lo que no se veía en ningún sitio cuando la base decía otra cosa (#139).
+    """
+    store = FakeStore(
+        [
+            _product("A", "Bailarina", [_variant("A-1", "39.95")], gender="niña"),
+            _product("B", "Botín", [_variant("B-1", "45.00")], gender="niño"),
+            _product("C", "Camiseta", [_variant("C-1", "9.95")], gender="unisex"),
+            _product("D", "Zapato", [_variant("D-1", "30.00")], gender="unisex"),
+        ],
+        signatures={"A": "a1", "B": "b1", "C": "c1", "D": "d1"},
+    )
+
+    result = ingest(db_conn, store, run_ts=T1)
+
+    assert result.gender_counts == {"niña": 1, "niño": 1, "unisex": 2}
+    assert result.gender_stale == 0
+
+
+def test_el_genero_guardado_no_se_reescribe_sin_detalle_y_la_pasada_lo_cuenta(
+    db_conn: Any,
+) -> None:
+    """El fondo de #139: una tienda ingerida antes de un arreglo de género conserva el viejo.
+
+    `gender` solo lo escribe `_upsert_product`, o sea el detalle. Un producto cuya huella no cambia
+    pasa por `_touch_seen` y se queda con el género anterior, así que el catálogo puede contradecir
+    al código que lo produjo sin que nada falle. La cifra existe para que eso se vea en el resumen
+    y no haga falta una consulta a mano contra la base para descubrirlo.
+    """
+    ingest(
+        db_conn,
+        FakeStore(
+            [_product("A", "Camiseta", [_variant("A-1", "9.95")], gender="niña")],
+            signatures={"A": "a1"},
+        ),
+        run_ts=T1,
+    )
+
+    # Segunda pasada: la tienda ya lo publica en las dos ramas (`unisex`), pero la huella no ha
+    # cambiado, así que no se le pide detalle y la fila conserva el `niña`.
+    result = ingest(
+        db_conn,
+        FakeStore(
+            [_product("A", "Camiseta", [_variant("A-1", "9.95")], gender="unisex")],
+            signatures={"A": "a1"},
+        ),
+        run_ts=T2,
+    )
+
+    assert result.gender_counts == {"unisex": 1}
+    assert result.gender_stale == 1
+    assert _scalar(db_conn, "SELECT gender FROM product WHERE retailer_product_id = 'A'") == "niña"
+
+
+def test_el_refresco_forzado_arregla_el_genero_rancio(db_conn: Any) -> None:
+    """Y esta es la salida: sin cambio de huella, quien lo corrige es el refresco periódico.
+
+    Importa porque es lo que decide cuánto tarda en repararse un entorno ya ingerido: no se arregla
+    en la siguiente pasada, se arregla cuando al producto le toca el turno de refresco.
+    """
+    ingest(
+        db_conn,
+        FakeStore(
+            [_product("A", "Camiseta", [_variant("A-1", "9.95")], gender="niña")],
+            signatures={"A": "a1"},
+        ),
+        run_ts=T1,
+    )
+    store = FakeStore(
+        [_product("A", "Camiseta", [_variant("A-1", "9.95")], gender="unisex")],
+        signatures={"A": "a1"},
+    )
+
+    # T_STALE deja el detalle por encima del umbral de 7 días: entra en el refresco forzado.
+    result = ingest(db_conn, store, run_ts=T_STALE)
+
+    assert store.detail_calls == ["A"]
+    assert result.gender_stale == 0
+    assert (
+        _scalar(db_conn, "SELECT gender FROM product WHERE retailer_product_id = 'A'") == "unisex"
+    )
+
+
 # --- #41 Hojas de categoría caídas: sin bajas falsas, y aborto si caen demasiadas ---------
 
 _CAMISETAS = ScrapeScope("niña", "ropa", "camisetas")

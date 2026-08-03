@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections import Counter
 
 from . import db
 from .config import Config, load_dotenv
@@ -49,6 +50,11 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="lista las categorías que la tienda publica bajo RUTA y marca cuáles ingerimos",
     )
     return parser.parse_args(argv)
+
+
+def _reparto(counts: dict[str, int]) -> str:
+    """`{'niña': 370, 'niño': 316}` -> `niña: 370, niño: 316`, en orden estable."""
+    return ", ".join(f"{k}: {v}" for k, v in sorted(counts.items()))
 
 
 def _report_dead_leaves(store: BaseStore) -> None:
@@ -155,6 +161,9 @@ def _dry_run(config: Config, slug: str) -> int:
         f"dry-run: {len(entries)} en catálogo, {products} con detalle, "
         f"{variants} variantes (sin escribir)."
     )
+    # El reparto del listado, que es la forma barata de re-medir lo que decide `ambito_cruzado()`
+    # sin base de datos: el género ya viene resuelto en cada entrada (#139).
+    print(f"género en el listado: {_reparto(Counter(e.gender or 'sin-marcar' for e in entries))}")
     return 0
 
 
@@ -204,8 +213,16 @@ def main(argv: list[str] | None = None) -> int:
         f"bajas: {result.products_delisted} productos / {result.variants_delisted} variantes"
     )
     if result.barefoot_counts:
-        reparto = ", ".join(f"{k}: {v}" for k, v in sorted(result.barefoot_counts.items()))
-        print(f"calzado por marca barefoot: {reparto}")
+        print(f"calzado por marca barefoot: {_reparto(result.barefoot_counts)}")
+    if result.gender_counts:
+        print(f"género en el listado: {_reparto(result.gender_counts)}")
+    if result.gender_stale:
+        print(
+            f"⚠ {result.gender_stale} productos guardan un género distinto del que dice el "
+            "listado: solo se reescribe al pedir el detalle, así que vienen de una pasada anterior "
+            "a algún arreglo de género. Los corrige el refresco forzado "
+            "(SCRAPER_DETAIL_MAX_AGE_DAYS) o una pasada que les cambie la huella."
+        )
     if result.details_refreshed:
         print(
             f"refresco forzado: {result.details_refreshed} productos con el detalle rancio "

@@ -398,8 +398,15 @@ class LeftiesStore:
     def scopes(self) -> Iterable[ScrapeScope]:
         """Los ámbitos de las hojas **más su equivalente `unisex`** (ver `base.con_unisex`).
 
-        14 productos (2,0 %) salen en las dos ramas de género y se emiten `unisex` (#98), así que
-        sin declarar esos ámbitos no se descatalogarían nunca.
+        Los productos que salen en las dos ramas de género se emiten `unisex` (#98), así que sin
+        declarar esos ámbitos no se descatalogarían nunca. **14 de 700 (2,0 %) el 03/08/2026**, casi
+        todos camisetas.
+
+        Esta tienda no declara ninguna hoja `unisex` en `CATEGORIES` —al revés que Hipercor, H&M y
+        Mango, que tienen rama de bebé o newborn—, así que ese número **es** el de cruces y se
+        re-mide sin base de datos ni detalle con `python -m scraper.run --retailer lefties
+        --dry-run`, que publica el reparto de género del listado. Se dice aquí porque #139 nació de
+        comparar ese 0 contra el `unisex` de las otras tres, que no mide lo mismo.
         """
         return con_unisex(ScrapeScope(c.gender, c.section, c.category) for c in self._categories)
 
