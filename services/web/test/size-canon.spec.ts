@@ -5,12 +5,12 @@ import { runMigrations } from '../src/database/migrate';
 import { BASES_CANON, saltarSiNoHayBase, makeSqlAt } from './helpers';
 
 /**
- * `size_canon` / `size_sort` (migraciones 0014, 0017 y 0021; issues #43, #64 y #105).
+ * `size_canon` / `size_sort` (migraciones 0014, 0017, 0021 y 0024; issues #43, #64, #105 y #135).
  *
  * Los casos NO son inventados: son los valores distintos que había en `dev` —los 121 del 30/07/2026
- * con Zara y Sfera, más los que estrenó Cacles el 01/08/2026 y los que trajo Hipercor el
- * 02/08/2026— reducidos a los que documentan una regla. Si una tienda futura trae una forma nueva,
- * se añade aquí antes de tocar la función.
+ * con Zara y Sfera, más los que estrenó Cacles el 01/08/2026, los que trajo Hipercor el 02/08/2026
+ * y los que estrenó Springfield el 03/08/2026— reducidos a los que documentan una regla. Si una
+ * tienda futura trae una forma nueva, se añade aquí antes de tocar la función.
  *
  * Se ejecuta contra **todas las bases configuradas** (ver `BASES_CANON`), y eso es parte del test:
  * la canónica dependía del ctype de la base (#105) y el veredicto salía distinto en CI que en el
@@ -56,8 +56,13 @@ describe.each(BASES_CANON)('talla canónica · $nombre', ({ url }) => {
     // Talla por letra: manda el rango de edad que lleva dentro, no la letra.
     { canonica: '6-9 años', formas: ['S (6-9 años) (100 cm)'] },
     { canonica: '12-14 años', formas: ['12-14 años (164 cm)', 'L (12-14 años) (140 cm)'] },
-    // Meses, que no pueden confundirse con años.
-    { canonica: '12-18 meses', formas: ['12-18 meses (86 cm)'] },
+    // Meses, que no pueden confundirse con años. La forma abreviada de Springfield entra aquí y no
+    // en un grupo propio a propósito: lo que hay que fijar es que cae en el MISMO chip que la de
+    // Zara y la de H&M, que es justo lo que #135 tenía partido (1407 variantes contra 1).
+    { canonica: '12-18 meses', formas: ['12-18 meses (86 cm)', '12-18M'] },
+    { canonica: '6-12 meses', formas: ['6-12M'] },
+    { canonica: '9-12 meses', formas: ['9-12M'] },
+    { canonica: '3-6 meses', formas: ['3-6M'] },
     { canonica: '1-3 meses', formas: ['1-3 meses (62 cm)'] },
     // El rango que colapsa en sí mismo (#89): la talla de recién nacido del pack de bodies de Zara,
     // 4 variantes vivas en `qa` el 02/08/2026 y el único caso del catálogo.
@@ -66,7 +71,11 @@ describe.each(BASES_CANON)('talla canónica · $nombre', ({ url }) => {
     { canonica: '1 mes', formas: ['1 mes', '1 Mes'] },
     { canonica: '1 año', formas: ['1 año', '1 años (17-19)', '1'] },
     // Número suelto: por debajo de 15 es edad (ropa de Sfera), por encima es pie.
-    { canonica: '4 años', formas: ['4', '4 años (104 cm)'] },
+    // Y con el sufijo 'A' de años (#135): Springfield escribe las tres formas en el mismo catálogo,
+    // así que las tres tienen que caer en la misma etiqueta o el filtro por talla se parte.
+    { canonica: '4 años', formas: ['4', '4 años (104 cm)', '4A'] },
+    { canonica: '6 años', formas: ['6', '6A'] },
+    { canonica: '14 años', formas: ['14', '14A'] },
     { canonica: '11 años', formas: ['11'] },
     // Rango de NÚMERO DE PIE (#64). Cacles es la primera tienda que lo trae, y desmiente la premisa
     // de la 0014 («un rango sin unidad solo puede ser edad»). Sale sin unidad, igual que el número
@@ -138,6 +147,55 @@ describe.each(BASES_CANON)('talla canónica · $nombre', ({ url }) => {
     expect(await canon('14-16')).toBe('14-16 años'); // mixto: ante la duda, edad
     expect(await canon('15-16')).toBe('15-16'); // los dos llegan: pie
     expect(await canon('20-21')).toBe('20-21'); // el menor rango de pie real
+  });
+
+  /**
+   * La unidad abreviada a UNA LETRA (#135): Springfield escribe la edad de tres maneras en el mismo
+   * catálogo ('5-6', '8' y '4A') y los meses con 'M' ('12-18M'). La propiedad, y no el caso: **el
+   * sufijo se lee como su unidad solo cuando TODOS sus números están dentro del tope de esa
+   * unidad**, y los topes son distintos porque no miden lo mismo — 15 para años (el umbral de la
+   * 0017, que separa edad de número de pie) y 36 para meses (3 años, el mayor mes real del catálogo).
+   *
+   * El tope no está para distinguir dos unidades entre sí —un pie no se escribe con 'A' ni con 'M'—
+   * sino porque la letra pegada a un número es un sitio concurrido: es también la COPA de un
+   * sujetador ('80A') y en otras tallas una horma o un ancho. Lo que se sale del tope cae a la regla
+   * 7 y sale crudo, que es el comportamiento de antes de la 0024: un chip feo, nunca una etiqueta
+   * equivocada.
+   *
+   * Medido el 03/08/2026: antes de la primera pasada de Springfield NINGUNA de las siete tiendas
+   * tenía una sola talla con letra pegada a un dígito, así que estas reglas no chocan con nada
+   * existente (comprobado sobre las 384 tallas distintas de `dev`: los únicos 17 valores que cambian
+   * son estos). El día que una tienda escriba la copa así, esto es lo que hay que releer.
+   */
+  it('lee el sufijo de unidad solo dentro del tope de esa unidad', async () => {
+    // Años, tope 15. Las formas son las 10 reales de Springfield, de '3A' a '14A'.
+    expect(await canon('4A')).toBe('4 años');
+    expect(await canon('1A')).toBe('1 año'); // el singular de la 0019 también aquí
+    expect(await canon('14A')).toBe('14 años'); // el mayor real de la tienda: sigue siendo edad
+    expect(await canon('15A')).toBe('15A'); // llega al tope: crudo, como antes de la 0024
+    expect(await canon('80A')).toBe('80A'); // la copa de sujetador, intacta
+    expect(await canon('4a')).toBe('4 años'); // la caja da igual: entra plegada (0021)
+
+    // Meses, tope 36. '12-18M' es el que funde con las 1407 variantes de Zara y H&M.
+    expect(await canon('12-18M')).toBe('12-18 meses');
+    expect(await canon('3M')).toBe('3 meses');
+    expect(await canon('1M')).toBe('1 mes'); // el singular, por la regla 2
+    expect(await canon('36M')).toBe('36 meses'); // 3 años: el mayor mes real ('36 meses', Hipercor)
+    expect(await canon('38M')).toBe('38M'); // pasa del tope: crudo
+
+    // El rango con sufijo es real y lo destapó la primera pasada de Springfield: '8-9A', una
+    // variante. #135 lo daba por no visto. En meses es además la forma mayoritaria (74 de 75).
+    expect(await canon('8-9A')).toBe('8-9 años');
+    expect(await canon('14-16A')).toBe('14-16A'); // un extremo llega al tope: crudo
+    expect(await canon('24-38M')).toBe('24-38M');
+    expect(await canon('4-4A')).toBe('4 años'); // el colapso de la 0020 actúa antes que la regla
+    expect(await canon('3-3M')).toBe('3 meses');
+
+    // Y lo que las deja fuera: la talla por letra no lleva dígitos, así que no entra en la regla.
+    // Springfield publica las dos cosas en el mismo catálogo, 'M' de Medium incluida.
+    for (const letra of ['XS', 'S', 'M', 'L', 'XL', 'XXL']) {
+      expect(await canon(letra)).toBe(letra);
+    }
   });
 
   /**

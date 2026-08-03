@@ -45,7 +45,9 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
   primera que publica su árbol de categorías) y `springfield` (httpx, y la primera que **no recorre
   hojas**: se lista por sitemap porque su `robots.txt` veta la rejilla de SFCC). Añadir tienda =
   añadir entrada en el registry. Las siete primeras tienen catálogo ingerido en `dev` desde el
-  02/08/2026; `mango` y `springfield` entraron el 03/08/2026.
+  02/08/2026; `mango` y `springfield` se registraron el 03/08/2026, y ese mismo día `springfield`
+  hizo su primera pasada (1112 productos, 8620 variantes, 25 min en frío) — `mango` sigue sin
+  ninguna.
 - **`price_history.retailer_min_30d` (0018) es el primer dato del contrato que no observamos
   nosotros**: es el mínimo de 30 días que la tienda **declara** por la directiva Ómnibus. Importa
   porque el detector de descuentos engañosos vivía de una sola fuente —nuestro propio histórico—,
@@ -267,14 +269,47 @@ una talla de ropa real** (`12-13 años` existe y es numerosa), así que esta vez
 Por debajo de 15 las dos lecturas son plausibles desde el texto y quien desambigua es la sección,
 que la función no conoce — y meterla en la firma es justo lo que #64 descartó por el índice.
 
-**Se decide declararlo y no tocar la función, y esta vez con la medida hecha** (#103, 02/08/2026):
-la consulta sobre las **siete** tiendas ingeridas devuelve **solo esas 12 variantes de H&M**. La
+**Se decide declararlo y no tocar la función, y esta vez con la medida hecha** (#103, 02/08/2026,
+repetida el 03/08 con `springfield` dentro): la consulta sobre las **ocho** tiendas ingeridas
+devuelve **solo esas 12 variantes de H&M** — Springfield no aporta ninguna, porque su calzado va de
+18 a 43 y ningún rango cae por debajo del umbral. La
 sospecha era que los patucos de Cacles, Hipercor o Lefties aportarían más, y es falsa por partida
 doble: los de Hipercor son de **talla única** (entran con `size` a NULL) y los de Cacles y Lefties
 se tallan con **número suelto**, así que el patrón `^N-N$` por debajo de 15 es más raro de lo que
 parecía. Cambiar la firma a `size_canon(size, section)` costaría los dos consumidores y el índice
 funcional para 12 filas. La consulta de arriba es la señal barata que hace que esta decisión no
 caduque en silencio: el día que salga otra tienda, la opción vuelve a estar sobre la mesa.
+
+**Una tienda puede abreviar la unidad a UNA LETRA, y entonces el guardián no separa unidades: acota
+cada una.** Springfield escribe la edad de tres maneras en el mismo catálogo (`5-6`, `8` y `4A`) y
+los meses como `12-18M`. Las dos formas con letra caían hasta la regla «irreconocible» y salían
+crudas, porque las reglas de unidad buscan la palabra (`mes`, `a[nñ]o`) y las de número puro exigen
+solo dígitos. El daño es el de siempre —el chip partido— pero con una diferencia de grado que
+conviene ver: la de años parte el catálogo de Springfield **consigo mismo** (89 variantes), mientras
+que la de meses lo parte **contra las dos tiendas más grandes**: `12-18M` (1 variante) contra las
+**1407** de `12-18 meses` de H&M y Zara. Un interés dado de alta sobre el chip que ve quien navega
+no casaba nunca con la prenda de Springfield (#135, migración 0024).
+
+Lo transportable no es la regla sino **por qué lleva tope y qué tope**. La letra ya declara la
+unidad, así que el tope no está para distinguir años de números de pie —un pie no se escribe con
+`A` ni con `M`—, sino para acotar el rango en el que esa unidad es plausible, porque la letra pegada
+a un número es un sitio concurrido: `A` es también la copa de un sujetador y `M` es **Medium**, que
+Springfield publica en el mismo catálogo. Por eso los topes son distintos (15 para años, el mismo de
+#64; 36 para meses, que son 3 años y el mayor mes real del catálogo) y por eso los patrones exigen
+dígitos delante: la talla por letra no los tiene y no entra. Y lo que se sale del tope **cae a la
+regla 7 y sale crudo**, que es el estado anterior — un chip feo, nunca una etiqueta equivocada. Esa
+asimetría es el criterio con el que ampliar estas funciones: ante la duda, no canonicalizar.
+
+**Y el escarmiento, que es el cuarto de la misma familia y esta vez encadenado con lo de la ingesta.**
+#135 se escribió desde una Postgres local de un solo uso y declaró dos cosas: que eran 89 variantes y
+que el rango con sufijo (`4-6A`) «no se ha visto». La primera pasada real de la tienda, el mismo día,
+encontró `8-9A` **y** una familia entera que la issue no mencionaba (75 variantes en meses): el
+alcance real era el doble. No es que #135 midiera mal — es que **midió sobre lo único que había**,
+porque la tienda estaba registrada y sin ingerir. De ahí el corolario que enlaza las dos secciones:
+una tienda sin pasada no solo deja su pipeline sin ejercer, deja **sin base a todas las issues que se
+escriban sobre ella**. La comprobación barata para esta familia concreta es una sola consulta,
+`WHERE v.size ~ '[0-9][A-Za-z]'`, que antes de Springfield devolvía **0 filas en las siete tiendas** y
+es la que hay que repetir cuando entre una nueva.
 
 **La base del cluster es `UTF8 | C | C`, y eso condiciona toda normalización escrita en SQL.** Con
 ctype `C`, `lower('ÍNDIGO')` devuelve `'Índigo'` y `lower('11/12 AÑOS')` devuelve `'11/12 aÑos'`:
@@ -853,7 +888,17 @@ mergearse), así que las siete de entonces tienen catálogo en `dev`. **Mango (#
 octava y nace justo en el estado que esta sección describe**: registrada, con CronJob en el repo de
 manifiestos y validada contra la tienda real en una Postgres local (1582 productos, dos pasadas),
 pero **sin una sola pasada en `dev`** — que es exactamente lo que un CronJob y un vigía en verde no
-prueban. Queda anotado en su issue, no fiado a que alguien lo recuerde. Lo que queda es el método, que es lo
+prueban. Queda anotado en su issue, no fiado a que alguien lo recuerde.
+
+**Springfield nació igual y se resolvió el 03/08/2026, y de paso enseñó lo que cuesta de verdad
+estar en ese estado.** Su primera pasada en cualquier entorno —1112 productos, 8620 variantes, 25 min
+en frío, sin bajas— se disparó a mano en `dev` no para cerrar este hueco sino porque hacía falta el
+dato para otra issue. Y ahí está la lección que no estaba escrita: **una tienda sin ingerir deja sin
+base a todas las issues que se escriban sobre ella**. #135 se había redactado desde una Postgres
+local de un solo uso, y la primera pasada real duplicó su alcance el mismo día (detalle en la sección
+de canonicalización). O sea que el coste de no ingerir no es solo el pipeline sin ejercer: es que
+todo lo que se planifique encima está medido sobre una muestra que nadie puede volver a consultar.
+Lo que sigue pendiente de Springfield es lo de siempre, el `suspend: false` de QA, que va por semver. Lo que queda es el método, que es lo
 que se repetirá: **la comprobación que lo dice es una consulta a `scrape_run` por tienda y cuesta
 un minuto**, y la secuencia para cerrar el círculo al añadir tienda es mergear → esperar el bump de
 CI → **comprobar que ArgoCD ha sincronizado la imagen en el CronJob** (disparar antes muere con
