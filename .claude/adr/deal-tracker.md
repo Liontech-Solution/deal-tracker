@@ -44,10 +44,12 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
   contra `api.hm.com`, que es otro host que el escaparate), `mango` (httpx con UA de Chrome, y la
   primera que publica su árbol de categorías) y `springfield` (httpx, y la primera que **no recorre
   hojas**: se lista por sitemap porque su `robots.txt` veta la rejilla de SFCC). Añadir tienda =
-  añadir entrada en el registry. Las siete primeras tienen catálogo ingerido en `dev` desde el
-  02/08/2026; `mango` y `springfield` se registraron el 03/08/2026, y ese mismo día `springfield`
-  hizo su primera pasada (1112 productos, 8620 variantes, 25 min en frío) — `mango` sigue sin
-  ninguna.
+  añadir entrada en el registry. **Las nueve tienen catálogo ingerido en `dev`**, las siete primeras
+  desde el 02/08/2026 y `mango` y `springfield` el 03/08/2026, el mismo día en que se registraron.
+  Desde esa tarde las nueve corren también en **QA**, semanalmente y sin ninguna suspendida
+  (juanjocop/k3s-local-apps-manifests#76). Que una tienda esté en el registry, tenga CronJob y salga
+  verde en el vigía **no prueba que ingiera**: lo demostraron #93 y #99, y por eso lo que se cuenta
+  aquí son pasadas con catálogo en una base, no altas en el registry.
 - **`price_history.retailer_min_30d` (0018) es el primer dato del contrato que no observamos
   nosotros**: es el mínimo de 30 días que la tienda **declara** por la directiva Ómnibus. Importa
   porque el detector de descuentos engañosos vivía de una sola fuente —nuestro propio histórico—,
