@@ -475,17 +475,25 @@ def _variantes(filas: Iterable[Fila]) -> list[ScrapedVariant]:
 
 
 def _imagenes(filas: Iterable[Fila], colores_con_variantes: set[str | None]) -> list[ScrapedImage]:
-    """Galería, atribuyendo cada foto al color que retrata.
+    """Galería, atribuyendo cada foto al color que retrata Y al artículo del que sale.
 
     El color sale del MISMO campo que alimenta `ScrapedVariant.color` (`colorName`), que es lo que
     pide `base.ScrapedImage`. Un color sin variantes utilizables no aporta fotos.
+
+    Y aquí el color NO basta para atribuir la foto, que es lo que descubrió la #123: esta tienda
+    publica a veces dos artículos del mismo modelo con el mismo `colorName` —prendas distintas,
+    cada una con su ficha— y un producto nuestro los junta porque agrupa por `raiz`. Medido en
+    `dev` el 03/08/2026: **803 grupos así, en 105 productos**; el producto 6323 («Pantalón en
+    mezcla de lino») tenía 7 fotos bajo «Azul marino», las de los artículos 1315153003 y
+    1315153005 revueltas. Por eso va también `variant_url`, la misma URL de fila que `_variantes`
+    pone en `ScrapedVariant.url`: es lo que deja a la ficha separar las dos galerías.
     """
     imagenes: list[ScrapedImage] = []
     for fila in filas:
         if fila.color not in colores_con_variantes:
             continue
         for url in fila.images:
-            imagenes.append(ScrapedImage(color=fila.color, url=url))
+            imagenes.append(ScrapedImage(color=fila.color, url=url, variant_url=fila.url))
     return imagenes
 
 

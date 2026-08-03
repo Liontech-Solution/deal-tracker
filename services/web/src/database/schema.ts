@@ -76,6 +76,11 @@ export const productImage = pgTable(
     color: text('color'),
     position: integer('position').notNull(),
     url: text('url').notNull(),
+    // Ficha de la tienda a la que pertenece la foto (= variant.url), 0023. NULL en las seis
+    // tiendas que no publican dos artículos bajo un mismo nombre de color. NO entra en el UNIQUE
+    // a propósito: la tarjeta del catálogo hace join por position = 0 y espera una fila por
+    // (producto, color). Ver la cabecera de la migración.
+    variantUrl: text('variant_url'),
   },
   (t) => [unique().on(t.productId, t.color, t.position)],
 );

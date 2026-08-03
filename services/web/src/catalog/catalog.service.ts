@@ -393,8 +393,13 @@ export class CatalogService {
     // Galería completa: la ficha la filtra por el color seleccionado, para que la foto cambie a
     // la vez que el precio. `color NULLS FIRST` deja delante las fotos sin color atribuible, que
     // son las que sirven de respaldo cuando el color elegido no tiene ninguna.
+    //
+    // `variant_url` (0023, #123) es el segundo eje del filtro: en H&M el nombre del color no
+    // identifica la prenda, porque un producto nuestro junta varios artículos de la tienda y dos
+    // pueden compartir `colorName`. Va a NULL en las otras seis tiendas y en todo lo ingerido
+    // antes de la 0023, y la ficha tiene una cadena de respaldo para eso.
     const imageRows = (await this.db.execute(sql`
-      SELECT color, url
+      SELECT color, url, variant_url
       FROM product_image
       WHERE product_id = ${id}
       ORDER BY color NULLS FIRST, position
@@ -403,6 +408,7 @@ export class CatalogService {
     const images: ProductImageRef[] = imageRows.map((row) => ({
       color: (row.color as string | null) ?? null,
       url: String(row.url),
+      variantUrl: (row.variant_url as string | null) ?? null,
     }));
 
     return {

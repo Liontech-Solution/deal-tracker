@@ -39,10 +39,21 @@ class ScrapedImage:
     numerase por su cuenta las dos series arrancarían en 0 y chocarían. Numerando en un único
     sitio, por nombre de color, ese caso se resuelve solo — que es además lo que la ficha quiere,
     porque agrupa por nombre y para el usuario esos dos marrones son el mismo color.
+
+    `variant_url` es la excepción a ese «para el usuario son el mismo color», y solo la necesita
+    quien tenga el problema de H&M (#123): allí un producto nuestro junta varios ARTÍCULOS de la
+    tienda —agrupamos por la raíz del `articleId`— y dos de ellos pueden traer el mismo
+    `colorName` siendo prendas distintas, cada una con su ficha y sus fotos. Con el color solo, la
+    galería las mezcla y enseña la foto de una junto al precio de la otra, que es justo lo que la
+    galería por color (#26) existía para evitar. Quien la rellene tiene que sacarla del MISMO
+    campo que alimenta `ScrapedVariant.url`, por el mismo motivo que el color: la ficha empareja
+    por ese valor. `None` —el default, y lo que dejan las otras seis tiendas— significa «esta
+    tienda no distingue dos artículos bajo un mismo nombre de color», no «foto sin ficha».
     """
 
     color: str | None  # None = foto que no se puede atribuir a un color concreto
     url: str
+    variant_url: str | None = None
 
 
 @dataclass(frozen=True)

@@ -347,10 +347,12 @@ describe.skipIf(!TEST_DB)('galería por color · coherencia foto↔precio (e2e)'
     const res = await request(app.getHttpServer())
       .get(`/api/catalog/products/${productId}`)
       .expect(200);
+    // `variantUrl` a null: Zara no publica dos artículos bajo un mismo nombre de color, así que
+    // aquí el color solo ya identifica la galería (ver #123 y la 0023).
     expect(res.body.images).toEqual([
-      { color: 'Negro', url: NEGRO_0 },
-      { color: 'Rosa', url: ROSA_0 },
-      { color: 'Rosa', url: ROSA_1 },
+      { color: 'Negro', url: NEGRO_0, variantUrl: null },
+      { color: 'Rosa', url: ROSA_0, variantUrl: null },
+      { color: 'Rosa', url: ROSA_1, variantUrl: null },
     ]);
   });
 
@@ -912,7 +914,9 @@ describe.skipIf(!TEST_DB)('dos SKU para la misma prenda · ficha y recuento (e2e
 
   const ficha = async (id: number) => {
     const res = await request(app.getHttpServer()).get(`/api/catalog/products/${id}`).expect(200);
-    return res.body as { variants: { id: number; size: string; inStock: boolean }[] };
+    return res.body as {
+      variants: { id: number; size: string; inStock: boolean; url: string | null }[];
+    };
   };
 
   it('la misma ficha con dos SKU se enseña una sola vez, y con el stock de la cara viva', async () => {
@@ -929,6 +933,42 @@ describe.skipIf(!TEST_DB)('dos SKU para la misma prenda · ficha y recuento (e2e
     // Cada uno tiene su propia ficha en la tienda: colapsarlos escondería un destino real.
     const { variants } = await ficha(hmProduct);
     expect(variants).toHaveLength(2);
+  });
+
+  it('la galería de esos dos artículos viaja separada por ficha (#123)', async () => {
+    // Las dos caras comparten nombre de color ('BLANCO'), que es justo lo que hacía que sus fotos
+    // acabaran en el mismo saco: la ficha las pedía por color y le llegaban las de los dos.
+    await sql`
+      INSERT INTO product_image (product_id, color, position, url, variant_url)
+      VALUES (${hmProduct}, 'BLANCO', 0, 'https://img/003-a.jpg', 'https://hm/1315153003.html'),
+             (${hmProduct}, 'BLANCO', 1, 'https://img/003-b.jpg', 'https://hm/1315153003.html'),
+             (${hmProduct}, 'BLANCO', 2, 'https://img/005-a.jpg', 'https://hm/1315153005.html')`;
+    try {
+      const res = await request(app.getHttpServer())
+        .get(`/api/catalog/products/${hmProduct}`)
+        .expect(200);
+      const images = res.body.images as { color: string; url: string; variantUrl: string | null }[];
+
+      // El mismo color, pero cada foto sabe de qué artículo sale: con eso la ficha puede filtrar.
+      expect(images).toHaveLength(3);
+      expect(new Set(images.map((i) => i.color))).toEqual(new Set(['BLANCO']));
+      const porFicha = images.reduce<Record<string, number>>((acc, i) => {
+        acc[i.variantUrl ?? 'null'] = (acc[i.variantUrl ?? 'null'] ?? 0) + 1;
+        return acc;
+      }, {});
+      expect(porFicha).toEqual({
+        'https://hm/1315153003.html': 2,
+        'https://hm/1315153005.html': 1,
+      });
+
+      // Y la URL de cada foto es una de las que traen las variantes, que es la invariante que
+      // permite emparejarlas en la ficha (el equivalente del join por color de la 0011).
+      const { variants } = await ficha(hmProduct);
+      const urlsDeVariante = new Set(variants.map((v) => v.url));
+      for (const i of images) expect(urlsDeVariante.has(i.variantUrl)).toBe(true);
+    } finally {
+      await sql`DELETE FROM product_image WHERE product_id = ${hmProduct}`;
+    }
   });
 
   it('variantCount cuenta prendas comprables, no filas', async () => {

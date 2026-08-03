@@ -182,7 +182,10 @@ forma es ya el patrón para cualquier campo de texto que venga de las tiendas:
 2. **Se aplica solo a la COMPARACIÓN, jamás a la columna.** Además de conservar el texto que la ficha
    enseña, es una restricción dura: `product_image.color` está clavada por el **texto** de
    `variant.color` (migración 0011) y sostiene la foto de la tarjeta y la galería. Canonicalizar el
-   dato rompería ese join en silencio.
+   dato rompería ese join en silencio. Desde la `0023` la galería se clava **además** por
+   `product_image.variant_url` = `variant.url` (ver «Una variante no es siempre una cosa
+   comprable»): la restricción no cambia de forma, gana un segundo eje con la misma —texto crudo a
+   los dos lados, y quien escriba los dos tiene que sacarlos del mismo campo.
 3. **Índice por expresión obligatorio**, parcial por `delisted_at IS NULL`. Medido sobre el volumen de
    dev (33.311 variantes): el filtro por color pasa de 14,6 ms a 0,11 ms; el de talla, de ~1 s a
    1,4 ms. Y la faceta debe deduplicar el texto crudo **antes** de canonicalizar (866 ms → 13 ms en
@@ -542,9 +545,13 @@ Dos corolarios que costaron dinero descubrir:
 
 ### Shopify cobra por complejidad, no por peticiones
 
+> **Leer antes la sección *El 429 de Cacles va por conexión*.** Las cifras de aquí están medidas de
+> verdad, pero la causa que se les atribuyó no explica el patrón real, y varias de las
+> consecuencias de abajo salieron de ese malentendido.
+
 Medido contra Cacles el 31/07-01/08/2026. Una página con `limit=250` puntúa
-`shopify-complexity-score: 12400` y el cubo tarda **minutos** en rellenarse. Consecuencias
-prácticas:
+`shopify-complexity-score: 12400` (16810 el 03/08, con el catálogo ya crecido) y el cubo tarda
+**minutos** en rellenarse. Consecuencias prácticas:
 
 - **Bajar el tamaño de página no ayuda**: el coste es por producto devuelto, así que el mismo
   catálogo cuesta lo mismo repartido en más viajes.
@@ -567,10 +574,17 @@ Corrige lo que esta misma sección afirmaba: los 429 de Cacles **sí traen `Retr
 medido el 01/08/2026), y sobre todo, **no todos vienen de Shopify**. Delante hay un Cloudflare que
 ficha la **huella TLS del cliente**, y ese 429 es de otra especie aunque comparta código de estado:
 
+> **La tabla de abajo es falsa en su primera fila, y el 03/08/2026 costó una pasada de QA.** Se
+> conserva porque explica de dónde salió el error; lo que hay que leer es la sección siguiente,
+> *El 429 de Cacles va por conexión*. En resumen: los dos 429 son la **misma respuesta byte a
+> byte** —cuerpo `local_rate_limited` de 18 bytes, `Retry-After: 60`, `server: cloudflare`—, así
+> que el cuerpo **no** distingue la causa. Lo demás de esta sección (el ALPN, y que hay dos causas
+> distintas) sigue siendo cierto y sigue haciendo falta.
+
 | | 429 de presupuesto (Shopify) | 429 de huella (Cloudflare) |
 |---|---|---|
-| cuerpo | JSON / vacío | `local_rate_limited` |
-| depende de | cuántos productos has pedido | qué cliente eres |
+| cuerpo | ~~JSON / vacío~~ **también `local_rate_limited`** | `local_rate_limited` |
+| depende de | ~~cuántos productos has pedido~~ **de la conexión** | qué cliente eres |
 | se arregla | esperando minutos | cambiando el ClientHello |
 
 Lo medido: httpx recibía 429 en **todas** sus peticiones —también desde un pod del cluster—
@@ -592,14 +606,52 @@ Tres cosas que llevarse:
   cuesta segundos y separa las dos hipótesis; sin esa comparación, el diagnóstico natural («me he
   pasado pidiendo») es plausible, encaja con los hechos y es falso.
 
-Desde el 02/08/2026 esa distinción **está en el código y no solo aquí**: `es_429_de_huella()` mira
-el cuerpo y el de la huella se eleva a la primera (`HuellaTLSRechazada`) en vez de reintentarse.
-No es una optimización, es que reintentarlo era activamente malo: con los ajustes del CronJob
-(6 reintentos, backoff 8 s y el `Retry-After: 60`) son **~10,5 min de `activeDeadlineSeconds`**
-quemados para acabar elevando igual, y con un mensaje que apunta a la causa equivocada. El techo
-`httpx<0.29` en `pyproject.toml` está por lo mismo: el arreglo se apoya en un detalle **interno**
-de httpcore (que llame a `set_alpn_protocols()` sobre el contexto que recibe), así que el bump
-tiene que ser un PR donde toque re-verificarlo.
+El techo `httpx<0.29` en `pyproject.toml` está por esto: el arreglo se apoya en un detalle
+**interno** de httpcore (que llame a `set_alpn_protocols()` sobre el contexto que recibe), así que
+el bump tiene que ser un PR donde toque re-verificarlo. Re-verificado el 03/08/2026 con httpcore
+1.0.9: sigue llamándolo, y el control emparejado sigue dando 200 sin ALPN y 429 con él.
+
+### El 429 de Cacles va por conexión, y eso invalidó dos diagnósticos seguidos
+
+Medido el 03/08/2026 (#120), después de que la primera ejecución programada de Cacles en QA muriera
+en su segunda petición. **Una conexión sirve una petición pesada; la siguiente por esa misma
+conexión se lleva un 429.** Control emparejado y alternado, dos rondas idénticas, páginas 1-2-3 de
+`infantil`:
+
+| cómo se piden | resultado |
+|---|---|
+| un `httpx.Client` compartido | `[200, 429, 429]` |
+| compartido + cabecera `Connection: close` | `[200, 429, 429]` |
+| compartido + `max_keepalive_connections=0` | `[200, 429, 429]` |
+| **un `Client` nuevo por página** | **`[200, 200, 200]`** |
+
+Ni pedir el cierre ni desactivar el keep-alive bastan: hay que abrir un cliente nuevo. Por eso
+`cacles._pagina()` abre el suyo y `list_catalog()` **no** envuelve el bucle en un solo cliente —
+volver a hacerlo parece una limpieza obvia y deja la tienda sin ingerir en la segunda página, así
+que hay un test que lo fija.
+
+**El mecanismo no está medido** (si Cloudflare cuenta peticiones por conexión, o si el presupuesto
+de Shopify se atribuye a ella). Se deja escrito así a propósito: esta misma sección ha llevado dos
+explicaciones plausibles y sin medir, y las dos costaron una pasada.
+
+Lo que esto corrige de las dos secciones anteriores:
+
+- **El cuerpo no distingue las dos causas.** `es_429_de_huella()` se llamaba así porque se creía que
+  sí; renombrada a `tiene_marca_de_cloudflare()`, que es lo único que la marca prueba. El
+  discriminante bueno es el **historial**: el rechazo por huella se decide en el handshake, así que
+  un 200 previo lo descarta. `HuellaTLSRechazada` solo se eleva al agotar los reintentos sin un solo
+  200, y el 429 con marca se reintenta siempre.
+- **Elevar a la primera era peor que esperar.** Ahorraba ~10,5 min cuando la causa era la huella,
+  pero costaba la pasada entera cuando no lo era — y siendo la ingesta atómica, no quedaba nada.
+- **Bajar `_PAGE_SIZE` sigue sin ayudar, ahora por el motivo correcto**: con `limit=100` y `limit=50`
+  el 429 llega igual en la 2ª petición de la misma conexión. No es volumen.
+- **«El recon agota el presupuesto para el resto del día» era el mismo malentendido.** Las ráfagas
+  de captura de fixtures compartían cliente; lo que se veía como castigo acumulado era el límite por
+  conexión.
+
+Lo que sí generaliza a otras tiendas: **al depurar un 429, el cliente es una variable del
+experimento**. Si las sondas abren cliente por petición y el scraper lo comparte, se está midiendo
+otra cosa que la que falla — y las dos dan resultados coherentes y contradictorios.
 
 ### Que la web esté tras Akamai no significa que su API lo esté
 
@@ -847,9 +899,35 @@ Lefties con `missing_streak = 0` en las 9165 variantes).
 donde una fila del listado es producto+color y el `retailer_variant_id` es `{articleId}-{sizeId}`
 con el color ya dentro del `articleId`: dentro de un artículo no puede haber duplicados. Lo que hay
 son dos fichas de la tienda con el mismo nombre de color (`1315153003` y `1315153005`, las dos
-«Azul marino»). Colapsarlas escondería un destino real, así que se dejan — es #123, y lo que sí
-les pasa es que el chip de color no las distingue y la galería mezcla las fotos de las dos,
-rompiendo la coherencia foto↔precio que fijó #26.
+«Azul marino»). Colapsarlas escondería un destino real, así que se dejan.
+
+Eso obligó a admitir (#123, `0023`) que **dentro de un producto el nombre del color no siempre
+identifica al color**, que es el supuesto sobre el que la `0011` clavó `product_image` por el texto
+del color. Con ese supuesto roto, la ficha pedía las fotos por color y le llegaban las de los dos
+artículos: 126 galerías así en una pasada completa de H&M, la peor con **17 fotos de cinco
+vaqueros distintos** bajo un solo chip «Azul denim» — y con el segundo artículo inalcanzable, chip
+y enlace incluidos. Es exactamente la coherencia foto↔precio que #26 existía para garantizar.
+
+El discriminador no es un color mejor: es **la ficha de la tienda**, o sea la URL, el mismo
+criterio de #108. Tres decisiones que conviene no volver a discutir:
+
+- **`product_image.variant_url`, no cambiar la identidad del producto.** Hacer que un artículo de
+  H&M fuese un producto nuestro es más honesto con la tienda, pero cambia el `retailer_product_id`
+  de los 3.393 productos ya ingeridos —con `price_history` e intereses detrás—, deja a H&M sin
+  selector de color y toca el agrupado por raíz del que depende la detección de `unisex`.
+- **La columna NO entra en el `UNIQUE (product_id, color, position)`,** y `position` se sigue
+  numerando por color. Es lo que mantiene una sola fila por `(producto, color, position = 0)`, que
+  es lo que la consulta de la tarjeta da por hecho; quien necesita separar las dos referencias es
+  la ficha, y le basta como atributo de filtrado.
+- **Nada de sufijos en `variant.color`.** Era la vía sin migración y es la cara: ensucia
+  `color_canon`, la faceta de color del catálogo y `interest.color`, que se canonicaliza al dar de
+  alta y **no se recalcula**.
+
+Se puebla como la `0011`: sin backfill, según el detalle condicional y el refresco forzado vuelvan
+a pedir cada producto. Por eso la ficha lleva una cadena de respaldo cuyo segundo escalón —fotos de
+ese color con `variant_url IS NULL`— es el comportamiento de siempre, y es el que ven las otras
+seis tiendas y H&M hasta que le toque refresco. Aplicar la migración sin pasar el scraper detrás no
+cambia nada de lo que se ve.
 
 De ahí la clave con la que el web agrupa desde #108: **`(producto, talla canónica, color canónico,
 URL de la variante)`**. No es una lista blanca por tienda —que envejecería mal— y añadir la URL

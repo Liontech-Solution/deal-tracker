@@ -62,6 +62,12 @@ export interface VariantWithPrice {
 export interface ProductImageRef {
   color: string | null;
   url: string;
+  /**
+   * Ficha de la tienda de la que sale la foto (= `VariantWithPrice.url`). Solo la rellena H&M,
+   * donde dos artículos distintos pueden compartir nombre de color (#123); `null` en las demás
+   * tiendas y en lo ingerido antes de la 0023, y ahí el color solo ya identifica la galería.
+   */
+  variantUrl: string | null;
 }
 
 export interface ProductDetail

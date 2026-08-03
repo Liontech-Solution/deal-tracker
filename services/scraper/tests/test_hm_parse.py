@@ -62,6 +62,10 @@ _MUERTA = "hm_list_hoja_muerta.json"
 _FIN = "hm_list_fin_paginacion.json"
 _ZAPATOS = "hm_list_nina_zapatos.json"
 _BEBE = "hm_list_bebe_bodies.json"
+# Un solo modelo (1168042) recortado de /kids/boys/clothing/jeans, capturado el 03/08/2026: seis
+# artículos y DOS nombres de color repetidos dos veces cada uno ('Azul denim claro' y 'Azul denim
+# oscuro'). Es el caso de la #123, y en vaqueros es de lo más corriente.
+_VAQUEROS = "hm_list_nino_vaqueros.json"
 
 _CAT_NINO = CategoryConfig("/kids/boys/clothing/trousers", "niño", "ropa", "pantalones")
 _CAT_NINA = CategoryConfig("/kids/girls/clothing/trousers", "niña", "ropa", "pantalones")
@@ -290,6 +294,53 @@ def test_la_foto_se_atribuye_al_color_que_retrata() -> None:
     assert prod is not None and prod.images
     assert {i.color for i in prod.images} <= {v.color for v in prod.variants}
     assert prod.image_url == prod.images[0].url
+
+
+# --------------------------------------------------------------------------------------
+# Dos artículos con el mismo nombre de color (#123): el color no basta para atribuir la foto
+# --------------------------------------------------------------------------------------
+
+
+def test_dos_articulos_del_mismo_modelo_pueden_compartir_nombre_de_color() -> None:
+    """El supuesto que rompe esta tienda, fijado sobre dato real antes de probar el arreglo."""
+    filas = parse_filas(load_fixture(_VAQUEROS))
+    assert len({f.raiz for f in filas}) == 1, "la fixture es un solo modelo"
+    repetidos = {c for c in (f.color for f in filas) if [f.color for f in filas].count(c) > 1}
+    assert repetidos == {"Azul denim claro", "Azul denim oscuro"}
+    # Y son artículos distintos, cada uno con su ficha: por eso no se pueden fusionar.
+    for color in repetidos:
+        urls = {f.url for f in filas if f.color == color}
+        assert len(urls) == 2, f"{color} debería venir de dos fichas distintas"
+
+
+def test_la_foto_se_atribuye_tambien_a_la_ficha_de_la_que_sale() -> None:
+    """Sin `variant_url` las fotos de los dos «Azul denim oscuro» caían en el mismo saco."""
+    filas = parse_filas(load_fixture(_VAQUEROS))
+    prod = producto(filas, ScrapeScope("niño", "ropa", "pantalones"))
+    assert prod is not None and prod.images
+
+    # Cada foto lleva la URL de la fila de la que salió, la MISMA que llevan sus variantes.
+    urls_de_variante = {v.url for v in prod.variants}
+    assert {i.variant_url for i in prod.images} <= urls_de_variante
+
+    # Y el reparto es exactamente el de la tienda: ninguna ficha se queda con fotos de la otra.
+    por_fila = {f.url: len(f.images) for f in filas}
+    for url, esperadas in por_fila.items():
+        assert len([i for i in prod.images if i.variant_url == url]) == esperadas
+
+
+def test_el_color_solo_no_separa_las_dos_fichas_y_la_url_si() -> None:
+    """La medida de la #123 en pequeño: agrupando por color se mezclan, por (color, url) no."""
+    filas = parse_filas(load_fixture(_VAQUEROS))
+    prod = producto(filas, ScrapeScope("niño", "ropa", "pantalones"))
+    assert prod is not None
+
+    oscuras = [i for i in prod.images if i.color == "Azul denim oscuro"]
+    assert len({i.variant_url for i in oscuras}) == 2, "son dos prendas, no una"
+    # Que es justo lo que hacía que la galería enseñara 5 fotos de dos pantalones distintos.
+    assert len(oscuras) == 5
+    for url in {i.variant_url for i in oscuras}:
+        assert 0 < len([i for i in oscuras if i.variant_url == url]) < len(oscuras)
 
 
 # --------------------------------------------------------------------------------------
