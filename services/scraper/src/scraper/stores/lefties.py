@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import Any
 
@@ -52,6 +52,8 @@ from .base import (
     ScrapedProduct,
     ScrapedVariant,
     ScrapeScope,
+    ambito_cruzado,
+    con_unisex,
 )
 from .browser import BrowserHTTPError, BrowserSession
 
@@ -394,16 +396,23 @@ class LeftiesStore:
         self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
 
     def scopes(self) -> Iterable[ScrapeScope]:
-        out: list[ScrapeScope] = []
-        for c in self._categories:
-            scope = ScrapeScope(c.gender, c.section, c.category)
-            if scope not in out:
-                out.append(scope)
-        return out
+        """Los ámbitos de las hojas **más su equivalente `unisex`** (ver `base.con_unisex`).
+
+        14 productos (2,0 %) salen en las dos ramas de género y se emiten `unisex` (#98), así que
+        sin declarar esos ámbitos no se descatalogarían nunca.
+        """
+        return con_unisex(ScrapeScope(c.gender, c.section, c.category) for c in self._categories)
 
     def list_catalog(self) -> Iterable[ListingEntry]:
+        """Recorre las hojas y emite un producto por `productParentId`.
+
+        **Acumula la pasada entera antes de emitir**, como H&M e Hipercor: que un producto salga en
+        la rama de niña Y en la de niño —lo que lo hace `unisex`, #98— solo se sabe con todas las
+        hojas vistas, y el ámbito de una entrada ya emitida no se puede corregir.
+        """
         self._scan = ScanReport()
-        vistos: set[str] = set()
+        primera_entrada: dict[str, ListingEntry] = {}
+        hojas_por_producto: dict[str, list[ScrapeScope]] = {}
         with self._session_factory() as session:
             session.goto(BASE_URL)  # siembra las cookies de Akamai
             grids = grid_ids_by_category(session.get_json(_MENU_URL))
@@ -415,24 +424,49 @@ class LeftiesStore:
                     # Zara. Se salta, pero su ámbito sale de las bajas — el comentario que había
                     # aquí daba por hecho que la red por ámbito lo cubría, y no es así: `scopes()`
                     # se deriva de CATEGORIES, así que el ámbito seguía contando como escaneado.
-                    self._scan.leaf_gone(scope)
+                    self._hoja_comprometida(scope)
                     continue
                 try:
                     grid = session.get_json(_GRID_URL.format(grid_id=grid_id))
                 except BrowserHTTPError as exc:
                     if exc.status not in GONE_STATUS:
                         raise
-                    self._scan.leaf_gone(scope)
+                    self._hoja_comprometida(scope)
                     continue
                 self._scan.leaf_ok()
                 for entry in parse_listing_entries(grid, cat):
-                    # Dedup por id: un modelo puede aparecer en dos hojas (p.ej. barefoot también
-                    # cuelga de zapatos). Gana la primera, que fija su ámbito.
-                    if entry.retailer_product_id in vistos:
-                        continue
-                    vistos.add(entry.retailer_product_id)
-                    self._cat_by_product[entry.retailer_product_id] = cat
-                    yield entry
+                    pid = entry.retailer_product_id
+                    # Un modelo puede aparecer en varias hojas (p.ej. barefoot también cuelga de
+                    # zapatos). La primera fija sección, categoría y huella; el género sale del
+                    # conjunto de hojas, no de ella sola.
+                    if pid not in primera_entrada:
+                        primera_entrada[pid] = entry
+                        self._cat_by_product[pid] = cat
+                    hojas = hojas_por_producto.setdefault(pid, [])
+                    if scope not in hojas:
+                        hojas.append(scope)
+
+        for pid, entry in primera_entrada.items():
+            ambito = ambito_cruzado(hojas_por_producto[pid])
+            cat_primera = self._cat_by_product[pid]
+            # `fetch_details` construye la URL y el dominio desde esta `CategoryConfig`, así que se
+            # conserva la de la primera hoja (su `category_id`) con el género ya resuelto.
+            self._cat_by_product[pid] = replace(
+                cat_primera, gender=ambito.gender or cat_primera.gender
+            )
+            yield replace(
+                entry,
+                gender=ambito.gender,
+                section=ambito.section,
+                category=ambito.category,
+            )
+
+    def _hoja_comprometida(self, scope: ScrapeScope) -> None:
+        """Cuenta la hoja como caída y saca su ámbito —y el `unisex` equivalente— de las bajas.
+
+        El porqué de lo segundo está en `ScanReport.leaf_gone()`.
+        """
+        self._scan.leaf_gone(scope, tambien_unisex=True)
 
     def scan_report(self) -> ScanReport:
         """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""

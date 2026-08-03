@@ -62,7 +62,7 @@ import json
 import logging
 import re
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal, InvalidOperation
 from html import unescape
 from typing import Any
@@ -79,6 +79,8 @@ from .base import (
     ScrapedProduct,
     ScrapedVariant,
     ScrapeScope,
+    ambito_cruzado,
+    con_unisex,
 )
 from .browser import BrowserSession, BrowserUnreachable
 
@@ -200,10 +202,14 @@ _BEBE_NINO = f"{_INFANTIL}/bebe-nino-6-meses-a-3-anos"
 CATEGORIES: list[CategoryConfig] = [
     # --- zapatería (lo que más falta hace: hoy la sección depende casi entera de Cacles) ---
     # `nina` y `nino` van ANTES que `bebe` a propósito: las tres hojas se solapan (114+141+140
-    # frente a los 290 que declara el padre) y el dedup de `list_catalog` es "gana la primera",
-    # así que lo que tenga género declarado se queda con él y `bebe` solo aporta lo que no
-    # aparece en ninguna de las dos. `unisex` no es un apaño: el catálogo y el matching lo
-    # tratan como "sale en niño y en niña" (ver el ADR), que es justo lo que es una hoja de bebé.
+    # frente a los 290 que declara el padre) y la primera hoja es la que fija sección y categoría,
+    # así que `bebe` solo aporta lo que no aparece en ninguna de las dos. Que lo declarado con
+    # género se lo quede lo garantiza además `ambito_cruzado()`, que descarta las hojas `unisex`
+    # antes de mirar si hay cruce. `unisex` no es un apaño: el catálogo y el matching lo tratan
+    # como "sale en niño y en niña" (ver el ADR), que es justo lo que es una hoja de bebé.
+    #
+    # OJO: el género YA NO lo fija la primera hoja (#98). Un producto publicado en la rama de niña
+    # y en la de niño es `unisex` — 161 de 1222 productos medidos el 03/08/2026, el 13 %.
     CategoryConfig(f"{_INFANTIL}/zapatos-infantiles/nina", "niña", "zapateria", "zapatos"),
     CategoryConfig(f"{_INFANTIL}/zapatos-infantiles/nino", "niño", "zapateria", "zapatos"),
     CategoryConfig(f"{_INFANTIL}/zapatos-infantiles/bebe", "unisex", "zapateria", "zapatos"),
@@ -692,12 +698,14 @@ class HipercorStore:
     # --- recorrido ----------------------------------------------------------------------------
 
     def scopes(self) -> Iterable[ScrapeScope]:
-        vistos: list[ScrapeScope] = []
-        for cat in self._categories:
-            scope = ScrapeScope(cat.gender, cat.section, cat.category)
-            if scope not in vistos:
-                vistos.append(scope)
-        return vistos
+        """Los ámbitos de las hojas **más su equivalente `unisex`** (ver `base.con_unisex`).
+
+        El 13 % de esta tienda sale en las dos ramas de género y se emite `unisex` (#98), así que
+        sin declarar esos ámbitos sus productos no se descatalogarían nunca.
+        """
+        return con_unisex(
+            ScrapeScope(cat.gender, cat.section, cat.category) for cat in self._categories
+        )
 
     def _iter_category(
         self, session: BrowserSession, cat: CategoryConfig
@@ -746,9 +754,18 @@ class HipercorStore:
             raise LeafUnreadable(f"{cat.category_path}: {total} páginas supera el tope")
 
     def list_catalog(self) -> Iterable[ListingEntry]:
+        """Recorre las hojas y emite un producto por `code_a`.
+
+        **Acumula la pasada entera antes de emitir**, como H&M y a diferencia del resto. Es lo que
+        exige el cruce de géneros (#98): el 13 % de esta tienda sale en la rama de niña Y en la de
+        niño, y eso solo se sabe cuando se han visto todas las hojas — el ámbito de una entrada ya
+        emitida no se puede corregir. No cuesta memoria nueva: `ingest.py` ya hacía
+        `list(store.list_catalog())`, y son ~1.200 entradas.
+        """
         self._urls = {}
         self._scan = ScanReport()
-        emitidos: set[str] = set()
+        primera_entrada: dict[str, ListingEntry] = {}
+        hojas_por_producto: dict[str, list[ScrapeScope]] = {}
         with self._session_factory() as session:
             session.bloquear(_RUTA_VETADA)
             session.descartar_recursos(_RECURSOS_INUTILES)
@@ -758,12 +775,15 @@ class HipercorStore:
                     # El `try` envuelve el bucle entero porque `_iter_category` es un generador: el
                     # fallo de una página se ve al tirar de él, no al crearlo.
                     for entrada, _ in self._iter_category(session, cat):
-                        if entrada.retailer_product_id in emitidos:
-                            continue  # gana la primera, que es la que fija su ámbito
-                        emitidos.add(entrada.retailer_product_id)
-                        yield entrada
+                        pid = entrada.retailer_product_id
+                        # La primera hoja sigue fijando sección y categoría (y la huella); lo que
+                        # ya no fija sola es el género.
+                        primera_entrada.setdefault(pid, entrada)
+                        hojas = hojas_por_producto.setdefault(pid, [])
+                        if scope not in hojas:
+                            hojas.append(scope)
                 except (LeafGone, LeafUnreadable):
-                    self._scan.leaf_gone(scope)
+                    self._hoja_comprometida(scope)
                     continue
                 except Exception as exc:
                     # Red ancha a propósito (#107): una segunda pasada murió entera por un timeout
@@ -778,9 +798,25 @@ class HipercorStore:
                         type(exc).__name__,
                         exc,
                     )
-                    self._scan.leaf_gone(scope)
+                    self._hoja_comprometida(scope)
                     continue
                 self._scan.leaf_ok()
+
+        for pid, entrada in primera_entrada.items():
+            ambito = ambito_cruzado(hojas_por_producto[pid])
+            yield replace(
+                entrada,
+                gender=ambito.gender,
+                section=ambito.section,
+                category=ambito.category,
+            )
+
+    def _hoja_comprometida(self, scope: ScrapeScope) -> None:
+        """Cuenta la hoja como caída y saca su ámbito —y el `unisex` equivalente— de las bajas.
+
+        El porqué de lo segundo está en `ScanReport.leaf_gone()`.
+        """
+        self._scan.leaf_gone(scope, tambien_unisex=True)
 
     def scan_report(self) -> ScanReport:
         """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""

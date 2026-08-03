@@ -19,7 +19,7 @@ pasada (ver `ScanReport`).
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
@@ -101,6 +101,44 @@ class ScrapeScope:
     category: str | None
 
 
+def ambito_cruzado(hojas: Sequence[ScrapeScope]) -> ScrapeScope:
+    """El ámbito de un producto a partir de las hojas en las que ha aparecido.
+
+    **El género es `unisex` cuando el producto sale en hojas de géneros distintos**, que es lo que
+    la tienda está diciendo al publicarlo en las dos ramas. El catálogo y el matching ya tratan
+    `unisex` como «sale en niño y en niña» (`catalog/gender.sql.ts`, `matching.service.ts`), así que
+    no hace falta vocabulario nuevo — solo detectar el cruce, que es lo que la #98 echó en falta.
+
+    Una hoja ya declarada `unisex` (las de bebé, que no separan niño de niña) **no cuenta como
+    género propio**: se descarta antes de mirar si hay cruce. Así un producto que sale en la hoja de
+    niña y en la de bebé se queda en `niña`, que es la intención que Hipercor cuida a mano al poner
+    sus hojas con género por delante de la de bebé.
+
+    La sección y la categoría, en cambio, las fija **la primera hoja** que trajo el producto, como
+    en el resto de tiendas. Uno que salga en `pantalones` de una rama y en `ropa-interior` de otra
+    se queda con la primera: cruzar categorías es raro y no hay forma de decir «las dos».
+    """
+    generos = {h.gender for h in hojas}
+    reales = generos - {"unisex"}
+    primera = hojas[0]
+    gender = "unisex" if len(reales) != 1 else reales.pop()
+    return ScrapeScope(gender, primera.section, primera.category)
+
+
+def con_unisex(scopes: Iterable[ScrapeScope]) -> list[ScrapeScope]:
+    """Los ámbitos dados **más su equivalente `unisex`**, sin duplicar y en orden.
+
+    Lo segundo no es cosmético en una tienda que aplica `ambito_cruzado()`: los productos que
+    cruzan géneros se emiten como `unisex`, y un ámbito que no se declare aquí no cuenta como
+    escaneado en `ingest.py`, así que **sus productos no se descatalogan nunca**. Es el mismo
+    motivo por el que `cacles.py` declara el producto cartesiano de lo que su parser PUEDE emitir
+    en vez de lo que dicen sus hojas.
+    """
+    declarados = list(scopes)
+    unisex = [ScrapeScope("unisex", s.section, s.category) for s in declarados]
+    return list(dict.fromkeys([*declarados, *unisex]))
+
+
 @dataclass(frozen=True)
 class ListingEntry:
     """Producto tal y como aparece en el listado, con una huella para detectar cambios."""
@@ -147,11 +185,24 @@ class ScanReport:
         """Registra una hoja listada con éxito."""
         self.leaves_total += 1
 
-    def leaf_gone(self, scope: ScrapeScope) -> None:
-        """Registra una hoja que la tienda ya no sirve; su ámbito queda fuera de las bajas."""
+    def leaf_gone(self, scope: ScrapeScope, *, tambien_unisex: bool = False) -> None:
+        """Registra una hoja que la tienda ya no sirve; su ámbito queda fuera de las bajas.
+
+        `tambien_unisex` lo pasan las tiendas que resuelven el cruce de géneros con
+        `ambito_cruzado()`: un producto que salía en las dos ramas deja de verse en las dos en
+        cuanto cae una, y entonces se emitiría con el género de la rama superviviente en vez de
+        `unisex`. Sin sacar también ese ámbito de las bajas, una hoja caída descatalogaría
+        productos `unisex` que siguen perfectamente vivos.
+
+        Ese ámbito extra **no cuenta como una hoja más**: sumarlo a `leaves_failed` inflaría
+        `dead_ratio` y dispararía `SCRAPER_SCAN_MAX_DEAD_RATIO` antes de tiempo. Es una hoja
+        caída, no dos.
+        """
         self.leaves_total += 1
         self.leaves_failed += 1
         self.failed_scopes.add(scope)
+        if tambien_unisex and scope.gender != "unisex":
+            self.failed_scopes.add(ScrapeScope("unisex", scope.section, scope.category))
 
     @property
     def dead_ratio(self) -> float:
