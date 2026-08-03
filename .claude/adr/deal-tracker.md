@@ -542,9 +542,13 @@ Dos corolarios que costaron dinero descubrir:
 
 ### Shopify cobra por complejidad, no por peticiones
 
+> **Leer antes la sección *El 429 de Cacles va por conexión*.** Las cifras de aquí están medidas de
+> verdad, pero la causa que se les atribuyó no explica el patrón real, y varias de las
+> consecuencias de abajo salieron de ese malentendido.
+
 Medido contra Cacles el 31/07-01/08/2026. Una página con `limit=250` puntúa
-`shopify-complexity-score: 12400` y el cubo tarda **minutos** en rellenarse. Consecuencias
-prácticas:
+`shopify-complexity-score: 12400` (16810 el 03/08, con el catálogo ya crecido) y el cubo tarda
+**minutos** en rellenarse. Consecuencias prácticas:
 
 - **Bajar el tamaño de página no ayuda**: el coste es por producto devuelto, así que el mismo
   catálogo cuesta lo mismo repartido en más viajes.
@@ -567,10 +571,17 @@ Corrige lo que esta misma sección afirmaba: los 429 de Cacles **sí traen `Retr
 medido el 01/08/2026), y sobre todo, **no todos vienen de Shopify**. Delante hay un Cloudflare que
 ficha la **huella TLS del cliente**, y ese 429 es de otra especie aunque comparta código de estado:
 
+> **La tabla de abajo es falsa en su primera fila, y el 03/08/2026 costó una pasada de QA.** Se
+> conserva porque explica de dónde salió el error; lo que hay que leer es la sección siguiente,
+> *El 429 de Cacles va por conexión*. En resumen: los dos 429 son la **misma respuesta byte a
+> byte** —cuerpo `local_rate_limited` de 18 bytes, `Retry-After: 60`, `server: cloudflare`—, así
+> que el cuerpo **no** distingue la causa. Lo demás de esta sección (el ALPN, y que hay dos causas
+> distintas) sigue siendo cierto y sigue haciendo falta.
+
 | | 429 de presupuesto (Shopify) | 429 de huella (Cloudflare) |
 |---|---|---|
-| cuerpo | JSON / vacío | `local_rate_limited` |
-| depende de | cuántos productos has pedido | qué cliente eres |
+| cuerpo | ~~JSON / vacío~~ **también `local_rate_limited`** | `local_rate_limited` |
+| depende de | ~~cuántos productos has pedido~~ **de la conexión** | qué cliente eres |
 | se arregla | esperando minutos | cambiando el ClientHello |
 
 Lo medido: httpx recibía 429 en **todas** sus peticiones —también desde un pod del cluster—
@@ -592,14 +603,52 @@ Tres cosas que llevarse:
   cuesta segundos y separa las dos hipótesis; sin esa comparación, el diagnóstico natural («me he
   pasado pidiendo») es plausible, encaja con los hechos y es falso.
 
-Desde el 02/08/2026 esa distinción **está en el código y no solo aquí**: `es_429_de_huella()` mira
-el cuerpo y el de la huella se eleva a la primera (`HuellaTLSRechazada`) en vez de reintentarse.
-No es una optimización, es que reintentarlo era activamente malo: con los ajustes del CronJob
-(6 reintentos, backoff 8 s y el `Retry-After: 60`) son **~10,5 min de `activeDeadlineSeconds`**
-quemados para acabar elevando igual, y con un mensaje que apunta a la causa equivocada. El techo
-`httpx<0.29` en `pyproject.toml` está por lo mismo: el arreglo se apoya en un detalle **interno**
-de httpcore (que llame a `set_alpn_protocols()` sobre el contexto que recibe), así que el bump
-tiene que ser un PR donde toque re-verificarlo.
+El techo `httpx<0.29` en `pyproject.toml` está por esto: el arreglo se apoya en un detalle
+**interno** de httpcore (que llame a `set_alpn_protocols()` sobre el contexto que recibe), así que
+el bump tiene que ser un PR donde toque re-verificarlo. Re-verificado el 03/08/2026 con httpcore
+1.0.9: sigue llamándolo, y el control emparejado sigue dando 200 sin ALPN y 429 con él.
+
+### El 429 de Cacles va por conexión, y eso invalidó dos diagnósticos seguidos
+
+Medido el 03/08/2026 (#120), después de que la primera ejecución programada de Cacles en QA muriera
+en su segunda petición. **Una conexión sirve una petición pesada; la siguiente por esa misma
+conexión se lleva un 429.** Control emparejado y alternado, dos rondas idénticas, páginas 1-2-3 de
+`infantil`:
+
+| cómo se piden | resultado |
+|---|---|
+| un `httpx.Client` compartido | `[200, 429, 429]` |
+| compartido + cabecera `Connection: close` | `[200, 429, 429]` |
+| compartido + `max_keepalive_connections=0` | `[200, 429, 429]` |
+| **un `Client` nuevo por página** | **`[200, 200, 200]`** |
+
+Ni pedir el cierre ni desactivar el keep-alive bastan: hay que abrir un cliente nuevo. Por eso
+`cacles._pagina()` abre el suyo y `list_catalog()` **no** envuelve el bucle en un solo cliente —
+volver a hacerlo parece una limpieza obvia y deja la tienda sin ingerir en la segunda página, así
+que hay un test que lo fija.
+
+**El mecanismo no está medido** (si Cloudflare cuenta peticiones por conexión, o si el presupuesto
+de Shopify se atribuye a ella). Se deja escrito así a propósito: esta misma sección ha llevado dos
+explicaciones plausibles y sin medir, y las dos costaron una pasada.
+
+Lo que esto corrige de las dos secciones anteriores:
+
+- **El cuerpo no distingue las dos causas.** `es_429_de_huella()` se llamaba así porque se creía que
+  sí; renombrada a `tiene_marca_de_cloudflare()`, que es lo único que la marca prueba. El
+  discriminante bueno es el **historial**: el rechazo por huella se decide en el handshake, así que
+  un 200 previo lo descarta. `HuellaTLSRechazada` solo se eleva al agotar los reintentos sin un solo
+  200, y el 429 con marca se reintenta siempre.
+- **Elevar a la primera era peor que esperar.** Ahorraba ~10,5 min cuando la causa era la huella,
+  pero costaba la pasada entera cuando no lo era — y siendo la ingesta atómica, no quedaba nada.
+- **Bajar `_PAGE_SIZE` sigue sin ayudar, ahora por el motivo correcto**: con `limit=100` y `limit=50`
+  el 429 llega igual en la 2ª petición de la misma conexión. No es volumen.
+- **«El recon agota el presupuesto para el resto del día» era el mismo malentendido.** Las ráfagas
+  de captura de fixtures compartían cliente; lo que se veía como castigo acumulado era el límite por
+  conexión.
+
+Lo que sí generaliza a otras tiendas: **al depurar un 429, el cliente es una variable del
+experimento**. Si las sondas abren cliente por petición y el scraper lo comparte, se está midiendo
+otra cosa que la que falla — y las dos dan resultados coherentes y contradictorios.
 
 ### Que la web esté tras Akamai no significa que su API lo esté
 
