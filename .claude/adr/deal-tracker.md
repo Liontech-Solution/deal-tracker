@@ -1071,6 +1071,18 @@ huella de listado no cambia pasa por `_touch_seen()`, que solo refresca `last_se
 corrección llega por el **refresco forzado** (`SCRAPER_DETAIL_MAX_AGE_DAYS` / `_REFRESH_MAX`) y
 tarda varias pasadas en barrer el catálogo.
 
+**Y por eso existe `--refresh-all` (#143).** El umbral del refresco es un entero en días y el `0`
+no significa «refresca todo» sino que lo **desactiva**, así que reparar un entorno recién ingerido
+era imposible: en `dev` el Job de cura de Lefties refrescó **0 productos** porque al `last_detail_at`
+más viejo le faltaban 2 h 33 min para cumplir el día, y la única salida era esperar al reloj. La
+bandera (o `SCRAPER_DETAIL_REFRESH_ALL=1`) pide el detalle de todo lo sin cambios sin mirar la edad.
+Salta el umbral de **edad**, no el de **presupuesto**: `SCRAPER_DETAIL_REFRESH_MAX` se sigue
+aplicando, y no es un detalle burocrático — sin ese tope, esto contra Hipercor son 1 224 fichas a
+~10 s cada una, o sea las tres horas y media de una pasada en frío disparadas sin querer desde un
+Job de cura. La regla general que deja: **cualquier arreglo que cambie la forma de lo ingerido
+necesita, además del código, una pasada de reobservación que lo propague** — el código nuevo solo
+gobierna lo que se vuelva a mirar.
+
 **Contar `unisex` en la base no mide el cruce, y confundir las dos cosas costó #139.** El `unisex`
 almacenado tiene dos orígenes que la columna no distingue: el cruce, y las **hojas ya declaradas
 `unisex`** en `CATEGORIES` (bebé en Hipercor, newborn en H&M y Mango). Lefties no declara ninguna,

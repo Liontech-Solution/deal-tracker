@@ -45,6 +45,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="sondea las hojas de categoría y sale != 0 si alguna ha caducado (no ingiere)",
     )
     parser.add_argument(
+        "--refresh-all",
+        action="store_true",
+        help="pide el detalle de todo el catálogo aunque nada haya cambiado y por reciente que "
+        "sea (repara lo ya ingerido); sigue acotado por SCRAPER_DETAIL_REFRESH_MAX",
+    )
+    parser.add_argument(
         "--tree",
         metavar="RUTA",
         help="lista las categorías que la tienda publica bajo RUTA y marca cuáles ingerimos",
@@ -181,6 +187,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run:
         return _dry_run(config, args.retailer)
 
+    # La bandera es para el Job de un solo uso que se lanza a mano; la variable de entorno, para un
+    # CronJob que quiera nacer con la reobservación puesta. Cualquiera de las dos la activa (#143).
+    refresh_all = args.refresh_all or config.detail_refresh_all
+
     store = get_store(args.retailer, config)
     with db.connect(config) as conn:
         if args.migrate:
@@ -198,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
                 delist_probe_max=config.delist_probe_max,
                 detail_max_age_days=config.detail_max_age_days,
                 detail_refresh_max=config.detail_refresh_max,
+                detail_refresh_all=refresh_all,
                 scan_max_dead_ratio=config.scan_max_dead_ratio,
             )
         except CatalogScanAborted as exc:
@@ -220,13 +231,17 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"⚠ {result.gender_stale} productos guardan un género distinto del que dice el "
             "listado: solo se reescribe al pedir el detalle, así que vienen de una pasada anterior "
-            "a algún arreglo de género. Los corrige el refresco forzado "
-            "(SCRAPER_DETAIL_MAX_AGE_DAYS) o una pasada que les cambie la huella."
+            "a algún arreglo de género. Los corrige una pasada con --refresh-all, el refresco "
+            "forzado (SCRAPER_DETAIL_MAX_AGE_DAYS) o una que les cambie la huella."
         )
     if result.details_refreshed:
+        motivo = (
+            f"--refresh-all: sin mirar la edad, tope {config.detail_refresh_max}"
+            if refresh_all
+            else f"con el detalle rancio, > {config.detail_max_age_days} días"
+        )
         print(
-            f"refresco forzado: {result.details_refreshed} productos con el detalle rancio "
-            f"(> {config.detail_max_age_days} días) vueltos a observar"
+            f"refresco forzado: {result.details_refreshed} productos vueltos a observar ({motivo})"
         )
     if result.products_missing or result.variants_missing:
         print(

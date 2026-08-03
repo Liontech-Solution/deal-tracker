@@ -42,6 +42,13 @@ class Config:
     # de lo más rancio, acotado por pasada. `detail_max_age_days=0` desactiva el refresco.
     detail_max_age_days: int = 7
     detail_refresh_max: int = 100
+    # Reobservación bajo demanda (#143): ignora la EDAD y pide el detalle de todo lo sin cambios.
+    # Existe porque un arreglo que cambia la forma del dato (el género de #98, y valdría igual para
+    # la categoría o `barefoot`) solo se propaga al pedir la ficha, y con el umbral en días un
+    # catálogo ingerido hace unas horas no se podía volver a mirar: había que esperar al reloj.
+    # NO ignora `detail_refresh_max`, que sigue siendo el presupuesto de la pasada — sin ese tope,
+    # esto contra Hipercor son 1224 fichas a ~10 s, o sea tres horas y media.
+    detail_refresh_all: bool = False
     # Hojas de categoría caídas (404): una suelta se salta y su ámbito queda fuera de las bajas,
     # pero por encima de esta proporción la pasada aborta sin escribir — tantas hojas muertas no
     # son categorías retiradas, son un bloqueo o un cambio de API.
@@ -86,6 +93,8 @@ class Config:
             delist_probe_max=int(env.get("SCRAPER_DELIST_PROBE_MAX", "50")),
             detail_max_age_days=int(env.get("SCRAPER_DETAIL_MAX_AGE_DAYS", "7")),
             detail_refresh_max=int(env.get("SCRAPER_DETAIL_REFRESH_MAX", "100")),
+            detail_refresh_all=env.get("SCRAPER_DETAIL_REFRESH_ALL", "0")
+            not in ("0", "false", "False"),
             scan_max_dead_ratio=float(env.get("SCRAPER_SCAN_MAX_DEAD_RATIO", "0.34")),
             browser_headless=env.get("SCRAPER_BROWSER_HEADLESS", "1")
             not in ("0", "false", "False"),
