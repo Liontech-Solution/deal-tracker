@@ -154,6 +154,8 @@ export class CatalogService {
                p.retailer_product_id, p.name, p.gender, p.section, p.category, p.barefoot, p.url,
                p.image_url,
                v.id AS variant_id, v.color, l.price, l.list_price, l.discount_pct, l.in_stock,
+               -- Para contar prendas comprables y no filas (#108); ver variant_count más abajo.
+               size_canon(v.size) AS size_canon, COALESCE(v.url, p.url) AS variant_url,
                s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points
         FROM product p
         JOIN retailer r ON r.id = p.retailer_id
@@ -200,7 +202,12 @@ export class CatalogService {
                -- foto del "primer color" junto al precio de la variante más barata puede mezclar.
                (array_agg(color ORDER BY in_stock DESC, price ASC))[1] AS color_repr,
                BOOL_OR(in_stock) AS any_in_stock,
-               COUNT(variant_id) AS variant_count
+               -- Prendas comprables, no filas: la misma clave con la que la ficha colapsa las
+               -- caras duplicadas (#108). Sin esto, un producto de Lefties con las 22 tallas
+               -- publicadas dos veces declara 44 variantes. Los coalesce evitan que una fila
+               -- con talla, color y URL a NULL forme una ROW toda nula, que COUNT no contaría.
+               COUNT(DISTINCT (coalesce(size_canon, ''), coalesce(color_canon(color), ''),
+                               coalesce(variant_url, ''))) AS variant_count
         FROM matched
         GROUP BY id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
                  name, gender, section, category, barefoot, url, image_url
@@ -319,14 +326,43 @@ export class CatalogService {
         FROM latest l
         JOIN price_history h ON h.variant_id = l.variant_id AND h.scraped_at < l.scraped_at
         GROUP BY l.variant_id
+      ),
+      -- Una fila por PRENDA COMPRABLE, no por variante (#108). Lefties, H&M e Hipercor publican
+      -- la misma talla y color con dos SKU distintos: los dos son reales y estables, así que
+      -- entran los dos en la base, pero la ficha tiene que enseñar una sola fila o el usuario ve
+      -- la misma talla dos veces y el precio que se pinta puede ser el de la cara agotada.
+      --
+      -- La URL entra en la clave a propósito: es lo que separa las dos caras de Lefties o
+      -- Hipercor —que comparten ficha en la tienda, así que colapsarlas no le quita al usuario
+      -- ningún sitio al que ir— de los dos ARTÍCULOS distintos que H&M publica con el mismo
+      -- modelo y el mismo nombre de color, cada uno con su propia ficha (medido en dev el
+      -- 03/08/2026: 803 grupos así). Añadirla solo puede partir grupos, nunca unirlos.
+      --
+      -- Se agrupa por coalesce(v.url, '') y no por coalesce(v.url, p.url) porque aquí todas las
+      -- filas son del
+      -- mismo producto: el respaldo sería el mismo para todas y solo hace falta que los NULL
+      -- caigan juntos.
+      --
+      -- La baja también parte el grupo: una cara dada de baja no debe absorber a una viva.
+      prenda AS (
+        SELECT (array_agg(v.id ORDER BY l.in_stock DESC NULLS LAST, l.price ASC NULLS LAST, v.id))[1]
+                 AS variant_id,
+               -- La disponibilidad real de la talla es el OR de las dos caras: en 387 grupos de
+               -- Lefties una está a la venta y la otra no.
+               BOOL_OR(l.in_stock) AS in_stock
+        FROM variant v
+        LEFT JOIN latest l ON l.variant_id = v.id
+        WHERE v.product_id = ${id}
+        GROUP BY size_canon(v.size), color_canon(v.color), coalesce(v.url, ''),
+                 (v.delisted_at IS NULL)
       )
       SELECT v.id, v.retailer_variant_id, v.size, v.color, v.sku, v.url, v.delisted_at,
-             l.price, l.list_price, l.discount_pct, l.in_stock, l.scraped_at,
+             l.price, l.list_price, l.discount_pct, g.in_stock, l.scraped_at,
              s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points
-      FROM variant v
+      FROM prenda g
+      JOIN variant v ON v.id = g.variant_id
       LEFT JOIN latest l ON l.variant_id = v.id
       LEFT JOIN stats s ON s.variant_id = v.id
-      WHERE v.product_id = ${id}
       ORDER BY v.id
     `)) as unknown as Record<string, unknown>[];
 

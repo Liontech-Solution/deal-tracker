@@ -6,6 +6,7 @@ import { Database, DRIZZLE } from '../database/database.module';
 import { notification } from '../database/schema';
 import { TelegramApiClient } from '../telegram/telegram-api.client';
 import { evaluateDeal } from './deal-rule';
+import { collapseSameGarment } from './dedupe';
 import { buildDigest } from './message';
 import type { CandidateRow, Deal, MatchingSummary } from './matching.types';
 
@@ -37,18 +38,22 @@ export class MatchingService {
     const watermark = await this.readWatermark();
     const rows = await this.findCandidates(watermark);
 
-    const deals: Deal[] = [];
+    const evaluadas: Deal[] = [];
     let maxRunId = watermark;
     for (const row of rows) {
       maxRunId = Math.max(maxRunId, row.scrapeRunId);
       const verdict = evaluateDeal(row);
       if (verdict.notify) {
-        deals.push({ row, verdict, priceEventKey: `${row.scrapeRunId}:${row.price}` });
+        evaluadas.push({ row, verdict, priceEventKey: `${row.scrapeRunId}:${row.price}` });
       }
     }
 
+    // Dos SKU de la misma prenda son un solo aviso (#108). Ver `collapseSameGarment`.
+    const { kept: deals, collapsed } = collapseSameGarment(evaluadas);
+
     this.logger.log(
-      `Lote desde scrape_run > ${watermark}: ${rows.length} candidato(s), ${deals.length} oferta(s)`,
+      `Lote desde scrape_run > ${watermark}: ${rows.length} candidato(s), ${deals.length} oferta(s)` +
+        (collapsed > 0 ? `, ${collapsed} cara(s) duplicada(s) colapsada(s)` : ''),
     );
 
     const summary: MatchingSummary = {
@@ -56,6 +61,7 @@ export class MatchingService {
       watermark: maxRunId,
       candidates: rows.length,
       deals: deals.length,
+      duplicatesCollapsed: collapsed,
       notified: 0,
       usersNotified: 0,
       failedSends: 0,
@@ -132,6 +138,10 @@ export class MatchingService {
       SELECT i.id AS interest_id, i.user_id, i.min_discount_pct, i.compare_base, i.window_days,
              u.telegram_chat_id,
              b.variant_id, b.price, b.list_price, b.scrape_run_id, b.size, b.color,
+             -- Las cuatro piezas con las que se decide que dos variantes son la misma prenda
+             -- comprable (#108). Las canónicas salen de la base, que es donde vive la única
+             -- definición de "misma talla" y "mismo color" que usa también el WHERE de arriba.
+             b.product_id, size_canon(b.size) AS size_canon, color_canon(b.color) AS color_canon,
              b.product_name, b.product_url, b.retailer_name,
              st.recent_min, st.max_observed, st.prior_points
       FROM batch b
@@ -182,6 +192,9 @@ export class MatchingService {
       scrapeRunId: Number(r.scrape_run_id),
       size: r.size,
       color: r.color,
+      productId: Number(r.product_id),
+      sizeCanon: r.size_canon,
+      colorCanon: r.color_canon,
       productName: r.product_name,
       productUrl: r.product_url,
       retailerName: r.retailer_name,
@@ -279,6 +292,9 @@ interface RawCandidate {
   scrape_run_id: string | number;
   size: string | null;
   color: string | null;
+  product_id: string | number;
+  size_canon: string | null;
+  color_canon: string | null;
   product_name: string;
   product_url: string | null;
   retailer_name: string;

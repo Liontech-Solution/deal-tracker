@@ -408,4 +408,81 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
       SELECT last_scrape_run_id FROM job_state WHERE job = 'matching'`;
     expect(Number(state.last_scrape_run_id)).toBe(runId);
   });
+
+  /**
+   * Segunda cara de la MISMA talla y color, con otro SKU: es lo que publican Lefties, H&M e
+   * Hipercor (#108). Baja al mismo precio y en la misma pasada que la sembrada, que es lo que
+   * pasa siempre en la realidad —las dos caras comparten precio en el 100 % de los grupos—.
+   *
+   * `url` es lo que decide si son la misma prenda (misma ficha en la tienda) o dos artículos
+   * distintos que la tienda publica por separado.
+   */
+  async function seedSegundaCara(url: string | null): Promise<number> {
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku, url)
+      VALUES (${seeded.productId}, 'ZARA-1-24-rojo-bis', '24', 'rojo', 'SKU24BIS', ${url})
+      RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at,
+                                 scrape_run_id)
+      VALUES (${v.id}, 39.99, 39.99, 0, true, now() - interval '2 days', NULL),
+             (${v.id}, 19.99, 39.99, 50, true, now(), ${runId})`;
+    return Number(v.id);
+  }
+
+  it('dos SKU de la misma prenda: un solo aviso (#108)', async () => {
+    const user = await seedLinkedUser('kc-match-dup', 911);
+    await seedInterest(user.id);
+    const bis = await seedSegundaCara(null); // misma ficha que la sembrada (las dos con url NULL)
+    const { client, sent } = fakeTelegram();
+
+    const summary = await makeService(client).run(false);
+
+    // Las dos caras son candidatas y las dos son oferta, pero es una sola prenda comprable.
+    expect(summary.candidates).toBe(2);
+    expect(summary.deals).toBe(1);
+    expect(summary.duplicatesCollapsed).toBe(1);
+    expect(sent).toHaveLength(1);
+    expect(await countNotifications()).toBe(1);
+
+    // Gana la de menor id a igualdad de precio: determinista entre pasadas.
+    const [n] = await sql<{ variant_id: string }[]>`SELECT variant_id FROM notification`;
+    expect(Number(n.variant_id)).toBe(Number(seeded.variantId));
+    expect(Number(n.variant_id)).not.toBe(bis);
+  });
+
+  it('dos artículos distintos con el mismo color: siguen siendo dos avisos (el caso de H&M)', async () => {
+    // Los 803 grupos de H&M no son dos caras de lo mismo: son dos referencias con su propia
+    // ficha. Sin esta prueba, "simplificar" la clave quitando la URL las borraría en silencio.
+    const user = await seedLinkedUser('kc-match-dup-hm', 912);
+    await seedInterest(user.id);
+    await seedSegundaCara('https://x/1315153005.html');
+    const { client, sent } = fakeTelegram();
+
+    const summary = await makeService(client).run(false);
+
+    expect(summary.deals).toBe(2);
+    expect(summary.duplicatesCollapsed).toBe(0);
+    expect(sent).toHaveLength(1); // un digest por usuario, con las dos prendas dentro
+    expect(await countNotifications()).toBe(2);
+  });
+
+  it('el colapso es estable: rebobinar la marca de agua no cuela el aviso por la otra cara', async () => {
+    const user = await seedLinkedUser('kc-match-dup-rewind', 913);
+    await seedInterest(user.id);
+    await seedSegundaCara(null);
+    const { client, sent } = fakeTelegram();
+    const service = makeService(client);
+
+    await service.run(false);
+    await sql`UPDATE job_state SET last_scrape_run_id = 0 WHERE job = 'matching'`;
+    const second = await service.run(false);
+
+    // Si el representante cambiara entre pasadas, la fila de notification del primero no
+    // protegería al segundo y el usuario recibiría el mismo aviso otra vez.
+    expect(second.candidates).toBe(2);
+    expect(second.notified).toBe(0);
+    expect(sent).toHaveLength(1);
+    expect(await countNotifications()).toBe(1);
+  });
 });

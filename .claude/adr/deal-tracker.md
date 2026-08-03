@@ -750,31 +750,54 @@ hoja los declare, porque un ámbito no declarado no cuenta como escaneado y sus 
 descatalogan nunca — el mismo motivo por el que Cacles declara el producto cartesiano de lo que su
 parser *puede* emitir.
 
-### Una variante no es siempre una cosa comprable, y el aviso da eso por hecho
+### Una variante no es siempre una cosa comprable, y la URL es lo que distingue los dos casos
 
 El modelo asume que `(producto, talla, color)` identifica una prenda comprable, y `variant` la
-representa con el id que da la tienda. **En tres de las siete tiendas eso es falso**: publican la
-misma talla y el mismo color **dos veces, con dos SKU distintos** bajo el mismo modelo. Medido el
-02/08/2026: **979 variantes en Lefties** (78 de sus 699 productos), **925 en H&M**, **89 en
-Hipercor**; Zara, Sfera, Cacles y C&A a cero. Comprobado contra el JSON crudo de Lefties, así que es
-dato de la tienda y no artefacto del parseo — dos referencias suyas agrupadas bajo un mismo
-`productParentId`, probablemente una reposición.
+representa con el id que da la tienda. **En tres de las siete tiendas eso es falso**, y con dos
+causas distintas que en la base se ven idénticas. Medido el 03/08/2026 sobre `dev`, contando grupos
+`(producto, talla canónica, color canónico)` con más de una variante viva:
 
-El identificador **no** es el problema: los SKU son distintos y estables (segunda pasada de Lefties
-con `missing_streak = 0` en las 9165 variantes). El problema es lo que cuelga de esa suposición:
+| tienda | grupos | misma URL de variante | URLs distintas |
+|---|---:|---:|---:|
+| lefties | 815 | **815** | 0 |
+| hipercor | 108 | **108** | 0 |
+| hm | 854 | 51 | **803** (105 productos) |
+| zara, sfera, cacles, c-and-a | 0 | — | — |
 
-- **El aviso se duplica.** `notification` deduplica por `UNIQUE (interest_id, variant_id,
-  price_event_key)`, y son dos `variant_id`. Como el precio de las dos caras **coincide siempre**
-  (815 de 815 grupos), cuando una baja bajan las dos: dos mensajes de Telegram con el mismo
-  producto, talla, color y precio. Es justo el fallo que esa UNIQUE existía para evitar, entrando
-  por la puerta que no vigila.
-- **El stock por talla queda ambiguo.** Las dos caras discrepan en el stock en **387 de 815 grupos
-  (47 %)**, así que la disponibilidad real de esa talla es el `OR` de las dos y hoy no se calcula.
+**Cuando las dos caras comparten URL son la misma prenda con dos SKU.** Es lo de Lefties e
+Hipercor: dos referencias de la tienda bajo un mismo `productParentId` —probablemente una
+reposición—, comprobado contra el JSON crudo, así que es dato de la tienda y no artefacto del
+parseo. El identificador **no** es el problema: los SKU son distintos y estables (segunda pasada de
+Lefties con `missing_streak = 0` en las 9165 variantes).
 
-Sin decidir dónde se resuelve (tienda, catálogo o aviso) — es #108. Lo que sí conviene saber al
-añadir tienda: **la comprobación es una línea** (`count(*) - count(distinct (p.id, v.size,
-v.color))`) y no la hace ningún test con fixtures, porque el patrón solo aparece con el catálogo
-entero delante.
+**Cuando las URLs difieren son dos artículos distintos que nuestro `product` junta.** Es lo de H&M,
+donde una fila del listado es producto+color y el `retailer_variant_id` es `{articleId}-{sizeId}`
+con el color ya dentro del `articleId`: dentro de un artículo no puede haber duplicados. Lo que hay
+son dos fichas de la tienda con el mismo nombre de color (`1315153003` y `1315153005`, las dos
+«Azul marino»). Colapsarlas escondería un destino real, así que se dejan — es #123, y lo que sí
+les pasa es que el chip de color no las distingue y la galería mezcla las fotos de las dos,
+rompiendo la coherencia foto↔precio que fijó #26.
+
+De ahí la clave con la que el web agrupa desde #108: **`(producto, talla canónica, color canónico,
+URL de la variante)`**. No es una lista blanca por tienda —que envejecería mal— y añadir la URL
+solo puede **partir** grupos, nunca unirlos, así que las cuatro tiendas limpias no pagan nada.
+
+Se resuelve **aguas abajo, nunca en la ingesta**: colapsar al parsear descartaría un SKU que el
+retailer considera real y obligaría a elegir cuál sobrevive; una elección que bailara entre pasadas
+generaría bajas falsas. En el aviso, `collapseSameGarment()` colapsa las ofertas **ya evaluadas**
+—una cara que no supera el umbral no debe silenciar a la otra— quedándose con el precio menor y, a
+igualdad, el `variantId` menor: ese desempate es lo que hace el colapso determinista entre pasadas
+y deja que el `UNIQUE (interest_id, variant_id, price_event_key)` de la `0005` siga protegiendo si
+se rebobina la marca de agua. En la ficha, una fila por prenda con `BOOL_OR` del stock, porque las
+dos caras discrepan en stock en **387 de 815 grupos** de Lefties y en todo `dev` hay **408 grupos
+cuya talla solo se ve comprable haciendo ese OR**. `price_history` se deja con sus dos filas por
+talla real: no rompe nada —mínimo histórico y honestidad se calculan por variante— y arreglarlo
+exigiría tocar la ingesta.
+
+Lo que conviene saber al **añadir tienda**: la comprobación es una consulta
+(`count(*) - count(distinct (p.id, v.size, v.color))`, y la URL para saber cuál de los dos casos
+es) y **no la hace ningún test con fixtures**, porque el patrón solo aparece con el catálogo entero
+delante.
 
 ### El vocabulario de categorías diverge entre tiendas, y es deliberado
 
