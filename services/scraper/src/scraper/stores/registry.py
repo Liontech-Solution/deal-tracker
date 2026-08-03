@@ -11,6 +11,7 @@ from .cacles import CaclesStore
 from .hipercor import HipercorStore
 from .hm import HMStore
 from .lefties import LeftiesStore
+from .mango import MangoStore
 from .sfera import SferaStore
 from .zara import ZaraStore
 
@@ -23,6 +24,7 @@ _STORES: dict[str, Callable[[Config], BaseStore]] = {
     CAndAStore.slug: CAndAStore,
     HipercorStore.slug: HipercorStore,
     HMStore.slug: HMStore,
+    MangoStore.slug: MangoStore,
 }
 
 
