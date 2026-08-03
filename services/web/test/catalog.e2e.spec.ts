@@ -834,3 +834,109 @@ describe.skipIf(!TEST_DB)('género unisex · catálogo (e2e)', () => {
     expect(res.body.genders.sort()).toEqual(['niña', 'niño']);
   });
 });
+
+describe.skipIf(!TEST_DB)('dos SKU para la misma prenda · ficha y recuento (e2e)', () => {
+  let sql: postgres.Sql;
+  let app: INestApplication;
+  let lefties: number;
+  let hm: number;
+
+  /**
+   * Producto con dos variantes que repiten talla y color, como publican Lefties, H&M e Hipercor
+   * (#108). `url` es lo que decide si son la misma prenda o dos artículos distintos de la tienda.
+   */
+  async function seedDosCaras(
+    retailerId: number,
+    name: string,
+    urls: [string, string],
+    stock: [boolean, boolean],
+  ): Promise<number[]> {
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${retailerId}, ${name}, ${name}, 'niña', 'zapateria', 'barefoot', 'si', ${urls[0]})
+      RETURNING id`;
+    const ids: number[] = [];
+    for (const [i, url] of urls.entries()) {
+      const [v] = await sql<{ id: number }[]>`
+        INSERT INTO variant (product_id, retailer_variant_id, size, color, sku, url)
+        VALUES (${p.id}, ${`${name}-${i}`}, '27', 'BLANCO', ${`${name}-sku-${i}`}, ${url})
+        RETURNING id`;
+      ids.push(Number(v.id));
+      await sql`
+        INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+        VALUES (${v.id}, 19.99, 39.99, 50, ${stock[i]}, now())`;
+    }
+    return [Number(p.id), ...ids];
+  }
+
+  let lefProduct: number;
+  let lefMuerta: number;
+  let lefViva: number;
+  let hmProduct: number;
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    const [l] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('lefties', 'Lefties', 'https://www.lefties.com') RETURNING id`;
+    const [h] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('hm', 'H&M', 'https://www2.hm.com') RETURNING id`;
+    lefties = l.id;
+    hm = h.id;
+
+    // Lefties: las dos caras cuelgan de la MISMA ficha. La primera por id está agotada.
+    [lefProduct, lefMuerta, lefViva] = await seedDosCaras(
+      lefties,
+      'Zapatilla retro barefoot',
+      ['https://lefties/zapatilla', 'https://lefties/zapatilla'],
+      [false, true],
+    );
+    // H&M: dos artículos distintos, cada uno con su ficha.
+    [hmProduct] = await seedDosCaras(
+      hm,
+      'Pantalón en mezcla de lino',
+      ['https://hm/1315153003.html', 'https://hm/1315153005.html'],
+      [false, true],
+    );
+
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  const ficha = async (id: number) => {
+    const res = await request(app.getHttpServer()).get(`/api/catalog/products/${id}`).expect(200);
+    return res.body as { variants: { id: number; size: string; inStock: boolean }[] };
+  };
+
+  it('la misma ficha con dos SKU se enseña una sola vez, y con el stock de la cara viva', async () => {
+    const { variants } = await ficha(lefProduct);
+    expect(variants).toHaveLength(1);
+    expect(variants[0].id).toBe(lefViva);
+    expect(variants[0].size).toBe('27');
+    // La disponibilidad de la talla es el OR de las dos caras: la talla 27 SÍ se puede comprar.
+    expect(variants[0].inStock).toBe(true);
+    expect(variants.map((v) => v.id)).not.toContain(lefMuerta);
+  });
+
+  it('dos artículos distintos de la tienda siguen siendo dos filas (#108, el caso de H&M)', async () => {
+    // Cada uno tiene su propia ficha en la tienda: colapsarlos escondería un destino real.
+    const { variants } = await ficha(hmProduct);
+    expect(variants).toHaveLength(2);
+  });
+
+  it('variantCount cuenta prendas comprables, no filas', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/catalog/products?retailer=lefties')
+      .expect(200);
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].variantCount).toBe(1);
+    expect(res.body.items[0].anyInStock).toBe(true);
+  });
+});

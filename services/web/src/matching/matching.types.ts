@@ -19,6 +19,16 @@ export interface CandidateRow {
   size: string | null;
   color: string | null;
 
+  /**
+   * Talla y color CANÓNICOS, y el producto y la URL a los que cuelga la variante: son las cuatro
+   * piezas con las que `collapseSameGarment` decide que dos variantes son la misma prenda
+   * comprable (#108). Las canónicas las calcula la base con las mismas `size_canon`/`color_canon`
+   * que ya casan el interés, para no tener una segunda definición de "misma talla" en TypeScript.
+   */
+  productId: number;
+  sizeCanon: string | null;
+  colorCanon: string | null;
+
   productName: string;
   productUrl: string | null;
   retailerName: string;
@@ -44,7 +54,13 @@ export interface MatchingSummary {
   /** Mayor `scrape_run_id` visto en el lote; 0 si no había nada nuevo. */
   watermark: number;
   candidates: number;
+  /** Ofertas a avisar, ya colapsadas las caras duplicadas. */
   deals: number;
+  /**
+   * Caras descartadas por ser la misma prenda comprable que otra del lote (#108). Es la señal
+   * barata para ver si el fenómeno crece o si lo estrena una tienda nueva.
+   */
+  duplicatesCollapsed: number;
   /** Avisos realmente insertados (los ya avisados no cuentan). */
   notified: number;
   usersNotified: number;
