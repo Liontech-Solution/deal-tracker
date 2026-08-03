@@ -546,6 +546,24 @@ una tienda:
   tienda sana y haría avisar al vigía cada semana. La regla que queda: **una hoja vacía con forma de
   listado está viva**; lo que compromete el ámbito es que la respuesta deje de tener esa forma.
 
+  **Y aun así, un 404 honesto no es un 404 fiable: la primera pasada en el cluster lo midió.** En
+  `run #37` (03/08/2026, `dev`) `rebajas_newborn.sudaderas_newborn` dio 404 y se marcó como caída
+  sin estarlo — seguía publicada en el menú, el listado le respondía **200 con 2 items**, **20
+  sondeos seguidos dieron 20 × 200** y la pasada siguiente, tres minutos después, la vio viva
+  (111/111, `errors: 0`). O sea que «honesto» describe lo que el 404 *significa* cuando la tienda lo
+  emite a conciencia, no la fiabilidad de **una** observación: sigue habiendo un transitorio por
+  debajo, y la tienda mejor portada de las nueve no está exenta.
+
+  Lo que salva el caso es que la consecuencia ya estaba dimensionada por el lado bueno: el ámbito se
+  marca comprometido, sus bajas se omiten y la pasada cierra sin descatalogar nada de más. **El coste
+  de un 404 transitorio es dejar de detectar bajas durante esa pasada, no dar de baja de más**, y por
+  eso no hace falta reintentar para que el sistema sea correcto. Generaliza a toda tienda cuya salud
+  de hoja descanse en un status: la asimetría es lo que permite fiarse de una señal ruidosa, y quien
+  decide si han sido demasiadas sigue siendo `SCRAPER_SCAN_MAX_DEAD_RATIO`. Antes de añadir un
+  reintento hay que medir cuánto se repite — con dos observaciones no se distingue el ruido del
+  antibot de una hoja concreta que renquea, que es la misma disciplina de la §«un aviso que sale en
+  la misma hoja todas las semanas ya no es un blip».
+
 En todos los casos las redes de seguridad se apoyan en `GONE_STATUS` y quedan ciegas, sin que
 `ScanReport` cuente ninguna caída. **Al añadir una tienda, probar una ruta inventada antes de fiarse
 del 404** — es la primera comprobación del recon, no la última. Y probar **varias**: en Hipercor, las
