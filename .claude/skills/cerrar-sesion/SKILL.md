@@ -1,6 +1,6 @@
 ---
 name: cerrar-sesion
-description: Cierre de una sesión de trabajo — reindexa el grafo de codebase-memory, actualiza el ADR si la sesión cambió algo estructural, deja por escrito en las issues todo lo pendiente y los hallazgos nuevos (abriendo issue si se salen del scope), avisa de trabajo sin commitear y limpia lo que sobra: worktrees de la sesión y ramas ya mergeadas. Usar siempre que se dé por terminada la sesión, aunque no se pida explícitamente nada de esto: "vamos a cerrar sesión", "lo dejamos por hoy", "ya está por hoy", "me voy", "terminamos", o cualquier señal de que se cierra el terminal.
+description: Cierre de una sesión de trabajo — reindexa el grafo de codebase-memory, actualiza el ADR si la sesión cambió algo estructural, deja por escrito en las issues todo lo pendiente y los hallazgos nuevos (abriendo issue si se salen del scope), avisa de trabajo sin commitear y limpia lo que sobra: el worktree de la propia sesión (nunca los de otras) y las ramas ya mergeadas. Usar siempre que se dé por terminada la sesión, aunque no se pida explícitamente nada de esto: "vamos a cerrar sesión", "lo dejamos por hoy", "ya está por hoy", "me voy", "terminamos", o cualquier señal de que se cierra el terminal.
 ---
 
 # Cerrar sesión
@@ -146,39 +146,43 @@ que aquí se tira ya no está en ninguna otra parte.
 La regla que gobierna los dos casos: **primero se demuestra que el trabajo está a salvo en otro
 sitio, y solo entonces se borra**. En el orden inverso no hay vuelta atrás.
 
-### Worktrees
+### Worktrees: solo el tuyo
 
-Cada sesión que arranca desde `revisar-backlog` crea el suyo, así que si nadie los recoge se
-acumulan — y no son gratis: cada uno se queda con su rama, su copia del árbol y sus dependencias
-instaladas.
+**El único worktree que esta sesión puede borrar es el que ha creado esta sesión.** Los demás no
+se tocan: ni se borran, ni se desbloquean, ni se proponen para borrar. Se ignoran.
+
+El motivo es que no puedes distinguir un worktree abandonado de uno vivo. Aquí hay varias sesiones
+trabajando sobre el mismo repo, y otra puede tener el suyo abierto ahora mismo, o haberlo dejado
+aparcado a medias a propósito para retomarlo mañana. Desde aquí las dos cosas se ven idénticas:
+una rama, unos ficheros modificados y una fecha. Y la asimetría no perdona — un worktree de más
+solo estorba en un `git worktree list`; uno de menos puede ser media sesión de otro, y encima de
+trabajo que no está en ningún remoto.
+
+Para **el tuyo**, comprueba antes de decidir:
 
 ```bash
-git worktree list          # los que hay, y en qué rama va cada uno
-git -C <ruta-worktree> status --short          # ¿queda algo sin commitear?
-git -C <ruta-worktree> log --oneline origin/main..HEAD   # ¿commits que no están en main?
+git -C <ruta-worktree> status --short                     # ¿queda algo sin commitear?
+git -C <ruta-worktree> log --oneline origin/main..HEAD    # ¿commits que no están en main?
 ```
 
-Esas dos preguntas son la comprobación completa: si las dos salen vacías, en el worktree no hay
-nada que no esté ya en `origin/main` y se puede tirar sin pensarlo. Si sale algo, **no lo borres**
-— dilo, con el detalle de qué es, y deja que el usuario decida entre subirlo, mergearlo o
-descartarlo. Un worktree de más solo estorba; uno de menos puede ser media sesión perdida.
+Si las dos salen vacías, no hay nada que no esté ya en `origin/main` y se puede tirar:
+`ExitWorktree` con `action: "remove"`. Si sale algo, `action: "keep"` y dilo — el trabajo sigue a
+medias y mañana se retoma. La herramienta hace además su propia comprobación y se niega a borrar
+si encuentra algo; trátalo como un aviso real, no como un obstáculo: `discard_changes: true` solo
+con el visto bueno explícito del usuario, nunca como reacción automática a que fallara.
 
-Para el worktree **de esta sesión** (el que creaste con `EnterWorktree`), sal con `ExitWorktree`:
-`action: "remove"` si las dos comprobaciones salieron limpias, `action: "keep"` si el trabajo sigue
-a medias y mañana se retoma. La herramienta hace su propia comprobación y se niega a borrar si
-encuentra algo — trátalo como un aviso real, no como un obstáculo: `discard_changes: true`
-solo con el visto bueno explícito del usuario, y no como reacción automática a que fallara.
+De los ajenos, lo único que se hace es **mirar y no tocar**. `ExitWorktree` ya los ignora (solo
+gestiona el suyo) y en este repo suelen quedar `locked`, que es justamente lo que impide que un
+`prune` se los lleve por delante — esa cerradura está puesta a propósito, no es suciedad. Si al
+hacer `git worktree list` ves que se acumulan, puedes mencionarlo de pasada, sin lista de borrado
+y sin pedir permiso para borrarlos: es información, no una propuesta.
 
-Los worktrees de sesiones **anteriores** los ignora `ExitWorktree` (solo gestiona el suyo), y en
-este repo suelen quedar `locked`, que es lo que impide que un `prune` se los lleve por delante.
-Aplica las mismas dos comprobaciones y, si están limpios, propónselos al usuario en bloque:
+Solo si el usuario nombra uno explícitamente y pide borrarlo entra en juego lo de siempre —
+comprobar primero, borrar después:
 
 ```bash
 git worktree unlock <ruta> && git worktree remove <ruta>
 ```
-
-Que estén ahí no significa que sobren: puede ser trabajo aparcado a propósito. Por eso se propone,
-no se ejecuta a bulto.
 
 ### Ramas ya mergeadas
 
@@ -200,10 +204,17 @@ git branch -d <rama>                         # -d, nunca -D: se niega si no est�
 git push origin --delete <rama>              # solo si la rama remota también sobra
 ```
 
-Dos detalles que evitan un susto:
+Tres detalles que evitan un susto:
 
 - `git branch --merged` sin argumento compara contra donde estés parado, no contra `main`. Nómbralo
   siempre — si lo lanzas desde una rama de trabajo la lista que sale no significa lo que crees.
+- **`-d` también mira el upstream, no solo `main`.** Si borras la rama remota antes que la local,
+  `git branch -d` se niega con *«not deleting branch X that is not yet merged to
+  origin/X, even though it is merged to HEAD»*: se ha quedado comparando contra un upstream que ya
+  no existe. Léelo entero antes de alarmarte — ese «even though it is merged to HEAD» es la prueba
+  de que el contenido está a salvo. Se arregla con `git fetch --prune`, que borra la referencia
+  muerta, y entonces `-d` pasa. Nunca hace falta `-D` para esto (medido el 03/08/2026 borrando
+  `docs/adr-ctype-c`).
 - Un PR cerrado con **squash o rebase** deja la rama como *no mergeada* para git, aunque su
   contenido esté en `main`: el commit tiene otro sha. Ahí `-d` se niega con razón y la prueba
   buena es el estado del PR en `gh`. Ese es el único caso donde `-D` está justificado, y aun así
@@ -225,3 +236,7 @@ la siguiente sesión confiará en ellos.
 Y no borres nada —worktree o rama— por parecer viejo, por estar `locked` o porque «seguro que ya
 estaba mergeado». La comprobación son dos comandos y el error no tiene deshacer. Si te falta el
 dato que la confirma, esa es la respuesta: se queda.
+
+Sobre todo, no toques el worktree de otra sesión ni para proponerlo. Que esté a medias no
+significa que esté abandonado: significa que alguien lo dejó a medias, que es como está el trabajo
+la mayor parte del tiempo.
