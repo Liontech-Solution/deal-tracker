@@ -58,6 +58,18 @@ quien llegue mañana, que es justo lo contrario de cerrar bien.
 Si los checks siguen corriendo y no quieres esperar, `gh pr merge --auto` mergea solo cuando pasen.
 Es la salida buena: no te quedas mirando y tampoco dejas el PR olvidado.
 
+Un tercer resultado que no es ni verde ni rojo: **`no checks reported`**. Los workflows filtran por
+ruta, así que un PR que solo toca `.claude/**` o documentación no dispara ninguno. No es un fallo
+ni algo que esperar —no va a llegar nunca— y tampoco vale tratarlo como rojo, porque entonces los
+cambios de documentación no se cerrarían jamás. Confírmalo mirando si hay algo que de verdad
+bloquee:
+
+```bash
+gh pr view <n> --json mergeable,mergeStateStatus --jq '.mergeable, .mergeStateStatus'
+# MERGEABLE / CLEAN  → adelante
+# BLOCKED, DIRTY, UNSTABLE → para y mira por qué
+```
+
 ### Solo lo de esta sesión
 
 Mergear es publicar en nombre de alguien, así que el alcance es el mismo que con los worktrees:
