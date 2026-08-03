@@ -632,6 +632,22 @@ Corolario del mismo recon: **una API abierta puede pedir una cabecera tonta**. C
 sin UA y sin las `x-*` que manda su propio front. Antes de concluir «nos bloquean», probar la matriz
 de cabeceras además de la matriz de clientes de la sección anterior.
 
+Y cuando el navegador sí hace falta, la restricción que se paga en **cada** camino de código:
+**la primera petición de una sesión de Akamai se gasta en el saludo**. Contesta 403 y entrega las
+cookies con esa misma respuesta, así que quien abra una sesión y pregunte directamente a una API
+pierde siempre su primera pregunta — sea cual sea. Medido en Sfera el 03/08/2026 invirtiendo
+`CATEGORIES`: el 403 se muda de hoja con la posición, nunca se queda en una ruta concreta (#129).
+
+Lo que eso obliga es una regla por **camino**, no por tienda: todo `with session_factory()` navega
+a una página de documento antes de tocar una API. Basta una siembra por sesión (35 hojas de Sfera
+con una sola). Y el modo de fallo es asimétrico, que es lo que lo hace caro: en la pasada de
+ingesta el síntoma es una hoja que no aporta productos —visible—, pero en el **sondeo** es una hoja
+sin veredicto, que la política de arriba degrada a aviso y nadie mira. Por eso el olvido vivió meses
+en `sfera.check_leaves()` mientras `_iter_category()`, `category_tree()` y `probe_alive()` sí
+sembraban, y con los tests en verde: el doble de test respondía a cualquier petición, o sea que era
+**más permisivo que la tienda**. Un doble de una tienda con antibot que no simula el antibot no
+prueba el camino que importa.
+
 ### Un scraper se rompe de dos maneras y solo una se ve (y la segunda tiene grados)
 
 Que la tienda **cambie** (una hoja caduca, el JSON cambia de forma) sale en el resumen de la
@@ -661,9 +677,16 @@ decisiones que no son obvias:
 
 La política de veredicto es la misma que ya tenía `--check-categories` y **se comparte, no se
 copia** (`vigia.revisar_hojas`): solo lo accionable rompe, un 403 suelto de Akamai avisa y sigue.
-Medido el 02/08/2026 sobre las cuatro tiendas, esa tolerancia se ejerció a la primera: sfera 18/19
-hojas, con la que faltaba dando 403. Un vigía con falsas alarmas rutinarias acaba silenciado, que
-es peor que no tenerlo.
+Un vigía con falsas alarmas rutinarias acaba silenciado, que es peor que no tenerlo.
+
+**Y ese es el filo de la tolerancia, medido a nuestra costa.** Aquí ponía que la del 02/08/2026
+—sfera 18/19 hojas, con la que faltaba dando 403— era la prueba de que el diseño funcionaba. No lo
+era: ese 403 **era nuestro**, no un blip de la tienda, y se repitió cada jueves hasta el
+03/08/2026 (#129). La tolerancia no lo absorbió, lo **escondió** — degradó un fallo permanente y
+reproducible a ruido de fondo, que es el precio que se paga por no romper con lo no accionable. Se
+aprende de ahí una regla de lectura del informe, no un cambio de política: **un aviso que sale en
+la misma hoja todas las semanas ya no es un blip, es un bug**, y el que distingue los dos casos no
+es el veredicto sino la repetición. La línea base de #111 sirve para lo mismo un nivel más arriba.
 
 Corolario aprendido en la misma sesión: **cuando una capa revienta, no se ejecuta la siguiente**.
 Con Lefties sin Chromium, el segundo error salía derivado («usa la API async») y tapaba la causa

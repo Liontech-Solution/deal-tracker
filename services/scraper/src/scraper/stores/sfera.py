@@ -669,9 +669,16 @@ class SferaStore:
         Contar productos NO basta como prueba de vida en esta tienda: una ruta que ya no existe
         responde 200 con el catálogo del padre, y sin la comprobación de espejismo (#54) este
         sondeo informaba «12 productos en la 1ª página» de una categoría inventada.
+
+        La siembra de cookies no es opcional aquí (#129): Akamai contesta 403 a la **primera**
+        petición de la sesión y suelta las cookies con esa misma respuesta, así que sin navegar
+        antes la primera hoja que se pida —sea cual sea, se comprobó invirtiendo `CATEGORIES`—
+        sale sin veredicto. Basta una para todo el sondeo. Con el vigía semanal (#67) eso era un
+        falso positivo cada jueves, que es la manera de que un aviso deje de leerse.
         """
         self._parent_pages = {}
         with self._session_factory() as session:
+            session.goto(self._seed_url())  # siembra las cookies de Akamai del origen
             for cat in self._categories:
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
                 url = _FIREFLY_URL.format(category_path=cat.category_path, page=1)

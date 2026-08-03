@@ -330,11 +330,16 @@ class _ScanSession:
     Las claves se buscan por subcadena de la URL y **gana la primera que case**, así que las
     rutas hoja van antes que la del padre. La del padre (`ninos/nina/1/`) lleva el número de
     página para no comerse también las URLs de sus hojas.
+
+    Imita a Akamai en lo que importa (#129): **hasta que no se navega, toda API responde 403**.
+    Sin eso el doble era más permisivo que la tienda y por eso `check_leaves()` pudo pasar meses
+    perdiendo su primera hoja con los tests en verde.
     """
 
     def __init__(self, por_categoria: dict[str, Any]) -> None:
         self._por_categoria = por_categoria
         self.pedidas: list[str] = []  # para comprobar que el padre se pide UNA vez
+        self.navegadas: list[str] = []  # para comprobar que la siembra es una, no una por hoja
 
     def __enter__(self) -> _ScanSession:
         return self
@@ -343,9 +348,12 @@ class _ScanSession:
         return None
 
     def goto(self, url: str) -> int:
+        self.navegadas.append(url)
         return 200
 
     def get_json(self, url: str) -> Any:
+        if not self.navegadas:
+            raise BrowserHTTPError(403, url)  # cookies sin sembrar: Akamai corta
         self.pedidas.append(url)
         for path, respuesta in self._por_categoria.items():
             if path in url:
@@ -524,3 +532,32 @@ def test_check_leaves_marca_el_espejismo_como_muerta() -> None:
     assert salud["ninos/nina/zapatos"].alive is True
     assert salud["ninos/nina/camisetas"].alive is False
     assert "espejismo" in (salud["ninos/nina/camisetas"].detail or "")
+
+
+def test_check_leaves_siembra_las_cookies_antes_de_sondear() -> None:
+    """El 403 de Akamai se lo comía la PRIMERA hoja del sondeo, fuera cual fuera (#129).
+
+    No era una hoja enferma: `check_leaves()` entraba directo a firefly sin la navegación que sí
+    hacen `_iter_category()` y `probe_alive()`, y Akamai contesta 403 a la primera petición de la
+    sesión. El vigía semanal (#67) informaba 34/35 vivas todos los jueves.
+    """
+    store, _ = _scan_store(
+        {"ninos/nina/zapatos": _firefly("Z1"), "ninos/nina/camisetas": _firefly("C1")}
+    )
+
+    salud = {h.leaf: h for h in store.check_leaves()}
+
+    assert [h.alive for h in salud.values()] == [True, True], (
+        "ninguna hoja sana puede quedarse sin veredicto por culpa de la siembra"
+    )
+
+
+def test_la_siembra_del_sondeo_es_una_sola_para_todas_las_hojas() -> None:
+    """Una navegación por hoja multiplicaría por dos el coste del vigía sin comprar nada."""
+    store, session = _scan_store(
+        {"ninos/nina/zapatos": _firefly("Z1"), "ninos/nina/camisetas": _firefly("C1")}
+    )
+
+    list(store.check_leaves())
+
+    assert len(session.navegadas) == 1
