@@ -16,7 +16,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 # services/scraper/tests/conftest.py -> parents[3] == raíz del repo.
 MIGRATIONS_DIR = Path(__file__).resolve().parents[3] / "db" / "migrations"
 
-_DATA_TABLES = "product_image, price_history, variant, product, scrape_run, retailer"
+_DATA_TABLES = "product_image, price_history, variant, product, scrape_run, retailer, vigia_run"
 
 
 def load_fixture(name: str) -> Any:

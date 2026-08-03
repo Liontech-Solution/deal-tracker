@@ -12,6 +12,7 @@ from decimal import Decimal
 
 import pytest
 
+from scraper import vigia
 from scraper.config import Config
 from scraper.stores.base import (
     LeafHealth,
@@ -25,10 +26,13 @@ from scraper.stores.registry import available_slugs, get_store
 from scraper.vigia import (
     SIN_VIGILANCIA_DE_HOJAS,
     Informe,
+    Medida,
+    comparar_con_base,
     revisar_hojas,
     revisar_parseo,
     revisar_tienda,
 )
+from scraper.vigia_historial import Base
 
 _CFG = Config(database_url="postgresql://unused")
 _AMBITO = ScrapeScope("niña", "zapateria", "zapatos")
@@ -266,3 +270,115 @@ def test_un_precio_a_cero_es_accionable() -> None:
 
     assert not informe.esta_bien
     assert "precio <= 0" in informe.render()
+
+
+# --- cronómetro y comparación con el histórico (#111) ---------------------------------------
+
+
+@pytest.fixture
+def reloj(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+    """Sustituye el reloj del vigía por una lista de instantes, para fijar duraciones exactas.
+
+    Se parchea `vigia._reloj` y no `time.monotonic`: parchear el módulo `time` es global y
+    afectaría a cualquier otra cosa del proceso.
+    """
+
+    def instalar(instantes: list[float]) -> None:
+        it = iter(instantes)
+        monkeypatch.setattr(vigia, "_reloj", lambda: next(it))
+
+    return instalar
+
+
+def test_las_dos_capas_publican_su_ritmo(reloj) -> None:  # type: ignore[no-untyped-def]
+    """La señal que #111 existe para publicar: no solo cuánto, sino cuánto POR unidad.
+
+    Un absoluto por tienda envejece mal —los catálogos crecen—, así que lo comparable entre
+    semanas es el ritmo, y para eso tiene que salir impreso.
+    """
+    reloj([0.0, 1468.4, 2000.0, 2013.2])
+    hojas = [LeafHealth(_AMBITO, f"h{i}", True, "HTTP 200") for i in range(32)]
+    tienda = TiendaFalsa(
+        hojas=hojas,
+        entradas=[_entrada(f"p{i}") for i in range(5)],
+        productos=[_producto(f"p{i}") for i in range(5)],
+    )
+    informe = Informe("falsa")
+    revisar_hojas(tienda, informe)  # type: ignore[arg-type]
+    revisar_parseo(tienda, informe, muestra=5)  # type: ignore[arg-type]
+
+    assert informe.tiempos["hojas"].segundos == pytest.approx(1468.4)
+    assert (informe.tiempos["hojas"].unidades, informe.tiempos["hojas"].unidad) == (32, "hoja")
+    assert informe.tiempos["parseo"].segundos == pytest.approx(13.2)
+    assert (informe.tiempos["parseo"].unidades, informe.tiempos["parseo"].unidad) == (
+        5,
+        "producto",
+    )
+    assert "tiempos: hojas 24m 28s (45,9 s/hoja · 32)" in informe.render()
+    assert "parseo 13,2 s (2,6 s/producto · 5)" in informe.render()
+    assert "total 24m 42s" in informe.render()
+
+
+def test_una_capa_que_revienta_a_mitad_conserva_lo_medido(reloj) -> None:  # type: ignore[no-untyped-def]
+    """«Murió tras 2 hojas en 8 min» es un dato, y es justo el que delata que nos regulan el paso.
+
+    Sin el `finally` del cronómetro, la tienda que peor se está portando sería la única sin medida.
+    """
+    reloj([0.0, 480.0])
+
+    class TiendaQueRevientaAMitad(TiendaFalsa):
+        def check_leaves(self):  # type: ignore[no-untyped-def]
+            yield LeafHealth(_AMBITO, "h0", True, "HTTP 200")
+            yield LeafHealth(_AMBITO, "h1", None, "HTTP 403")
+            raise RuntimeError("Timeout 45000ms exceeded")
+
+    informe = Informe("falsa")
+    with pytest.raises(RuntimeError):
+        revisar_hojas(TiendaQueRevientaAMitad(), informe)  # type: ignore[arg-type]
+
+    assert informe.tiempos["hojas"] == Medida(480.0, 2, "hoja")
+
+
+def test_sin_linea_base_no_se_compara_y_se_dice() -> None:
+    """Casilla 3 de #111: sin histórico, un número lento suelto no es accionable ni aviso.
+
+    Y hay que decirlo, porque callar confundiría «va bien» con «no lo he mirado» durante las
+    primeras semanas de serie.
+    """
+    informe = Informe("falsa", tiempos={"hojas": Medida(1468.4, 32, "hoja")})
+    comparar_con_base(informe, {"hojas": None}, factor=3.0)
+
+    assert informe.esta_bien
+    assert not informe.avisos
+    assert "sin línea base" in informe.render()
+
+
+def test_un_ritmo_muy_por_encima_de_su_base_avisa_pero_no_acciona() -> None:
+    """El caso medido: Hipercor a ×11,8 con la puerta abierta y el veredicto verde.
+
+    Es `aviso` y no `accionable` a propósito: `main()` solo publica en GitHub lo accionable, así
+    que una tienda lenta se lee en el log y no abre issue por sí sola.
+    """
+    informe = Informe("falsa", tiempos={"hojas": Medida(1468.4, 32, "hoja")})
+    base = Base(3.9, (4.1, 3.7, 4.0, 3.8))
+    comparar_con_base(informe, {"hojas": base}, factor=3.0)
+
+    assert informe.esta_bien, "un ritmo lento no puede tumbar el job"
+    assert not informe.accionables
+    assert len(informe.avisos) == 1
+    assert "×11,8" in informe.avisos[0]
+    assert "mediana de 4" in informe.avisos[0]
+    assert "base: hojas 3,9 s/hoja (×11,8)" in informe.render()
+
+
+def test_un_ritmo_dentro_del_factor_se_publica_sin_avisar() -> None:
+    """La tendencia se publica siempre; el aviso solo cuando se sale del factor.
+
+    Un cluster compartido da ×2 sin que pase nada: avisar por eso es cómo un vigía se convierte en
+    ruido y acaba silenciado.
+    """
+    informe = Informe("falsa", tiempos={"hojas": Medida(240.0, 32, "hoja")})
+    comparar_con_base(informe, {"hojas": Base(3.9, (4.1, 3.7))}, factor=3.0)
+
+    assert not informe.avisos
+    assert "(×1,9)" in informe.render()

@@ -56,6 +56,13 @@ class Config:
     # inicial (en Hipercor, el `ProductGroup` con las tallas). Solo la usan las tiendas que leen
     # la página en vez de una API; agotarla no es un error, es un detalle que no llega.
     browser_hydrate_timeout: float = 10.0
+    # Vigía: a partir de qué factor sobre su propia línea base se avisa de que una tienda nos está
+    # dejando entrar más despacio (#111). Nunca es accionable ni abre issue por sí solo, así que
+    # quedarse corto cuesta poco; ×3 deja pasar el ruido de un cluster compartido y captura de
+    # sobra el caso medido (×11,8 en Hipercor). `vigia_base_muestras` es cuántas ejecuciones
+    # previas entran en la mediana que hace de línea base; con menos de 2 no se compara.
+    vigia_factor_aviso: float = 3.0
+    vigia_base_muestras: int = 4
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
@@ -85,6 +92,8 @@ class Config:
             browser_nav_timeout=float(env.get("SCRAPER_BROWSER_NAV_TIMEOUT", "45")),
             browser_hydrate_timeout=float(env.get("SCRAPER_BROWSER_HYDRATE_TIMEOUT", "10")),
             browser_channel=env.get("SCRAPER_BROWSER_CHANNEL") or None,
+            vigia_factor_aviso=float(env.get("SCRAPER_VIGIA_FACTOR_AVISO", "3.0")),
+            vigia_base_muestras=int(env.get("SCRAPER_VIGIA_BASE_MUESTRAS", "4")),
         )
 
 
