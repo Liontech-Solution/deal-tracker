@@ -1,6 +1,6 @@
 ---
 name: cerrar-sesion
-description: Cierre de una sesión de trabajo — consolida en `main` todo lo que la sesión ha hecho (commit, PR y merge de los PR propios que sigan abiertos, siempre con los checks en verde), reindexa el grafo de codebase-memory, actualiza el ADR si la sesión cambió algo estructural, deja por escrito en las issues todo lo pendiente y los hallazgos nuevos (abriendo issue si se salen del scope) y limpia lo que sobra: el worktree de la propia sesión (nunca los de otras) y las ramas ya mergeadas. Usar siempre que se dé por terminada la sesión, aunque no se pida explícitamente nada de esto: "vamos a cerrar sesión", "lo dejamos por hoy", "ya está por hoy", "me voy", "terminamos", o cualquier señal de que se cierra el terminal.
+description: Cierre de una sesión de trabajo — consolida en `main` todo lo que la sesión ha hecho (commit, PR y merge de los PR propios que sigan abiertos, siempre con los checks en verde), reindexa el grafo de codebase-memory, actualiza el ADR si la sesión cambió algo estructural, deja por escrito en las issues todo lo pendiente y los hallazgos nuevos (abriendo issue si se salen del scope) y limpia lo que sobra: el worktree de la propia sesión (nunca los de otras), las ramas ya mergeadas y las bases de datos temporales `dt_<issue>` de las issues que ha trabajado. Usar siempre que se dé por terminada la sesión, aunque no se pida explícitamente nada de esto: "vamos a cerrar sesión", "lo dejamos por hoy", "ya está por hoy", "me voy", "terminamos", o cualquier señal de que se cierra el terminal.
 ---
 
 # Cerrar sesión
@@ -301,8 +301,47 @@ Tres detalles que evitan un susto:
   se pregunta antes: es exactamente el mismo síntoma que tendría una rama con trabajo de verdad
   sin mergear.
 
-Presenta la limpieza como una lista de lo que vas a borrar y por qué se puede (rama → PR mergeado
-→ comprobación que lo confirma), y ejecútala cuando el usuario dé el visto bueno.
+### Bases de datos temporales `dt_<issue>`
+
+Con varias sesiones a la vez, cada una trabaja contra su propia base en la Postgres de usuario
+(`createdb -h /tmp -U dealtracker dt_<issue>`), porque el `conftest.py` del scraper hace `TRUNCATE`
+antes de **cada** test y compartir una base entre sesiones paralelas borra lo que otra estaba
+mirando. Esa base nace para la issue y muere con ella: cuando la sesión acaba ya no queda nada
+dentro que no sepa regenerar la fixture `db_conn`.
+
+Si no se borran, se quedan para siempre. El coste no es el disco, es que dentro de un mes nadie
+sabe cuáles siguen vivas, y entonces la pregunta «¿puedo borrar esta?» ya no tiene respuesta barata
+y todo el mundo las deja estar.
+
+**Solo las de las issues de esta sesión** — las mismas que identificaste en el paso 5. Vale también
+para las variantes con sufijo de esas issues (`dt_98_cura` y parecidas) *si las creaste tú*: si no
+reconoces una como propia, no lo es. Y nunca `deal_tracker_test` ni `deal_tracker_ctype_c`, que son
+las fijas de la máquina, no de nadie.
+
+Primero mira quién está conectado, que es el dato que distingue una base olvidada de una en uso:
+
+```bash
+export LD_LIBRARY_PATH=~/.local/share/pgsql-local/usr/lib
+PGB=~/.local/share/pgsql-local/usr/bin
+$PGB/psql -h /tmp -U dealtracker -d postgres -c \
+  "SELECT d.datname, count(a.pid) AS conexiones
+     FROM pg_database d LEFT JOIN pg_stat_activity a ON a.datname = d.datname
+    WHERE d.datname LIKE 'dt\_%' GROUP BY 1 ORDER BY 1;"
+$PGB/dropdb -h /tmp -U dealtracker dt_<issue>
+```
+
+Si el servidor no está arrancado, no lo arranques para esto: dilo y déjalo. Borrar no corre prisa y
+con el servidor parado no puedes comprobar lo de arriba.
+
+**Nunca `dropdb --force` ni `DROP DATABASE ... WITH (FORCE)`.** Cuando hay alguien conectado,
+`dropdb` se niega con `database "dt_80" is being accessed by other users / There is 1 other session
+using the database` (medido el 03/08/2026). Eso no es un obstáculo que saltar: es la única señal
+que tienes de que otra sesión está usando esa base ahora mismo, y forzarla le corta el `pytest` a
+mitad. Si te la encuentras en una que creías tuya, la conclusión es que no lo era — se queda.
+
+Presenta la limpieza como una lista de lo que vas a borrar y por qué se puede (rama → PR mergeado →
+comprobación que lo confirma; base → issue de esta sesión → sin conexiones), y ejecútala cuando el
+usuario dé el visto bueno.
 
 ## Qué NO hacer
 
@@ -313,9 +352,9 @@ Tampoco des por hecho que el reindexado fue bien. Mira `nodes`/`edges` y `adr_pr
 salida; un índice a cero o un ADR perdido en silencio son peores que no haber reindexado, porque
 la siguiente sesión confiará en ellos.
 
-Y no borres nada —worktree o rama— por parecer viejo, por estar `locked` o porque «seguro que ya
-estaba mergeado». La comprobación son dos comandos y el error no tiene deshacer. Si te falta el
-dato que la confirma, esa es la respuesta: se queda.
+Y no borres nada —worktree, rama o base `dt_<issue>`— por parecer viejo, por estar `locked` o
+porque «seguro que ya estaba mergeado». La comprobación son dos comandos y el error no tiene
+deshacer. Si te falta el dato que la confirma, esa es la respuesta: se queda.
 
 Sobre todo, no toques el worktree de otra sesión ni para proponerlo. Que esté a medias no
 significa que esté abandonado: significa que alguien lo dejó a medias, que es como está el trabajo
