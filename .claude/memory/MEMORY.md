@@ -7,3 +7,4 @@
 - [adr-contexto-compartido](adr-contexto-compartido.md) — ADR en codebase-memory para deal-tracker y k3s-local-apps-manifests; contrato entre repos, versionado en `.claude/adr/`
 - [adr-update-por-cli](adr-update-por-cli.md) — `manage_adr --mode update` reemplaza el ADR entero; publicarlo con el CLI pasando `$(cat .claude/adr/…)`, nunca a mano
 - [verificar-arquitectura-imagen](verificar-arquitectura-imagen.md) — sin buildx ni `read:packages`; para probar que una imagen es multiarch, mirar en qué nodo arranca el pod
+- [scraper-sin-just-ni-env](scraper-sin-just-ni-env.md) — `just` no está instalado y no hay `.env`: las recetas a mano, `mypy` sin argumentos, venv propio por worktree y el `DATABASE_URL` de pega de `--check-categories`
