@@ -126,6 +126,8 @@ from .base import (
     ScrapedProduct,
     ScrapedVariant,
     ScrapeScope,
+    ambito_cruzado,
+    con_unisex,
 )
 
 logger = logging.getLogger(__name__)
@@ -625,9 +627,7 @@ class HMStore:
         nunca. Es el mismo motivo por el que `cacles.py` declara el producto cartesiano de lo que su
         parser PUEDE emitir en vez de lo que dicen sus hojas.
         """
-        declarados = [ScrapeScope(c.gender, c.section, c.category) for c in self._categories]
-        unisex = [ScrapeScope("unisex", s.section, s.category) for s in declarados]
-        return list(dict.fromkeys([*declarados, *unisex]))
+        return con_unisex(ScrapeScope(c.gender, c.section, c.category) for c in self._categories)
 
     def list_catalog(self) -> Iterable[ListingEntry]:
         """Recorre las hojas y emite un producto por modelo.
@@ -726,20 +726,11 @@ class HMStore:
         return acumuladas
 
     def _hoja_comprometida(self, scope: ScrapeScope, motivo: str) -> None:
-        """Cuenta la hoja como caída y saca su ámbito de las bajas de esta pasada.
+        """Cuenta la hoja como caída y saca su ámbito —y el `unisex` equivalente— de las bajas.
 
-        Saca **también el ámbito `unisex` equivalente**: un modelo que salía en las dos ramas de
-        género deja de verse en las dos en cuanto cae una, y entonces se emitiría con el género de
-        la rama superviviente en vez de `unisex`. Sin esto, una hoja caída daría de baja productos
-        del ámbito `unisex` que siguen perfectamente vivos.
-
-        Ese ámbito extra se añade a `failed_scopes` **sin pasar por `leaf_gone()`**, que además de
-        registrar el ámbito cuenta una hoja: contarla dos veces inflaría `dead_ratio` y dispararía
-        `SCRAPER_SCAN_MAX_DEAD_RATIO` antes de tiempo. Es una hoja caída, no dos.
+        El porqué de lo segundo está en `ScanReport.leaf_gone()`.
         """
-        self._scan.leaf_gone(scope)
-        if scope.gender != "unisex":
-            self._scan.failed_scopes.add(ScrapeScope("unisex", scope.section, scope.category))
+        self._scan.leaf_gone(scope, tambien_unisex=True)
         logger.warning("%s: %s; se omiten las bajas de ese ámbito", SLUG, motivo)
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
@@ -810,18 +801,8 @@ class HMStore:
 def _ambito(hojas: Sequence[CategoryConfig]) -> ScrapeScope:
     """El ámbito de un modelo a partir de las hojas en las que ha aparecido.
 
-    **El género es `unisex` cuando el modelo sale en hojas de géneros distintos**, que es lo que la
-    tienda está diciendo al publicarlo en las dos ramas: 317 modelos de 3401 (9,3 %) el 02/08/2026.
-    El catálogo y el matching ya tratan `unisex` como «sale en niño y en niña», así que no hace
-    falta vocabulario nuevo — solo detectar el cruce, que es lo que la #98 echó en falta en
-    Hipercor.
-
-    La sección y la categoría, en cambio, las fija **la primera hoja** que trajo el modelo, como en
-    el resto de tiendas. Un modelo que salga en `pantalones` de una rama y en `ropa-interior` de
-    otra se queda con la primera: cruzar categorías es raro y no hay forma de decir «las dos».
+    La regla vive en `base.ambito_cruzado()`, que es donde está escrito el porqué: aquí solo se
+    traduce la `CategoryConfig` de esta tienda al `ScrapeScope` que aquella espera. El cruce vale
+    317 modelos de 3401 (9,3 %) el 02/08/2026.
     """
-    generos = {h.gender for h in hojas}
-    reales = generos - {"unisex"}
-    primera = hojas[0]
-    gender = "unisex" if len(reales) != 1 else reales.pop()
-    return ScrapeScope(gender, primera.section, primera.category)
+    return ambito_cruzado([ScrapeScope(h.gender, h.section, h.category) for h in hojas])

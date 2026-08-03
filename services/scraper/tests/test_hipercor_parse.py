@@ -32,6 +32,7 @@ rompa los tests.
 
 from __future__ import annotations
 
+import json
 import logging
 from decimal import Decimal
 from pathlib import Path
@@ -113,6 +114,34 @@ def _tienda(
 ) -> HipercorStore:
     sesion = SesionFalsa(respuestas)
     return HipercorStore(_CFG, categories=cats, session_factory=lambda: sesion)
+
+
+def _rehojar(html: str, category_path: str) -> str:
+    """La misma rejilla publicada bajo otra hoja, reescribiendo la jerarquía de sus productos.
+
+    No vale con servir la fixture tal cual bajo otra ruta: `es_espejismo()` compara la ruta pedida
+    contra `products[].hierarchy` y la trataría —con razón— como hoja muerta. Esto es lo que la
+    tienda hace de verdad con los 161 productos de la #98: los publica en las dos ramas, y cada
+    rejilla los devuelve con la jerarquía de la suya.
+    """
+    actual = ruta_resuelta(extraer_data_layer(html) or {})
+    assert actual is not None, "la fixture ha cambiado de forma: sin jerarquía de producto"
+    original = '"hierarchy":' + json.dumps(actual, ensure_ascii=False).replace(", ", ",")
+    nueva = '"hierarchy":' + json.dumps(category_path.split("/"), ensure_ascii=False).replace(
+        ", ", ","
+    )
+    assert original in html, "la fixture ha cambiado de forma: revisa la jerarquía"
+    return html.replace(original, nueva)
+
+
+def _con_unisex(scope: ScrapeScope) -> set[ScrapeScope]:
+    """El ámbito caído y su equivalente `unisex`, que es lo que hay que proteger junto a él (#98).
+
+    Un producto que salía en las dos ramas de género deja de verse en las dos en cuanto cae una,
+    así que se emitiría con el género de la superviviente; sin sacar también el `unisex` de las
+    bajas, la hoja caída descatalogaría producto vivo.
+    """
+    return {scope, ScrapeScope("unisex", scope.section, scope.category)}
 
 
 # --- extracción: el dato viaja dentro de la página, no en una API -----------------------------
@@ -400,6 +429,79 @@ def test_list_catalog_pagina_hasta_el_final_y_deduplica() -> None:
     assert tienda.scan_report().leaves_failed == 0
 
 
+# El cruce de géneros (#98): publicado en las dos ramas = unisex
+
+
+def test_el_mismo_producto_en_dos_hojas_de_genero_distinto_se_emite_una_vez_y_unisex() -> None:
+    """El caso de la #98 de punta a punta: 161 productos (13 %) de esta tienda están así.
+
+    La misma rejilla servida bajo la rama de niña y bajo la de niño: la tienda está diciendo que
+    esos productos son de los dos, y hasta ahora se ingerían como `niña` porque su hoja iba antes.
+    """
+    nina = _VESTIDOS
+    nino = CategoryConfig(f"{_INFANTIL}/nino-4-16-anos/camisetas", "niño", "ropa", "camisetas")
+    html = load_html("hipercor_rejilla_nina_vestidos.html")
+    tienda = _tienda(
+        {
+            HipercorStore.grid_url(nina.category_path, 1): (200, html),
+            HipercorStore.grid_url(nino.category_path, 1): (
+                200,
+                _rehojar(html, nino.category_path),
+            ),
+        },
+        [nina, nino],
+    )
+
+    entradas = list(tienda.list_catalog())
+
+    ids = [e.retailer_product_id for e in entradas]
+    assert len(ids) == len(set(ids)), "un producto en dos hojas se emite UNA vez"
+    assert {e.gender for e in entradas} == {"unisex"}
+    # Sección y categoría siguen saliendo de la primera hoja: cruzar géneros tiene vocabulario
+    # (`unisex`), cruzar categorías no lo tiene.
+    assert {(e.section, e.category) for e in entradas} == {("ropa", "vestidos")}
+
+
+def test_un_producto_de_una_hoja_con_genero_y_la_de_bebe_conserva_su_genero() -> None:
+    """El caso propio de Hipercor, y el que hay que no romper.
+
+    `zapatos-infantiles/{nina,nino}` van antes que `zapatos-infantiles/bebe` —que ya está
+    declarada `unisex`— precisamente para que lo que tenga género declarado se lo quede. Una hoja
+    `unisex` no cuenta como un género distinto, así que el cruce no se dispara aquí.
+    """
+    bebe = CategoryConfig(f"{_INFANTIL}/zapatos-infantiles/bebe", "unisex", "zapateria", "zapatos")
+    html = load_html("hipercor_rejilla_zapatos_nina.html")
+    tienda = _tienda(
+        {
+            HipercorStore.grid_url(_ZAPATOS.category_path, 1): (200, html),
+            HipercorStore.grid_url(bebe.category_path, 1): (
+                200,
+                _rehojar(html, bebe.category_path),
+            ),
+        },
+        [_ZAPATOS, bebe],
+    )
+
+    entradas = list(tienda.list_catalog())
+
+    assert entradas
+    assert {e.gender for e in entradas} == {"niña"}
+
+
+def test_scopes_declara_tambien_los_ambitos_unisex_que_el_parser_puede_emitir() -> None:
+    """Un ámbito no declarado no cuenta como escaneado, y sus productos no se dan de baja NUNCA.
+
+    Es el mismo motivo por el que `cacles.py` declara el producto cartesiano de lo que su parser
+    puede emitir en vez de lo que dicen sus hojas.
+    """
+    scopes = list(HipercorStore(_CFG).scopes())
+
+    assert len(scopes) == len(set(scopes)), "sin duplicados"
+    for cat in CATEGORIES:
+        assert ScrapeScope(cat.gender, cat.section, cat.category) in scopes
+        assert ScrapeScope("unisex", cat.section, cat.category) in scopes
+
+
 def test_list_catalog_cuenta_el_espejismo_como_hoja_caida() -> None:
     cat = CategoryConfig(f"{_INFANTIL}/nina-4-16-anos/no-existe-abc", "niña", "ropa", "vestidos")
     tienda = _tienda(
@@ -416,7 +518,7 @@ def test_list_catalog_cuenta_el_espejismo_como_hoja_caida() -> None:
     )
     informe = tienda.scan_report()
     assert informe.leaves_failed == 1
-    assert informe.failed_scopes == {ScrapeScope("niña", "ropa", "vestidos")}
+    assert informe.failed_scopes == _con_unisex(ScrapeScope("niña", "ropa", "vestidos"))
 
 
 def test_list_catalog_no_da_por_vacio_lo_que_no_ha_podido_leer() -> None:
@@ -427,7 +529,9 @@ def test_list_catalog_no_da_por_vacio_lo_que_no_ha_podido_leer() -> None:
             {HipercorStore.grid_url(_VESTIDOS.category_path, 1): respuesta}, [_VESTIDOS]
         )
         assert list(tienda.list_catalog()) == []
-        assert tienda.scan_report().failed_scopes == {ScrapeScope("niña", "ropa", "vestidos")}
+        assert tienda.scan_report().failed_scopes == _con_unisex(
+            ScrapeScope("niña", "ropa", "vestidos")
+        )
 
 
 def test_list_catalog_sobrevive_a_un_timeout_de_navegacion(
@@ -461,7 +565,7 @@ def test_list_catalog_sobrevive_a_un_timeout_de_navegacion(
     assert {e.section for e in entradas} == {"ropa"}
     assert (informe.leaves_total, informe.leaves_failed) == (2, 1)
     # Fuera de las bajas: lo que no se ha visto en esa hoja no está retirado.
-    assert informe.failed_scopes == {ScrapeScope("niña", "zapateria", "zapatos")}
+    assert informe.failed_scopes == _con_unisex(ScrapeScope("niña", "zapateria", "zapatos"))
     assert "zapatos" in caplog.text, "perder una hoja no puede ser silencioso"
 
 
@@ -578,7 +682,9 @@ def test_list_catalog_no_se_traga_una_rejilla_sin_enlaces_a_ficha() -> None:
         {HipercorStore.grid_url(_VESTIDOS.category_path, 1): (200, sin_enlaces)}, [_VESTIDOS]
     )
     assert list(tienda.list_catalog()) == []
-    assert tienda.scan_report().failed_scopes == {ScrapeScope("niña", "ropa", "vestidos")}
+    assert tienda.scan_report().failed_scopes == _con_unisex(
+        ScrapeScope("niña", "ropa", "vestidos")
+    )
 
 
 def test_el_id_de_producto_lo_manda_el_datalayer() -> None:

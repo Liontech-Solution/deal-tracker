@@ -288,9 +288,21 @@ def _grid(pid: str) -> dict[str, Any]:
     }
 
 
-def _scan_store(menu: dict[str, Any], grids: dict[str, Any]) -> LeftiesStore:
+def _scan_store(
+    menu: dict[str, Any], grids: dict[str, Any], cats: list[CategoryConfig] | None = None
+) -> LeftiesStore:
     session = _ScanSession(menu, grids)
-    return LeftiesStore(_CFG, categories=_CATS_SCAN, session_factory=lambda: session)  # type: ignore[arg-type]
+    return LeftiesStore(_CFG, categories=cats or _CATS_SCAN, session_factory=lambda: session)  # type: ignore[arg-type]
+
+
+def _con_unisex(scope: ScrapeScope) -> set[ScrapeScope]:
+    """El ámbito caído y su equivalente `unisex`, que hay que proteger junto a él (#98).
+
+    Un producto que salía en las dos ramas de género deja de verse en las dos en cuanto cae una,
+    así que se emitiría con el género de la superviviente; sin sacar también el `unisex` de las
+    bajas, la hoja caída descatalogaría producto vivo.
+    """
+    return {scope, ScrapeScope("unisex", scope.section, scope.category)}
 
 
 def test_hoja_ausente_del_menu_saca_su_ambito_de_las_bajas() -> None:
@@ -305,7 +317,7 @@ def test_hoja_ausente_del_menu_saca_su_ambito_de_las_bajas() -> None:
 
     assert ids == ["Z1"]
     assert (report.leaves_total, report.leaves_failed) == (2, 1)
-    assert report.failed_scopes == {ScrapeScope("niña", "ropa", "camisetas")}
+    assert report.failed_scopes == _con_unisex(ScrapeScope("niña", "ropa", "camisetas"))
 
 
 def test_grid_que_da_404_se_trata_como_hoja_retirada() -> None:
@@ -320,4 +332,70 @@ def test_grid_que_da_404_se_trata_como_hoja_retirada() -> None:
     ids = [e.retailer_product_id for e in store.list_catalog()]
 
     assert ids == ["Z1"]
-    assert store.scan_report().failed_scopes == {ScrapeScope("niña", "ropa", "camisetas")}
+    assert store.scan_report().failed_scopes == _con_unisex(
+        ScrapeScope("niña", "ropa", "camisetas")
+    )
+
+
+# --- #98 El cruce de géneros: publicado en las dos ramas = unisex ------------------------------
+
+_CATS_CRUCE = [
+    CategoryConfig(1030267678, "niña", "ropa", "camisetas"),
+    CategoryConfig(1030267679, "niño", "ropa", "camisetas"),
+]
+
+
+def test_un_producto_en_las_dos_ramas_de_genero_se_emite_una_vez_y_unisex() -> None:
+    """El caso de la #98: 14 productos (2,0 %) de esta tienda salen en niña Y en niño.
+
+    Hasta ahora acababan los 14 en `niña`, porque su hoja va antes en `CATEGORIES`.
+    """
+    store = _scan_store(
+        _menu({1030267678: "uuid-nina", 1030267679: "uuid-nino"}),
+        {"uuid-nina": _grid("C1"), "uuid-nino": _grid("C1")},
+        _CATS_CRUCE,
+    )
+
+    entradas = list(store.list_catalog())
+
+    assert [e.retailer_product_id for e in entradas] == ["C1"], "una vez, no dos"
+    assert entradas[0].gender == "unisex"
+    assert (entradas[0].section, entradas[0].category) == ("ropa", "camisetas")
+
+
+def test_un_producto_en_una_sola_rama_conserva_su_genero() -> None:
+    store = _scan_store(
+        _menu({1030267678: "uuid-nina", 1030267679: "uuid-nino"}),
+        {"uuid-nina": _grid("C1"), "uuid-nino": _grid("C2")},
+        _CATS_CRUCE,
+    )
+
+    generos = {e.retailer_product_id: e.gender for e in store.list_catalog()}
+
+    assert generos == {"C1": "niña", "C2": "niño"}
+
+
+def test_el_ambito_unisex_llega_tambien_al_detalle() -> None:
+    """`fetch_details` construye el producto desde la `CategoryConfig` cacheada, no desde la
+    entrada, así que si esa no se corrige el género vuelve a escribirse mal en la base."""
+    store = _scan_store(
+        _menu({1030267678: "uuid-nina", 1030267679: "uuid-nino"}),
+        {"uuid-nina": _grid("C1"), "uuid-nino": _grid("C1")},
+        _CATS_CRUCE,
+    )
+
+    list(store.list_catalog())
+
+    assert store._cat_by_product["C1"].gender == "unisex"
+    # Y lo que NO debe perder: el id de categoría, que es con lo que se arma la URL de la ficha.
+    assert store._cat_by_product["C1"].category_id == 1030267678
+
+
+def test_scopes_declara_tambien_los_ambitos_unisex_que_el_parser_puede_emitir() -> None:
+    """Un ámbito no declarado no cuenta como escaneado, y sus productos no caen NUNCA."""
+    scopes = list(LeftiesStore(_CFG).scopes())
+
+    assert len(scopes) == len(set(scopes)), "sin duplicados"
+    for cat in CATEGORIES:
+        assert ScrapeScope(cat.gender, cat.section, cat.category) in scopes
+        assert ScrapeScope("unisex", cat.section, cat.category) in scopes
