@@ -1,0 +1,1101 @@
+{
+ "requestDateTime": "2026-08-03T11:01:47.983Z",
+ "responseSource": "Elevate",
+ "pagination": {
+  "currentPage": 1,
+  "nextPageNum": 2,
+  "totalPages": 2
+ },
+ "plpList": {
+  "productList": [
+   {
+    "id": "1168042056",
+    "trackingId": "OzY7IzsxMTY4MDQyMDU2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+    "productName": "Loose Fit Jeans",
+    "modelImage": "https://image.hm.com/assets/hm/72/ca/72caba4239e89d4e202e40173481626ae6fae212.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/72/ca/72caba4239e89d4e202e40173481626ae6fae212.jpg",
+     "assetType": "Lookbook"
+    },
+    "productImage": "https://image.hm.com/assets/hm/e1/76/e176257437c5c2b269d8e02be14399bff593cc11.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/e1/76/e176257437c5c2b269d8e02be14399bff593cc11.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1168042056.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 17.99,
+      "minPrice": 17.99,
+      "maxPrice": 17.99,
+      "formattedPrice": "17,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1168042056",
+      "url": "/es_es/productpage.1168042056.html",
+      "colorName": "Gris denim claro",
+      "colorCode": "ACAAAD",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/e1/76/e176257437c5c2b269d8e02be14399bff593cc11.jpg"
+     },
+     {
+      "articleId": "1168042047",
+      "url": "/es_es/productpage.1168042047.html",
+      "colorName": "Azul denim claro",
+      "colorCode": "80AAD8",
+      "trackingId": "OzY7IzsxMTY4MDQyMDQ3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/ed/41/ed414da949e1e578ed769d371bb8f7c7df4f1fff.jpg"
+     },
+     {
+      "articleId": "1168042055",
+      "url": "/es_es/productpage.1168042055.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "2E3036",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/29/d3/29d3fc523233f6b4e7b99c3c5803716b79fee35c.jpg"
+     },
+     {
+      "articleId": "1168042057",
+      "url": "/es_es/productpage.1168042057.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "2E3036",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/69/99/6999389c7a0ffd9afeca3c3b263c86972412a2fa.jpg"
+     },
+     {
+      "articleId": "1168042048",
+      "url": "/es_es/productpage.1168042048.html",
+      "colorName": "Azul denim claro",
+      "colorCode": "80AAD8",
+      "trackingId": "OzY7IzsxMTY4MDQyMDQ4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/26/13/26131d5d278c6ae384f39a28f82751f80cfe2398.jpg"
+     },
+     {
+      "articleId": "1168042052",
+      "url": "/es_es/productpage.1168042052.html",
+      "colorName": "Azul denim",
+      "colorCode": "3E64A7",
+      "trackingId": "OzY7IzsxMTY4MDQyMDUyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/6b/9e/6b9e44a053cc58c751aa58b0ac41fe4a5c9b9320.jpg"
+     },
+     {
+      "articleId": "1168042026",
+      "url": "/es_es/productpage.1168042026.html",
+      "colorName": "Azul denim",
+      "colorCode": "79829D",
+      "trackingId": "OzY7IzsxMTY4MDQyMDI2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/8a/75/8a75917cf623c6e046ce3c2d5f9d225e895c6aaf.jpg"
+     },
+     {
+      "articleId": "1168042031",
+      "url": "/es_es/productpage.1168042031.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "4C5164",
+      "trackingId": "OzY7IzsxMTY4MDQyMDMxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/c3/f1/c3f186f5a28549903169f7219f7544f7ecafc319.jpg"
+     },
+     {
+      "articleId": "1168042017",
+      "url": "/es_es/productpage.1168042017.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "4C5164",
+      "trackingId": "OzY7IzsxMTY4MDQyMDE3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszOzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/19/8c/198c0801a8aaf4cb26579115a42afcbd0c40c4e0.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/85/85/85859359c83f1c7edc274e671b44b52a4410afc8.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/60/58/6058295f063f958e9761a85e3b518f8b5bc942bf.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/fe/dc/fedc141c88f485d6a5df4c73506db0b1325c94ca.jpg",
+      "assetType": "DescriptiveDetail"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/9e/a6/9ea6ec03a40d7830c33e4027973b23af4357c720.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Gris denim claro",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "ACAAAD",
+    "colourShades": "Gris oscuro|Carbón",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": true,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "gris_808080",
+    "mainCatCode": "kids_boys_clothing_jeans"
+   },
+   {
+    "id": "1168042047",
+    "trackingId": "OzY7IzsxMTY4MDQyMDQ3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+    "productName": "Loose Fit Jeans",
+    "modelImage": "https://image.hm.com/assets/hm/ea/8f/ea8fd445e4585a1202292c8723746a149eb2a8eb.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/ea/8f/ea8fd445e4585a1202292c8723746a149eb2a8eb.jpg",
+     "assetType": "Lookbook"
+    },
+    "productImage": "https://image.hm.com/assets/hm/ed/41/ed414da949e1e578ed769d371bb8f7c7df4f1fff.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/ed/41/ed414da949e1e578ed769d371bb8f7c7df4f1fff.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1168042047.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 17.99,
+      "minPrice": 17.99,
+      "maxPrice": 17.99,
+      "formattedPrice": "17,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1168042047",
+      "url": "/es_es/productpage.1168042047.html",
+      "colorName": "Azul denim claro",
+      "colorCode": "80AAD8",
+      "trackingId": "OzY7IzsxMTY4MDQyMDQ3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/ed/41/ed414da949e1e578ed769d371bb8f7c7df4f1fff.jpg"
+     },
+     {
+      "articleId": "1168042056",
+      "url": "/es_es/productpage.1168042056.html",
+      "colorName": "Gris denim claro",
+      "colorCode": "ACAAAD",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/e1/76/e176257437c5c2b269d8e02be14399bff593cc11.jpg"
+     },
+     {
+      "articleId": "1168042055",
+      "url": "/es_es/productpage.1168042055.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "2E3036",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/29/d3/29d3fc523233f6b4e7b99c3c5803716b79fee35c.jpg"
+     },
+     {
+      "articleId": "1168042057",
+      "url": "/es_es/productpage.1168042057.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "2E3036",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/69/99/6999389c7a0ffd9afeca3c3b263c86972412a2fa.jpg"
+     },
+     {
+      "articleId": "1168042048",
+      "url": "/es_es/productpage.1168042048.html",
+      "colorName": "Azul denim claro",
+      "colorCode": "80AAD8",
+      "trackingId": "OzY7IzsxMTY4MDQyMDQ4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/26/13/26131d5d278c6ae384f39a28f82751f80cfe2398.jpg"
+     },
+     {
+      "articleId": "1168042052",
+      "url": "/es_es/productpage.1168042052.html",
+      "colorName": "Azul denim",
+      "colorCode": "3E64A7",
+      "trackingId": "OzY7IzsxMTY4MDQyMDUyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/6b/9e/6b9e44a053cc58c751aa58b0ac41fe4a5c9b9320.jpg"
+     },
+     {
+      "articleId": "1168042026",
+      "url": "/es_es/productpage.1168042026.html",
+      "colorName": "Azul denim",
+      "colorCode": "79829D",
+      "trackingId": "OzY7IzsxMTY4MDQyMDI2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/8a/75/8a75917cf623c6e046ce3c2d5f9d225e895c6aaf.jpg"
+     },
+     {
+      "articleId": "1168042031",
+      "url": "/es_es/productpage.1168042031.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "4C5164",
+      "trackingId": "OzY7IzsxMTY4MDQyMDMxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/c3/f1/c3f186f5a28549903169f7219f7544f7ecafc319.jpg"
+     },
+     {
+      "articleId": "1168042017",
+      "url": "/es_es/productpage.1168042017.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "4C5164",
+      "trackingId": "OzY7IzsxMTY4MDQyMDE3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs1OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/19/8c/198c0801a8aaf4cb26579115a42afcbd0c40c4e0.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/ca/fe/cafe1c6fa7350e594e42d568693e33b234eaf05c.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/61/13/611348bfa25c73f488339b436bfb64704f25a0fc.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/f9/aa/f9aa13d16e4c75658cf5044d86190a0fd249e8aa.jpg",
+      "assetType": "DescriptiveDetail"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/0e/a5/0ea5747ae40167c5d82014aed9c18369d85bd544.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul denim claro",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "80AAD8",
+    "colourShades": "Gris azulado|Azul vivo|Azul pastel|Azul real",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "azul_0000ff",
+    "mainCatCode": "kids_boys_clothing_jeans"
+   },
+   {
+    "id": "1168042055",
+    "trackingId": "OzY7IzsxMTY4MDQyMDU1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+    "productName": "Loose Fit Jeans",
+    "modelImage": "https://image.hm.com/assets/hm/37/8c/378ca58d85a28c16598a59658ae4017bc9091476.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/37/8c/378ca58d85a28c16598a59658ae4017bc9091476.jpg",
+     "assetType": "Lookbook"
+    },
+    "productImage": "https://image.hm.com/assets/hm/29/d3/29d3fc523233f6b4e7b99c3c5803716b79fee35c.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/29/d3/29d3fc523233f6b4e7b99c3c5803716b79fee35c.jpg",
+     "altText": "Vista frontal de vaqueros de mezclilla de algodón azul lavado, con cintura elástica, cierre de botón con cremallera y dos bolsillos delanteros curvados con un bolsillo para monedas. Los vaqueros están diseñados con piernas tipo globo que se estrechan hacia los dobladillos.",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1168042055.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 17.99,
+      "minPrice": 17.99,
+      "maxPrice": 17.99,
+      "formattedPrice": "17,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1168042055",
+      "url": "/es_es/productpage.1168042055.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "2E3036",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/29/d3/29d3fc523233f6b4e7b99c3c5803716b79fee35c.jpg"
+     },
+     {
+      "articleId": "1168042056",
+      "url": "/es_es/productpage.1168042056.html",
+      "colorName": "Gris denim claro",
+      "colorCode": "ACAAAD",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/e1/76/e176257437c5c2b269d8e02be14399bff593cc11.jpg"
+     },
+     {
+      "articleId": "1168042047",
+      "url": "/es_es/productpage.1168042047.html",
+      "colorName": "Azul denim claro",
+      "colorCode": "80AAD8",
+      "trackingId": "OzY7IzsxMTY4MDQyMDQ3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/ed/41/ed414da949e1e578ed769d371bb8f7c7df4f1fff.jpg"
+     },
+     {
+      "articleId": "1168042057",
+      "url": "/es_es/productpage.1168042057.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "2E3036",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/69/99/6999389c7a0ffd9afeca3c3b263c86972412a2fa.jpg"
+     },
+     {
+      "articleId": "1168042048",
+      "url": "/es_es/productpage.1168042048.html",
+      "colorName": "Azul denim claro",
+      "colorCode": "80AAD8",
+      "trackingId": "OzY7IzsxMTY4MDQyMDQ4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/26/13/26131d5d278c6ae384f39a28f82751f80cfe2398.jpg"
+     },
+     {
+      "articleId": "1168042052",
+      "url": "/es_es/productpage.1168042052.html",
+      "colorName": "Azul denim",
+      "colorCode": "3E64A7",
+      "trackingId": "OzY7IzsxMTY4MDQyMDUyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/6b/9e/6b9e44a053cc58c751aa58b0ac41fe4a5c9b9320.jpg"
+     },
+     {
+      "articleId": "1168042026",
+      "url": "/es_es/productpage.1168042026.html",
+      "colorName": "Azul denim",
+      "colorCode": "79829D",
+      "trackingId": "OzY7IzsxMTY4MDQyMDI2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/8a/75/8a75917cf623c6e046ce3c2d5f9d225e895c6aaf.jpg"
+     },
+     {
+      "articleId": "1168042031",
+      "url": "/es_es/productpage.1168042031.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "4C5164",
+      "trackingId": "OzY7IzsxMTY4MDQyMDMxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/c3/f1/c3f186f5a28549903169f7219f7544f7ecafc319.jpg"
+     },
+     {
+      "articleId": "1168042017",
+      "url": "/es_es/productpage.1168042017.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "4C5164",
+      "trackingId": "OzY7IzsxMTY4MDQyMDE3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2OzQ3OyM7Izsva2lkcy9ib3lzL2Nsb3RoaW5nL2plYW5zOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/19/8c/198c0801a8aaf4cb26579115a42afcbd0c40c4e0.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/cd/2e/cd2efd20eb68b8786d5691b939f774532de8c638.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/ff/22/ff22336cb99fd782c4d77d29f82debc5b9834c6b.jpg",
+      "altText": "Los vaqueros de mezclilla de algodón lavado presentan una cintura elástica con fruncido visible y dos bolsillos traseros de parche detallados con costuras naranjas en contraste.",
+      "assetType": "DescriptiveDetail"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/b4/4b/b44ba5d3b25b6c5e532b78dd7fe31d59e9e2f8f1.jpg",
+      "altText": "Los vaqueros de 5 bolsillos presentan una cintura elástica ajustable en denim de algodón lavado, mostrando pliegues y un botón oscuro en una banda elástica azul.",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul denim oscuro",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "2E3036",
+    "colourShades": "Gris azulado|Azul vivo|Azul pastel|Azul real",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": true,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "azul_0000ff",
+    "mainCatCode": "kids_boys_clothing_jeans"
+   },
+   {
+    "id": "1168042057",
+    "trackingId": "OzY7IzsxMTY4MDQyMDU3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+    "productName": "Loose Fit Jeans",
+    "modelImage": "https://image.hm.com/assets/hm/69/99/6999389c7a0ffd9afeca3c3b263c86972412a2fa.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/69/99/6999389c7a0ffd9afeca3c3b263c86972412a2fa.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/69/99/6999389c7a0ffd9afeca3c3b263c86972412a2fa.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/69/99/6999389c7a0ffd9afeca3c3b263c86972412a2fa.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1168042057.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 17.99,
+      "minPrice": 17.99,
+      "maxPrice": 17.99,
+      "formattedPrice": "17,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1168042057",
+      "url": "/es_es/productpage.1168042057.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "2E3036",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/69/99/6999389c7a0ffd9afeca3c3b263c86972412a2fa.jpg"
+     },
+     {
+      "articleId": "1168042056",
+      "url": "/es_es/productpage.1168042056.html",
+      "colorName": "Gris denim claro",
+      "colorCode": "ACAAAD",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/e1/76/e176257437c5c2b269d8e02be14399bff593cc11.jpg"
+     },
+     {
+      "articleId": "1168042047",
+      "url": "/es_es/productpage.1168042047.html",
+      "colorName": "Azul denim claro",
+      "colorCode": "80AAD8",
+      "trackingId": "OzY7IzsxMTY4MDQyMDQ3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/ed/41/ed414da949e1e578ed769d371bb8f7c7df4f1fff.jpg"
+     },
+     {
+      "articleId": "1168042055",
+      "url": "/es_es/productpage.1168042055.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "2E3036",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/29/d3/29d3fc523233f6b4e7b99c3c5803716b79fee35c.jpg"
+     },
+     {
+      "articleId": "1168042048",
+      "url": "/es_es/productpage.1168042048.html",
+      "colorName": "Azul denim claro",
+      "colorCode": "80AAD8",
+      "trackingId": "OzY7IzsxMTY4MDQyMDQ4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/26/13/26131d5d278c6ae384f39a28f82751f80cfe2398.jpg"
+     },
+     {
+      "articleId": "1168042052",
+      "url": "/es_es/productpage.1168042052.html",
+      "colorName": "Azul denim",
+      "colorCode": "3E64A7",
+      "trackingId": "OzY7IzsxMTY4MDQyMDUyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/6b/9e/6b9e44a053cc58c751aa58b0ac41fe4a5c9b9320.jpg"
+     },
+     {
+      "articleId": "1168042026",
+      "url": "/es_es/productpage.1168042026.html",
+      "colorName": "Azul denim",
+      "colorCode": "79829D",
+      "trackingId": "OzY7IzsxMTY4MDQyMDI2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/8a/75/8a75917cf623c6e046ce3c2d5f9d225e895c6aaf.jpg"
+     },
+     {
+      "articleId": "1168042031",
+      "url": "/es_es/productpage.1168042031.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "4C5164",
+      "trackingId": "OzY7IzsxMTY4MDQyMDMxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/c3/f1/c3f186f5a28549903169f7219f7544f7ecafc319.jpg"
+     },
+     {
+      "articleId": "1168042017",
+      "url": "/es_es/productpage.1168042017.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "4C5164",
+      "trackingId": "OzY7IzsxMTY4MDQyMDE3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/19/8c/198c0801a8aaf4cb26579115a42afcbd0c40c4e0.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/76/42/7642f68cfa4e09723879b82968d9981506bd6571.jpg",
+      "assetType": "DescriptiveDetail"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/bc/14/bc1432a88e3892eeac5c489d0ad6efca4b682d8b.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul denim oscuro",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "2E3036",
+    "colourShades": "Azul vivo|Azul pastel|Gris azulado|Azul real",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": true,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "azul_0000ff",
+    "mainCatCode": "kids_boys_clothing_jeans"
+   },
+   {
+    "id": "1168042048",
+    "trackingId": "OzY7IzsxMTY4MDQyMDQ4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+    "productName": "Loose Fit Jeans",
+    "modelImage": "https://image.hm.com/assets/hm/40/ea/40ea2fd0a5120878282d22752db300f2b2632265.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/40/ea/40ea2fd0a5120878282d22752db300f2b2632265.jpg",
+     "assetType": "Lookbook"
+    },
+    "productImage": "https://image.hm.com/assets/hm/26/13/26131d5d278c6ae384f39a28f82751f80cfe2398.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/26/13/26131d5d278c6ae384f39a28f82751f80cfe2398.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1168042048.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 17.99,
+      "minPrice": 17.99,
+      "maxPrice": 17.99,
+      "formattedPrice": "17,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1168042048",
+      "url": "/es_es/productpage.1168042048.html",
+      "colorName": "Azul denim claro",
+      "colorCode": "80AAD8",
+      "trackingId": "OzY7IzsxMTY4MDQyMDQ4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/26/13/26131d5d278c6ae384f39a28f82751f80cfe2398.jpg"
+     },
+     {
+      "articleId": "1168042056",
+      "url": "/es_es/productpage.1168042056.html",
+      "colorName": "Gris denim claro",
+      "colorCode": "ACAAAD",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/e1/76/e176257437c5c2b269d8e02be14399bff593cc11.jpg"
+     },
+     {
+      "articleId": "1168042047",
+      "url": "/es_es/productpage.1168042047.html",
+      "colorName": "Azul denim claro",
+      "colorCode": "80AAD8",
+      "trackingId": "OzY7IzsxMTY4MDQyMDQ3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/ed/41/ed414da949e1e578ed769d371bb8f7c7df4f1fff.jpg"
+     },
+     {
+      "articleId": "1168042055",
+      "url": "/es_es/productpage.1168042055.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "2E3036",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/29/d3/29d3fc523233f6b4e7b99c3c5803716b79fee35c.jpg"
+     },
+     {
+      "articleId": "1168042057",
+      "url": "/es_es/productpage.1168042057.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "2E3036",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/69/99/6999389c7a0ffd9afeca3c3b263c86972412a2fa.jpg"
+     },
+     {
+      "articleId": "1168042052",
+      "url": "/es_es/productpage.1168042052.html",
+      "colorName": "Azul denim",
+      "colorCode": "3E64A7",
+      "trackingId": "OzY7IzsxMTY4MDQyMDUyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/6b/9e/6b9e44a053cc58c751aa58b0ac41fe4a5c9b9320.jpg"
+     },
+     {
+      "articleId": "1168042026",
+      "url": "/es_es/productpage.1168042026.html",
+      "colorName": "Azul denim",
+      "colorCode": "79829D",
+      "trackingId": "OzY7IzsxMTY4MDQyMDI2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/8a/75/8a75917cf623c6e046ce3c2d5f9d225e895c6aaf.jpg"
+     },
+     {
+      "articleId": "1168042031",
+      "url": "/es_es/productpage.1168042031.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "4C5164",
+      "trackingId": "OzY7IzsxMTY4MDQyMDMxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/c3/f1/c3f186f5a28549903169f7219f7544f7ecafc319.jpg"
+     },
+     {
+      "articleId": "1168042017",
+      "url": "/es_es/productpage.1168042017.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "4C5164",
+      "trackingId": "OzY7IzsxMTY4MDQyMDE3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNDs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/19/8c/198c0801a8aaf4cb26579115a42afcbd0c40c4e0.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/22/b7/22b7ea87f48b16f5f85edbcba5523e5270b2f8a5.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/6a/0c/6a0c3f39187597538cf4a7a0b7f4d982dedc73a4.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/aa/7a/aa7a65530cf5c78c622121a4c4f80239ca5b27af.jpg",
+      "assetType": "DescriptiveDetail"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/51/98/5198775b21977ffe8fb40dcc50a1d572d85e6169.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul denim claro",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "80AAD8",
+    "colourShades": "Gris azulado|Azul vivo|Azul pastel|Azul real",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "azul_0000ff",
+    "mainCatCode": "kids_boys_clothing_jeans"
+   },
+   {
+    "id": "1168042052",
+    "trackingId": "OzY7IzsxMTY4MDQyMDUyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+    "productName": "Loose Fit Jeans",
+    "modelImage": "https://image.hm.com/assets/hm/6b/9e/6b9e44a053cc58c751aa58b0ac41fe4a5c9b9320.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/6b/9e/6b9e44a053cc58c751aa58b0ac41fe4a5c9b9320.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/6b/9e/6b9e44a053cc58c751aa58b0ac41fe4a5c9b9320.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/6b/9e/6b9e44a053cc58c751aa58b0ac41fe4a5c9b9320.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1168042052.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 17.99,
+      "minPrice": 17.99,
+      "maxPrice": 17.99,
+      "formattedPrice": "17,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1168042052",
+      "url": "/es_es/productpage.1168042052.html",
+      "colorName": "Azul denim",
+      "colorCode": "3E64A7",
+      "trackingId": "OzY7IzsxMTY4MDQyMDUyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/6b/9e/6b9e44a053cc58c751aa58b0ac41fe4a5c9b9320.jpg"
+     },
+     {
+      "articleId": "1168042056",
+      "url": "/es_es/productpage.1168042056.html",
+      "colorName": "Gris denim claro",
+      "colorCode": "ACAAAD",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/e1/76/e176257437c5c2b269d8e02be14399bff593cc11.jpg"
+     },
+     {
+      "articleId": "1168042047",
+      "url": "/es_es/productpage.1168042047.html",
+      "colorName": "Azul denim claro",
+      "colorCode": "80AAD8",
+      "trackingId": "OzY7IzsxMTY4MDQyMDQ3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/ed/41/ed414da949e1e578ed769d371bb8f7c7df4f1fff.jpg"
+     },
+     {
+      "articleId": "1168042055",
+      "url": "/es_es/productpage.1168042055.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "2E3036",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/29/d3/29d3fc523233f6b4e7b99c3c5803716b79fee35c.jpg"
+     },
+     {
+      "articleId": "1168042057",
+      "url": "/es_es/productpage.1168042057.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "2E3036",
+      "trackingId": "OzY7IzsxMTY4MDQyMDU3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/69/99/6999389c7a0ffd9afeca3c3b263c86972412a2fa.jpg"
+     },
+     {
+      "articleId": "1168042048",
+      "url": "/es_es/productpage.1168042048.html",
+      "colorName": "Azul denim claro",
+      "colorCode": "80AAD8",
+      "trackingId": "OzY7IzsxMTY4MDQyMDQ4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/26/13/26131d5d278c6ae384f39a28f82751f80cfe2398.jpg"
+     },
+     {
+      "articleId": "1168042026",
+      "url": "/es_es/productpage.1168042026.html",
+      "colorName": "Azul denim",
+      "colorCode": "79829D",
+      "trackingId": "OzY7IzsxMTY4MDQyMDI2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/8a/75/8a75917cf623c6e046ce3c2d5f9d225e895c6aaf.jpg"
+     },
+     {
+      "articleId": "1168042031",
+      "url": "/es_es/productpage.1168042031.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "4C5164",
+      "trackingId": "OzY7IzsxMTY4MDQyMDMxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/c3/f1/c3f186f5a28549903169f7219f7544f7ecafc319.jpg"
+     },
+     {
+      "articleId": "1168042017",
+      "url": "/es_es/productpage.1168042017.html",
+      "colorName": "Azul denim oscuro",
+      "colorCode": "4C5164",
+      "trackingId": "OzY7IzsxMTY4MDQyMDE3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs2ODs0NzsjOyM7L2tpZHMvYm95cy9jbG90aGluZy9qZWFuczsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/19/8c/198c0801a8aaf4cb26579115a42afcbd0c40c4e0.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/e4/97/e497167320787a05c0bb9276526b2c295aa6af51.jpg",
+      "assetType": "DescriptiveDetail"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/c7/aa/c7aa330c2a6ad959fb4639b2a624658d4d93bfc2.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul denim",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "3E64A7",
+    "colourShades": "Gris azulado|Azul vivo|Azul pastel|Azul real",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 0
+     },
+     {
+      "id": "008",
+      "label": "92 (1½-2Y)",
+      "stock": 0
+     },
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 0
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 0
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 0
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 0
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 0
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "azul_0000ff",
+    "mainCatCode": "kids_boys_clothing_jeans"
+   }
+  ],
+  "numberOfHits": 95
+ }
+}

@@ -249,17 +249,26 @@ def _replace_product_images(
     ambas series arrancarían en 0 y violarían el UNIQUE. Numerar en un único sitio lo resuelve
     para todas las tiendas, presentes y futuras, y además fusiona esas dos series en la galería
     del color — que es lo que la ficha quiere, porque agrupa por nombre.
+
+    `variant_url` (0023, #123) es el matiz de ese «lo que la ficha quiere»: en H&M las dos series
+    NO son el mismo color visto dos veces, son dos artículos distintos de la tienda, cada uno con
+    su ficha y sus fotos, y fusionarlos enseña la foto de uno junto al precio del otro. La columna
+    las separa **sin tocar la numeración**: `position` se sigue contando por color y el
+    `UNIQUE (product_id, color, position)` se queda como estaba, porque la tarjeta del catálogo
+    (`applyReprImages`) hace join por `position = 0` y espera una sola fila por (producto, color).
+    Quien necesita separar las dos referencias es la ficha, y le basta con filtrar por la columna.
     """
     if not images:
         return
     cur.execute("DELETE FROM product_image WHERE product_id = %s", (product_id,))
     siguiente: dict[str | None, int] = defaultdict(int)
-    filas: list[tuple[int, str | None, int, str]] = []
+    filas: list[tuple[int, str | None, int, str, str | None]] = []
     for img in images:
-        filas.append((product_id, img.color, siguiente[img.color], img.url))
+        filas.append((product_id, img.color, siguiente[img.color], img.url, img.variant_url))
         siguiente[img.color] += 1
     cur.executemany(
-        "INSERT INTO product_image (product_id, color, position, url) VALUES (%s, %s, %s, %s)",
+        "INSERT INTO product_image (product_id, color, position, url, variant_url)"
+        " VALUES (%s, %s, %s, %s, %s)",
         filas,
     )
 

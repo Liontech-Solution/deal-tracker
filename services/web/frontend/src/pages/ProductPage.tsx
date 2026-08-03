@@ -24,6 +24,56 @@ function available(v: VariantWithPrice): boolean {
   return !v.delisted;
 }
 
+/**
+ * Una referencia seleccionable de la ficha: un color **de una ficha concreta de la tienda**.
+ *
+ * No es lo mismo que un color, y esa es toda la diferencia (#123). En H&M un producto nuestro
+ * agrupa varios artículos de la tienda (agrupamos por la raíz del `articleId`), y dos de ellos
+ * pueden traer el mismo `colorName` siendo prendas distintas, cada una con su ficha, su precio y
+ * sus fotos — 803 casos así en 105 productos, medidos en `dev` el 03/08/2026. Agrupando por el
+ * nombre del color, a la segunda no se llegaba por ningún camino y la galería enseñaba las fotos
+ * de las dos revueltas.
+ *
+ * La URL es lo que las separa, y es el mismo criterio que ya usa la API para no colapsarlas
+ * (`catalog.service.ts`, la CTE `prenda` de #108). `ordinal` solo se usa para el `title`: cuando
+ * dos referencias comparten nombre no hay otro nombre que darles, porque la tienda no publica
+ * ninguno, así que se dicen por orden en vez de inventarles un color.
+ */
+interface ColorRef {
+  color: string;
+  url: string | null;
+  ordinal: number;
+  total: number;
+}
+
+/**
+ * Clave de una referencia. Serializada en vez de concatenada con un separador: cualquier
+ * separador que se elija puede aparecer dentro de un nombre de color o de una URL, y entonces
+ * dos referencias distintas colisionarían en silencio.
+ */
+function refKey(color: string, url: string | null): string {
+  return JSON.stringify([color, url]);
+}
+
+function colorRefs(variants: VariantWithPrice[]): ColorRef[] {
+  // Distintas por (color, ficha), en el orden en que las trae la API.
+  const distintas = new Map<string, { color: string; url: string | null }>();
+  for (const v of variants) {
+    if (!v.color) continue;
+    const key = refKey(v.color, v.url);
+    if (!distintas.has(key)) distintas.set(key, { color: v.color, url: v.url });
+  }
+  const porColor = new Map<string, number>();
+  for (const ref of distintas.values()) porColor.set(ref.color, (porColor.get(ref.color) ?? 0) + 1);
+
+  const vistas = new Map<string, number>();
+  return [...distintas.values()].map((ref) => {
+    const ordinal = (vistas.get(ref.color) ?? 0) + 1;
+    vistas.set(ref.color, ordinal);
+    return { ...ref, ordinal, total: porColor.get(ref.color) ?? 1 };
+  });
+}
+
 export function ProductPage() {
   const { id } = useParams();
   const productId = id ? Number(id) : undefined;
@@ -35,11 +85,13 @@ export function ProductPage() {
 
   const [size, setSize] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
+  // La ficha de la tienda de la referencia elegida: junto al color, es lo que la identifica.
+  const [refUrl, setRefUrl] = useState<string | null>(null);
   const [followOpen, setFollowOpen] = useState(false);
 
   const variants = useMemo(() => product?.variants ?? [], [product]);
   const sizes = useMemo(() => [...new Set(variants.map((v) => v.size).filter((s): s is string => !!s))], [variants]);
-  const colors = useMemo(() => [...new Set(variants.map((v) => v.color).filter((c): c is string => !!c))], [variants]);
+  const refs = useMemo(() => colorRefs(variants), [variants]);
 
   // Selección inicial: primera variante disponible (o la primera).
   useEffect(() => {
@@ -48,37 +100,52 @@ export function ProductPage() {
     if (first) {
       setSize(first.size);
       setColor(first.color);
+      setRefUrl(first.url);
     }
   }, [product]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const current: VariantWithPrice | undefined = useMemo(() => {
     if (!variants.length) return undefined;
     return (
+      variants.find((v) => v.size === size && v.color === color && v.url === refUrl) ??
       variants.find((v) => v.size === size && v.color === color) ??
       variants.find((v) => v.size === size) ??
       variants.find(available) ??
       variants[0]
     );
-  }, [variants, size, color]);
+  }, [variants, size, color, refUrl]);
 
   /**
-   * Fotos del color seleccionado. Esto es lo que mantiene coherentes foto y precio: el precio
-   * cuelga de la variante (talla+color), así que al cambiar de color cambia `current` —y con él
-   * el precio— y la galería tiene que moverse con él. Cadena de respaldo para catálogos a medio
-   * poblar: fotos del color -> fotos sin color atribuible -> la foto suelta del producto.
+   * Fotos de la referencia seleccionada. Esto es lo que mantiene coherentes foto y precio: el
+   * precio cuelga de la variante (talla+color), así que al cambiar de referencia cambia `current`
+   * —y con él el precio— y la galería tiene que moverse con él.
+   *
+   * La cadena de respaldo tiene cuatro escalones y **el segundo es el que sostiene todo lo demás**:
+   *
+   *   1. fotos de este color atribuidas a ESTA ficha — el caso que arregla la #123;
+   *   2. fotos de este color sin ficha atribuida (`variantUrl === null`) — las otras seis tiendas,
+   *      que no distinguen dos artículos bajo un mismo nombre de color, y también H&M mientras la
+   *      galería siga siendo la de antes de la 0023: la columna se puebla según el detalle
+   *      condicional y el refresco forzado vuelvan a pedir cada producto, no de golpe;
+   *   3. fotos sin color atribuible;
+   *   4. la foto suelta del producto.
+   *
+   * Los escalones 2-4 son literalmente el comportamiento anterior, así que ninguna tienda cambia
+   * de aspecto por este arreglo: solo aparece donde hay dato nuevo.
    */
   const gallery = useMemo(() => {
     const images = product?.images ?? [];
-    const ofColor = images.filter((i) => i.color === color);
+    const ofRef = images.filter((i) => i.color === color && i.variantUrl === refUrl);
+    const ofColor = ofRef.length ? ofRef : images.filter((i) => i.color === color && i.variantUrl === null);
     const usable = ofColor.length ? ofColor : images.filter((i) => i.color === null);
     if (usable.length) return usable.map((i) => i.url);
     return product?.imageUrl ? [product.imageUrl] : [];
-  }, [product, color]);
+  }, [product, color, refUrl]);
 
-  // Al cambiar de color la miniatura activa vuelve a la primera: el índice del color anterior no
-  // significa nada en el nuevo (y puede no existir).
+  // Al cambiar de referencia la miniatura activa vuelve a la primera: el índice de la anterior no
+  // significa nada en la nueva (y puede no existir).
   const [shot, setShot] = useState(0);
-  useEffect(() => setShot(0), [color]);
+  useEffect(() => setShot(0), [color, refUrl]);
   const heroSrc = gallery[shot] ?? gallery[0] ?? null;
 
   const history = usePriceHistory(current?.id);
@@ -100,7 +167,8 @@ export function ProductPage() {
 
   const honesty: Honesty = current?.honesty ?? 'none';
 
-  const colorForSize = (c: string) => variants.some((v) => v.color === c && v.size === size && available(v));
+  const refForSize = (r: ColorRef) =>
+    variants.some((v) => v.color === r.color && v.url === r.url && v.size === size && available(v));
   const sizeAvailable = (s: string) => variants.some((v) => v.size === s && available(v));
 
   const onFollow = () => {
@@ -214,23 +282,30 @@ export function ProductPage() {
           )}
 
           {/* color */}
-          {colors.length > 0 && (
+          {refs.length > 0 && (
             <div style={{ marginBottom: 22 }}>
               <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 9 }}>
                 Color · <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{color ? capitalize(color) : '—'}</span>
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {colors.map((c) => {
-                  const sel = c === color;
-                  const hex = colorHex(c);
-                  const dis = size !== null && !colorForSize(c);
+                {refs.map((r) => {
+                  const sel = r.color === color && r.url === refUrl;
+                  const hex = colorHex(r.color);
+                  const dis = size !== null && !refForSize(r);
+                  // Dos referencias con el mismo nombre son dos prendas distintas de la tienda, y
+                  // la tienda no les da otro nombre: se dicen por orden en vez de inventarles uno.
+                  const etiqueta =
+                    r.total > 1 ? `${capitalize(r.color)} · ${r.ordinal}ª referencia` : capitalize(r.color);
                   return (
                     <button
-                      key={c}
-                      aria-label={c}
-                      title={capitalize(c)}
+                      key={refKey(r.color, r.url)}
+                      aria-label={etiqueta}
+                      title={etiqueta}
                       disabled={dis}
-                      onClick={() => setColor(c)}
+                      onClick={() => {
+                        setColor(r.color);
+                        setRefUrl(r.url);
+                      }}
                       style={{
                         width: 38,
                         height: 38,
@@ -247,7 +322,7 @@ export function ProductPage() {
                         color: 'var(--ink-500)',
                       }}
                     >
-                      {hex ? '' : c.slice(0, 2)}
+                      {hex ? '' : r.color.slice(0, 2)}
                     </button>
                   );
                 })}

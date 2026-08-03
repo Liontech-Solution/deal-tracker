@@ -798,6 +798,61 @@ def test_dos_colores_con_el_mismo_nombre_no_chocan(db_conn: Any) -> None:
     ]
 
 
+def test_la_galeria_guarda_la_ficha_de_la_que_sale_cada_foto(db_conn: Any) -> None:
+    """El caso de H&M (#123), que es el contrario del de Lefties de aquí arriba.
+
+    Mismo nombre de color, pero dos ARTÍCULOS con ficha propia: fusionarlos enseña la foto de uno
+    junto al precio del otro. `variant_url` los separa sin tocar la numeración.
+    """
+    galeria = [
+        ScrapedImage(
+            color="Azul marino", url="https://s.example/a-0.jpg", variant_url="https://t/a"
+        ),
+        ScrapedImage(
+            color="Azul marino", url="https://s.example/a-1.jpg", variant_url="https://t/a"
+        ),
+        ScrapedImage(
+            color="Azul marino", url="https://s.example/b-0.jpg", variant_url="https://t/b"
+        ),
+    ]
+    store = FakeStore(
+        [_product("A", "Pantalón", [_variant("A-1", "12.99")], images=galeria)],
+        signatures={"A": "a1"},
+    )
+    ingest(db_conn, store, run_ts=T1)
+
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT color, position, url, variant_url FROM product_image ORDER BY color, position"
+        )
+        filas = cur.fetchall()
+
+    # La numeración NO cambia: sigue siendo por color y arranca en 0 una sola vez, que es lo que
+    # deja intacta la consulta de la tarjeta del catálogo (join por position = 0).
+    assert [(f[0], f[1]) for f in filas] == [
+        ("Azul marino", 0),
+        ("Azul marino", 1),
+        ("Azul marino", 2),
+    ]
+    # Y cada foto sabe de qué ficha viene, que es lo que la ficha necesita para no mezclarlas.
+    assert [f[3] for f in filas] == ["https://t/a", "https://t/a", "https://t/b"]
+
+
+def test_una_tienda_que_no_distingue_fichas_deja_variant_url_a_null(db_conn: Any) -> None:
+    """Las otras seis tiendas no pasan `variant_url`, y eso NO es un dato que falte.
+
+    Es lo que hace que la ficha caiga al respaldo «fotos de este color sin ficha atribuida», o sea
+    al comportamiento de siempre. Lo mismo vale para todo lo ingerido antes de la 0023.
+    """
+    store = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], images=_GALERIA)],
+        signatures={"A": "a1"},
+    )
+    ingest(db_conn, store, run_ts=T1)
+
+    assert _scalar(db_conn, "SELECT count(*) FROM product_image WHERE variant_url IS NOT NULL") == 0
+
+
 # --- #30 Marca barefoot -------------------------------------------------------------------
 
 

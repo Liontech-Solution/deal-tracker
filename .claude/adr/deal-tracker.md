@@ -182,7 +182,10 @@ forma es ya el patrón para cualquier campo de texto que venga de las tiendas:
 2. **Se aplica solo a la COMPARACIÓN, jamás a la columna.** Además de conservar el texto que la ficha
    enseña, es una restricción dura: `product_image.color` está clavada por el **texto** de
    `variant.color` (migración 0011) y sostiene la foto de la tarjeta y la galería. Canonicalizar el
-   dato rompería ese join en silencio.
+   dato rompería ese join en silencio. Desde la `0023` la galería se clava **además** por
+   `product_image.variant_url` = `variant.url` (ver «Una variante no es siempre una cosa
+   comprable»): la restricción no cambia de forma, gana un segundo eje con la misma —texto crudo a
+   los dos lados, y quien escriba los dos tiene que sacarlos del mismo campo.
 3. **Índice por expresión obligatorio**, parcial por `delisted_at IS NULL`. Medido sobre el volumen de
    dev (33.311 variantes): el filtro por color pasa de 14,6 ms a 0,11 ms; el de talla, de ~1 s a
    1,4 ms. Y la faceta debe deduplicar el texto crudo **antes** de canonicalizar (866 ms → 13 ms en
@@ -896,9 +899,35 @@ Lefties con `missing_streak = 0` en las 9165 variantes).
 donde una fila del listado es producto+color y el `retailer_variant_id` es `{articleId}-{sizeId}`
 con el color ya dentro del `articleId`: dentro de un artículo no puede haber duplicados. Lo que hay
 son dos fichas de la tienda con el mismo nombre de color (`1315153003` y `1315153005`, las dos
-«Azul marino»). Colapsarlas escondería un destino real, así que se dejan — es #123, y lo que sí
-les pasa es que el chip de color no las distingue y la galería mezcla las fotos de las dos,
-rompiendo la coherencia foto↔precio que fijó #26.
+«Azul marino»). Colapsarlas escondería un destino real, así que se dejan.
+
+Eso obligó a admitir (#123, `0023`) que **dentro de un producto el nombre del color no siempre
+identifica al color**, que es el supuesto sobre el que la `0011` clavó `product_image` por el texto
+del color. Con ese supuesto roto, la ficha pedía las fotos por color y le llegaban las de los dos
+artículos: 126 galerías así en una pasada completa de H&M, la peor con **17 fotos de cinco
+vaqueros distintos** bajo un solo chip «Azul denim» — y con el segundo artículo inalcanzable, chip
+y enlace incluidos. Es exactamente la coherencia foto↔precio que #26 existía para garantizar.
+
+El discriminador no es un color mejor: es **la ficha de la tienda**, o sea la URL, el mismo
+criterio de #108. Tres decisiones que conviene no volver a discutir:
+
+- **`product_image.variant_url`, no cambiar la identidad del producto.** Hacer que un artículo de
+  H&M fuese un producto nuestro es más honesto con la tienda, pero cambia el `retailer_product_id`
+  de los 3.393 productos ya ingeridos —con `price_history` e intereses detrás—, deja a H&M sin
+  selector de color y toca el agrupado por raíz del que depende la detección de `unisex`.
+- **La columna NO entra en el `UNIQUE (product_id, color, position)`,** y `position` se sigue
+  numerando por color. Es lo que mantiene una sola fila por `(producto, color, position = 0)`, que
+  es lo que la consulta de la tarjeta da por hecho; quien necesita separar las dos referencias es
+  la ficha, y le basta como atributo de filtrado.
+- **Nada de sufijos en `variant.color`.** Era la vía sin migración y es la cara: ensucia
+  `color_canon`, la faceta de color del catálogo y `interest.color`, que se canonicaliza al dar de
+  alta y **no se recalcula**.
+
+Se puebla como la `0011`: sin backfill, según el detalle condicional y el refresco forzado vuelvan
+a pedir cada producto. Por eso la ficha lleva una cadena de respaldo cuyo segundo escalón —fotos de
+ese color con `variant_url IS NULL`— es el comportamiento de siempre, y es el que ven las otras
+seis tiendas y H&M hasta que le toque refresco. Aplicar la migración sin pasar el scraper detrás no
+cambia nada de lo que se ve.
 
 De ahí la clave con la que el web agrupa desde #108: **`(producto, talla canónica, color canónico,
 URL de la variante)`**. No es una lista blanca por tienda —que envejecería mal— y añadir la URL
