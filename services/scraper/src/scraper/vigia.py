@@ -206,7 +206,8 @@ def revisar_hojas(store: BaseStore, informe: Informe) -> None:
     if total and not vivas:
         informe.accionables.append(
             "ninguna hoja confirmada viva: esto no es un blip, es un bloqueo. Si el detalle dice "
-            "429 `local_rate_limited`, es la huella TLS y no el ritmo (scraper/tls.py)."
+            "429 `local_rate_limited`, mira primero la huella TLS (scraper/tls.py); esa marca "
+            "también la trae el 429 por ritmo de la tienda, así que no la des por sentada (#120)."
         )
     if sin_veredicto:
         informe.avisos.append(

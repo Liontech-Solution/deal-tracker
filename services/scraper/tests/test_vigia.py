@@ -171,7 +171,10 @@ def test_una_hoja_sin_veredicto_avisa_pero_no_rompe() -> None:
 
 def test_que_ninguna_hoja_este_viva_si_rompe() -> None:
     """La forma que tendría una regresión de la huella TLS: 429 en todas, ninguna confirmada."""
-    detalle = "HTTP 429 local_rate_limited: huella TLS rechazada, no es el ritmo"
+    detalle = (
+        "HTTP 429 local_rate_limited en todos los intentos y sin un solo 200: "
+        "probablemente nos rechazan la huella TLS"
+    )
     tienda = TiendaFalsa(hojas=[LeafHealth(_AMBITO, f"h{i}", None, detalle) for i in range(4)])
     informe = Informe("falsa")
     revisar_hojas(tienda, informe)  # type: ignore[arg-type]
