@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 842d188a-5bed-4fff-9049-9f5776ad8a66
-  modified: 2026-08-02T22:21:41.380Z
+  modified: 2026-08-03T09:51:03.913Z
 ---
 
 Esta máquina no tiene `postgres`, `psql` ni `pg_isready` instalados (ver
@@ -39,6 +39,18 @@ todo sale verde mientras el cluster hace otra cosa.
 Los paquetes de Postgres se extraen sin sudo desde un mirror de Arch (`postgresql`,
 `postgresql-libs` y `numactl`, que hace falta para el binario del servidor) a
 `~/.local/share/pgsql-local`, y los binarios necesitan `LD_LIBRARY_PATH=<prefijo>/usr/lib`.
+
+**Al arrancarlo hay que decirle dónde pone el socket**, o falla con un `FATAL` que no menciona el
+socket sino un `.lock`: `could not create lock file "/run/postgresql/.s.PGSQL.5432.lock"`. Ese
+directorio es del paquete del sistema, que aquí no está instalado. Las dos bases ya existen
+(`deal_tracker_test` y `deal_tracker_ctype_c`), así que arrancar y usarlo es:
+
+```bash
+export PG=~/.local/share/pgsql-local LD_LIBRARY_PATH=~/.local/share/pgsql-local/usr/lib
+$PG/usr/bin/pg_ctl -D $PG/data -l $PG/server.log -o "-k /tmp" start
+export TEST_DATABASE_URL=postgres://dealtracker@127.0.0.1:5432/deal_tracker_test
+export TEST_DATABASE_URL_CTYPE_C=postgres://dealtracker@127.0.0.1:5432/deal_tracker_ctype_c
+```
 
 La verificación **del despliegue** sí va contra el cluster:
 
