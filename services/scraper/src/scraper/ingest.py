@@ -110,6 +110,18 @@ class IngestResult:
     # barefoot tiene contenido: una zapatería que se queda en 0 productos `si` no es un detalle
     # técnico, es la mitad del producto vacía.
     barefoot_counts: dict[str, int] = field(default_factory=dict)
+    # Reparto de género de lo que ESTA pasada ha listado, por el mismo motivo que el de arriba:
+    # niño/niña es el otro eje del brief y hasta #139 no se publicaba en ningún sitio. Ojo con lo
+    # que significa el `unisex`, que no es lo mismo en todas las tiendas: donde hay hojas `unisex`
+    # declaradas (bebé en Hipercor, newborn en H&M y Mango) suma esas y los cruces de género; donde
+    # no las hay (Lefties), es exactamente el número de productos publicados en las dos ramas.
+    gender_counts: dict[str, int] = field(default_factory=dict)
+    # Productos cuyo género almacenado NO es el que dice el listado y que esta pasada no ha
+    # reescrito. No es un fallo del scraper: `gender` solo lo escribe el detalle, así que una
+    # tienda ingerida antes de un arreglo de género conserva el viejo hasta que el refresco forzado
+    # llegue a ella. Se publica porque sin esta cifra la única forma de verlo era una consulta a
+    # mano contra la base, que es lo que costó #139.
+    gender_stale: int = 0
 
 
 def _scalar_int(cur: psycopg.Cursor) -> int:
@@ -147,6 +159,9 @@ class _ExistingProduct:
     signature: str | None
     delisted: bool
     last_detail_at: datetime | None  # None = nunca se le pidió detalle (o pre-migración 0009)
+    # Género almacenado: solo se usa para detectar que la fila conserva el de una pasada anterior
+    # (ver `gender_stale` en IngestResult). Lo escribe `_upsert_product`, o sea solo el detalle.
+    gender: str | None = None
 
 
 def _load_existing(cur: psycopg.Cursor, retailer_id: int) -> dict[str, _ExistingProduct]:
@@ -154,14 +169,14 @@ def _load_existing(cur: psycopg.Cursor, retailer_id: int) -> dict[str, _Existing
     cur.execute(
         """
         SELECT retailer_product_id, id, listing_signature, (delisted_at IS NOT NULL),
-               last_detail_at
+               last_detail_at, gender
         FROM product WHERE retailer_id = %s
         """,
         (retailer_id,),
     )
     return {
         row[0]: _ExistingProduct(
-            id=row[1], signature=row[2], delisted=row[3], last_detail_at=row[4]
+            id=row[1], signature=row[2], delisted=row[3], last_detail_at=row[4], gender=row[5]
         )
         for row in cur.fetchall()
     }
@@ -735,7 +750,7 @@ def ingest(
             to_refresh = _stale_refreshes(
                 unchanged, run_ts, detail_max_age_days, detail_refresh_max
             )
-            products_unchanged = 0
+            products_unchanged = gender_stale = 0
             for entry, prior in unchanged:
                 if entry.retailer_product_id in to_refresh:
                     to_fetch.append(entry)
@@ -745,6 +760,11 @@ def ingest(
                 else:
                     _touch_seen(cur, prior.id, run_ts)
                     products_unchanged += 1
+                    # El género de la fila se queda como estaba: `_touch_seen` no lo toca y el
+                    # listado ya no vuelve a mirarse. Se cuenta aquí, que es el único punto donde
+                    # se sabe a la vez lo que dice el listado y lo que hay guardado.
+                    if prior.gender is not None and prior.gender != entry.gender:
+                        gender_stale += 1
 
             # Fase 2: detalle de nuevos/cambiados/rancios -> upsert + apilar precio.
             details_fetched = variants_seen = prices_recorded = 0
@@ -834,6 +854,10 @@ def ingest(
             probes_dead=probe.dead,
             probes_unresolved=probe.unresolved,
             barefoot_counts=barefoot_counts,
+            # `sin-marcar` para el género ausente, igual que `_barefoot_counts`: una tienda que no
+            # lo declare tiene que verse en el reparto, no desaparecer de él.
+            gender_counts=dict(sorted(Counter(e.gender or "sin-marcar" for e in entries).items())),
+            gender_stale=gender_stale,
         )
     except Exception as exc:
         conn.rollback()
