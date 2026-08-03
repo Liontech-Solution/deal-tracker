@@ -14,7 +14,7 @@ Por qué esta tienda (#32): Zara, Sfera y Lefties son cadenas de moda convencion
 dejaban la zapatería respetuosa en ~92 referencias. Aquí **todo el catálogo es barefoot**, así que
 `barefoot='si'` se declara a nivel de tienda (`tienda_barefoot=True`) sin heurística de texto.
 
-Tres cosas que hay que tener presentes al tocar este fichero:
+Cinco cosas que hay que tener presentes al tocar este fichero:
 
 1. **Una colección que no existe responde 200 con `products: []`, no 404.** Comprobado en vivo. Es
    la trampa de Sfera (#54) con otra forma y peor: una hoja muerta parece "este ámbito se ha
@@ -25,21 +25,43 @@ Tres cosas que hay que tener presentes al tocar este fichero:
 2. **`compare_at_price` suele venir IGUAL a `price`** (248 de 428 productos el 31/07/2026). Solo es
    precio tachado si es estrictamente mayor; tratarlo a ciegas inventaría un descuento del 0 % en
    más de la mitad del catálogo y ensuciaría justo al detector de ofertas engañosas.
-3. **Shopify cobra por COMPLEJIDAD, no por número de peticiones**, y devuelve 429 al agotar el
-   presupuesto. Una página con `limit=250` puntúa `shopify-complexity-score: 12400`, y el cubo
-   tarda MINUTOS en rellenarse: medido el 31/07/2026, tres páginas seguidas se comen el
-   presupuesto y hubo que esperar ~7 min a que se recuperase. Una pasada normal son dos peticiones
-   al día y no se acerca al límite —esto se descubrió capturando fixtures a ráfagas—, pero el
-   CronJob lleva igualmente `SCRAPER_RETRY_BACKOFF=8` y `SCRAPER_REQUEST_RETRIES=6` para que una
-   pasada que coincida con otra cosa aguante en vez de abortar. Bajar `_PAGE_SIZE` NO ayuda: el
-   coste es por producto devuelto, así que el mismo catálogo cuesta lo mismo en más viajes.
-4. **Delante de Shopify hay un Cloudflare que ficha la huella TLS del cliente**, y ese 429 no se
-   parece en nada al anterior aunque comparta código: llega con `Retry-After: 60`, el cuerpo dice
-   `local_rate_limited`, y **no se arregla esperando** porque no depende del ritmo. Por eso el
-   cliente usa `contexto_sin_alpn()`; el porqué, medido, está en `scraper/tls.py`. Los distingue
-   `es_429_de_huella()` mirando el cuerpo, y `_get_json` los trata distinto: el del presupuesto se
-   reintenta, el de la huella se eleva a la primera (#67). Antes el código los trataba igual aunque
-   este texto ya explicara la diferencia, y esperar por el segundo solo gastaba la ventana del job.
+3. **El 429 va por CONEXIÓN: una conexión sirve una petición pesada, y la siguiente se lleva un
+   429.** Es lo que mató la primera pasada de Cacles en QA y lo que costó tres hipótesis descubrir
+   (#120), así que tenlo claro antes de tocar el cliente. Control emparejado y alternado desde esta
+   máquina, dos rondas idénticas, pidiendo las páginas 1-2-3 de `infantil`:
+
+   | cómo se piden | resultado |
+   |---|---|
+   | un `httpx.Client` compartido (lo que hacíamos) | `[200, 429, 429]` |
+   | compartido + cabecera `Connection: close` | `[200, 429, 429]` |
+   | compartido con `max_keepalive_connections=0` | `[200, 429, 429]` |
+   | **un `Client` nuevo por página** | **`[200, 200, 200]`** |
+
+   Ni la cabecera ni desactivar el keep-alive bastan: hay que abrir un cliente nuevo, y por eso lo
+   hace `_pagina()`. Encaja con todo lo que se sabía y parecía inconexo: `curl` —una conexión por
+   invocación— siempre entró, `check_leaves()` —una petición— siempre estuvo en verde, y las sondas
+   que abrían cliente por petición nunca vieron el 429 mientras las que lo compartían caían a la 2ª.
+   **El mecanismo NO está medido** (si Cloudflare cuenta peticiones por conexión, o si el
+   presupuesto de complejidad de Shopify se atribuye a la conexión), así que no escribas aquí una
+   explicación: escribe una medida. Las cifras de `shopify-complexity-score` que hay tomadas —12400
+   por página el 31/07/2026, 16810 el 03/08— son reales pero **no** explican la tabla de arriba. Y
+   bajar `_PAGE_SIZE` está medido que no ayuda: con `limit=100` y con `limit=50` el 429 llegaba
+   igual en la 2ª petición de la misma conexión.
+4. **Delante de Shopify hay un Cloudflare que ficha la huella TLS del cliente.** Por eso el cliente
+   usa `contexto_sin_alpn()`; el porqué, medido, está en `scraper/tls.py`, y sigue haciendo falta
+   (re-verificado el 03/08). Lo que **no** se puede hacer es distinguir ese 429 del anterior
+   mirando la respuesta: son idénticos byte a byte —mismo cuerpo `local_rate_limited` de 18 bytes,
+   mismo `Retry-After: 60`, mismo `server: cloudflare`—. Este texto llegó a afirmar lo contrario y
+   `_get_json` elevaba a la primera ante la marca, lo que tiró la primera pasada de Cacles en QA
+   sin gastar ni uno de los 6 reintentos (#120). Ahora el 429 con marca **se reintenta siempre**, y
+   solo se eleva `HuellaTLSRechazada` al agotar el presupuesto sin haber conseguido ni un 200: el
+   discriminante es el historial, no el cuerpo.
+5. **El vigía no puede ver el fallo del punto 3**, y conviene saberlo antes de fiarse de que esté
+   en verde. `check_leaves()` sondea con `limit=1` una sola vez, así que sale de la racha por
+   suerte o ni la toca, y la tienda contesta 200 mientras la pasada real muere en la segunda
+   página. Es deliberado y **no se cambia**: subir ese `limit` convertiría al vigía en un generador
+   de 429 semanales contra la tienda. Lo mismo vale para `test_cacles_live_acepta_nuestra_huella`.
+   Quien delata este fallo es la pasada, no el sondeo.
 
 Las funciones `parse_*` son puras (JSON -> dataclasses) y se testean con fixtures.
 """
@@ -59,7 +81,12 @@ import httpx
 
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
-from ..tls import HuellaTLSRechazada, contexto_sin_alpn, error_de_huella, es_429_de_huella
+from ..tls import (
+    HuellaTLSRechazada,
+    contexto_sin_alpn,
+    error_de_huella,
+    tiene_marca_de_cloudflare,
+)
 from .base import (
     GONE_STATUS,
     DelistCandidate,
@@ -403,6 +430,11 @@ class CaclesStore:
         self._categories = categories if categories is not None else CATEGORIES
         self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
         self._cache: dict[str, ScrapedProduct] = {}
+        # Un solo 200 de esta tienda prueba que su Cloudflare acepta nuestra huella TLS, porque eso
+        # se decide en el handshake. Es el único dato que separa los dos 429 (punto 4 de la
+        # cabecera), así que se guarda aquí. NO se reinicia por pasada a propósito: lo que afirma
+        # es «este proceso ha entrado alguna vez», y un 200 en `check_leaves()` lo prueba igual.
+        self._huella_aceptada = False
 
     def scopes(self) -> Iterable[ScrapeScope]:
         """Producto cartesiano de géneros × (sección, categoría) posibles.
@@ -437,12 +469,16 @@ class CaclesStore:
     def _get_json(self, client: httpx.Client, url: str) -> Any:
         """GET con reintentos y backoff exponencial + jitter ante throttling/errores de red.
 
-        Los dos 429 que documenta la cabecera de este módulo se tratan **distinto**, que es lo que
-        antes no pasaba: el del presupuesto de Shopify se reintenta (esperar es exactamente lo que
-        hay que hacer) y el de la huella TLS se eleva a la primera. Esperar por el segundo está
-        medido que no arregla nada, y sale caro: con los ajustes del CronJob (6 reintentos, backoff
-        8 s y `Retry-After: 60`) son ~10,5 min de `activeDeadlineSeconds` quemados para acabar
-        elevando igual, con un mensaje que además apunta a la causa equivocada.
+        Los dos 429 que documenta la cabecera **se reintentan igual**, porque la respuesta no los
+        distingue (punto 4). Lo que los separa es el historial: el rechazo por huella se decide en
+        el handshake, así que un 200 previo lo descarta. De ahí que la decisión esté al final del
+        presupuesto y no al principio —`self._huella_aceptada`—, y no en un `if` sobre el cuerpo.
+
+        Esto invierte lo que hacía antes (#67): elevar a la primera ante la marca ahorraba ~10,5
+        min cuando la causa era la huella, pero costaba **la pasada entera** cuando no lo era, que
+        es lo que pasó el 03/08/2026 con la primera ejecución de Cacles en QA (#120). El cambio es
+        asimétrico a favor de esperar: la ingesta es atómica, así que una pasada perdida no deja
+        nada, mientras que 10,5 min caben de sobra en los 1800 s del CronJob.
         """
         retries = self._config.request_retries
         for attempt in range(retries + 1):
@@ -450,12 +486,15 @@ class CaclesStore:
             try:
                 resp = client.get(url)
                 resp.raise_for_status()
+                self._huella_aceptada = True  # nos han dejado entrar: ya no puede ser la huella
                 return resp.json()
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
-                if es_429_de_huella(exc.response):
-                    raise error_de_huella(exc.response) from exc
                 if status not in _RETRYABLE_STATUS or attempt == retries:
+                    if tiene_marca_de_cloudflare(exc.response) and not self._huella_aceptada:
+                        # Agotados los reintentos y sin un solo 200 en todo el proceso: esperar no
+                        # lo está arreglando y nunca nos han dejado entrar. Ahí sí toca `tls.py`.
+                        raise error_de_huella(exc.response) from exc
                     raise
                 self._backoff(attempt, retry_after=exc.response.headers.get("Retry-After"))
             except httpx.TransportError:
@@ -484,18 +523,21 @@ class CaclesStore:
                 wait = max(wait, float(retry_after))
         time.sleep(wait * random.uniform(0.8, 1.2))
 
-    def _pagina(
-        self, client: httpx.Client, handle: str, page: int
-    ) -> tuple[list[ScrapedProduct], int]:
+    def _pagina(self, handle: str, page: int) -> tuple[list[ScrapedProduct], int]:
         """Devuelve `(productos parseados, productos CRUDOS que traía la página)`.
 
         Los dos números hacen falta y no son el mismo: el parseo descarta la tarjeta regalo, el
         medidor de pie y lo que no tenga variantes con precio. Decidir el final de la paginación
         —o si la hoja está muerta— con el número parseado haría que una página entera de tipos
         excluidos pareciese "aquí se acabó el catálogo".
+
+        **Abre su propio cliente, y por tanto su propia conexión** (punto 3 de la cabecera). Es lo
+        único que hace falta para que la paginación entre; compartir cliente entre páginas es lo
+        que mataba la pasada.
         """
         url = _COLLECTION_URL.format(handle=handle, limit=_PAGE_SIZE, page=page)
-        payload = self._get_json(client, url)
+        with self._client() as client:
+            payload = self._get_json(client, url)
         if not isinstance(payload, dict):
             raise ValueError(f"cacles: respuesta inesperada en {handle} pág. {page}")
         crudos = payload.get("products")
@@ -518,63 +560,65 @@ class CaclesStore:
         self._scan = ScanReport()
         self._cache = {}
         emitted: set[str] = set()
-        with self._client() as client:
-            for cat in self._categories:
-                handle = cat.collection_handle
-                viva = False
-                truncada = True  # solo deja de serlo al ver el final real de la paginación
-                for page in range(_PAGINA_INICIAL, _PAGINA_INICIAL + _MAX_PAGES):
-                    productos, crudos = self._pagina(client, handle, page)
-                    if not crudos:
-                        # LA PARTE IMPORTANTE DE ESTE FICHERO. Una colección retirada NO da 404:
-                        # devuelve 200 con la lista vacía, igual que la página siguiente a la
-                        # última. En la primera página eso es una hoja muerta y hay que decirlo
-                        # —si no, la ingesta lee "este ámbito se ha quedado vacío" y da de baja el
-                        # catálogo entero—; a partir de la segunda es el fin normal de la
-                        # paginación.
-                        if not viva:
-                            self._hoja_comprometida(
-                                f"la colección {handle!r} no devolvió ningún producto, "
-                                "así que se trata como hoja retirada"
-                            )
-                        truncada = False
-                        break
-                    viva = True
-                    for producto in productos:
-                        pid = producto.retailer_product_id
-                        if pid in emitted:
-                            continue
-                        emitted.add(pid)
-                        self._cache[pid] = producto
-                        yield ListingEntry(
-                            retailer_product_id=pid,
-                            signature=product_signature(producto),
-                            gender=producto.gender,
-                            section=producto.section,
-                            category=producto.category,
+        # Sin `with self._client()` envolviendo el bucle: cada página abre su conexión en
+        # `_pagina()`. Ver el punto 3 de la cabecera — la segunda petición pesada por una conexión
+        # ya usada se lleva un 429, y así es como esta tienda dejó de ingerir (#120).
+        for cat in self._categories:
+            handle = cat.collection_handle
+            viva = False
+            truncada = True  # solo deja de serlo al ver el final real de la paginación
+            for page in range(_PAGINA_INICIAL, _PAGINA_INICIAL + _MAX_PAGES):
+                productos, crudos = self._pagina(handle, page)
+                if not crudos:
+                    # LA PARTE IMPORTANTE DE ESTE FICHERO. Una colección retirada NO da 404:
+                    # devuelve 200 con la lista vacía, igual que la página siguiente a la
+                    # última. En la primera página eso es una hoja muerta y hay que decirlo
+                    # —si no, la ingesta lee "este ámbito se ha quedado vacío" y da de baja el
+                    # catálogo entero—; a partir de la segunda es el fin normal de la
+                    # paginación.
+                    if not viva:
+                        self._hoja_comprometida(
+                            f"la colección {handle!r} no devolvió ningún producto, "
+                            "así que se trata como hoja retirada"
                         )
-                    if crudos < _PAGE_SIZE:
-                        # Una página incompleta ES la última, y saberlo aquí ahorra la petición
-                        # extra que solo servía para que la tienda respondiera vacío. No es
-                        # cosmético: con el catálogo actual son 2 peticiones en vez de 3 (un tercio
-                        # menos del presupuesto de complejidad, que es lo que aquí se agota), y
-                        # quita el modo de fallo que costó una pasada entera el 01/08/2026 — las
-                        # páginas 1 y 2 se leyeron bien y el 429 llegó justo en la 3ª, la que solo
-                        # preguntaba "¿hay más?". Con exactamente `_PAGE_SIZE` productos sigue
-                        # haciendo falta preguntar, y entonces la página vacía cierra arriba.
-                        truncada = False
-                        break
-                if viva and truncada:
-                    # Se agotó el tope de páginas sin llegar al final: hemos visto SOLO una parte
-                    # del catálogo. Contarla como hoja sana sería el peor de los dos errores —lo
-                    # que no se ha llegado a mirar no está retirado, y a las `delist_min_misses`
-                    # pasadas se descatalogaría solo por no haber cabido en el tope.
-                    self._hoja_comprometida(
-                        f"{handle!r} agotó el tope de {_MAX_PAGES} páginas sin llegar al final, "
-                        "así que el catálogo leído está incompleto"
+                    truncada = False
+                    break
+                viva = True
+                for producto in productos:
+                    pid = producto.retailer_product_id
+                    if pid in emitted:
+                        continue
+                    emitted.add(pid)
+                    self._cache[pid] = producto
+                    yield ListingEntry(
+                        retailer_product_id=pid,
+                        signature=product_signature(producto),
+                        gender=producto.gender,
+                        section=producto.section,
+                        category=producto.category,
                     )
-                elif viva:
-                    self._scan.leaf_ok()
+                if crudos < _PAGE_SIZE:
+                    # Una página incompleta ES la última, y saberlo aquí ahorra la petición
+                    # extra que solo servía para que la tienda respondiera vacío. No es
+                    # cosmético: con el catálogo actual son 2 peticiones en vez de 3 (un tercio
+                    # menos del presupuesto de complejidad, que es lo que aquí se agota), y
+                    # quita el modo de fallo que costó una pasada entera el 01/08/2026 — las
+                    # páginas 1 y 2 se leyeron bien y el 429 llegó justo en la 3ª, la que solo
+                    # preguntaba "¿hay más?". Con exactamente `_PAGE_SIZE` productos sigue
+                    # haciendo falta preguntar, y entonces la página vacía cierra arriba.
+                    truncada = False
+                    break
+            if viva and truncada:
+                # Se agotó el tope de páginas sin llegar al final: hemos visto SOLO una parte
+                # del catálogo. Contarla como hoja sana sería el peor de los dos errores —lo
+                # que no se ha llegado a mirar no está retirado, y a las `delist_min_misses`
+                # pasadas se descatalogaría solo por no haber cabido en el tope.
+                self._hoja_comprometida(
+                    f"{handle!r} agotó el tope de {_MAX_PAGES} páginas sin llegar al final, "
+                    "así que el catálogo leído está incompleto"
+                )
+            elif viva:
+                self._scan.leaf_ok()
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
         # El listado ya trajo el detalle completo (variantes, precios y fotos vienen en el mismo
@@ -593,23 +637,31 @@ class CaclesStore:
 
         Pide una sola página de una unidad: basta para distinguir la colección viva de la retirada,
         que aquí se reconoce por venir vacía y no por un 404.
+
+        Cliente (y conexión) por hoja, como `_pagina()`. Hoy hay una sola colección configurada, así
+        que da igual; en cuanto haya dos, compartirlo traería el 429 del punto 3 de la cabecera al
+        vigía, y un vigía que canta por nuestro propio cliente es peor que no tenerlo.
         """
-        with self._client() as client:
-            for cat in self._categories:
-                scope = ScrapeScope(None, None, None)  # la hoja no acota ámbito en esta tienda
-                leaf = cat.collection_handle
-                url = _COLLECTION_URL.format(handle=leaf, limit=1, page=_PAGINA_INICIAL)
+        for cat in self._categories:
+            scope = ScrapeScope(None, None, None)  # la hoja no acota ámbito en esta tienda
+            leaf = cat.collection_handle
+            url = _COLLECTION_URL.format(handle=leaf, limit=1, page=_PAGINA_INICIAL)
+            with self._client() as client:
                 try:
                     payload = self._get_json(client, url)
                 except HuellaTLSRechazada:
-                    # El otro 429. Se nombra aquí porque este `detail` es lo único que se lee
-                    # cuando el vigía canta, y "HTTP 429" a secas manda a la pista falsa.
+                    # Se nombra aquí porque este `detail` es lo único que se lee cuando el vigía
+                    # canta, y "HTTP 429" a secas manda a la pista falsa. Pero se afirma con
+                    # cuidado: agotar los reintentos sin un solo 200 hace probable la huella, no
+                    # seguro (#120). Un sondeo de `limit=1` casi no puede topar con el presupuesto,
+                    # así que aquí la huella es de largo la hipótesis mejor.
                     yield LeafHealth(
                         scope,
                         leaf,
                         None,
-                        "HTTP 429 local_rate_limited: huella TLS rechazada, no es el ritmo "
-                        "(revisa scraper/tls.py contra la versión de httpcore instalada)",
+                        "HTTP 429 local_rate_limited en todos los intentos y sin un solo 200: "
+                        "probablemente nos rechazan la huella TLS (revisa scraper/tls.py contra "
+                        "la versión de httpcore instalada), no el ritmo",
                     )
                 except httpx.HTTPStatusError as exc:
                     yield LeafHealth(scope, leaf, None, f"HTTP {exc.response.status_code}")

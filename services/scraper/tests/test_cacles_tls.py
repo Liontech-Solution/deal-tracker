@@ -4,6 +4,12 @@ Cloudflare devolvía 429 `local_rate_limited` a TODA petición de httpx —tambi
 mientras curl y urllib pasaban desde la misma IP con las mismas cabeceras. La única diferencia
 medida fue la extensión ALPN del ClientHello. Estos tests fijan las dos mitades del arreglo: que el
 contexto ignora el ALPN sin bajar la verificación, y que el cliente de la tienda lo usa.
+
+La tercera parte del fichero es **cómo se clasifica un 429**, y ahí es donde estos tests estaban
+equivocados hasta #120: daban por hecho que la marca `local_rate_limited` sólo la traía el rechazo
+por huella y que el 429 por presupuesto de Shopify decía otra cosa. Medido el 03/08/2026, los dos
+son la misma respuesta byte a byte, así que la marca no decide nada por sí sola y el discriminante
+pasó a ser el historial de la ejecución.
 """
 
 from __future__ import annotations
@@ -17,7 +23,12 @@ import pytest
 
 from scraper.config import Config
 from scraper.stores.cacles import CaclesStore
-from scraper.tls import ContextoSinALPN, HuellaTLSRechazada, contexto_sin_alpn, es_429_de_huella
+from scraper.tls import (
+    ContextoSinALPN,
+    HuellaTLSRechazada,
+    contexto_sin_alpn,
+    tiene_marca_de_cloudflare,
+)
 
 _CFG = Config(database_url="postgresql://unused")
 
@@ -71,21 +82,103 @@ def test_el_cliente_de_la_tienda_usa_ese_contexto() -> None:
         assert isinstance(pool._ssl_context, ContextoSinALPN)
 
 
-def test_distingue_el_429_de_la_huella_del_429_del_presupuesto() -> None:
-    """Los dos llegan como 429 y solo el cuerpo los separa (ver cabecera de `stores/cacles.py`)."""
-    assert es_429_de_huella(_respuesta(429, '{"message":"local_rate_limited"}'))
-    # El de Shopify por presupuesto de complejidad: mismo status, otra causa, y ese SÍ se espera.
-    assert not es_429_de_huella(_respuesta(429, "Too Many Requests"))
+def test_cada_pagina_abre_su_propia_conexion() -> None:
+    """La invariante que hace que esta tienda ingiera, y que un refactor podría deshacer sin ruido.
+
+    Medido el 03/08/2026 (#120), dos rondas idénticas pidiendo las páginas 1-2-3 de `infantil`: con
+    un `httpx.Client` compartido salen `[200, 429, 429]`, y con un cliente por página `[200, 200,
+    200]`. Ni `Connection: close` ni `max_keepalive_connections=0` bastan —los dos siguen dando
+    `[200, 429, 429]`—, así que lo que hay que conservar es literalmente el cliente nuevo.
+
+    Volver a envolver el bucle de `list_catalog()` en un solo `with self._client()` es un cambio que
+    parece una limpieza obvia y deja la tienda sin ingerir en la segunda página.
+    """
+    store = CaclesStore(_CFG)
+    creados: list[httpx.Client] = []
+    original = store._client
+
+    def espia() -> httpx.Client:
+        cliente = original()
+        creados.append(cliente)
+        return cliente
+
+    store._client = espia  # type: ignore[method-assign]
+    store._get_json = lambda client, url: {"products": []}  # type: ignore[method-assign]
+
+    store._pagina("infantil", 1)
+    store._pagina("infantil", 2)
+
+    assert len(creados) == 2, "cada página debe abrir su propio cliente"
+    assert creados[0] is not creados[1], "y no puede ser el mismo objeto reutilizado"
+
+
+def test_la_marca_es_necesaria_pero_no_suficiente() -> None:
+    """La marca no dice la causa, sólo que el 429 lo sirvió Cloudflare (#120).
+
+    Este test afirmaba lo contrario: que un 429 con la marca era el de la huella y que el del
+    presupuesto de Shopify decía `"Too Many Requests"`. Medido el 03/08/2026 desde el cluster, el
+    429 por presupuesto trae **la misma marca**, el mismo `Retry-After: 60` y el mismo cuerpo de 18
+    bytes. Por eso la función ya no se llama `es_429_de_huella`: no puede responder esa pregunta.
+    """
+    assert tiene_marca_de_cloudflare(_respuesta(429, '{"message":"local_rate_limited"}'))
+    # Un 429 sin la marca es de otra capa, y ese sí queda descartado.
+    assert not tiene_marca_de_cloudflare(_respuesta(429, "Too Many Requests"))
     # Un cuerpo con la marca pero otro status no es esto: no queremos que la marca sola decida.
-    assert not es_429_de_huella(_respuesta(503, "local_rate_limited"))
+    assert not tiene_marca_de_cloudflare(_respuesta(503, "local_rate_limited"))
 
 
-def test_el_429_de_la_huella_se_eleva_sin_gastar_un_solo_reintento() -> None:
-    """Esperar por este 429 está medido que no arregla nada, y quema la ventana del CronJob.
+def test_el_429_con_marca_se_reintenta_en_vez_de_tirar_la_pasada() -> None:
+    """Regresión de #120: el incidente exacto del 03/08/2026, que hoy debe sobrevivir.
 
-    Con los ajustes del cluster (6 reintentos, backoff 8 s, `Retry-After: 60`) reintentarlo cuesta
-    ~10,5 min para acabar elevando igual. Se cuenta `_backoff` y no el reloj porque lo que se
-    afirma es la decisión, no la duración.
+    La primera ejecución programada de Cacles en QA hizo `200` en la página 1 y se comió un `429
+    local_rate_limited` en la página 2 —el presupuesto de complejidad de Shopify, que se agota en
+    dos páginas—. Como el código elevaba a la primera ante la marca, la pasada murió sin gastar ni
+    uno de sus 6 reintentos y, siendo la ingesta atómica, no quedó nada.
+    """
+    config = Config(database_url="postgresql://unused", request_retries=6, request_delay=0)
+    store = CaclesStore(config)
+    esperas: list[int] = []
+    store._backoff = lambda attempt, retry_after=None: esperas.append(attempt)  # type: ignore[method-assign]
+
+    respuestas = [
+        httpx.Response(429, headers={"Retry-After": "60"}, text="local_rate_limited"),
+        httpx.Response(200, json={"products": [{"id": 1}]}),
+    ]
+    transport = httpx.MockTransport(lambda request: respuestas.pop(0))
+    with httpx.Client(transport=transport) as client:
+        store._huella_aceptada = True  # la página 1 ya había entrado
+        payload = store._get_json(client, "https://www.caclesbarefoot.com/x.json")
+
+    assert payload == {"products": [{"id": 1}]}, "debe esperar y devolver, no elevar"
+    assert esperas == [0], "y esperar exactamente una vez, honrando el Retry-After"
+
+
+def test_un_200_previo_descarta_la_huella_aunque_luego_lleguen_solo_429() -> None:
+    """Si nos han dejado entrar, el rechazo por huella queda descartado: se decide en el handshake.
+
+    Aquí se agotan los reintentos igual y el error sale, pero **no** como `HuellaTLSRechazada`:
+    mandar a mirar `tls.py` cuando la huella está probada es exactamente la pista falsa que costó
+    la sesión del 03/08.
+    """
+    config = Config(database_url="postgresql://unused", request_retries=2, request_delay=0)
+    store = CaclesStore(config)
+    store._backoff = lambda attempt, retry_after=None: None  # type: ignore[method-assign]
+    store._huella_aceptada = True
+
+    transport = httpx.MockTransport(lambda request: httpx.Response(429, text="local_rate_limited"))
+    with httpx.Client(transport=transport) as client, pytest.raises(httpx.HTTPStatusError) as exc:
+        store._get_json(client, "https://www.caclesbarefoot.com/x.json")
+
+    assert not isinstance(exc.value, HuellaTLSRechazada)
+
+
+def test_sin_un_solo_200_y_tras_agotar_los_reintentos_si_es_la_huella() -> None:
+    """Lo que el diagnóstico del 01/08 sí quería cubrir, conservado con el disparador corregido.
+
+    Nunca entrar es la firma del rechazo por huella, y ahí el mensaje que manda a `tls.py` vale su
+    peso en oro. Lo que cambia respecto a #67 es *cuándo*: al agotar el presupuesto, no a la
+    primera. Con los ajustes del cluster son ~10,5 min de los 1800 s del CronJob, y son baratos
+    comparados con perder la pasada cuando la causa era otra.
     """
     config = Config(database_url="postgresql://unused", request_retries=6, request_delay=0)
     store = CaclesStore(config)
@@ -100,13 +193,13 @@ def test_el_429_de_la_huella_se_eleva_sin_gastar_un_solo_reintento() -> None:
     with httpx.Client(transport=transport) as client, pytest.raises(HuellaTLSRechazada) as exc:
         store._get_json(client, "https://www.caclesbarefoot.com/x.json")
 
-    assert esperas == [], "el 429 de huella no debe esperar: esperar no lo arregla"
+    assert esperas == [0, 1, 2, 3, 4, 5], "primero se agota el presupuesto de reintentos"
     # El mensaje es la mitad del arreglo: manda a `tls.py`, no a subir el backoff.
     assert "tls.py" in str(exc.value)
 
 
-def test_el_429_del_presupuesto_si_se_reintenta() -> None:
-    """El control del test anterior: el otro 429 conserva el comportamiento de siempre."""
+def test_el_429_sin_marca_si_se_reintenta() -> None:
+    """El control: un 429 de otra capa conserva el comportamiento de siempre."""
     config = Config(database_url="postgresql://unused", request_retries=2, request_delay=0)
     store = CaclesStore(config)
     esperas: list[int] = []
@@ -120,6 +213,19 @@ def test_el_429_del_presupuesto_si_se_reintenta() -> None:
     assert esperas == [0, 1], "debe agotar los reintentos antes de rendirse"
 
 
+def test_un_200_marca_la_huella_como_aceptada() -> None:
+    """El estado que hace posible todo lo anterior, afirmado por separado."""
+    config = Config(database_url="postgresql://unused", request_delay=0)
+    store = CaclesStore(config)
+    assert store._huella_aceptada is False, "se arranca sin pruebas de que nos dejen entrar"
+
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json={"products": []}))
+    with httpx.Client(transport=transport) as client:
+        store._get_json(client, "https://www.caclesbarefoot.com/x.json")
+
+    assert store._huella_aceptada is True
+
+
 @pytest.mark.skipif(
     os.environ.get("CACLES_LIVE") != "1",
     reason="smoke en vivo; define CACLES_LIVE=1 para ejecutarlo",
@@ -130,6 +236,11 @@ def test_cacles_live_acepta_nuestra_huella() -> None:
     Fuera del camino por defecto para no depender de la red en CI. Si esto empieza a dar 429 con
     `local_rate_limited`, Cloudflare habrá afinado la regla y el arreglo de la huella se quedó
     corto: es la señal para ir a por impersonación de navegador, no para subir el backoff.
+
+    **Concluyente sobre la huella, ciego sobre el presupuesto** (#120): `limit=1` no se acerca al
+    presupuesto de complejidad ni de lejos, así que este test seguirá verde mientras la pasada real
+    muere en la segunda página. Es el mismo punto ciego que el vigía —`check_leaves()` sondea igual—
+    y no se arregla subiendo el `limit`, que sólo convertiría el smoke en un generador de 429.
     """
     store = CaclesStore(_CFG)
     with store._client() as client:
