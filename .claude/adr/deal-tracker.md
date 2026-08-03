@@ -294,15 +294,16 @@ Lo transportable no es la regla sino **por qué lleva tope y qué tope**. La let
 unidad, así que el tope no está para distinguir años de números de pie —un pie no se escribe con
 `A` ni con `M`—, sino para acotar el rango en el que esa unidad es plausible, porque la letra pegada
 a un número es un sitio concurrido: `A` es también la copa de un sujetador y `M` es **Medium**, que
-Springfield publica en el mismo catálogo. Por eso los topes son distintos (15 para años, el mismo de
-#64; 36 para meses, que son 3 años y el mayor mes real del catálogo) y por eso los patrones exigen
-dígitos delante: la talla por letra no los tiene y no entra. Y lo que se sale del tope **cae a la
-regla 7 y sale crudo**, que es el estado anterior — un chip feo, nunca una etiqueta equivocada. Esa
-asimetría es el criterio con el que ampliar estas funciones: ante la duda, no canonicalizar.
+Springfield publica en el mismo catálogo. Por eso los topes son distintos —15 para años, el mismo
+umbral de #64, y 36 para meses, que son 3 años y el mayor mes real del catálogo— y por eso los
+patrones exigen dígitos delante: la talla por letra no los tiene y no entra. Y lo que se sale del
+tope **cae a la regla 7 y sale crudo**, que es el estado anterior — un chip feo, nunca una etiqueta
+equivocada. Esa asimetría es el criterio con el que ampliar estas funciones: ante la duda, no
+canonicalizar.
 
 **Y el escarmiento, que es el cuarto de la misma familia y esta vez encadenado con lo de la ingesta.**
-#135 se escribió desde una Postgres local de un solo uso y declaró dos cosas: que eran 89 variantes y
-que el rango con sufijo (`4-6A`) «no se ha visto». La primera pasada real de la tienda, el mismo día,
+La issue #135 se escribió desde una Postgres local de un solo uso y declaró dos cosas: que eran 89
+variantes y que el rango con sufijo (`4-6A`) «no se ha visto». La primera pasada real, el mismo día,
 encontró `8-9A` **y** una familia entera que la issue no mencionaba (75 variantes en meses): el
 alcance real era el doble. No es que #135 midiera mal — es que **midió sobre lo único que había**,
 porque la tienda estaba registrada y sin ingerir. De ahí el corolario que enlaza las dos secciones:
