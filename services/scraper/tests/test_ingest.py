@@ -606,6 +606,56 @@ def test_refresco_respeta_el_tope_y_empieza_por_lo_mas_rancio(db_conn: Any) -> N
     assert result.products_unchanged == 2  # A y B esperan su turno en la siguiente pasada
 
 
+def test_refresh_all_reobserva_un_detalle_reciente(db_conn: Any) -> None:
+    """#143: la reobservación bajo demanda no mira la edad, que es justo lo que la hacía imposible.
+
+    Sin esto, un catálogo ingerido hace horas no se puede volver a observar: el umbral es un entero
+    en días y su valor más agresivo sigue siendo un día.
+    """
+    ingest(db_conn, FakeStore(_solo_a(), signatures={"A": "a1"}), run_ts=T1)
+
+    store2 = FakeStore(_solo_a(), signatures={"A": "a1"})
+    # T2 es un día: sin la palanca, este mismo caso es `test_detalle_reciente_no_se_refresca`.
+    result = ingest(db_conn, store2, run_ts=T2, detail_refresh_all=True)
+
+    assert store2.detail_calls == ["A"]
+    assert result.details_refreshed == 1
+    assert result.products_unchanged == 0
+    assert _last_detail(db_conn, "A") == T2
+
+
+def test_refresh_all_respeta_el_tope_y_empieza_por_lo_mas_rancio(db_conn: Any) -> None:
+    """Salta el umbral de EDAD, no el de PRESUPUESTO: sin el tope, esto es una pasada en frío."""
+    products = [_product(pid, f"P{pid}", [_variant(f"{pid}-1", "20.00")]) for pid in "ABC"]
+    ingest(db_conn, FakeStore(products, signatures={"A": "a1", "B": "b1", "C": "c1"}), run_ts=T1)
+    # Cambios de huella que renuevan el detalle de A y B; C se queda con el de T1.
+    ingest(db_conn, FakeStore(products, signatures={"A": "a2", "B": "b1", "C": "c1"}), run_ts=T2)
+    ingest(db_conn, FakeStore(products, signatures={"A": "a2", "B": "b2", "C": "c1"}), run_ts=T3)
+
+    # T3 es el mismo día del último detalle: ninguno de los tres es rancio para el umbral.
+    store = FakeStore(products, signatures={"A": "a2", "B": "b2", "C": "c1"})
+    result = ingest(db_conn, store, run_ts=T3, detail_refresh_max=1, detail_refresh_all=True)
+
+    assert store.detail_calls == ["C"]  # el más rancio primero, igual que el refresco por edad
+    assert result.details_refreshed == 1
+    assert result.products_unchanged == 2
+
+
+def test_refresh_all_gana_al_escape_hatch(db_conn: Any) -> None:
+    """`detail_max_age_days=0` apaga el refresco *periódico*; pedirlo a mano es otra pregunta.
+
+    Que las dos cosas se dijeran con el mismo parámetro era el problema de #143, así que conviene
+    que quede fijado que no se estorban.
+    """
+    ingest(db_conn, FakeStore(_solo_a(), signatures={"A": "a1"}), run_ts=T1)
+
+    store2 = FakeStore(_solo_a(), signatures={"A": "a1"})
+    result = ingest(db_conn, store2, run_ts=T_STALE, detail_max_age_days=0, detail_refresh_all=True)
+
+    assert store2.detail_calls == ["A"]
+    assert result.details_refreshed == 1
+
+
 def test_refresco_conserva_la_huella_y_no_encadena_refrescos(db_conn: Any) -> None:
     """Tras refrescar, la huella sigue siendo la del listado: la pasada siguiente no repite."""
     ingest(db_conn, FakeStore(_solo_a(), signatures={"A": "a1"}), run_ts=T1)
@@ -1002,6 +1052,35 @@ def test_el_refresco_forzado_arregla_el_genero_rancio(db_conn: Any) -> None:
 
     # T_STALE deja el detalle por encima del umbral de 7 días: entra en el refresco forzado.
     result = ingest(db_conn, store, run_ts=T_STALE)
+
+    assert store.detail_calls == ["A"]
+    assert result.gender_stale == 0
+    assert (
+        _scalar(db_conn, "SELECT gender FROM product WHERE retailer_product_id = 'A'") == "unisex"
+    )
+
+
+def test_refresh_all_repara_el_genero_sin_esperar_al_umbral(db_conn: Any) -> None:
+    """El criterio de cierre de #143, en pequeño: reparar hoy lo ingerido hoy.
+
+    Es el caso del test anterior con el reloj en contra — que fue exactamente lo que pasó en `dev`
+    con Lefties (#139): el `last_detail_at` más viejo tenía 21 h 27 min y el Job de cura refrescó
+    cero productos, así que la única salida era esperar a que el día cumpliese.
+    """
+    ingest(
+        db_conn,
+        FakeStore(
+            [_product("A", "Camiseta", [_variant("A-1", "9.95")], gender="niña")],
+            signatures={"A": "a1"},
+        ),
+        run_ts=T1,
+    )
+    store = FakeStore(
+        [_product("A", "Camiseta", [_variant("A-1", "9.95")], gender="unisex")],
+        signatures={"A": "a1"},
+    )
+
+    result = ingest(db_conn, store, run_ts=T2, detail_refresh_all=True)  # un día: sin la palanca, 0
 
     assert store.detail_calls == ["A"]
     assert result.gender_stale == 0

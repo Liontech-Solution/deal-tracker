@@ -74,6 +74,15 @@ lo refrescado estrena marca y se va al final de la cola, el barrido es round-rob
 El coste depende de la tienda: en Zara es una petición por producto, mientras que Sfera sirve el
 detalle desde la caché del listado (gratis: ahí conviene subir el tope).
 
+Ese umbral gobierna el barrido **periódico**, pero hay un segundo caso: reparar un catálogo ya
+ingerido. Un arreglo que cambia la forma del dato (el género del cruce, la categoría, `barefoot`)
+solo se propaga al pedir la ficha, y con el umbral en días un catálogo de hace unas horas no se
+podía volver a mirar — había que esperar al reloj. Para eso está `--refresh-all`
+(o `SCRAPER_DETAIL_REFRESH_ALL=1`): pide el detalle de **todo** lo sin cambios, sin mirar la edad.
+Salta el umbral de edad, **no** el de presupuesto: `SCRAPER_DETAIL_REFRESH_MAX` sigue mandando, que
+es lo que evita que un `--refresh-all` distraído contra una tienda con navegador se convierta en
+una pasada en frío de horas.
+
 Las peticiones llevan **pausa con jitter** entre ellas y **reintentos con backoff
 exponencial** ante `429`/`5xx`/errores de red (respetando `Retry-After`). Ajustable por
 entorno: `SCRAPER_REQUEST_DELAY`, `SCRAPER_REQUEST_RETRIES`, `SCRAPER_RETRY_BACKOFF`,

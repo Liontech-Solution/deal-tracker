@@ -358,21 +358,32 @@ def _stale_refreshes(
     run_ts: datetime,
     max_age_days: int,
     refresh_max: int,
+    refresh_all: bool = False,
 ) -> set[str]:
-    """De los productos sin cambios, cuáles toca refrescar igualmente por antigüedad.
+    """De los productos sin cambios, cuáles toca refrescar igualmente: por antigüedad o a petición.
 
     Se eligen los **más rancios primero** y se recorta al presupuesto de la pasada: lo refrescado
     estrena `last_detail_at` y se va al final de la cola, así que pasadas sucesivas barren el
     catálogo en round-robin sin ráfagas. Con `max_age_days = 0` no se refresca nada (escape hatch).
+
+    `refresh_all` es la reobservación bajo demanda de #143: entran **todos** los sin cambios, sin
+    mirar la edad — pero el presupuesto sigue mandando, así que el orden por antigüedad no sobra.
     """
-    if max_age_days <= 0 or refresh_max <= 0:
+    if refresh_max <= 0:
         return set()
-    cutoff = run_ts - timedelta(days=max_age_days)
-    stale = [
-        (existing.last_detail_at, entry.retailer_product_id)
-        for entry, existing in candidates
-        if existing.last_detail_at is None or existing.last_detail_at < cutoff
-    ]
+    if refresh_all:
+        stale = [
+            (existing.last_detail_at, entry.retailer_product_id) for entry, existing in candidates
+        ]
+    elif max_age_days <= 0:
+        return set()
+    else:
+        cutoff = run_ts - timedelta(days=max_age_days)
+        stale = [
+            (existing.last_detail_at, entry.retailer_product_id)
+            for entry, existing in candidates
+            if existing.last_detail_at is None or existing.last_detail_at < cutoff
+        ]
     # `None` es lo más rancio posible: nunca se le pidió el detalle (o es de antes de la 0009).
     stale.sort(key=lambda item: item[0] or _NEVER)
     return {product_id for _, product_id in stale[:refresh_max]}
@@ -699,6 +710,7 @@ def ingest(
     delist_probe_max: int = DEFAULT_DELIST_PROBE_MAX,
     detail_max_age_days: int = DEFAULT_DETAIL_MAX_AGE_DAYS,
     detail_refresh_max: int = DEFAULT_DETAIL_REFRESH_MAX,
+    detail_refresh_all: bool = False,
     scan_max_dead_ratio: float = DEFAULT_SCAN_MAX_DEAD_RATIO,
 ) -> IngestResult:
     """Ejecuta una pasada completa del scraper y persiste el resultado. Atómico."""
@@ -748,7 +760,7 @@ def ingest(
             # Refresco forzado: los sin cambios con el detalle más rancio se piden igualmente,
             # porque su huella no va a cambiar nunca sola y sin re-observaciones no hay serie.
             to_refresh = _stale_refreshes(
-                unchanged, run_ts, detail_max_age_days, detail_refresh_max
+                unchanged, run_ts, detail_max_age_days, detail_refresh_max, detail_refresh_all
             )
             products_unchanged = gender_stale = 0
             for entry, prior in unchanged:
