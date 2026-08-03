@@ -1,0 +1,30 @@
+<!-- Fixture REAL del sitemap de producto de Springfield, RECORTADA a 15 de 12.842 <url>.
+     fuente: https://myspringfield.com/on/demandware.store/Sites-SPF-Site/es_ES/SiteMapCustom-Google?name=sitemap_1-Products.xml
+             (y sus hermanos sitemap_4 y sitemap_6; los tres tienen el mismo formato)
+     capturada: 2026-08-03
+     qué cubre: una entrada de cada caso que el parser tiene que distinguir —
+       - rutas de profundidad 5 (`mundo/genero/categoria/slug/id.html`) y 6 (`.../calzado/zapatillas/...`)
+       - categorías que mapean al brief, incluidas las dos que se pliegan (`faldas`->vestidos,
+         `jerseis`->sudaderas, `jeans`->pantalones)
+       - categorías infantiles FUERA del brief (`complementos`, `pijamas`), que no se ingieren
+       - una ruta CORTA sin taxonomía, de las ~8 que hay: hay que saltarla, no reventar con ella
+       - `teen`, que queda fuera de alcance en esta versión
+       - `mujer` y `hombre`, que se filtran por no ser infantil
+     Todas traen `lastmod`, que es la `signature` de esta tienda. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url>     <loc>https://myspringfield.com/es/es/ninos-de-5-a-14/nino/camisetas/pack-de-camisetas/6801313.html</loc>     <lastmod>2026-08-02T19:22:29.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/ninos-de-5-a-14/nino/camisetas/camiseta-relaxed-manga-corta/6801308.html</loc>     <lastmod>2026-08-02T08:20:46.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/ninos-de-5-a-14/nina/vestidos/vestido-tipo-camiseta-de-manga-corta/9123461.html</loc>     <lastmod>2026-08-02T19:22:29.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/ninos-de-5-a-14/nina/faldas/falda-vaquera-tablas/9793601.html</loc>     <lastmod>2026-08-02T08:24:42.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/ninos-de-5-a-14/nino/intimo/calzoncillos/pack-3-boxers-algodon/7221129.html</loc>     <lastmod>2026-08-02T19:21:43.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/ninos-de-5-a-14/nino/calzado/zapatillas/deportivas-low-cut/7300986.html</loc>     <lastmod>2026-08-02T08:22:11.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/ninos-de-5-a-14/nina/calzado/zapatillas/zapatillas-iconicas-classic-slip-on/7300962.html</loc>     <lastmod>2026-08-02T08:22:09.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/ninos-de-5-a-14/nina/jerseis/cardigan/rebeca-larga-de-nina/7632112.html</loc>     <lastmod>2026-08-02T08:22:44.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/ninos-de-5-a-14/nino/jeans/vaquero-slim-algodon/2600329.html</loc>     <lastmod>2026-08-02T19:27:37.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/ninos-de-5-a-14/nina/complementos/otros-accesorios/vestido-toalla-de-playa-para-nina/2113181.html</loc>     <lastmod>2026-08-02T19:23:52.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/ninos-de-5-a-14/nino/pijamas/pijama-corto-mickey-mouse-italia/1793698.html</loc>     <lastmod>2026-08-02T19:23:53.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/ninos-de-5-a-14/conjunto-de-pantalon-zapatillas-y-polo/02092118.html</loc>     <lastmod>2026-07-02T10:51:58.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/teen/ropa-interior/sujetadores/sujetador-top-seamless-encaje-lila/9533163.html</loc>     <lastmod>2026-08-02T19:31:01.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/mujer/vestidos-y-monos/vestido-bordado-nudo-escote/8953014.html</loc>     <lastmod>2026-08-02T19:29:47.000Z</lastmod> </url>
+<url>     <loc>https://myspringfield.com/es/es/hombre/pantalones/bermudas/bermuda-vaquera-basica-negra-slim-fit/0013505.html</loc>     <lastmod>2026-08-02T19:29:50.000Z</lastmod> </url>
+</urlset>
