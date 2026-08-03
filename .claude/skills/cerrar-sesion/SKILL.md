@@ -1,6 +1,6 @@
 ---
 name: cerrar-sesion
-description: Cierre de una sesión de trabajo — reindexa el grafo de codebase-memory, actualiza el ADR si la sesión cambió algo estructural, deja por escrito en las issues todo lo pendiente y los hallazgos nuevos (abriendo issue si se salen del scope), avisa de trabajo sin commitear y limpia lo que sobra: el worktree de la propia sesión (nunca los de otras) y las ramas ya mergeadas. Usar siempre que se dé por terminada la sesión, aunque no se pida explícitamente nada de esto: "vamos a cerrar sesión", "lo dejamos por hoy", "ya está por hoy", "me voy", "terminamos", o cualquier señal de que se cierra el terminal.
+description: Cierre de una sesión de trabajo — consolida en `main` todo lo que la sesión ha hecho (commit, PR y merge de los PR propios que sigan abiertos, siempre con los checks en verde), reindexa el grafo de codebase-memory, actualiza el ADR si la sesión cambió algo estructural, deja por escrito en las issues todo lo pendiente y los hallazgos nuevos (abriendo issue si se salen del scope) y limpia lo que sobra: el worktree de la propia sesión (nunca los de otras) y las ramas ya mergeadas. Usar siempre que se dé por terminada la sesión, aunque no se pida explícitamente nada de esto: "vamos a cerrar sesión", "lo dejamos por hoy", "ya está por hoy", "me voy", "terminamos", o cualquier señal de que se cierra el terminal.
 ---
 
 # Cerrar sesión
@@ -20,7 +20,80 @@ escrita donde se la va a volver a encontrar (la issue, el ADR, un commit) o deja
 recorrer los pasos siguientes, esa es la pregunta de fondo: *si mañana no me acuerdo de nada de
 hoy, ¿esto sigue estando en algún sitio?*
 
-## 1. Reindexar
+## 1. Consolidar: que el trabajo de hoy acabe en `main`
+
+Va primero porque casi todo lo que viene después lo da por hecho: el reindexado quiere ver el
+`main` definitivo, y la limpieza del paso 6 solo puede borrar lo que ya esté mergeado.
+
+Piensa en el trabajo como una escalera, de menos a más a salvo:
+
+1. **Sin commitear** — invisible, y se va con el portátil. Es el escalón malo.
+2. **Commiteado sin subir** — existe en un solo disco.
+3. **Rama subida sin PR** — está a salvo, pero nadie sabe que existe.
+4. **PR abierto** — a salvo y visible; se puede dejar así *a propósito*.
+5. **Mergeado en `main`** — hecho.
+
+El cierre consiste en subir cada cosa hasta donde le toque, y lo que esté listo llega arriba. El
+fallo típico no es dejar código a medias: es dejar en el escalón 4 un PR verde que solo necesitaba
+un clic, y descubrirlo tres días después. Un PR abierto se ve en GitHub, sí, pero un PR que nadie
+va a revisar porque era tuyo y estaba listo no es trazabilidad, es un olvido con URL.
+
+Así que **consolida y mergea por defecto**, incluidos los PR que abriste antes en esta misma sesión
+y siguen abiertos:
+
+```bash
+git status --short                    # ¿queda algo por commitear?
+gh pr list --state open               # ¿PR de esta sesión sin cerrar?
+gh pr checks <n>                      # ← antes de mergear, siempre
+gh pr merge <n> --merge --delete-branch
+```
+
+### Verde antes de mergear, sin excepción
+
+`gh pr checks` antes de cada merge. Si hay algo en rojo o todavía corriendo, **no mergees**: espera
+o déjalo abierto y dilo. Aquí eso no es formalismo — un merge a `main` publica imagen y ArgoCD la
+despliega en `dev`, así que mergear en rojo por cerrar la sesión antes deja roto el entorno para
+quien llegue mañana, que es justo lo contrario de cerrar bien.
+
+Si los checks siguen corriendo y no quieres esperar, `gh pr merge --auto` mergea solo cuando pasen.
+Es la salida buena: no te quedas mirando y tampoco dejas el PR olvidado.
+
+### Solo lo de esta sesión
+
+Mergear es publicar en nombre de alguien, así que el alcance es el mismo que con los worktrees:
+**lo que ha hecho esta sesión y nada más**. Un PR abierto de otra persona —o de otra sesión— no se
+mergea aunque esté verde y aunque parezca terminado; no sabes si espera una revisión, una prueba
+en `dev` o una decisión que no está escrita. Si no distingues cuáles son tuyos, mira la fecha y la
+rama contra los commits de hoy, y si aún dudas, pregunta en vez de mergear.
+
+Y no todo lo de la sesión merece subir: los experimentos, los ficheros de prueba y las ramas que
+nacieron para descartar se dicen y se tiran, no se commitean «por si acaso».
+
+### El listón: consolidado o no está cerrado
+
+Lo demás sí sube, y sube entero. **Una sesión con trabajo suyo por debajo del escalón 5 no está
+cerrada**, y hay que decirlo con esas palabras en vez de dar el cierre por bueno con una nota al
+pie. No es una cuestión de orden: el trabajo que se queda a mitad de escalera es exactamente el
+que nadie retoma, porque para retomarlo primero hay que acordarse de que existe.
+
+Solo dos cosas justifican parar antes de arriba, y las dos son verificables, no opiniones:
+
+- **Los checks no están en verde.** Espera, o `--auto`, o déjalo abierto explicando en el PR qué
+  falla.
+- **El trabajo está de verdad a medias** y mergearlo dejaría `main` con algo incompleto.
+
+En cualquiera de los dos casos, el destino mínimo es el escalón 4 —PR abierto, con el estado
+escrito en él— y queda anotado en su issue según el paso 5. Dejar trabajo a medias está bien;
+dejarlo a medias *y solo en tu disco*, no.
+
+Termina comprobándolo, que es lo que separa cerrar de creer que has cerrado:
+
+```bash
+git status --short          # vacío
+gh pr list --state open     # sin nada tuyo de hoy, o con el porqué dicho en voz alta
+```
+
+## 2. Reindexar
 
 `index_repository` en modo **`full`**. No uses `fast` en deal-tracker: excluye `db/migrations/` y
 `tests/fixtures/`, que son justo el contrato del proyecto.
@@ -39,7 +112,7 @@ El reindexado es incremental y tarda segundos, así que no merece la pena averig
 falta. `detect_changes` no sirve para eso: `index_status` lee el git en vivo, así que
 `base_sha == head_sha` siempre y devuelve 0 cambios aunque el índice esté caducado.
 
-## 2. El ADR vive en un fichero, el grafo es solo la copia consultable
+## 3. El ADR vive en un fichero, el grafo es solo la copia consultable
 
 La fuente de verdad del ADR es el fichero versionado de cada repo:
 
@@ -69,7 +142,7 @@ Y compruébalo de verdad con `manage_adr --mode sections`, que lee el grafo: no 
 de las dos direcciones. El `adr_present` de `index_repository` solo te dice cómo quedó **en ese
 momento**.
 
-## 3. ¿Cambia el ADR lo aprendido hoy?
+## 4. ¿Cambia el ADR lo aprendido hoy?
 
 Este es el paso que importa, y el que exige criterio. Pregúntate qué habría ahorrado tiempo saber
 al empezar la sesión de hoy. Merece entrar en el ADR:
@@ -84,11 +157,17 @@ al empezar la sesión de hoy. Merece entrar en el ADR:
 cuente. El ADR no es un diario — es lo que sigue siendo cierto dentro de tres meses. Si la sesión
 fue rutinaria, lo correcto es no tocarlo y decirlo.
 
-Si hay que actualizarlo: edita el fichero de `.claude/adr/` (no el grafo directamente), re-publica
-con `manage_adr` en modo `update` pasándole el contenido del fichero, y deja el fichero listo para
-commitear. Así el fichero y el grafo nunca divergen.
+Si hay que actualizarlo: edita el fichero de `.claude/adr/` (no el grafo directamente) y re-publica
+con `manage_adr` en modo `update` pasándole el contenido del fichero. Así el fichero y el grafo
+nunca divergen.
 
-## 4. Dejar por escrito lo pendiente y lo descubierto
+Y **ese fichero es trabajo de la sesión como cualquier otro**, aunque el paso 1 ya haya pasado: le
+toca su commit, su PR y su merge. Es el despiste fácil de esta skill —el ADR se decide tarde,
+cuando la parte de git parece cerrada— y deja el grafo diciendo algo que el repo no tiene escrito
+en ninguna parte, que es la divergencia exacta que este paso existe para evitar. Si sabes de
+antemano que la sesión toca el ADR, decídelo antes de consolidar y ahórrate el segundo PR.
+
+## 5. Dejar por escrito lo pendiente y lo descubierto
 
 Aquí es donde se aplica la regla de arriba. La issue es el único sitio donde un pendiente o un
 hallazgo sobrevive a la sesión, así que el listón es: **si sigue vivo, se escribe**.
@@ -125,17 +204,6 @@ de que algo pasaba, no un plan — y en tres semanas cuesta más reconstruirla q
 
 Si dudas entre comentario e issue nueva, el criterio es si tiene vida propia: ¿se puede cerrar la
 issue de hoy dejando esto sin hacer? Si la respuesta es sí, es una issue.
-
-## 5. Cerrar el trabajo pendiente
-
-Antes de despedirte, mira `git status` en los repos tocados y di explícitamente:
-
-- Qué queda sin commitear, y si debería commitearse o es basura de pruebas.
-- Qué ramas quedan sin mergear o qué PR quedan abiertos.
-- Si el ADR ha cambiado, que ese fichero también va en el commit.
-
-No commitees por tu cuenta salvo que se te pida. El objetivo es que no se pierda nada por olvido,
-no decidir por el usuario.
 
 ## 6. Limpieza: worktrees y ramas que ya no sirven
 
