@@ -82,6 +82,36 @@ def test_el_cliente_de_la_tienda_usa_ese_contexto() -> None:
         assert isinstance(pool._ssl_context, ContextoSinALPN)
 
 
+def test_cada_pagina_abre_su_propia_conexion() -> None:
+    """La invariante que hace que esta tienda ingiera, y que un refactor podría deshacer sin ruido.
+
+    Medido el 03/08/2026 (#120), dos rondas idénticas pidiendo las páginas 1-2-3 de `infantil`: con
+    un `httpx.Client` compartido salen `[200, 429, 429]`, y con un cliente por página `[200, 200,
+    200]`. Ni `Connection: close` ni `max_keepalive_connections=0` bastan —los dos siguen dando
+    `[200, 429, 429]`—, así que lo que hay que conservar es literalmente el cliente nuevo.
+
+    Volver a envolver el bucle de `list_catalog()` en un solo `with self._client()` es un cambio que
+    parece una limpieza obvia y deja la tienda sin ingerir en la segunda página.
+    """
+    store = CaclesStore(_CFG)
+    creados: list[httpx.Client] = []
+    original = store._client
+
+    def espia() -> httpx.Client:
+        cliente = original()
+        creados.append(cliente)
+        return cliente
+
+    store._client = espia  # type: ignore[method-assign]
+    store._get_json = lambda client, url: {"products": []}  # type: ignore[method-assign]
+
+    store._pagina("infantil", 1)
+    store._pagina("infantil", 2)
+
+    assert len(creados) == 2, "cada página debe abrir su propio cliente"
+    assert creados[0] is not creados[1], "y no puede ser el mismo objeto reutilizado"
+
+
 def test_la_marca_es_necesaria_pero_no_suficiente() -> None:
     """La marca no dice la causa, sólo que el 429 lo sirvió Cloudflare (#120).
 

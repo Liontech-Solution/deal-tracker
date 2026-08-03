@@ -25,18 +25,28 @@ Cinco cosas que hay que tener presentes al tocar este fichero:
 2. **`compare_at_price` suele venir IGUAL a `price`** (248 de 428 productos el 31/07/2026). Solo es
    precio tachado si es estrictamente mayor; tratarlo a ciegas inventaría un descuento del 0 % en
    más de la mitad del catálogo y ensuciaría justo al detector de ofertas engañosas.
-3. **Shopify cobra por COMPLEJIDAD, no por número de peticiones**, y devuelve 429 al agotar el
-   presupuesto. El cubo tarda MINUTOS en rellenarse: medido el 31/07/2026, con
-   `shopify-complexity-score: 12400` por página, tres páginas seguidas se lo comían y hubo que
-   esperar ~7 min. **Remedido el 03/08/2026: 16810 por página, y se agota en DOS** (#120). El
-   catálogo crece y el presupuesto no, así que esto dejó de ser el caso raro que se descubrió
-   capturando fixtures a ráfagas y pasó a ser el caso normal: la pasada necesita justo esas dos o
-   tres páginas. De ahí que el CronJob lleve `SCRAPER_RETRY_BACKOFF=8` y `SCRAPER_REQUEST_RETRIES=6`
-   —con el `Retry-After: 60` dominando los primeros intentos son ~10,5 min de espera máxima, que
-   caben en el `activeDeadlineSeconds` de 1800 s y cubren los ~7 min de recuperación—. Bajar
-   `_PAGE_SIZE` NO ayuda, y ya no es deducción sino medida (03/08, desde el cluster): con
-   `limit=250` el 429 llega en la 3ª petición, con `limit=100` y con `limit=50` en la **2ª**. El
-   coste es por producto devuelto, así que el mismo catálogo cuesta lo mismo en más viajes.
+3. **El 429 va por CONEXIÓN: una conexión sirve una petición pesada, y la siguiente se lleva un
+   429.** Es lo que mató la primera pasada de Cacles en QA y lo que costó tres hipótesis descubrir
+   (#120), así que tenlo claro antes de tocar el cliente. Control emparejado y alternado desde esta
+   máquina, dos rondas idénticas, pidiendo las páginas 1-2-3 de `infantil`:
+
+   | cómo se piden | resultado |
+   |---|---|
+   | un `httpx.Client` compartido (lo que hacíamos) | `[200, 429, 429]` |
+   | compartido + cabecera `Connection: close` | `[200, 429, 429]` |
+   | compartido con `max_keepalive_connections=0` | `[200, 429, 429]` |
+   | **un `Client` nuevo por página** | **`[200, 200, 200]`** |
+
+   Ni la cabecera ni desactivar el keep-alive bastan: hay que abrir un cliente nuevo, y por eso lo
+   hace `_pagina()`. Encaja con todo lo que se sabía y parecía inconexo: `curl` —una conexión por
+   invocación— siempre entró, `check_leaves()` —una petición— siempre estuvo en verde, y las sondas
+   que abrían cliente por petición nunca vieron el 429 mientras las que lo compartían caían a la 2ª.
+   **El mecanismo NO está medido** (si Cloudflare cuenta peticiones por conexión, o si el
+   presupuesto de complejidad de Shopify se atribuye a la conexión), así que no escribas aquí una
+   explicación: escribe una medida. Las cifras de `shopify-complexity-score` que hay tomadas —12400
+   por página el 31/07/2026, 16810 el 03/08— son reales pero **no** explican la tabla de arriba. Y
+   bajar `_PAGE_SIZE` está medido que no ayuda: con `limit=100` y con `limit=50` el 429 llegaba
+   igual en la 2ª petición de la misma conexión.
 4. **Delante de Shopify hay un Cloudflare que ficha la huella TLS del cliente.** Por eso el cliente
    usa `contexto_sin_alpn()`; el porqué, medido, está en `scraper/tls.py`, y sigue haciendo falta
    (re-verificado el 03/08). Lo que **no** se puede hacer es distinguir ese 429 del anterior
@@ -47,11 +57,11 @@ Cinco cosas que hay que tener presentes al tocar este fichero:
    solo se eleva `HuellaTLSRechazada` al agotar el presupuesto sin haber conseguido ni un 200: el
    discriminante es el historial, no el cuerpo.
 5. **El vigía no puede ver el fallo del punto 3**, y conviene saberlo antes de fiarse de que esté
-   en verde. `check_leaves()` sondea con `limit=1`, y una petición así de barata no acerca al
-   presupuesto ni de lejos, así que la tienda contesta 200 mientras la pasada real muere en la
-   segunda página. Es deliberado y **no se cambia**: subir ese `limit` convertiría al vigía en un
-   generador de 429 semanales contra la tienda. Lo mismo vale para
-   `test_cacles_live_acepta_nuestra_huella`. Quien delata este fallo es la pasada, no el sondeo.
+   en verde. `check_leaves()` sondea con `limit=1` una sola vez, así que sale de la racha por
+   suerte o ni la toca, y la tienda contesta 200 mientras la pasada real muere en la segunda
+   página. Es deliberado y **no se cambia**: subir ese `limit` convertiría al vigía en un generador
+   de 429 semanales contra la tienda. Lo mismo vale para `test_cacles_live_acepta_nuestra_huella`.
+   Quien delata este fallo es la pasada, no el sondeo.
 
 Las funciones `parse_*` son puras (JSON -> dataclasses) y se testean con fixtures.
 """
@@ -513,18 +523,21 @@ class CaclesStore:
                 wait = max(wait, float(retry_after))
         time.sleep(wait * random.uniform(0.8, 1.2))
 
-    def _pagina(
-        self, client: httpx.Client, handle: str, page: int
-    ) -> tuple[list[ScrapedProduct], int]:
+    def _pagina(self, handle: str, page: int) -> tuple[list[ScrapedProduct], int]:
         """Devuelve `(productos parseados, productos CRUDOS que traía la página)`.
 
         Los dos números hacen falta y no son el mismo: el parseo descarta la tarjeta regalo, el
         medidor de pie y lo que no tenga variantes con precio. Decidir el final de la paginación
         —o si la hoja está muerta— con el número parseado haría que una página entera de tipos
         excluidos pareciese "aquí se acabó el catálogo".
+
+        **Abre su propio cliente, y por tanto su propia conexión** (punto 3 de la cabecera). Es lo
+        único que hace falta para que la paginación entre; compartir cliente entre páginas es lo
+        que mataba la pasada.
         """
         url = _COLLECTION_URL.format(handle=handle, limit=_PAGE_SIZE, page=page)
-        payload = self._get_json(client, url)
+        with self._client() as client:
+            payload = self._get_json(client, url)
         if not isinstance(payload, dict):
             raise ValueError(f"cacles: respuesta inesperada en {handle} pág. {page}")
         crudos = payload.get("products")
@@ -547,63 +560,65 @@ class CaclesStore:
         self._scan = ScanReport()
         self._cache = {}
         emitted: set[str] = set()
-        with self._client() as client:
-            for cat in self._categories:
-                handle = cat.collection_handle
-                viva = False
-                truncada = True  # solo deja de serlo al ver el final real de la paginación
-                for page in range(_PAGINA_INICIAL, _PAGINA_INICIAL + _MAX_PAGES):
-                    productos, crudos = self._pagina(client, handle, page)
-                    if not crudos:
-                        # LA PARTE IMPORTANTE DE ESTE FICHERO. Una colección retirada NO da 404:
-                        # devuelve 200 con la lista vacía, igual que la página siguiente a la
-                        # última. En la primera página eso es una hoja muerta y hay que decirlo
-                        # —si no, la ingesta lee "este ámbito se ha quedado vacío" y da de baja el
-                        # catálogo entero—; a partir de la segunda es el fin normal de la
-                        # paginación.
-                        if not viva:
-                            self._hoja_comprometida(
-                                f"la colección {handle!r} no devolvió ningún producto, "
-                                "así que se trata como hoja retirada"
-                            )
-                        truncada = False
-                        break
-                    viva = True
-                    for producto in productos:
-                        pid = producto.retailer_product_id
-                        if pid in emitted:
-                            continue
-                        emitted.add(pid)
-                        self._cache[pid] = producto
-                        yield ListingEntry(
-                            retailer_product_id=pid,
-                            signature=product_signature(producto),
-                            gender=producto.gender,
-                            section=producto.section,
-                            category=producto.category,
+        # Sin `with self._client()` envolviendo el bucle: cada página abre su conexión en
+        # `_pagina()`. Ver el punto 3 de la cabecera — la segunda petición pesada por una conexión
+        # ya usada se lleva un 429, y así es como esta tienda dejó de ingerir (#120).
+        for cat in self._categories:
+            handle = cat.collection_handle
+            viva = False
+            truncada = True  # solo deja de serlo al ver el final real de la paginación
+            for page in range(_PAGINA_INICIAL, _PAGINA_INICIAL + _MAX_PAGES):
+                productos, crudos = self._pagina(handle, page)
+                if not crudos:
+                    # LA PARTE IMPORTANTE DE ESTE FICHERO. Una colección retirada NO da 404:
+                    # devuelve 200 con la lista vacía, igual que la página siguiente a la
+                    # última. En la primera página eso es una hoja muerta y hay que decirlo
+                    # —si no, la ingesta lee "este ámbito se ha quedado vacío" y da de baja el
+                    # catálogo entero—; a partir de la segunda es el fin normal de la
+                    # paginación.
+                    if not viva:
+                        self._hoja_comprometida(
+                            f"la colección {handle!r} no devolvió ningún producto, "
+                            "así que se trata como hoja retirada"
                         )
-                    if crudos < _PAGE_SIZE:
-                        # Una página incompleta ES la última, y saberlo aquí ahorra la petición
-                        # extra que solo servía para que la tienda respondiera vacío. No es
-                        # cosmético: con el catálogo actual son 2 peticiones en vez de 3 (un tercio
-                        # menos del presupuesto de complejidad, que es lo que aquí se agota), y
-                        # quita el modo de fallo que costó una pasada entera el 01/08/2026 — las
-                        # páginas 1 y 2 se leyeron bien y el 429 llegó justo en la 3ª, la que solo
-                        # preguntaba "¿hay más?". Con exactamente `_PAGE_SIZE` productos sigue
-                        # haciendo falta preguntar, y entonces la página vacía cierra arriba.
-                        truncada = False
-                        break
-                if viva and truncada:
-                    # Se agotó el tope de páginas sin llegar al final: hemos visto SOLO una parte
-                    # del catálogo. Contarla como hoja sana sería el peor de los dos errores —lo
-                    # que no se ha llegado a mirar no está retirado, y a las `delist_min_misses`
-                    # pasadas se descatalogaría solo por no haber cabido en el tope.
-                    self._hoja_comprometida(
-                        f"{handle!r} agotó el tope de {_MAX_PAGES} páginas sin llegar al final, "
-                        "así que el catálogo leído está incompleto"
+                    truncada = False
+                    break
+                viva = True
+                for producto in productos:
+                    pid = producto.retailer_product_id
+                    if pid in emitted:
+                        continue
+                    emitted.add(pid)
+                    self._cache[pid] = producto
+                    yield ListingEntry(
+                        retailer_product_id=pid,
+                        signature=product_signature(producto),
+                        gender=producto.gender,
+                        section=producto.section,
+                        category=producto.category,
                     )
-                elif viva:
-                    self._scan.leaf_ok()
+                if crudos < _PAGE_SIZE:
+                    # Una página incompleta ES la última, y saberlo aquí ahorra la petición
+                    # extra que solo servía para que la tienda respondiera vacío. No es
+                    # cosmético: con el catálogo actual son 2 peticiones en vez de 3 (un tercio
+                    # menos del presupuesto de complejidad, que es lo que aquí se agota), y
+                    # quita el modo de fallo que costó una pasada entera el 01/08/2026 — las
+                    # páginas 1 y 2 se leyeron bien y el 429 llegó justo en la 3ª, la que solo
+                    # preguntaba "¿hay más?". Con exactamente `_PAGE_SIZE` productos sigue
+                    # haciendo falta preguntar, y entonces la página vacía cierra arriba.
+                    truncada = False
+                    break
+            if viva and truncada:
+                # Se agotó el tope de páginas sin llegar al final: hemos visto SOLO una parte
+                # del catálogo. Contarla como hoja sana sería el peor de los dos errores —lo
+                # que no se ha llegado a mirar no está retirado, y a las `delist_min_misses`
+                # pasadas se descatalogaría solo por no haber cabido en el tope.
+                self._hoja_comprometida(
+                    f"{handle!r} agotó el tope de {_MAX_PAGES} páginas sin llegar al final, "
+                    "así que el catálogo leído está incompleto"
+                )
+            elif viva:
+                self._scan.leaf_ok()
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
         # El listado ya trajo el detalle completo (variantes, precios y fotos vienen en el mismo
@@ -622,12 +637,16 @@ class CaclesStore:
 
         Pide una sola página de una unidad: basta para distinguir la colección viva de la retirada,
         que aquí se reconoce por venir vacía y no por un 404.
+
+        Cliente (y conexión) por hoja, como `_pagina()`. Hoy hay una sola colección configurada, así
+        que da igual; en cuanto haya dos, compartirlo traería el 429 del punto 3 de la cabecera al
+        vigía, y un vigía que canta por nuestro propio cliente es peor que no tenerlo.
         """
-        with self._client() as client:
-            for cat in self._categories:
-                scope = ScrapeScope(None, None, None)  # la hoja no acota ámbito en esta tienda
-                leaf = cat.collection_handle
-                url = _COLLECTION_URL.format(handle=leaf, limit=1, page=_PAGINA_INICIAL)
+        for cat in self._categories:
+            scope = ScrapeScope(None, None, None)  # la hoja no acota ámbito en esta tienda
+            leaf = cat.collection_handle
+            url = _COLLECTION_URL.format(handle=leaf, limit=1, page=_PAGINA_INICIAL)
+            with self._client() as client:
                 try:
                     payload = self._get_json(client, url)
                 except HuellaTLSRechazada:
