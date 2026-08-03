@@ -13,6 +13,7 @@ from .hm import HMStore
 from .lefties import LeftiesStore
 from .mango import MangoStore
 from .sfera import SferaStore
+from .springfield import SpringfieldStore
 from .zara import ZaraStore
 
 # slug -> factoría que construye el scraper con la config.
@@ -25,6 +26,7 @@ _STORES: dict[str, Callable[[Config], BaseStore]] = {
     HipercorStore.slug: HipercorStore,
     HMStore.slug: HMStore,
     MangoStore.slug: MangoStore,
+    SpringfieldStore.slug: SpringfieldStore,
 }
 
 

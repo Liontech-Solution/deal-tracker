@@ -37,12 +37,15 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
   y bajas. El **web** posee `app_user` (con el vínculo de Telegram), `interest`, `notification` y
   `job_state`.
 - Las tiendas son **pluggable**: `stores/base.py` define `BaseStore`, `stores/registry.py` mapea
-  slug → factoría. Hoy son **siete**: `zara` (endpoints AJAX JSON públicos), `sfera` (Chromium,
+  slug → factoría. Hoy son **nueve**: `zara` (endpoints AJAX JSON públicos), `sfera` (Chromium,
   detrás de Akamai), `lefties` (Chromium, API `itxrest` de Inditex), `cacles` (Shopify,
   `products.json` público), `c-and-a` (GraphQL con persisted query, httpx puro), `hipercor`
-  (Chromium, leída **por sus páginas** porque su `robots.txt` veta `/api`) y `hm` (httpx pelado
-  contra `api.hm.com`, que es otro host que el escaparate). Añadir tienda = añadir entrada en el
-  registry. Las siete tienen catálogo ingerido en `dev` desde el 02/08/2026.
+  (Chromium, leída **por sus páginas** porque su `robots.txt` veta `/api`), `hm` (httpx pelado
+  contra `api.hm.com`, que es otro host que el escaparate), `mango` (httpx con UA de Chrome, y la
+  primera que publica su árbol de categorías) y `springfield` (httpx, y la primera que **no recorre
+  hojas**: se lista por sitemap porque su `robots.txt` veta la rejilla de SFCC). Añadir tienda =
+  añadir entrada en el registry. Las siete primeras tienen catálogo ingerido en `dev` desde el
+  02/08/2026; `mango` y `springfield` entraron el 03/08/2026.
 - **`price_history.retailer_min_30d` (0018) es el primer dato del contrato que no observamos
   nosotros**: es el mínimo de 30 días que la tienda **declara** por la directiva Ómnibus. Importa
   porque el detector de descuentos engañosos vivía de una sola fuente —nuestro propio histórico—,
@@ -359,6 +362,59 @@ primera y se para en la que resuelve la petición**, así que un handler `**/*` 
 jamás**, sin error ni aviso. Se arregla con `route.fallback()`, que sí cede al siguiente handler.
 No lo veía ningún test: el doble de test no pasa por Playwright.
 
+**Los términos y condiciones son la otra mitad del cumplimiento, y hasta Springfield (03/08/2026)
+no se había leído los de ninguna tienda.** Los de Springfield (Tendam) no traen **ninguna** cláusula
+sobre scraping, robots, crawlers, acceso automatizado ni minería de datos; lo que traen es el
+boilerplate de copyright —«reproducciones privadas… siempre que no se instalen en un servidor
+conectado a internet»— y una de uso lícito, más una §17 que va de virus y denegación de servicio.
+Lo que importa de esa lectura no es Springfield: es que **esa cláusula es genérica y la tienen
+todos**, así que aplicarla como criterio no descarta una tienda, las descarta las nueve. La política
+que queda fijada: el `robots.txt` decide el diseño (es específico y accionable), los T&C se leen y
+se citan en la cabecera del módulo, y si algún día se quiere endurecer el criterio de copyright,
+eso es una decisión de producto transversal y no algo que se resuelva tienda a tienda. Precedente
+escrito: `c_and_a.py` y `springfield.py` documentan los dos qué se leyó y qué se encontró.
+
+### Un sitemap puede ser el listado, y eso cambia qué es una «hoja»
+
+Springfield (#81, 03/08/2026) es la primera tienda que **no recorre hojas de categoría**. Su
+`robots.txt` veta la rejilla de SFCC y su paginación, pero deja un `Allow:` explícito para el
+sitemap — y ese sitemap resulta traer más de lo que suele:
+
+- **La taxonomía va en la propia URL** (`/{mundo}/{género}/{categoría}[/{subcat}]/{slug}/{id}.html`),
+  así que el ámbito de cada producto se resuelve **sin una sola petición**.
+- **Trae `lastmod` en las 12 842 URLs**, y eso *es* la `signature`. Es lo que hace viable la tienda:
+  el detalle cuesta una petición por ficha, así que sin huella cada pasada costaría el catálogo
+  entero. Medido: **25-31 min en frío contra 1m39s** en régimen estable, ×17.
+- **Todo el listado son 4 peticiones** (el índice y tres ficheros de producto).
+
+Riesgo abierto que no se puede cerrar en una sesión y queda anotado: **si `lastmod` no se moviera al
+cambiar solo el precio, el detalle condicional congelaría los precios**. Exige observar el mismo
+producto en dos días. La red que lo cubre mientras tanto es el refresco periódico forzado
+(`last_detail_at` + `SCRAPER_DETAIL_MAX_AGE_DAYS`), que ya existe por otro motivo.
+
+**Lo que se generaliza es qué es una hoja cuando no hay hojas.** El vigía necesita algo que sondear
+y las bajas necesitan ámbitos declarados, y aquí resultaron ser **dos listas distintas, con el error
+barato en lados opuestos**:
+
+| | qué declara | si te pasas | si te quedas corto |
+|---|---|---|---|
+| `scopes()` | el producto cartesiano género × categoría | inocuo: un ámbito sin productos no hace nada | productos **imposibles de descatalogar** |
+| `HOJAS` (`check_leaves`) | solo las ramas que la tienda publica de verdad | **un aviso falso cada semana** | una rama muere en silencio |
+
+La primera versión usaba el cartesiano para las dos y el vigía cantó `19/24` con cinco hojas
+«retiradas» que sencillamente no existen (`nino/vestidos`, `nina/polos`…). Es exactamente lo que
+degradó el vigía de Sfera a ruido de fondo (#129): un aviso que sale todas las semanas deja de
+leerse. Con el sitemap ya descargado, sondear las 19 ramas cuesta **cero peticiones extra**.
+
+**Y una trampa de la ingesta que cualquier tienda puede pisar: `variant` tiene
+`UNIQUE (product_id, retailer_variant_id)` y absorbe un duplicado sin rechistar, pero
+`_record_price()` corre una vez por variante EMITIDA.** O sea que un scraper que emita dos veces la
+misma variante no ensucia `variant` —donde miraría cualquiera— sino `price_history`, con dos
+observaciones del mismo precio en la misma pasada. Medido en la primera pasada de Springfield: 8329
+emitidas para 8219 filas, **110 precios duplicados**. El síntoma es un contador descuadrado en el
+resumen, que se lee como ruido. La regla: si los dos números no cuadran, el que miente es el
+scraper, y el daño está en la tabla de la serie de precios.
+
 ### Un 200 no prueba nada: hay que verificar QUÉ vino, no si vino
 
 La sección siguiente cataloga cómo miente una hoja muerta. C&A (02/08/2026) enseñó que el problema
@@ -413,6 +469,17 @@ la tienda no sirve pasa de costar 45 s a ~3 min, así que un bloqueo **total** t
 llegar al umbral que aborta en vez de ~25. Sale a cuenta porque el caso frecuente es el timeout
 suelto y el raro es el bloqueo entero, pero el número entra en el cálculo.
 
+**Un caso más del mismo principio, y el que ataca al sondeo de bajas: seguir redirecciones convierte
+un 200 en una mentira.** Medido en Springfield (03/08/2026) sobre la ficha `6801308`: un id
+inventado (`9999999`) da un 404 honesto, pero el id **vecino plausible** `6801309` responde **301 a
+una ficha DISTINTA** que sirve un 200 impecable. Con `follow_redirects=True` —el default razonable
+para listar y para leer fichas— eso llega a `probe_alive()` como «sigue a la venta», mirando otra
+prenda. Es la misma familia que el espejismo de Sfera (#54), pero por HTTP en vez de por
+enrutamiento de la tienda. La regla: **el cliente del sondeo de bajas no debe seguir
+redirecciones**, y un 3xx se queda **fuera del mapa** en vez de contarse como vivo o como
+retirado — la tienda no ha dicho que no exista, ha dicho que mires a otro sitio. Abstenerse solo
+retrasa una baja real; un `False` de más borra del catálogo algo que se sigue vendiendo.
+
 ### El árbol de categorías de una tienda no es lo que parece
 
 Dos cosas medidas sobre Zara y Sfera que se repiten y conviene dar por supuestas al mapear la
@@ -466,7 +533,7 @@ una tienda:
 - **C&A** distingue las dos situaciones con un solo campo — hoja inexistente da 200 con
   `productCount: 0`, y hoja viva pasada de página da 200 con el `productCount` intacto. Es la trampa
   de Cacles con el desambiguador incluido, sin heurística posicional.
-- **Mango es el mejor caso de las ocho** (#80, 03/08/2026): **404 honesto en los tres sitios** —ruta
+- **Mango es el mejor caso de las nueve** (#80, 03/08/2026): **404 honesto en los tres sitios** —ruta
   web, API de listado (`catalogs/inventada/filters`) y ficha (`/p/_99999999`)—, así que
   `check_leaves()` y `probe_alive()` se fían del status y no necesitan canario, ni comparar con el
   padre, ni desambiguar por posición. Y encima **no pagina**: `/filters` devuelve la hoja entera

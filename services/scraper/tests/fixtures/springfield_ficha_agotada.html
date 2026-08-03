@@ -1,0 +1,951 @@
+<!-- Fixture de marcado REAL de Springfield (myspringfield.com), RECORTADA.
+     fuente: https://myspringfield.com/es/es/ninos-de-5-a-14/nino/sudaderas/sudadera-capucha-cremallera/2230398.html?dwvar_2230398_color=01  (HTTP 200)
+     capturada: 2026-08-03
+     qué cubre: el MISMO producto pedido por otro color (`?dwvar_…_color=01`, negro), y además
+     entero agotado: las 4 tallas con `outOfStock: true`. Cubre las dos cosas a la vez — que la
+     conmutación de color por URL permitida devuelve los `size-data` de ese color, y que un
+     color sin stock sigue trayendo precio y tachado.
+     De esta se ha quitado ADEMÁS el bloque de colores: son los mismos 183 KB de la fixture de
+     al lado salvo UN byte — y ese byte es el hallazgo: al pedir un color con `?dwvar` NINGÚN
+     swatch queda marcado como `active`. O sea que la clase `active` NO dice qué color está
+     pintando la página; el vínculo fiable es el `pid` de los `size-data`, que lleva el colorID
+     dentro (maestro + colorID + talla).
+     Se ha quitado todo menos lo que el scraper lee: el <script> ld+json (nombre, sku, fotos,
+     descripción y material), el bloque de colores con sus `data-color-info` y la sección de
+     tallas con sus `size-data`. El marcado conservado es byte a byte el del sitio. -->
+<script type="application/ld+json">
+        {"@context":"http://schema.org/","@type":["Product","BreadcrumbList"],"@id":"https://myspringfield.com/es/es/ninos-de-5-a-14/nino/sudaderas/sudadera-regular-fit-estampada/2230398.html","name":"Sudadera regular fit estampada","sku":"2230398","image":["https://myspringfield.com/on/demandware.static/-/Sites-gc-spf-master-catalog/default/dwf3f3ea63/images/hi-res/P_223039801FM.jpg","https://myspringfield.com/on/demandware.static/-/Sites-gc-spf-master-catalog/default/dw45db96d5/images/hi-res/P_223039801TM.jpg","https://myspringfield.com/on/demandware.static/-/Sites-gc-spf-master-catalog/default/dwf246a58f/images/hi-res/P_223039801D1.jpg","https://myspringfield.com/on/demandware.static/-/Sites-gc-spf-master-catalog/default/dwd316703d/images/hi-res/P_223039801D2.jpg","https://myspringfield.com/on/demandware.static/-/Sites-gc-spf-master-catalog/default/dwa77ae335/images/hi-res/P_223039801D3.jpg","https://myspringfield.com/on/demandware.static/-/Sites-gc-spf-master-catalog/default/dw4d070326/images/hi-res/P_223039801D4.jpg","https://myspringfield.com/on/demandware.static/-/Sites-gc-spf-master-catalog/default/dw4be71e1b/images/hi-res/P_223039801D8.jpg"],"description":"Sudadera regular fit con estampa frontal de logo confeccionada en tejido con mezcla de algodón. Acabados en rib.","url":"https://myspringfield.com/es/es/ninos-de-5-a-14/nino/sudaderas/sudadera-regular-fit-estampada/2230398.html","material":"algodón/poliéster","brand":{"@type":"Brand","name":"Jack & Jones Junior","url":"https://myspringfield.com/es/es/search?cgid=nino_jackandjones_junior"},"audience":{"@type":"PeopleAudience","suggestedGender":"UNISEX"},"offers":{"@type":"Offer","priceCurrency":"EUR","price":"17.49","itemCondition":"NewCondition","availability":"InStock"},"itemListElement":[{"@type":"ListItem","position":1,"item":"https://myspringfield.com/es/es","name":"Home"},{"@type":"ListItem","position":2,"item":"https://myspringfield.com/es/es/ninos-de-5-a-14","name":"Niños de 5 a 14"},{"@type":"ListItem","position":3,"item":"https://myspringfield.com/es/es/ninos-de-5-a-14/nino","name":"Niño"},{"@type":"ListItem","position":4,"item":"https://myspringfield.com/es/es/ninos-de-5-a-14/nino/sudaderas","name":"Sudaderas"}]}
+    </script>
+<section class="productSizes js-productSizes js-switch-color-listener isProductSizeActive">
+    <header class="productSizes__title">
+        Talla: <span class="productSizes__value js-productSizes-title-sizeSelected" data-no-size-message="Selecciona tu talla"></span>
+    </header>
+    <main class="productSizes__main js-productSizes-main ">
+        <ul class="productSizes__main__list js-productSizes-list">
+            
+                
+
+                <li class="item js-item">
+                    <input type="radio" 
+                        id="mainSizeID8" 
+                        class="item__radio js-item-radio" 
+                        name="pdp_size" 
+                        value="8" 
+                        data-size-id="8"
+                        size-data="{&quot;pid&quot;:&quot;22303980111&quot;,&quot;currentDisplayValue&quot;:&quot;8&quot;,&quot;outOfStock&quot;:true,&quot;sizeDisplayValue&quot;:&quot;8&quot;,&quot;sizeID&quot;:&quot;8A&quot;,&quot;thirdAttrDisplayValue&quot;:null,&quot;thirdAttrID&quot;:null,&quot;selected&quot;:false,&quot;labelValue&quot;:&quot;8&quot;,&quot;firstInStockVariant&quot;:{&quot;ID&quot;:null},&quot;price&quot;:17.49,&quot;formattedPrice&quot;:&quot;17,49 &euro;&quot;,&quot;absoluteListPrice&quot;:24.99,&quot;listPrice&quot;:&quot;24,99 &euro;&quot;,&quot;percentageDiscount&quot;:&quot;30&quot;,&quot;showDiscountRate&quot;:true,&quot;showDiscountAmount&quot;:true,&quot;discountAmount&quot;:&quot;7,50 &euro;&quot;,&quot;purchaseEnabled&quot;:true}"
+                        disabled 
+                         
+                    />
+                    
+                    <label class="item__label js-item-label syte-discovery dl-syte-button" for="mainSizeID8"
+                        data-image-src=""
+                        data-sku="22303980111"
+                        data-filters='{"size": ["8"]}'
+                        data-placement="PDP-oos"
+                    >
+                        8
+                        
+                        
+                            <div class="syteDiscoveryWrapper">
+                                
+
+
+<svg class="tndmIcon syteIcon">
+<use href="/on/demandware.static/Sites-SPF-Site/-/default/dw10ea5c7e/icons/tndm-sprite.svg#TIc-icon-syte"></use>
+</svg>
+
+                            </div>
+
+                            
+                            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="tsc-alert-icon tsc-tooltip-trigger vertical-position-up text-trigger" data-trigger-action="hover" data-auto-close-time="0.0">
+    
+        
+
+        <span class="trigger-text"> </span>
+    
+    <div class="tooltip-container arrow-horizontal-position-center">
+        <div class="arrow-down hidden"></div>
+        <div class="tsc-alert-tooltip tooltip-box-horizontal-position-center hidden">
+            
+            
+                Encuentra artículos parecidos de la misma talla
+            			
+        </div>
+    </div>
+
+</div>
+                        
+                    </label>
+
+                </li>
+            
+                
+
+                <li class="item js-item">
+                    <input type="radio" 
+                        id="mainSizeID10" 
+                        class="item__radio js-item-radio" 
+                        name="pdp_size" 
+                        value="10" 
+                        data-size-id="10"
+                        size-data="{&quot;pid&quot;:&quot;22303980112&quot;,&quot;currentDisplayValue&quot;:&quot;10&quot;,&quot;outOfStock&quot;:true,&quot;sizeDisplayValue&quot;:&quot;10&quot;,&quot;sizeID&quot;:&quot;10A&quot;,&quot;thirdAttrDisplayValue&quot;:null,&quot;thirdAttrID&quot;:null,&quot;selected&quot;:false,&quot;labelValue&quot;:&quot;10&quot;,&quot;firstInStockVariant&quot;:{&quot;ID&quot;:null},&quot;price&quot;:17.49,&quot;formattedPrice&quot;:&quot;17,49 &euro;&quot;,&quot;absoluteListPrice&quot;:24.99,&quot;listPrice&quot;:&quot;24,99 &euro;&quot;,&quot;percentageDiscount&quot;:&quot;30&quot;,&quot;showDiscountRate&quot;:true,&quot;showDiscountAmount&quot;:true,&quot;discountAmount&quot;:&quot;7,50 &euro;&quot;,&quot;purchaseEnabled&quot;:true}"
+                        disabled 
+                         
+                    />
+                    
+                    <label class="item__label js-item-label syte-discovery dl-syte-button" for="mainSizeID10"
+                        data-image-src=""
+                        data-sku="22303980112"
+                        data-filters='{"size": ["10"]}'
+                        data-placement="PDP-oos"
+                    >
+                        10
+                        
+                        
+                            <div class="syteDiscoveryWrapper">
+                                
+
+
+<svg class="tndmIcon syteIcon">
+<use href="/on/demandware.static/Sites-SPF-Site/-/default/dw10ea5c7e/icons/tndm-sprite.svg#TIc-icon-syte"></use>
+</svg>
+
+                            </div>
+
+                            
+                            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="tsc-alert-icon tsc-tooltip-trigger vertical-position-up text-trigger" data-trigger-action="hover" data-auto-close-time="0.0">
+    
+        
+
+        <span class="trigger-text"> </span>
+    
+    <div class="tooltip-container arrow-horizontal-position-center">
+        <div class="arrow-down hidden"></div>
+        <div class="tsc-alert-tooltip tooltip-box-horizontal-position-center hidden">
+            
+            
+                Encuentra artículos parecidos de la misma talla
+            			
+        </div>
+    </div>
+
+</div>
+                        
+                    </label>
+
+                </li>
+            
+                
+
+                <li class="item js-item">
+                    <input type="radio" 
+                        id="mainSizeID12" 
+                        class="item__radio js-item-radio" 
+                        name="pdp_size" 
+                        value="12" 
+                        data-size-id="12"
+                        size-data="{&quot;pid&quot;:&quot;22303980113&quot;,&quot;currentDisplayValue&quot;:&quot;12&quot;,&quot;outOfStock&quot;:true,&quot;sizeDisplayValue&quot;:&quot;12&quot;,&quot;sizeID&quot;:&quot;12A&quot;,&quot;thirdAttrDisplayValue&quot;:null,&quot;thirdAttrID&quot;:null,&quot;selected&quot;:false,&quot;labelValue&quot;:&quot;12&quot;,&quot;firstInStockVariant&quot;:{&quot;ID&quot;:null},&quot;price&quot;:17.49,&quot;formattedPrice&quot;:&quot;17,49 &euro;&quot;,&quot;absoluteListPrice&quot;:24.99,&quot;listPrice&quot;:&quot;24,99 &euro;&quot;,&quot;percentageDiscount&quot;:&quot;30&quot;,&quot;showDiscountRate&quot;:true,&quot;showDiscountAmount&quot;:true,&quot;discountAmount&quot;:&quot;7,50 &euro;&quot;,&quot;purchaseEnabled&quot;:true}"
+                        disabled 
+                         
+                    />
+                    
+                    <label class="item__label js-item-label syte-discovery dl-syte-button" for="mainSizeID12"
+                        data-image-src=""
+                        data-sku="22303980113"
+                        data-filters='{"size": ["12"]}'
+                        data-placement="PDP-oos"
+                    >
+                        12
+                        
+                        
+                            <div class="syteDiscoveryWrapper">
+                                
+
+
+<svg class="tndmIcon syteIcon">
+<use href="/on/demandware.static/Sites-SPF-Site/-/default/dw10ea5c7e/icons/tndm-sprite.svg#TIc-icon-syte"></use>
+</svg>
+
+                            </div>
+
+                            
+                            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="tsc-alert-icon tsc-tooltip-trigger vertical-position-up text-trigger" data-trigger-action="hover" data-auto-close-time="0.0">
+    
+        
+
+        <span class="trigger-text"> </span>
+    
+    <div class="tooltip-container arrow-horizontal-position-center">
+        <div class="arrow-down hidden"></div>
+        <div class="tsc-alert-tooltip tooltip-box-horizontal-position-center hidden">
+            
+            
+                Encuentra artículos parecidos de la misma talla
+            			
+        </div>
+    </div>
+
+</div>
+                        
+                    </label>
+
+                </li>
+            
+                
+
+                <li class="item js-item">
+                    <input type="radio" 
+                        id="mainSizeID14" 
+                        class="item__radio js-item-radio" 
+                        name="pdp_size" 
+                        value="14" 
+                        data-size-id="14"
+                        size-data="{&quot;pid&quot;:&quot;22303980114&quot;,&quot;currentDisplayValue&quot;:&quot;14&quot;,&quot;outOfStock&quot;:true,&quot;sizeDisplayValue&quot;:&quot;14&quot;,&quot;sizeID&quot;:&quot;14A&quot;,&quot;thirdAttrDisplayValue&quot;:null,&quot;thirdAttrID&quot;:null,&quot;selected&quot;:false,&quot;labelValue&quot;:&quot;14&quot;,&quot;firstInStockVariant&quot;:{&quot;ID&quot;:null},&quot;price&quot;:17.49,&quot;formattedPrice&quot;:&quot;17,49 &euro;&quot;,&quot;absoluteListPrice&quot;:24.99,&quot;listPrice&quot;:&quot;24,99 &euro;&quot;,&quot;percentageDiscount&quot;:&quot;30&quot;,&quot;showDiscountRate&quot;:true,&quot;showDiscountAmount&quot;:true,&quot;discountAmount&quot;:&quot;7,50 &euro;&quot;,&quot;purchaseEnabled&quot;:true}"
+                        disabled 
+                         
+                    />
+                    
+                    <label class="item__label js-item-label syte-discovery dl-syte-button" for="mainSizeID14"
+                        data-image-src=""
+                        data-sku="22303980114"
+                        data-filters='{"size": ["14"]}'
+                        data-placement="PDP-oos"
+                    >
+                        14
+                        
+                        
+                            <div class="syteDiscoveryWrapper">
+                                
+
+
+<svg class="tndmIcon syteIcon">
+<use href="/on/demandware.static/Sites-SPF-Site/-/default/dw10ea5c7e/icons/tndm-sprite.svg#TIc-icon-syte"></use>
+</svg>
+
+                            </div>
+
+                            
+                            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="tsc-alert-icon tsc-tooltip-trigger vertical-position-up text-trigger" data-trigger-action="hover" data-auto-close-time="0.0">
+    
+        
+
+        <span class="trigger-text"> </span>
+    
+    <div class="tooltip-container arrow-horizontal-position-center">
+        <div class="arrow-down hidden"></div>
+        <div class="tsc-alert-tooltip tooltip-box-horizontal-position-center hidden">
+            
+            
+                Encuentra artículos parecidos de la misma talla
+            			
+        </div>
+    </div>
+
+</div>
+                        
+                    </label>
+
+                </li>
+            
+        </ul>
+    </main>
+    <footer class="productSizes__errorMessage js-productSizes-footer  "></footer>
+    <template class="js-tpl-productSizeItem">
+        <li class="item">
+            <input type="radio" class="item__radio js-item-radio" name="pdp_size" id="" value="" />
+
+            <label class="item__label js-item-label syte-discovery dl-syte-button" for=""
+                data-image-src=""
+                data-sku=""
+                data-filters='{"size": ["sizeReplace"]}'
+                data-placement="PDP-button">
+
+                
+                    <div class="syteDiscoveryWrapper">
+                        
+
+
+<svg class="tndmIcon syteIcon">
+<use href="/on/demandware.static/Sites-SPF-Site/-/default/dw10ea5c7e/icons/tndm-sprite.svg#TIc-icon-syte"></use>
+</svg>
+
+                    </div>
+
+                    
+                    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="tsc-alert-icon tsc-tooltip-trigger vertical-position-up text-trigger" data-trigger-action="hover" data-auto-close-time="0.0">
+    
+        
+
+        <span class="trigger-text"> </span>
+    
+    <div class="tooltip-container arrow-horizontal-position-center">
+        <div class="arrow-down hidden"></div>
+        <div class="tsc-alert-tooltip tooltip-box-horizontal-position-center hidden">
+            
+            
+                Encuentra artículos parecidos de la misma talla
+            			
+        </div>
+    </div>
+
+</div>
+                
+            </label>
+        </li>
+    </template>
+</section>
