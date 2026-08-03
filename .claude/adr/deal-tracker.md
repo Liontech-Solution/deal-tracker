@@ -1069,6 +1069,25 @@ huella de listado no cambia pasa por `_touch_seen()`, que solo refresca `last_se
 corrección llega por el **refresco forzado** (`SCRAPER_DETAIL_MAX_AGE_DAYS` / `_REFRESH_MAX`) y
 tarda varias pasadas en barrer el catálogo.
 
+**Contar `unisex` en la base no mide el cruce, y confundir las dos cosas costó #139.** El `unisex`
+almacenado tiene dos orígenes que la columna no distingue: el cruce, y las **hojas ya declaradas
+`unisex`** en `CATEGORIES` (bebé en Hipercor, newborn en H&M y Mango). Lefties no declara ninguna,
+así que su cifra sí es exactamente el cruce — y por eso su 0 en `dev` parecía una avería al lado del
+10,9 % de H&M, que es casi todo rama de recién nacido. No lo era: la única pasada de Lefties en `dev`
+(`lefties-frio-1/2`, 02/08 21:09 UTC, `sha-99b3642`) es **anterior** al commit que introdujo la regla
+en esa tienda (`c4c6a58`, 03/08 11:33), o sea que el código nunca había corrido allí. Contra el
+catálogo vivo del 03/08 el cruce está intacto: 700 productos, 14 `unisex` (2,0 %).
+
+De ahí salen dos cosas que valen más allá de esta tienda:
+
+- **Una tienda cuya última pasada es anterior al arreglo que la corrige produce datos que se leen
+  como un bug**, y es el mismo patrón que ya documentan #99, #93 y #81 por otro camino. Antes de
+  diagnosticar desde la base, mirar sobre qué imagen corrió la última pasada del entorno.
+- La pasada publica desde #139 **`gender_counts`** (reparto del listado, también en `--dry-run`, que
+  lo mide sin escribir ni pedir detalle) y **`gender_stale`** — productos cuyo género guardado no es
+  el que dice el listado y que esa pasada no reescribe. Es la señal que faltaba: convierte el párrafo
+  de arriba, que era una nota que había que recordar, en una línea del resumen de cada pasada.
+
 ### Una variante no es siempre una cosa comprable, y la URL es lo que distingue los dos casos
 
 El modelo asume que `(producto, talla, color)` identifica una prenda comprable, y `variant` la
