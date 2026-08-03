@@ -670,7 +670,7 @@ Con Lefties sin Chromium, el segundo error salía derivado («usa la API async»
 real. Un vigía que apunta a la pista falsa es peor que uno que dice una sola cosa cierta.
 
 **Y el límite que hay que tener presente al leerlo en verde: el vigía no dice nada de la ingesta.**
-Responde «¿nos dejan entrar?» —hojas vivas y parseo de 5 productos, sin escribir en base de datos—,
+Responde «¿nos dejan entrar?» —hojas vivas y parseo de 5 productos, sin tocar el catálogo—,
 así que una tienda puede llevar semanas con el vigía en verde y un CronJob desplegado **sin haber
 ingerido jamás**. Medido el 02/08/2026 sobre `scrape_run`: **lefties e hipercor tenían cero pasadas
 en `dev` y cero en `qa`** (en `dev` ni siquiera fila en `retailer`, que se crea en la primera), las
@@ -705,6 +705,32 @@ generalizan:
   que más falta hacía. O sea que un `activeDeadlineSeconds` calculado sobre un cluster limpio no
   tiene por qué valer la semana siguiente, y lo que protege de verdad no es un techo más alto sino
   que **fallar sea barato**.
+
+Resuelto en #111 (03/08/2026), y con ello el vigía **empieza a escribir en la base**: cronometra
+cada capa, la publica en el informe y la persiste en `vigia_run` (migración `0022`, propiedad del
+scraper como el resto de tablas que él escribe). Tres cosas que se generalizan más allá de esta
+tabla:
+
+- **Lo que se compara no es la duración, es el ritmo**: segundos por hoja sondeada y por producto
+  pedido. Un absoluto por tienda envejece mal porque los catálogos crecen, y el aviso se emite
+  contra la **mediana de las últimas ejecuciones de esa misma tienda**, no contra un número escrito
+  a mano ni contra la ejecución anterior sola (una muestra la mueve un jueves con el nodo ocupado).
+- **`retailer_slug` en texto y sin FK a `retailer`.** Es la misma asimetría de dos párrafos más
+  arriba, en la otra dirección: la fila de `retailer` la crea la primera ingesta, así que con FK la
+  tienda que más interesa vigilar —la que aún no ha ingerido nunca— sería la única que no se podría
+  medir.
+- **Descalificar una muestra por tamaño absoluto es un error**, y se ve en cuanto se ejecuta de
+  verdad: el primer diseño exigía ≥3 unidades para hacer de línea base, y **Cacles publica una sola
+  hoja**, así que su capa de hojas se quedaba sin vigilancia para siempre — justo la tienda cuyo 429
+  por huella TLS motivó todo esto. El criterio bueno es relativo: una muestra sirve si cubre al
+  menos el 70 % de lo que cubre habitualmente **esa** tienda, lo que sigue excluyendo la parcial de
+  «reventó a la segunda de 32 hojas».
+
+Y una restricción de diseño que no es del vigía sino de dónde corre: **el historial nunca puede
+costar el veredicto**. El vigía es el único CronJob con `suspend: false` y no aplica migraciones, así
+que en QA —que se despliega por releases semver— hay una ventana real en la que el jueves llega
+antes que la `0022`. Base inalcanzable, tabla que aún no existe o INSERT rechazado degradan a «sin
+historial» y el sondeo sigue igual, como ya hacía el aviso de GitHub cuando falta el token.
 
 ### El género `unisex` es la norma del barefoot, no una excepción
 

@@ -6,8 +6,8 @@
  * los ficheros `NNNN_*.sql` (aplicados por el migrador, ver `migrate.ts`). No se usa
  * drizzle-kit para generar migraciones.
  *
- * Reparto: `retailer/product/variant/price_history/scrape_run` los escribe el scraper (aquí
- * solo se leen); `app_user/interest/notification` son propiedad del servicio web.
+ * Reparto: `retailer/product/variant/price_history/scrape_run/vigia_run` los escribe el scraper
+ * (aquí solo se leen); `app_user/interest/notification` son propiedad del servicio web.
  */
 import { relations } from 'drizzle-orm';
 import {
@@ -114,6 +114,22 @@ export const priceHistory = pgTable('price_history', {
   inStock: boolean('in_stock').notNull().default(true),
   scrapedAt: timestamp('scraped_at', { withTimezone: true }).notNull().defaultNow(),
   scrapeRunId: bigint('scrape_run_id', { mode: 'number' }),
+});
+
+/**
+ * Serie temporal de lo que tarda el vigía por tienda y capa (migración 0022, #111).
+ *
+ * La escribe el vigía del scraper y el web no la lee: está aquí para que el espejo no se bifurque
+ * del contrato. `retailerSlug` es texto y no una FK a `retailer` a propósito — el vigía sondea
+ * tiendas que aún no han ingerido nunca y por tanto no tienen fila allí (ver la migración).
+ */
+export const vigiaRun = pgTable('vigia_run', {
+  id: bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
+  retailerSlug: text('retailer_slug').notNull(),
+  capa: text('capa').notNull(),
+  ranAt: timestamp('ran_at', { withTimezone: true }).notNull().defaultNow(),
+  segundos: numeric('segundos', { precision: 10, scale: 3 }).notNull(),
+  unidades: integer('unidades').notNull(),
 });
 
 // --- Tablas del web ---

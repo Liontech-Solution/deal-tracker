@@ -8,9 +8,9 @@ Both services are **built and deployed**. This is a **polyglot monorepo**: scrap
 **Python** (`services/scraper`), user experience in **Node/TS** (`services/web`, NestJS API +
 React/Vite SPA + Telegram bot). The two services never call each other — they integrate through the
 **shared Postgres**, whose schema is the contract as neutral SQL in `db/migrations` (`0001` …
-`0020`). The `scraper` service owns writes to `retailer`/`product`/`variant`/`price_history`/
-`scrape_run`; the `web` service owns `app_user` (Telegram link included)/`interest`/`notification`/
-`job_state`.
+`0022`). The `scraper` service owns writes to `retailer`/`product`/`variant`/`price_history`/
+`scrape_run`/`vigia_run`; the `web` service owns `app_user` (Telegram link included)/`interest`/
+`notification`/`job_state`.
 
 Running in the cluster today: namespaces `deal-tracker-dev` (auto-deployed on every push to `main`)
 and `deal-tracker-qa` (semver releases, public at `dealtracker-qa.liontechsolution.com`).
