@@ -750,31 +750,55 @@ poder explicársela. Mismo trato y misma razón que `matching/deal-rule.sql.ts`.
 `unisex` **no se ofrece como chip** en la faceta: ya está incluido en Niño y en Niña, así que no
 filtraría nada nuevo y sugeriría tres estanterías donde el brief pide dos.
 
-**Y no es solo del barefoot: cualquier tienda con hojas por género publica producto en las dos.**
-Medido en tres: **161 de 1227 en Hipercor (13 %)**, **317 de 3401 en H&M (9,3 %)** y **14 de 699 en
-Lefties (2,0 %)**. El fenómeno es universal; **la magnitud no**, y conviene no extrapolarla — con
-las dos primeras parecía que rondaba el 10 % siempre, y la tercera lo desmiente por un orden de
-magnitud. O sea que en una tienda nueva hay que **medirlo, no estimarlo**: cuesta un recorrido del
-listado sin pedir una sola ficha (33 s en Lefties). Con el dedup habitual de «gana la primera», ese
-producto se queda con el género de la hoja declarada antes y **desaparece de la otra sección** — en
-Hipercor, un padre que filtre «Niño» en zapatería ve 47 productos donde la tienda publica 140
-(#98). El vocabulario para decirlo ya existe y es este `unisex`; lo que falta es **detectar el
-cruce**, y eso solo se puede hacer con el listado entero delante, porque `list_catalog()` emite
-según recorre y el ámbito de una entrada ya emitida no se corrige.
+**Y no es solo del barefoot: una tienda con hojas por género suele publicar producto en las dos.**
+Medido en las cuatro que tienen hojas por género:
 
-El coste de acumular está medido y no es el obstáculo que parecía: **91 MiB de pico** con la pasada
-entera de H&M en memoria (3397 productos, 43362 variantes). En H&M salió gratis porque había que
-acumular de todas formas —sus filas de listado son producto+**color** y los colores de un modelo se
-reparten entre páginas—, y de ahí `hm._ambito()`: géneros distintos → `unisex`; sección y categoría
-las fija la primera hoja, porque cruzar géneros tiene vocabulario y cruzar categorías no.
+| tienda | cruzan niña y niño | % del catálogo |
+|---|---:|---:|
+| hipercor | 161 de 1222 | **13,2 %** |
+| hm | 317 de 3401 | **9,3 %** |
+| lefties | 14 de 698 | **2,0 %** |
+| sfera | **0 de 548** | **0 %** |
 
-Dos efectos de segundo orden que trae ese diseño y que no son evidentes: al marcar una hoja de
-género como caída hay que sacar de las bajas **también el ámbito `unisex` equivalente** (si cae una
-de las dos ramas, el modelo cruzado se emitiría con el género de la superviviente y su ámbito
-`unisex` parecería vacío); y `scopes()` tiene que **declarar los ámbitos `unisex`** aunque ninguna
-hoja los declare, porque un ámbito no declarado no cuenta como escaneado y sus productos no se
-descatalogan nunca — el mismo motivo por el que Cacles declara el producto cartesiano de lo que su
-parser *puede* emitir.
+El fenómeno es frecuente; **la magnitud no se puede extrapolar, y ni siquiera su existencia**. Con
+las dos primeras parecía que rondaba el 10 % siempre; Lefties lo desmintió por un orden de magnitud
+y Sfera lo desmiente del todo — con 35 hojas por género, no cruza ni uno. O sea que en una tienda
+nueva hay que **medirlo, no estimarlo**: cuesta un recorrido del listado sin pedir una sola ficha
+(33 s en Lefties, 111 s en Sfera). Con el dedup habitual de «gana la primera», ese producto se queda
+con el género de la hoja declarada antes y **desaparece de la otra sección** — en Hipercor, un padre
+que filtre «Niño» en zapatería veía 47 productos donde la tienda publica 140 (#98).
+
+Detectar el cruce solo se puede hacer con **el listado entero delante**, porque `list_catalog()`
+emitía según recorría y el ámbito de una entrada ya emitida no se corrige. El coste de acumular está
+medido y no es el obstáculo que parecía: **91 MiB de pico** con la pasada entera de H&M en memoria
+(3397 productos, 43362 variantes), y ninguno en las demás — `ingest.py` ya hacía
+`list(store.list_catalog())`, así que el listado completo estaba en memoria de todas formas.
+
+**La regla vive en `stores/base.py` y no en una tienda concreta**, desde que la tercera la necesitó
+(#98). Son tres piezas, y una tienda con hojas por género que mida cruce distinto de cero necesita
+las tres:
+
+- **`ambito_cruzado(hojas)`** — géneros distintos → `unisex`; sección y categoría las fija la
+  primera hoja, porque cruzar géneros tiene vocabulario y cruzar categorías no. Una hoja ya
+  declarada `unisex` (las de bebé) **no cuenta como género propio**: se descarta antes de mirar el
+  cruce, que es lo que permite que Hipercor ponga sus hojas con género por delante de la de bebé y
+  lo declarado se quede con su género.
+- **`con_unisex(scopes)`** en `scopes()` — declarar los ámbitos `unisex` aunque ninguna hoja los
+  declare, porque un ámbito no declarado no cuenta como escaneado y sus productos **no se
+  descatalogan nunca**. Mismo motivo por el que Cacles declara el producto cartesiano de lo que su
+  parser *puede* emitir.
+- **`ScanReport.leaf_gone(scope, tambien_unisex=True)`** — al marcar una hoja de género como caída,
+  sacar de las bajas también el ámbito `unisex` equivalente: si cae una de las dos ramas, el
+  producto cruzado se emitiría con el género de la superviviente y su ámbito `unisex` parecería
+  vaciado. Cuenta **una** hoja caída y no dos, o `SCRAPER_SCAN_MAX_DEAD_RATIO` saltaría antes de
+  tiempo.
+
+Aplicado en H&M (#102), Hipercor y Lefties (#98); Sfera no lo necesita mientras siga en cero. Un
+detalle de operación que conviene saber al arreglarlo en una tienda ya ingerida: el género de las
+filas existentes **no se reescribe** hasta que se les vuelva a pedir la ficha. Un producto cuya
+huella de listado no cambia pasa por `_touch_seen()`, que solo refresca `last_seen_at`, así que la
+corrección llega por el **refresco forzado** (`SCRAPER_DETAIL_MAX_AGE_DAYS` / `_REFRESH_MAX`) y
+tarda varias pasadas en barrer el catálogo.
 
 ### Una variante no es siempre una cosa comprable, y la URL es lo que distingue los dos casos
 
