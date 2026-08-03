@@ -37,12 +37,15 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
   y bajas. El **web** posee `app_user` (con el vínculo de Telegram), `interest`, `notification` y
   `job_state`.
 - Las tiendas son **pluggable**: `stores/base.py` define `BaseStore`, `stores/registry.py` mapea
-  slug → factoría. Hoy son **siete**: `zara` (endpoints AJAX JSON públicos), `sfera` (Chromium,
+  slug → factoría. Hoy son **nueve**: `zara` (endpoints AJAX JSON públicos), `sfera` (Chromium,
   detrás de Akamai), `lefties` (Chromium, API `itxrest` de Inditex), `cacles` (Shopify,
   `products.json` público), `c-and-a` (GraphQL con persisted query, httpx puro), `hipercor`
-  (Chromium, leída **por sus páginas** porque su `robots.txt` veta `/api`) y `hm` (httpx pelado
-  contra `api.hm.com`, que es otro host que el escaparate). Añadir tienda = añadir entrada en el
-  registry. Las siete tienen catálogo ingerido en `dev` desde el 02/08/2026.
+  (Chromium, leída **por sus páginas** porque su `robots.txt` veta `/api`), `hm` (httpx pelado
+  contra `api.hm.com`, que es otro host que el escaparate), `mango` (httpx con UA de Chrome, y la
+  primera que publica su árbol de categorías) y `springfield` (httpx, y la primera que **no recorre
+  hojas**: se lista por sitemap porque su `robots.txt` veta la rejilla de SFCC). Añadir tienda =
+  añadir entrada en el registry. Las siete primeras tienen catálogo ingerido en `dev` desde el
+  02/08/2026; `mango` y `springfield` entraron el 03/08/2026.
 - **`price_history.retailer_min_30d` (0018) es el primer dato del contrato que no observamos
   nosotros**: es el mínimo de 30 días que la tienda **declara** por la directiva Ómnibus. Importa
   porque el detector de descuentos engañosos vivía de una sola fuente —nuestro propio histórico—,
@@ -365,7 +368,7 @@ sobre scraping, robots, crawlers, acceso automatizado ni minería de datos; lo q
 boilerplate de copyright —«reproducciones privadas… siempre que no se instalen en un servidor
 conectado a internet»— y una de uso lícito, más una §17 que va de virus y denegación de servicio.
 Lo que importa de esa lectura no es Springfield: es que **esa cláusula es genérica y la tienen
-todos**, así que aplicarla como criterio no descarta una tienda, las descarta las ocho. La política
+todos**, así que aplicarla como criterio no descarta una tienda, las descarta las nueve. La política
 que queda fijada: el `robots.txt` decide el diseño (es específico y accionable), los T&C se leen y
 se citan en la cabecera del módulo, y si algún día se quiere endurecer el criterio de copyright,
 eso es una decisión de producto transversal y no algo que se resuelva tienda a tienda. Precedente
@@ -524,10 +527,24 @@ formas distintas (recon de #70, 02/08/2026), y la consecuencia siempre es la mis
   compararla con la pedida, sin cotejar ids de la primera página. Seis rutas inventadas a mano
   devolvieron las seis el catálogo del padre, en silencio.
 
-Y una que **sí lo resuelve bien**, que conviene tener como referencia de lo que se le puede pedir a
-una tienda: **C&A** distingue las dos situaciones con un solo campo — hoja inexistente da 200 con
-`productCount: 0`, y hoja viva pasada de página da 200 con el `productCount` intacto. Es la trampa de
-Cacles con el desambiguador incluido, sin heurística posicional.
+Y dos que **sí lo resuelven bien**, que conviene tener como referencia de lo que se le puede pedir a
+una tienda:
+
+- **C&A** distingue las dos situaciones con un solo campo — hoja inexistente da 200 con
+  `productCount: 0`, y hoja viva pasada de página da 200 con el `productCount` intacto. Es la trampa
+  de Cacles con el desambiguador incluido, sin heurística posicional.
+- **Mango es el mejor caso de las nueve** (#80, 03/08/2026): **404 honesto en los tres sitios** —ruta
+  web, API de listado (`catalogs/inventada/filters`) y ficha (`/p/_99999999`)—, así que
+  `check_leaves()` y `probe_alive()` se fían del status y no necesitan canario, ni comparar con el
+  padre, ni desambiguar por posición. Y encima **no pagina**: `/filters` devuelve la hoja entera
+  (1938 items medidos en una respuesta), con lo que desaparece la cuarta trampa del recon, la de
+  contar como sana una hoja truncada.
+
+  Con el 404 honesto disponible, deducir la muerte del **vacío** deja de ser prudencia y pasa a ser
+  un falso positivo: 55 de las 111 hojas de Mango son de rebajas y se vacían legítimamente al acabar
+  una campaña. Tratarlas como caídas dispararía `SCRAPER_SCAN_MAX_DEAD_RATIO` (0,34) contra una
+  tienda sana y haría avisar al vigía cada semana. La regla que queda: **una hoja vacía con forma de
+  listado está viva**; lo que compromete el ámbito es que la respuesta deje de tener esa forma.
 
 En todos los casos las redes de seguridad se apoyan en `GONE_STATUS` y quedan ciegas, sin que
 `ScanReport` cuente ninguna caída. **Al añadir una tienda, probar una ruta inventada antes de fiarse
@@ -573,6 +590,18 @@ las 18 eran espejismo**, porque el árbol real dice dos cosas que nadie adivina:
 
 Generaliza: al mapear una tienda, el rango de edad y el «departamento» pueden ser **hermanos** de
 la rama que ya tienes, no hijos, y por eso no aparecen bajando desde ella.
+
+**Mango cierra el argumento**, porque es el caso donde preguntar sale más barato que en ningún otro
+(#80, 03/08/2026): tiene un **endpoint de menú público** (`api.shop.mango.com/ecs/menu-service/v5`)
+y cada nodo trae su `catalogId`, que es **exactamente** el identificador que come la API de listado.
+O sea que el árbol no hay que traducirlo a rutas nuestras: **el árbol ya ES la lista de hojas**, y
+`CATEGORIES` se rellena copiando de ahí. Una petición para las 256 hojas que publica, de las que 111
+caen en el brief.
+
+Y repite la lección de las ramas hermanas por tercera vez, así que conviene darla por norma y no por
+sorpresa: `ninos` tiene **cinco** ramas de género —`nina`, `nino`, `bebe-nina`, `bebe-nino` y
+`newborn`—, y `teen` es hermano de `ninos`, no hijo. Quedarse en las dos evidentes habría dejado
+fuera todo el bebé, igual que `/baby` en H&M y el rango mini en Sfera.
 
 **El árbol dice la verdad sobre lo que hay, pero ni es exhaustivo ni sabe cuánto.** Dos cosas
 medidas en Sfera el 02/08/2026 que matizan el «única fuente fiable» de arriba, y que se descubren
@@ -820,7 +849,11 @@ desbloquearon tarde. La consecuencia sí era grave — scrapers en producción c
 **ninguna de las señales visibles lo delataba**: ni el registro, ni el manifiesto, ni el vigía.
 
 Resuelto el mismo día para las tres tiendas que lo tenían (#93 hipercor, #99 lefties, y H&M al
-mergearse), así que hoy las siete tienen catálogo en `dev`. Lo que queda es el método, que es lo
+mergearse), así que las siete de entonces tienen catálogo en `dev`. **Mango (#80) entra como la
+octava y nace justo en el estado que esta sección describe**: registrada, con CronJob en el repo de
+manifiestos y validada contra la tienda real en una Postgres local (1582 productos, dos pasadas),
+pero **sin una sola pasada en `dev`** — que es exactamente lo que un CronJob y un vigía en verde no
+prueban. Queda anotado en su issue, no fiado a que alguien lo recuerde. Lo que queda es el método, que es lo
 que se repetirá: **la comprobación que lo dice es una consulta a `scrape_run` por tienda y cuesta
 un minuto**, y la secuencia para cerrar el círculo al añadir tienda es mergear → esperar el bump de
 CI → **comprobar que ArgoCD ha sincronizado la imagen en el CronJob** (disparar antes muere con
@@ -870,6 +903,39 @@ costar el veredicto**. El vigía es el único CronJob con `suspend: false` y no 
 que en QA —que se despliega por releases semver— hay una ventana real en la que el jueves llega
 antes que la `0022`. Base inalcanzable, tabla que aún no existe o INSERT rechazado degradan a «sin
 historial» y el sondeo sigue igual, como ya hacía el aviso de GitHub cuando falta el token.
+
+### Una ficha que no se puede leer se convierte en una baja falsa dos pasadas después
+
+Es el contrato menos evidente entre `stores/*` e `ingest.py`, y no está escrito en ninguna firma.
+`ingest.py` refresca `last_seen_at` por **dos** caminos y solo dos: `_touch_seen()` para lo que llega
+con la huella intacta, y `_upsert_product()` para lo que `fetch_details()` **emite**. Un producto que
+sale en el listado, entra en `to_fetch` y cuya ficha no llega no pasa por ninguno de los dos — así
+que `_advance_missing()` le sube `missing_streak` exactamente igual que si hubiera desaparecido de
+la tienda, y con `SCRAPER_DELIST_MIN_MISSES=2` lo descataloga a la segunda.
+
+Las redes de seguridad no lo ven, y ese es el punto: el acotado por ámbito y
+`SCRAPER_SCAN_MAX_DEAD_RATIO` miran el **listado**, que está lleno y sano. La avería está en la fase
+de detalle, que no tiene informe propio.
+
+Dónde muerde y dónde no: las tiendas cuyo listado ya trae el detalle (Cacles, C&A, H&M) sirven
+`fetch_details()` desde caché y no pueden fallar aquí. Las que piden una ficha por producto —hoy
+Hipercor y Mango— sí, y con dos perfiles de riesgo distintos:
+
+- **Hipercor** falla ficha a ficha (un 403 de Akamai, un timeout de navegación).
+- **Mango** falla en bloque: `parse_ficha()` depende de la plantilla RSC de Next.js, así que un
+  cambio de la tienda rompe **todas** las fichas de golpe. Y las que caen son justo las de los
+  productos cuya huella cambió, o sea **los que acaban de rebajar**.
+
+De ahí la regla, que vale para toda tienda futura con detalle por producto: **solo `GONE_STATUS`
+significa retirado**; un 403, un status inesperado, un fallo de transporte o un payload ilegible son
+«no he podido verlo», y por encima de `_MAX_FICHAS_FALLIDAS` **seguidas** la pasada aborta entera
+(`DetailUnavailable`) en vez de guardar un catálogo mutilado que parece sano. Una ficha leída —
+incluido un 404 honesto— reinicia la cuenta, porque lo que el tope vigila es si la tienda nos sigue
+dejando entrar, no cuántos productos han muerto.
+
+Lo encontró `revisor-robustez-scraper` al auditar Mango (#80) y se confirmó leyendo
+`_advance_missing()` antes de tocar nada. Hipercor ya lo tenía resuelto y documentado en su propio
+fichero; el coste de que no estuviera aquí fue que la tienda siguiente nació sin ello.
 
 ### El género `unisex` es la norma del barefoot, no una excepción
 

@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 842d188a-5bed-4fff-9049-9f5776ad8a66
-  modified: 2026-08-03T09:51:03.913Z
+  modified: 2026-08-03T10:08:15.476Z
 ---
 
 Esta máquina no tiene `postgres`, `psql` ni `pg_isready` instalados (ver
@@ -51,6 +51,27 @@ $PG/usr/bin/pg_ctl -D $PG/data -l $PG/server.log -o "-k /tmp" start
 export TEST_DATABASE_URL=postgres://dealtracker@127.0.0.1:5432/deal_tracker_test
 export TEST_DATABASE_URL_CTYPE_C=postgres://dealtracker@127.0.0.1:5432/deal_tracker_ctype_c
 ```
+
+**Con varias sesiones a la vez, una base por sesión.** El servidor es uno y el `conftest.py` del
+scraper hace `TRUNCATE` de las tablas de datos antes de **cada** test, así que compartir
+`deal_tracker_test` entre sesiones paralelas borra lo que otra estaba mirando — y a uno mismo: el
+03/08/2026 un `pytest` se llevó por delante el histórico de `vigia_run` que acababa de generar a
+mano con el vigía. La convención que ya había en la máquina (`dt_98`) es la buena:
+`createdb -h /tmp -U dealtracker dt_<issue>`; las migraciones las aplica sola la fixture `db_conn`.
+
+**Y dentro de la propia sesión hacen falta DOS bases, no una.** Una base por sesión resuelve el
+choque entre sesiones, no el de la sesión consigo misma: si `DATABASE_URL` (la pasada real) y
+`TEST_DATABASE_URL` (pytest) apuntan a la misma, el primer `pytest` borra el catálogo que acabas de
+ingerir. Pasó el 03/08/2026 en #80 — 1568 productos y 12386 variantes de una pasada de 45 minutos,
+truncados por correr la suite después. La separación buena es `dt_<issue>` para la ingesta y
+`dt_<issue>_test` para los tests, y **exportarlas en el comando**, no dejarlas colgando del entorno,
+que es como se cuelan cruzadas. Ojo también con las medidas de proceso mientras hay varias sesiones:
+`ps -C python | sort -rn | head -1` coge el python más grande de la MÁQUINA, no el tuyo — para
+medir RSS de una pasada, por PID.
+
+Un worktree tampoco trae `.venv` ni `node_modules`, así que en él hay que rehacer
+`python -m venv` + `pip install -e "services/scraper[dev]"` y `pnpm install` (ver
+[[scraper-sin-just-ni-env]], que además explica que `just` no está instalado).
 
 La verificación **del despliegue** sí va contra el cluster:
 
