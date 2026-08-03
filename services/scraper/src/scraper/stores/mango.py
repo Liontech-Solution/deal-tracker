@@ -19,6 +19,21 @@ indistinguible del fin de paginación), Hipercor (espejismo) y H&M (el cubo ente
 `check_leaves()` y `probe_alive()` se pueden fiar del status y no necesitan canario ni comparación
 con el padre. Verificado el 03/08/2026 con rutas inventadas en los tres.
 
+**Pero el 404 honesto no es el 404 fiable, y hay una medida que lo dice.** En la primera pasada de
+Mango en `dev` (#80) `rebajas_newborn.sudaderas_newborn` dio 404 y se marcó como hoja caída. No lo
+estaba: la hoja seguía publicada en el menú, el listado le respondía 200 con 2 items, y 20 sondeos
+seguidos dieron 20 × 200. La segunda pasada, 3 minutos después, la vio viva. O sea que aquí un 404
+puede ser **transitorio**, y eso significa que un `check_leaves()` que se fía del status confunde
+«no está» con «no me ha contestado bien esta vez».
+
+Lo que salva el caso es que la consecuencia es conservadora y ya está construida: el ámbito se marca
+comprometido, sus bajas se omiten y la pasada cierra sin descatalogar nada de más (`bajas: 0 / 0`).
+El coste de un 404 transitorio es *dejar de detectar bajas* en ese ámbito durante esa pasada, que es
+el lado correcto por el que equivocarse. **No añadas un reintento sin medir cuánto se repite**: con
+dos observaciones no se sabe si esto es ruido de Akamai o una hoja concreta que renquea, y la
+lección de #67 es que lo que separa un blip de un bug es la repetición, no el veredicto. La serie la
+dan el vigía semanal y `vigia_run` (#111).
+
 **2. El endpoint del listado se llama `/filters` pero ES el listado, y no pagina.** Devuelve
 `{gridSize, filters, items}` con la hoja entera en una sola respuesta: medido `rebajas_she` con
 **1938 items** de una tacada, muy por encima de cualquier tamaño de página redondo. Por eso aquí no
