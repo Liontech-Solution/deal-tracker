@@ -21,9 +21,12 @@ barefoot store, so `barefoot='si'` is declared per-store instead of guessed), **
 persisted query; the only one that publishes the Ómnibus 30-day minimum), **Hipercor** (headless
 Chromium, and the first store scraped **through its own pages** rather than an API: its `robots.txt`
 disallows `/api`, so the listing and the product sheet are read from the `dataLayer` and the
-`ld+json` each page embeds) and **H&M** (REST API on `api.hm.com`, outside the Akamai that guards
-the storefront, so plain `httpx` gets in). Still pending from the brief: Mango Kids, Springfield
-Kids.
+`ld+json` each page embeds), **H&M** (REST API on `api.hm.com`, outside the Akamai that guards
+the storefront, so plain `httpx` gets in), **Mango Kids** (the only store that *publishes its own
+category tree*: a public menu endpoint hands out the `catalogId` the listing API consumes, so no leaf
+is guessed) and **Springfield** (the first listed by **sitemap** — its `robots.txt` bans the SFCC
+grid — which also hands over `lastmod` as a free signature). That closes the retailer list from the
+brief.
 
 H&M is the only store so far whose **dead leaf is invisible**: an unresolvable `pageId` returns 200
 with a full, plausible page — the whole `categoryId` bucket. It is detected with a *canary*: one
@@ -157,9 +160,13 @@ These are facts about the running system, not plans:
   a matching job and the vigía. Base ships them `suspend: true` (the vigía is the one exception), so
   in **dev** a pass is fired by hand:
   `kubectl -n deal-tracker-dev create job <name> --from=cronjob/deal-tracker-scraper-<slug>`.
-  In **QA** the four scrapers and matching run **weekly** (Mondays, staggered 05:30→07:00) and the
+  In **QA** all nine scrapers and matching run **weekly** (Mondays, staggered 03:00→07:00) and the
   vigía on Thursdays: QA is not production, so it only needs enough passes to grow `price_history`
-  and let someone experiment. Note that QA's matching sends **real Telegram messages**.
+  and let someone experiment. Note that QA's matching sends **real Telegram messages**. QA tracks
+  **semver**, not `sha`, so a newly merged store stays `suspend: true` there until a `release-qa`
+  puts it in the image — firing it earlier dies with `ValueError: Tienda desconocida`. And its slots
+  are **not** base's, so a new store cannot inherit base's `schedule` without checking what it
+  collides with.
 - **Database:** the **CNPG** cluster `platform-postgres-dev` in namespace `data-dev` — *not* the
   cluster's `postgresql-generic`. It also holds the price-history time series.
 - **Auth/login:** **Keycloak**, already deployed in the cluster. The web service is a resource
