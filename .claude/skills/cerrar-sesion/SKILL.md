@@ -49,20 +49,25 @@ La fuente de verdad del ADR es el fichero versionado de cada repo:
 Está en git porque el grafo es **local a cada equipo**: es lo que permite reconstruirlo en el otro
 portátil y revisarlo en un PR como cualquier otro documento.
 
-**Reindexar borra el ADR del grafo, siempre.** No es intermitente: `index_repository` devuelve
-`adr_present: false` y `manage_adr --mode sections` se queda en lista vacía, aunque lo hubieras
-republicado un minuto antes (medido el 02/08/2026, dos veces seguidas). Así que republicar va
-**después del último `index_repository`** — si reindexas después «por si acaso», lo vuelves a
-perder. Lo que viene luego (issues y limpieza) no toca el grafo, así que no lo estropea; pero si
-por lo que sea acabas reindexando otra vez, republica otra vez:
+**Reindexar puede borrar el ADR del grafo, y no se puede predecir cuándo.** Aquí ponía «siempre,
+no es intermitente», apoyado en dos medidas del 31/07 y el 02/08/2026 que dieron
+`adr_present: false` con `manage_adr --mode sections` en lista vacía. Es falso: esa misma tarde del
+02/08 un `full` sobre este repo devolvió `adr_present: true` y las 16 secciones intactas (está
+contado en la sección *OPERACIÓN DEL PROPIO ÍNDICE* del ADR, que es la versión buena de esto).
+
+Con el comportamiento indeterminado, la consecuencia práctica no cambia y por eso el orden importa
+más, no menos: republicar va **después del último `index_repository`**, que es lo único que
+garantiza el resultado en los dos casos. Lo que viene luego (issues y limpieza) no toca el grafo,
+así que no lo estropea; pero si acabas reindexando otra vez, republica otra vez:
 
 ```bash
 codebase-memory-mcp cli manage_adr --project <proyecto> --mode update \
   --content "$(cat .claude/adr/<proyecto>.md)"
 ```
 
-Y compruébalo de verdad con `manage_adr --mode sections`, que lee el grafo. El `adr_present` de
-`index_repository` solo te dice cómo quedó **en ese momento**.
+Y compruébalo de verdad con `manage_adr --mode sections`, que lee el grafo: no asumas en ninguna
+de las dos direcciones. El `adr_present` de `index_repository` solo te dice cómo quedó **en ese
+momento**.
 
 ## 3. ¿Cambia el ADR lo aprendido hoy?
 
