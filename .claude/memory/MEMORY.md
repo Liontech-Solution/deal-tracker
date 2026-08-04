@@ -10,3 +10,5 @@
 - [scraper-sin-just-ni-env](scraper-sin-just-ni-env.md) — `just` no está instalado y no hay `.env`: las recetas a mano, `mypy` sin argumentos, venv propio por worktree y el `DATABASE_URL` de pega de `--check-categories`
 - [exitworktree-falso-positivo](exitworktree-falso-positivo.md) — `ExitWorktree --remove` avisa de commits «a descartar» aunque el PR esté mergeado: comprobar con `merge-base --is-ancestor` antes de forzar
 - [buscar-issue-antes-de-abrir](buscar-issue-antes-de-abrir.md) — buscar si el hallazgo ya tiene issue (aunque sea mencionado de pasada) antes de abrir una nueva
+- [gh-pr-merge-desde-worktree](gh-pr-merge-desde-worktree.md) — el error «main is already used by worktree» llega DESPUÉS de mergear: comprobar el PR y borrar la rama a mano
+- [cerrar-issue-desde-el-pr](cerrar-issue-desde-el-pr.md) — «Cierra #N» en español no autocierra nada; la keyword va en inglés o se cierra a mano
