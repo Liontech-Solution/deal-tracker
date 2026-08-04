@@ -109,8 +109,9 @@ COBERTURA_SIN_VIGILAR: dict[str, str] = {
 # `test_cobertura_declarada_no_solapa_con_lo_mapeado`: la lista tiene que envejecer con ruido, no
 # en silencio, porque una entrada de sobra tapa exactamente lo que esta capa existe para ver.
 COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
-    # Medido el 04/08/2026 sobre las cuatro ramas: 46 rutas, 13 sin cubrir. Nueve se declaran aquí
-    # y **cuatro se dejan sonar a propósito** (las `ropa-deportiva`), que es el hallazgo de #156.
+    # Medido el 04/08/2026 sobre las cuatro ramas: 46 rutas, 13 sin cubrir. Nueve se declaran aquí;
+    # las otras cuatro eran las `ropa-deportiva` que #156 dejó sonar a propósito, y #175 las midió:
+    # son sudaderas, así que ahora se **ingieren** y por eso no aparecen en esta lista.
     "sfera": {
         "ninos/nina/abrigos-y-cazadoras": "abrigo no es ninguna de las 5 categorías del brief",
         "ninos/nino/abrigos-y-cazadoras": "abrigo no es ninguna de las 5 categorías del brief",
@@ -146,12 +147,14 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "3-2-29": "«Vuelta al cole» es campaña transversal (rama 3-2, promoción)",
         "8-449": "trajes de ceremonia: no es ninguna de las 5 categorías del brief",
         "8-77": "ropa de lluvia: no es ninguna de las 5 categorías del brief",
-        # Nota, porque es la única entrada que no es obvia: en Sfera esta misma categoría se deja
-        # SIN declarar a propósito y va a sonar. No es un despiste — `CATEGORIES` de esta tienda ya
-        # la había dejado fuera midiendo, y revocar aquella decisión de tapadillo sería peor. Que
-        # «ropa de deporte» sea o no del brief hay que decidirlo una vez y para todas las tiendas.
-        "3-1-24": "ya excluida al mapear la tienda; pendiente de decidir a la vez que la de Sfera",
-        "3-7-23": "ya excluida al mapear la tienda; pendiente de decidir a la vez que la de Sfera",
+        # La pregunta que estas dos dejaron abierta —¿«ropa de deporte» es del brief?— se contestó
+        # midiendo, en #175, y la respuesta es distinta en cada tienda porque el mismo nombre tapa
+        # cosas distintas: en Sfera son sudaderas (van mapeadas) y aquí es una vista transversal.
+        # Medido el 04/08/2026: de los 45 productos de las dos hojas, **42 ya entran** por
+        # `camisetas` (24), `pantalones` (15) y `sudaderas` (3). Los 3 exclusivos son dos chaquetas
+        # y un chubasquero impermeable, que ya están fuera por su propia categoría.
+        "3-1-24": "vista transversal: 42 de 45 ya entran por camisetas/pantalones/sudaderas (#175)",
+        "3-7-23": "vista transversal: 42 de 45 ya entran por camisetas/pantalones/sudaderas (#175)",
     },
 }
 

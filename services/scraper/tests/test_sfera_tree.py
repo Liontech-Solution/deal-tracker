@@ -307,10 +307,12 @@ def test_el_comando_marca_lo_que_ya_ingerimos_y_lo_que_no() -> None:
         {
             "ninos/bebe-nino": _faceta(
                 {"slugs": ["ninos", "bebe-nino", "zapatos"], "label": "Zapatos", "count": 6},
+                # El hueco lo pone `banadores-bebe`, que no está mapeada ni declarada. Antes lo
+                # ponía `ropa-deportiva`, que desde #175 sí se ingiere (es `sudaderas`).
                 {
-                    "slugs": ["ninos", "bebe-nino", "ropa-deportiva"],
-                    "label": "Deporte",
-                    "count": 16,
+                    "slugs": ["ninos", "bebe-nino", "banadores-bebe"],
+                    "label": "Bañadores bebé",
+                    "count": 1,
                 },
             )
         }
@@ -325,7 +327,7 @@ def test_el_comando_marca_lo_que_ya_ingerimos_y_lo_que_no() -> None:
         linea.split()[1]: linea.split()[0] for linea in salida.splitlines() if "ninos/" in linea
     }
     assert marcas["ninos/bebe-nino/zapatos"] == "✓"
-    assert marcas["ninos/bebe-nino/ropa-deportiva"] == "·"
+    assert marcas["ninos/bebe-nino/banadores-bebe"] == "·"
 
 
 def test_el_comando_imprime_lo_leido_aunque_la_bajada_se_corte() -> None:
@@ -385,9 +387,10 @@ def test_la_ropa_de_bebe_no_estrena_ningun_ambito() -> None:
     ambitos_previos = {ScrapeScope(c.gender, c.section, c.category) for c in del_resto}
 
     # 12 de ropa (#56) + 2 de calzado (#33), menos `bebe-nino/punto-y-jerseis`, que la tienda
-    # retiró en agosto de 2026 (#151). Su ámbito `niño/ropa/sudaderas` no se pierde: lo siguen
-    # alimentando las dos hojas de la rama 6-14.
-    assert len(de_bebe) == 13
+    # retiró en agosto de 2026 (#151), más las 2 `ropa-deportiva` de bebé que #175 midió y que
+    # son sudaderas. Esas dos son además las que devuelven el ámbito `niño/ropa/sudaderas` a la
+    # rama de bebé, que lo había perdido con la hoja retirada.
+    assert len(de_bebe) == 15
     for cat in de_bebe:
         assert ScrapeScope(cat.gender, cat.section, cat.category) in ambitos_previos
 
@@ -482,22 +485,22 @@ def test_las_hojas_nuevas_no_estrenan_ningun_ambito() -> None:
 
 
 def test_las_hojas_fuera_del_brief_siguen_fuera() -> None:
-    """Baño, ropa deportiva y abrigos existen en el árbol y NO se ingieren, igual que en 6-14.
+    """Baño, accesorios y abrigos existen en el árbol y NO se ingieren, igual que en 6-14.
 
     Es una decisión de cobertura, no un olvido: si alguna entrara sin querer, aparecerían
     productos en una categoría del brief que no les corresponde.
+
+    `ropa-deportiva` estaba en esta lista y salió de ella en #175, al medir qué contiene: no era
+    una categoría fuera del brief, era `sudaderas` con otro nombre. Ver el test de abajo.
     """
     configuradas = {c.category_path for c in CATEGORIES}
     for fuera in (
         "ninos/bebe-nina/bano",
         "ninos/bebe-nino/banadores-bebe",
-        "ninos/bebe-nina/ropa-deportiva",
-        "ninos/bebe-nino/ropa-deportiva",
         "ninos/bebe-nina/abrigos-y-cazadoras",
         "ninos/bebe-nino/abrigos-y-cazadoras",
         # Las de 6-14, enumeradas con `--tree` al rescatar las cuatro de #72: lo que quedó fuera
         # quedó fuera a sabiendas, no por no haberlo mirado.
-        "ninos/nina/ropa-deportiva",
         "ninos/nina/accesorios",
         "ninos/nina/abrigos-y-cazadoras",
         "ninos/nino/banadores",
@@ -505,3 +508,40 @@ def test_las_hojas_fuera_del_brief_siguen_fuera() -> None:
         "ninos/nino/abrigos-y-cazadoras",
     ):
         assert fuera not in configuradas
+
+
+def test_la_ropa_deportiva_de_sfera_se_mapea_a_sudaderas() -> None:
+    """En esta tienda «ropa deportiva» son sudaderas y conjuntos, no ropa técnica (#175).
+
+    Medido sobre las cuatro hojas el 04/08/2026, con la faceta `attr.fashion_level3` que la propia
+    tienda publica: 91 productos, `Sudaderas sin capucha` 56, `Conjuntos` 25, `Sudaderas con
+    capucha` 10. Ni una malla ni una camiseta técnica.
+
+    El test fija el mapeo porque el nombre de la hoja invita a lo contrario: quien la lea sin haber
+    medido pensará que va a una categoría deportiva, y lo que hay dentro dice `sudaderas`.
+    """
+    por_ruta = {c.category_path: c for c in CATEGORIES}
+    for rama, genero in (
+        ("nina", "niña"),
+        ("nino", "niño"),
+        ("bebe-nina", "niña"),
+        ("bebe-nino", "niño"),
+    ):
+        cat = por_ruta[f"ninos/{rama}/ropa-deportiva"]
+        assert (cat.gender, cat.section, cat.category) == (genero, "ropa", "sudaderas")
+
+
+def test_la_ropa_deportiva_va_despues_de_las_hojas_que_solapan() -> None:
+    """«Gana la primera» en `list_catalog()`, así que el orden decide y no es cosmético.
+
+    47 de los 91 productos de deporte ya entran por `ninos/{nina,nino}/sudaderas`. Con las hojas de
+    deporte al final, esos 47 conservan su hoja y **ningún producto vivo cambia de ámbito** — una
+    mudanza de ámbito se lee como caída sospechosa y omite las bajas de ese ámbito durante la
+    pasada (#174). Si alguien las sube en la lista, eso se rompe en silencio.
+    """
+    rutas = [c.category_path for c in CATEGORIES]
+    for rama in ("nina", "nino"):
+        assert rutas.index(f"ninos/{rama}/sudaderas") < rutas.index(f"ninos/{rama}/ropa-deportiva")
+        assert rutas.index(f"ninos/{rama}/punto-y-jerseis") < rutas.index(
+            f"ninos/{rama}/ropa-deportiva"
+        )
