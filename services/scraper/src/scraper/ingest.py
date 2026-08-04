@@ -30,7 +30,6 @@ pregunta directamente y solo se da de baja lo confirmado como retirado.
 from __future__ import annotations
 
 import logging
-import time
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -39,6 +38,7 @@ from decimal import Decimal
 
 import psycopg
 
+from .progreso import Latido, duracion
 from .stores.base import (
     BaseStore,
     DelistCandidate,
@@ -65,9 +65,9 @@ DEFAULT_DETAIL_MAX_AGE_DAYS = 7
 DEFAULT_DETAIL_REFRESH_MAX = 100
 # Hojas de categoría caídas: proporción a partir de la cual la pasada aborta (ver `ingest`).
 DEFAULT_SCAN_MAX_DEAD_RATIO = 0.34
-# Cada cuánto informa la pasada de por dónde va (ver `_Latido`). Va por TIEMPO y no por número de
-# fichas para que el volumen del log no dependa del tamaño del catálogo, y de paso resuelve solo que
-# una pasada caliente no se ensucie: Zara en 1m35s no llega al primer aviso. 0 lo desactiva.
+# Cada cuánto informa la pasada de por dónde va (ver `progreso.Latido`). Va por TIEMPO y no por
+# número de fichas para que el volumen del log no dependa del tamaño del catálogo, y de paso sale
+# gratis que una pasada caliente no se ensucie: Zara en 1m35s no llega al primer aviso. 0 lo apaga.
 DEFAULT_PROGRESS_EVERY_SECONDS = 300.0
 # Tope del motivo que se guarda en `scrape_run.message`: un traceback de una librería puede venir
 # con kilobytes de ruido y esta columna es para leerla de un vistazo.
@@ -76,59 +76,6 @@ _MAX_FAIL_MESSAGE = 500
 _ScopeKey = tuple[str | None, str | None, str | None]
 
 _LOG = logging.getLogger(__name__)
-
-# El reloj, indirecto a propósito: así los tests fijan duraciones sin parchear el módulo `time`
-# entero, que es global y afectaría a cualquier otra cosa que corra en el mismo proceso. Mismo
-# idiom que `vigia._reloj`, y por la misma razón.
-_reloj = time.monotonic
-
-
-def _duracion(segundos: float) -> str:
-    """`8112.4` -> `2h15m`; `183.0` -> `3m`; `12.5` -> `12s`."""
-    if segundos < 60:
-        return f"{segundos:.0f}s"
-    minutos, seg = divmod(int(segundos), 60)
-    if minutos < 60:
-        return f"{minutos}m" if seg < 30 else f"{minutos + 1}m"
-    horas, minutos = divmod(minutos, 60)
-    return f"{horas}h{minutos:02d}m"
-
-
-class _Latido:
-    """Emite como mucho una línea de progreso cada `cada_segundos`.
-
-    Existe porque una pasada de horas era indistinguible de una colgada (#146): el contenedor de
-    la fría de Hipercor escribió **0 bytes en 5 horas**, así que de los cuatro intentos fallidos
-    sabemos «más de 300 minutos» y no dónde se fueron.
-
-    Se le pregunta desde dentro de los bucles que ya se están recorriendo — sin hilos ni señales,
-    que para esto serían una fuente de problemas nueva a cambio de nada: lo que hay que reportar
-    solo cambia cuando avanza el bucle.
-    """
-
-    def __init__(self, cada_segundos: float, slug: str) -> None:
-        self._cada = cada_segundos
-        self._slug = slug
-        self.inicio = _reloj()
-        self._ultimo = self.inicio
-
-    @property
-    def transcurrido(self) -> float:
-        return _reloj() - self.inicio
-
-    def anuncia(self, mensaje: str) -> None:
-        """Publica sin mirar el reloj: para los hitos (arranque, frontera entre fases)."""
-        _LOG.info("%s · %s", self._slug, mensaje)
-
-    def late(self, mensaje: str) -> None:
-        """Publica solo si ha pasado la ventana desde el último aviso."""
-        if self._cada <= 0:
-            return
-        ahora = _reloj()
-        if ahora - self._ultimo < self._cada:
-            return
-        self._ultimo = ahora
-        _LOG.info("%s · %s · %s", self._slug, mensaje, _duracion(ahora - self.inicio))
 
 
 class CatalogScanAborted(RuntimeError):
@@ -777,7 +724,7 @@ def ingest(
 ) -> IngestResult:
     """Ejecuta una pasada completa del scraper y persiste el resultado. Atómico."""
     run_ts = run_ts or datetime.now(UTC)
-    latido = _Latido(progress_every_seconds, store.slug)
+    latido = Latido(progress_every_seconds, store.slug, _LOG)
     # Sin mirar el reloj: es lo que distingue «listando» de «colgada antes de empezar», que hoy se
     # parecen mucho porque las dos escriben exactamente lo mismo, o sea nada.
     latido.anuncia("pasada arrancada")
@@ -795,10 +742,14 @@ def ingest(
             # Fase 1: listado barato. Decidimos a quién pedir detalle y a quién solo "tocar".
             # Se acumula a mano en vez de con `list(...)` para poder latir mientras baja: con la
             # llamada envuelta, una tienda que tarda media hora en listar no se distingue de una
-            # colgada. Ojo con leer el contador como «lo que lleva bajado»: `hm.list_catalog()`
-            # acumula la pasada entera antes de emitir nada (su fila de listado es producto+color,
-            # no producto), así que en esa tienda el latido dirá `0 entradas` hasta el final. Sigue
-            # valiendo para lo que importa aquí, que es probar que el proceso está vivo.
+            # colgada. **Pero no en todas**: `hm` e `hipercor` acumulan la pasada entera antes de
+            # emitir nada —la primera porque su fila de listado es producto+color, la segunda porque
+            # el 13 % de su catálogo sale en las dos ramas de género y el ámbito de una entrada ya
+            # emitida no se puede corregir (#98)—, así que en esas dos el listado sigue siendo mudo
+            # y solo se ve la línea de frontera al acabarlo. Medido en dev el 04/08/2026: 6 min de
+            # silencio en la fase 1 de Hipercor. Cubrirlo exigiría latir DENTRO del bucle de hojas
+            # de cada tienda, que es otro alcance; lo que sí se ve ya es la fase 2, que en Hipercor
+            # es ~204 min de 208.
             entries: list[ListingEntry] = []
             for entry in store.list_catalog():
                 entries.append(entry)
@@ -859,7 +810,7 @@ def ingest(
             # se pudo decir de ninguno de los cuatro intentos de #93.
             total_fetch = len(to_fetch)
             latido.anuncia(
-                f"listado: {len(entries)} entradas en {_duracion(listado_seg)} · "
+                f"listado: {len(entries)} entradas en {duracion(listado_seg)} · "
                 f"se piden {total_fetch} fichas, {products_unchanged} sin cambios"
             )
 
@@ -877,7 +828,7 @@ def ingest(
                 latido.late(
                     f"fichas {details_fetched}/{total_fetch} "
                     f"({details_fetched * 100 // max(total_fetch, 1)}%) · "
-                    f"{por_ficha:.1f} s/ficha · faltan ~{_duracion(quedan * por_ficha)}"
+                    f"{por_ficha:.1f} s/ficha · faltan ~{duracion(quedan * por_ficha)}"
                 )
                 signature = signature_by_id.get(product.retailer_product_id, "")
                 product_id = _upsert_product(cur, retailer_id, run_ts, product, signature)

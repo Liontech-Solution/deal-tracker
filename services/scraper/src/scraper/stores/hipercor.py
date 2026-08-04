@@ -69,6 +69,7 @@ from typing import Any
 
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
+from ..progreso import Latido
 from .base import (
     GONE_STATUS,
     DelistCandidate,
@@ -761,15 +762,30 @@ class HipercorStore:
         niño, y eso solo se sabe cuando se han visto todas las hojas — el ámbito de una entrada ya
         emitida no se puede corregir. No cuesta memoria nueva: `ingest.py` ya hacía
         `list(store.list_catalog())`, y son ~1.200 entradas.
+
+        Ese acumular es justo lo que deja **ciega** a la instrumentación de `ingest.py` (#146):
+        late al recibir entradas y aquí no recibe ninguna hasta el final, así que la fase 1 salía
+        muda. Y no es un rato: medido en dev el 04/08/2026, **más de 45 minutos**, con el pod pegado
+        a su cap de 1 CPU desde el primer minuto — o sea que el estrangulamiento de la §4 de #93 no
+        empieza al pedir fichas, ya está listando. Por eso el latido por hoja va aquí dentro y no
+        allí: es el único sitio donde se sabe por qué hoja va.
         """
         self._urls = {}
         self._scan = ScanReport()
         primera_entrada: dict[str, ListingEntry] = {}
         hojas_por_producto: dict[str, list[ScrapeScope]] = {}
+        latido = Latido(self._config.progress_every_seconds, SLUG, _LOG)
+        total_hojas = len(self._categories)
         with self._session_factory() as session:
             session.bloquear(_RUTA_VETADA)
             session.descartar_recursos(_RECURSOS_INUTILES)
-            for cat in self._categories:
+            for n_hoja, cat in enumerate(self._categories, start=1):
+                # Al ENTRAR en la hoja y no al salir: si la pasada se atasca, lo que hace falta
+                # saber es en cuál se ha quedado, no cuál fue la última que terminó bien.
+                latido.late(
+                    f"listando · hoja {n_hoja}/{total_hojas} {cat.category_path} · "
+                    f"{len(primera_entrada)} entradas"
+                )
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
                 try:
                     # El `try` envuelve el bucle entero porque `_iter_category` es un generador: el

@@ -40,6 +40,7 @@ from typing import Any
 
 import pytest
 
+from scraper import progreso
 from scraper.config import Config
 from scraper.stores.base import DelistCandidate, ScrapeScope
 from scraper.stores.browser import BrowserUnreachable
@@ -65,6 +66,24 @@ from scraper.stores.hipercor import (
 
 FIXTURES = Path(__file__).parent / "fixtures"
 _CFG = Config(database_url="x", request_delay=0.0, retry_backoff=0.0)
+
+
+class _RelojQueAvanza:
+    """Reloj que avanza solo al leerlo, para que una hoja «cueste» sin dormir de verdad.
+
+    Aquí sirve la variante barata: lo que el test fija es que cada hoja cruza la ventana, no una
+    duración concreta, y el latido lee el reloj una vez por hoja.
+    """
+
+    def __init__(self) -> None:
+        self.ahora = 0.0
+        self.por_lectura = 0.0
+
+    def __call__(self) -> float:
+        actual = self.ahora
+        self.ahora += self.por_lectura
+        return actual
+
 
 _INFANTIL = "moda-y-accesorios/moda-infantil"
 _VESTIDOS = CategoryConfig(f"{_INFANTIL}/nina-4-16-anos/vestidos", "niña", "ropa", "vestidos")
@@ -771,3 +790,74 @@ def test_grid_url_pagina_uno_no_lleva_numero(pagina: int, esperado: str) -> None
         "https://www.hipercor.es/moda-y-accesorios/moda-infantil/nina-4-16-anos/vestidos/"
         + esperado
     )
+
+
+# El latido del listado (#146): esta tienda acumula, así que `ingest.py` no la puede ver
+
+
+def test_el_listado_late_por_hoja_diciendo_en_cual_va(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """La fase 1 de esta tienda salía muda, y no un rato: 45+ min medidos en dev el 04/08/2026.
+
+    `ingest.py` late al recibir entradas del generador, y `list_catalog()` acumula la pasada entera
+    antes de emitir ninguna (lo exige el cruce de géneros de #98). O sea que para la tienda que
+    motivó #146 —la de la pasada en frío de 5 horas— el instrumento no llegaba justo donde hacía
+    falta. El latido tiene que salir de aquí dentro, que es el único sitio donde se sabe por qué
+    hoja va.
+    """
+    reloj = _RelojQueAvanza()
+    monkeypatch.setattr(progreso, "_reloj", reloj)
+
+    nina = _VESTIDOS
+    nino = CategoryConfig(f"{_INFANTIL}/nino-4-16-anos/camisetas", "niño", "ropa", "camisetas")
+    html = load_html("hipercor_rejilla_nina_vestidos.html")
+    tienda = _tienda(
+        {
+            HipercorStore.grid_url(nina.category_path, 1): (200, html),
+            HipercorStore.grid_url(nino.category_path, 1): (
+                200,
+                _rehojar(html, nino.category_path),
+            ),
+        },
+        [nina, nino],
+    )
+    # Cada hoja cuesta más que la ventana, así que las dos laten.
+    reloj.por_lectura = 400.0
+    cfg = Config(database_url="x", request_delay=0.0, retry_backoff=0.0, progress_every_seconds=300)
+    tienda._config = cfg
+
+    with caplog.at_level(logging.INFO, logger="scraper.stores.hipercor"):
+        list(tienda.list_catalog())
+
+    latidos = [r.getMessage() for r in caplog.records if "listando" in r.getMessage()]
+    assert len(latidos) == 2, latidos
+    assert "hoja 1/2" in latidos[0] and nina.category_path in latidos[0]
+    assert "hoja 2/2" in latidos[1] and nino.category_path in latidos[1]
+
+
+def test_el_listado_no_late_si_el_progreso_esta_apagado(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """`0` lo apaga aquí igual que en `ingest.py`: un solo knob para toda la pasada."""
+    reloj = _RelojQueAvanza()
+    reloj.por_lectura = 9000.0
+    monkeypatch.setattr(progreso, "_reloj", reloj)
+
+    tienda = _tienda(
+        {
+            HipercorStore.grid_url(_VESTIDOS.category_path, 1): (
+                200,
+                load_html("hipercor_rejilla_nina_vestidos.html"),
+            )
+        },
+        [_VESTIDOS],
+    )
+    tienda._config = Config(
+        database_url="x", request_delay=0.0, retry_backoff=0.0, progress_every_seconds=0
+    )
+
+    with caplog.at_level(logging.INFO, logger="scraper.stores.hipercor"):
+        list(tienda.list_catalog())
+
+    assert [r for r in caplog.records if "listando" in r.getMessage()] == []

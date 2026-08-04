@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from scraper import ingest as ingest_mod
+from scraper import progreso as progreso_mod
 from scraper.ingest import CatalogScanAborted, ingest
 from scraper.stores.base import (
     DelistCandidate,
@@ -1269,12 +1269,12 @@ class _RelojFalso:
 def reloj(monkeypatch: pytest.MonkeyPatch) -> _RelojFalso:
     """Sustituye el reloj de la ingesta por uno que el test hace avanzar.
 
-    Se parchea `ingest._reloj` y no `time.monotonic`, por lo mismo que en `test_vigia.py`: parchear
-    el módulo `time` es global y afectaría a cualquier otra cosa del proceso — empezando por la
-    pausa de `test_una_pasada_con_exito_registra_su_duracion`, aquí al lado.
+    Se parchea `progreso._reloj` y no `time.monotonic`, por lo mismo que en `test_vigia.py`:
+    parchear el módulo `time` es global y afectaría a cualquier otra cosa del proceso — empezando
+    por la pausa de `test_una_pasada_con_exito_registra_su_duracion`, aquí al lado.
     """
     falso = _RelojFalso()
-    monkeypatch.setattr(ingest_mod, "_reloj", falso)
+    monkeypatch.setattr(progreso_mod, "_reloj", falso)
     return falso
 
 
