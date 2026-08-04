@@ -363,6 +363,15 @@ def main(argv: list[str] | None = None) -> int:
             f"{_cuales(result.skipped_scope_names)}: "
             f"bajas omitidas (posible fallo de scraping). Revisa el listado de la tienda."
         )
+    if result.remapped_scopes:
+        # Sin ⚠ a propósito: no es un fallo, es esta pasada diciendo que ha visto un cambio de
+        # clasificación y que por eso NO ha marcado como sospechoso lo que antes marcaba (#174).
+        print(
+            f"{result.remapped_scopes} ámbito{'' if result.remapped_scopes == 1 else 's'} "
+            f"remapeado{'' if result.remapped_scopes == 1 else 's'}"
+            f"{_cuales(result.remapped_scope_names)}: "
+            "sus productos se han mudado de ámbito, no han desaparecido. Bajas aplicadas."
+        )
     if result.leaves_failed:
         ambitos = result.unscanned_scopes
         print(

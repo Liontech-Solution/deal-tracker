@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 
 from scraper import progreso as progreso_mod
-from scraper.ingest import CatalogScanAborted, ingest
+from scraper.ingest import CatalogScanAborted, _ExistingProduct, _moved_out_counts, ingest
 from scraper.stores.base import (
     DelistCandidate,
     ListingEntry,
@@ -431,6 +431,171 @@ def test_baja_normal_cuando_la_caida_es_moderada(db_conn: Any) -> None:
     assert result.skipped_scope_names == [], "sin sospecha no hay nada que nombrar (ni un () vacío)"
     assert result.products_delisted == 1
     assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='A3'") == T2
+
+
+# --- #174 Una mudanza de ámbito no es una desaparición -----------------------------------
+
+
+def _en_ambito(pid: str, gender: str) -> ScrapedProduct:
+    return _product(pid, f"P{pid}", [_variant(f"{pid}-1", "20.00")], gender=gender)
+
+
+def test_una_mudanza_de_ambito_no_es_caida_sospechosa(db_conn: Any) -> None:
+    """#174: el caso de Hipercor. Reclasificar no puede leerse como que la tienda se ha roto.
+
+    El ámbito de origen se queda a cero y aun así no es sospechoso, porque sus cuatro productos
+    están ahí mismo, listados bajo `unisex`. Las huellas NO cambian a propósito: así no se pide
+    detalle y el `gender` guardado sigue siendo el viejo, que es exactamente el estado en el que
+    la run #45 de `dev` dio el falso positivo.
+    """
+    sigs = {f"A{i}": "s" for i in range(4)}
+    ingest(
+        db_conn,
+        FakeStore([_en_ambito(f"A{i}", "niña") for i in range(4)], signatures=sigs),
+        run_ts=T1,
+        delist_min_baseline=3,
+    )
+
+    mudados = FakeStore(
+        [_en_ambito(f"A{i}", "unisex") for i in range(4)],
+        signatures=sigs,
+        scopes=[
+            ScrapeScope("niña", "zapateria", "zapatos"),
+            ScrapeScope("unisex", "zapateria", "zapatos"),
+        ],
+    )
+    result = ingest(db_conn, mudados, run_ts=T2, delist_min_baseline=3, delist_min_misses=1)
+
+    assert result.skipped_scopes == 0, "el ámbito de origen se vació, pero nadie ha desaparecido"
+    assert result.skipped_scope_names == []
+    assert result.remapped_scopes == 1
+    assert result.remapped_scope_names == ["niña/zapateria/zapatos"]
+    assert result.products_delisted == 0
+    assert _scalar(db_conn, "SELECT count(*) FROM product WHERE delisted_at IS NULL") == 4
+    # Y queda escrito en la fila de la pasada, no solo en el log de un pod que se recicla.
+    message = _scalar(db_conn, "SELECT message FROM scrape_run ORDER BY id DESC LIMIT 1")
+    assert message is not None
+    assert "ambitos remapeados: niña/zapateria/zapatos" in message
+    assert "caida sospechosa" not in message
+    # El rescate no es un error: `errors` cuenta fallos, y aquí no ha habido ninguno.
+    assert _scalar(db_conn, "SELECT errors FROM scrape_run ORDER BY id DESC LIMIT 1") == 0
+
+
+def test_la_mudanza_no_rescata_al_ambito_que_se_vacia_de_verdad(db_conn: Any) -> None:
+    """#174 (contraste): el que desaparece sin reaparecer en otro sitio SIGUE protegido.
+
+    Es la garantía de que descontar mudanzas no afloja la red: si el rescate se aplicara por
+    totales de tienda, este ámbito la perdería en cuanto otro creciera al mismo tiempo.
+    """
+    sigs = {f"A{i}": "s" for i in range(4)} | {f"B{i}": "s" for i in range(4)}
+    ingest(
+        db_conn,
+        FakeStore(
+            [_en_ambito(f"A{i}", "niña") for i in range(4)]
+            + [_en_ambito(f"B{i}", "niño") for i in range(4)],
+            signatures=sigs,
+        ),
+        run_ts=T1,
+        delist_min_baseline=3,
+    )
+
+    # `niña` se muda entera a `unisex`; de `niño` desaparecen 3 de 4 sin aparecer en ningún lado.
+    store2 = FakeStore(
+        [_en_ambito(f"A{i}", "unisex") for i in range(4)] + [_en_ambito("B0", "niño")],
+        signatures={f"A{i}": "s" for i in range(4)} | {"B0": "s"},
+        scopes=[
+            ScrapeScope("niña", "zapateria", "zapatos"),
+            ScrapeScope("niño", "zapateria", "zapatos"),
+            ScrapeScope("unisex", "zapateria", "zapatos"),
+        ],
+    )
+    result = ingest(db_conn, store2, run_ts=T2, delist_min_baseline=3, delist_min_misses=1)
+
+    assert result.remapped_scope_names == ["niña/zapateria/zapatos"]
+    assert result.skipped_scope_names == ["niño/zapateria/zapatos"], "esta caída sí es sospechosa"
+    assert result.products_delisted == 0
+    assert _scalar(db_conn, "SELECT max(missing_streak) FROM product") == 0
+
+
+def test_mudanza_parcial_da_de_baja_lo_que_falta_de_verdad(db_conn: Any) -> None:
+    """#174: descontar la mudanza no indulta al que sí falta, solo quita la sospecha del ámbito."""
+    sigs = {f"A{i}": "s" for i in range(4)}
+    ingest(
+        db_conn,
+        FakeStore([_en_ambito(f"A{i}", "niña") for i in range(4)], signatures=sigs),
+        run_ts=T1,
+        delist_min_baseline=3,
+    )
+
+    # Tres se mudan a `unisex` y A3 desaparece de verdad. Sin descontar, el ámbito de origen caería
+    # de 4 a 0 y omitiría las bajas; descontando, A3 sigue su camino normal.
+    store2 = FakeStore(
+        [_en_ambito(f"A{i}", "unisex") for i in range(3)],
+        signatures={f"A{i}": "s" for i in range(3)},
+        scopes=[
+            ScrapeScope("niña", "zapateria", "zapatos"),
+            ScrapeScope("unisex", "zapateria", "zapatos"),
+        ],
+    )
+    result = ingest(db_conn, store2, run_ts=T2, delist_min_baseline=3, delist_min_misses=1)
+
+    assert result.skipped_scopes == 0
+    assert result.products_delisted == 1
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='A3'") == T2
+
+
+def test_moved_out_no_cuenta_a_los_que_ya_estaban_de_baja() -> None:
+    """#174 (unitario): un producto dado de baja que reaparece en otro ámbito no es una mudanza.
+
+    `prior_active` no lo contaba, así que sumarlo restaría de una caída que sí es real — y es un
+    caso que pasa de verdad: un producto se descataloga, la tienda lo repesca y de paso lo publica
+    en otra rama.
+    """
+    existing = {
+        "vivo": _ExistingProduct(
+            id=1,
+            signature="s",
+            delisted=False,
+            last_detail_at=None,
+            gender="niña",
+            section="zapateria",
+            category="zapatos",
+        ),
+        "de-baja": _ExistingProduct(
+            id=2,
+            signature="s",
+            delisted=True,
+            last_detail_at=None,
+            gender="niña",
+            section="zapateria",
+            category="zapatos",
+        ),
+    }
+    entries = [
+        ListingEntry("vivo", "s", "unisex", "zapateria", "zapatos"),
+        ListingEntry("de-baja", "s", "unisex", "zapateria", "zapatos"),
+        ListingEntry("nuevo", "s", "unisex", "zapateria", "zapatos"),  # sin pasado: tampoco cuenta
+    ]
+
+    assert _moved_out_counts(entries, existing) == {("niña", "zapateria", "zapatos"): 1}
+
+
+def test_moved_out_ignora_al_que_se_queda_donde_estaba() -> None:
+    """#174 (unitario): sin cambio de ámbito no hay nada que descontar (ni una clave a cero)."""
+    existing = {
+        "quieto": _ExistingProduct(
+            id=1,
+            signature="s",
+            delisted=False,
+            last_detail_at=None,
+            gender="niña",
+            section="zapateria",
+            category="zapatos",
+        )
+    }
+    entries = [ListingEntry("quieto", "s", "niña", "zapateria", "zapatos")]
+
+    assert _moved_out_counts(entries, existing) == {}
 
 
 # --- #4 Confirmación activa -------------------------------------------------------------
