@@ -667,17 +667,31 @@ La capacidad es opcional y hermana de `SupportsLeafHealth`, porque son dos pregu
 
 **Una tienda sin endpoint de árbol puede publicarlo igual, embebido en su propia página.** H&M no
 tiene faceta de categorías (los endpoints de navegación plausibles dan 404/503 y las 30 facetas de
-la respuesta vienen con `values: []`), así que no implementa `SupportsCategoryTree`. Pero **la
-página de categoría del escaparate trae el menú entero incrustado**: 507 rutas `/kids/…` y 183
-`/baby/…` en un solo HTML, que se lee una vez con Chromium (el escaparate es Akamai; la API no).
-No es capacidad de ejecución, es reconocimiento — pero cubre lo que importa, que es no sacarse las
-rutas de la cabeza. Y el resultado justifica el rodeo: se probaron **18 rutas plausibles de bebé y
+la respuesta vienen con `values: []`). Pero **la página de categoría del escaparate trae el menú
+entero incrustado**, y se lee una vez con Chromium (el escaparate es Akamai; la API no). Desde
+#179 eso ya no es reconocimiento a mano: es su `category_tree()`, y es lo único de esa tienda que
+necesita navegador. Y el resultado justifica el rodeo: se probaron **18 rutas plausibles de bebé y
 las 18 eran espejismo**, porque el árbol real dice dos cosas que nadie adivina:
 
 - **Bebé no cuelga de infantil: es un departamento hermano** (`/baby/…`, no `/kids/baby/…`).
 - **El rango 9-14 años es una rama aparte** (`/kids/boys-9-14y/…` junto a `/kids/boys/…`). Quedarse
   con la primera habría dejado fuera media tienda por edad — el mismo agujero que #56 y #72 en
   Sfera, ahora con la variante de que las dos ramas se llaman **casi** igual.
+
+Y un matiz que costó 39 rutas fantasma: **leer «las rutas que aparecen en la página» no es leer el
+menú**. La receta que #77 dejó anotada era un `re.findall` de rutas sobre el HTML entero y sacaba
+690 donde el menú publica **651** (medido el 05/08/2026), porque también recoge el
+`<meta name="contentPath">` de la propia página y los bloques `praData`, que nombran las mismas
+categorías con **otro vocabulario** (`1/kids/kids_girls/kids_girls_clothing`). Se leen los pares
+`title`+`path` de las entradas del menú, y de `path` —la URL navegable— y no de `targetPath`, que
+es a dónde apunta la entrada y no lo que la entrada es: `jackets-coats` apunta a
+`outerwear/view-all`, así que por ahí una hoja se leería con el nombre de otra.
+
+**Y una lección de coste sobre Akamai que corrige lo que #160 sugiere en frío:** el documento
+servido de H&M trae el mismo menú que el navegado, pero `pedir_html()` **en frío da 403** — hace
+falta una navegación previa que siembre las cookies. Con la sesión ya sembrada son 0,96 s frente a
+2,10 s, así que para **una** página salen dos peticiones donde `get_html()` hace una. El atajo de
+Hipercor vale cuando se piden muchas páginas tras una siembra, no cuando se pide una.
 
 Generaliza: al mapear una tienda, el rango de edad y el «departamento» pueden ser **hermanos** de
 la rama que ya tienes, no hijos, y por eso no aparecen bajando desde ella.
@@ -939,8 +953,8 @@ accionable, así que degradarlo a aviso lo habría dejado en el log del pod, que
 la capa venía a tapar.
 
 Lo que hay que saber antes de tocarla es que **«no mapeado» no es «hueco», y suponerlo la
-inutiliza**. Medido sobre las tiendas que enumeran su árbol (seis desde #179; las tres primeras son
-las de #156):
+inutiliza**. Medido sobre las tiendas que enumeran su árbol (siete desde #179; las tres primeras
+son las de #156):
 
 | tienda | rutas publicadas | «sin mapear» en crudo | huecos reales |
 |---|---:|---:|---:|
@@ -950,6 +964,7 @@ las de #156):
 | springfield | 65 | 33 | **0** |
 | zara | 766 | 536 | no aplica (ver abajo) |
 | cacles | 161 | 160 | no aplica (ver abajo) |
+| hm | 393 (de 651 en el árbol entero) | 280 | **0** |
 
 Las 109 de C&A eran ruido por dos motivos distintos, y los dos hay que descontarlos:
 
@@ -960,6 +975,18 @@ Las 109 de C&A eran ruido por dos motivos distintos, y los dos hay que descontar
    jerárquico predice la contención no se supone: ya estaba medido en `c_and_a.CATEGORIES`, donde
    `3-7-2-3` (Shorts) aporta 0 productos nuevos por estar contenido entero en `3-7-2`.
 
+   **La contención va en las dos direcciones, y la segunda no apareció hasta H&M** (#179): una ruta
+   está contada si cuelga de una cubierta *o si es antepasada de una cubierta*.
+   `/kids/boys/clothing` no es catálogo que falte — es el cajón donde están `trousers` y
+   `nightwear`, que sí ingerimos. Salió ahí y no antes porque H&M es la primera tienda de taxonomía
+   en **tres niveles** (rama/sección/hoja): Sfera y Springfield cuelgan las hojas de la raíz y
+   nunca emiten un nodo intermedio. Son dos predicados y no uno, y confundirlos se paga: reducir el
+   informe a las rutas **maximales** pregunta solo hacia abajo (`cuelga_de`), porque con la regla
+   de antepasados una rama sin cubrir queda tapada por sus propias hijas sin cubrir y no sobrevive
+   ninguna — lo cazó un test que ya existía. Y el límite de la regla nueva es lo que la hace
+   segura: silencia el nodo intermedio, **nunca a sus hijas**, así que una hoja nueva bajo
+   `clothing` sigue saliendo, que es justo donde vive el brief.
+
    El separador **vivía en `SupportsCoverageWatch` hasta #179**, y moverlo no fue cosmético: lo que
    decide si una rama cuelga de otra es el vocabulario, o sea cosa de quien enumera, mientras que
    lo que es una decisión de coste del barrido semanal es `tree_roots()`. Mientras estuvo del otro
@@ -968,7 +995,14 @@ Las 109 de C&A eran ruido por dos motivos distintos, y los dos hay que descontar
    arrastraba el fallo desde #156 sin que se viera, porque su árbol tiene poca profundidad.
 2. **El resto son ramas fuera del brief** (Baño, Chaquetas, Accesorios, Packs, Novedades…), que se
    declaran en `vigia.COBERTURA_DECLARADA` con el motivo. Declarar la rama calla a sus hijas, y eso
-   es lo que mantiene la lista corta: 56 rutas huérfanas se declaran con 23 entradas. Esa lista es,
+   es lo que mantiene la lista corta: 56 rutas huérfanas se declaran con 23 entradas. **Pero no se
+   colapsa a ciegas**, y H&M es el contraejemplo: sus 280 rutas sin cubrir se declararían con 36
+   entradas subiendo al nivel de `clothing`, y son **119** porque bajo `clothing` se declara hoja a
+   hoja. Declarar el cajón entero ahorraría 83 líneas a cambio de dejar de ver una categoría nueva
+   justo donde vive el brief, que es lo único que la capa existe para ver. La regla: se colapsa
+   hasta el nodo que **no** sea antepasado de ninguna hoja mapeada, y ni uno más arriba.
+
+   Esa lista es,
    literalmente, la prosa que `c_and_a.CATEGORIES` ya tenía en un comentario, convertida en algo
    comprobable — con un test que rompe si una declaración caduca, porque una entrada de sobra tapa
    exactamente lo que la capa existe para ver.
@@ -983,18 +1017,26 @@ vigilar sin supervisión exige además que el ruido sea acotable. Mango conserva
 declara en `COBERTURA_SIN_VIGILAR`, con la misma forma que `SIN_VIGILANCIA_DE_HOJAS`: la excepción,
 explícita y revisable.
 
-**#179 midió las otras seis tiendas y el reparto quedó 3 a 3, que es el dato que conviene tener
-antes de prometer cobertura vigilada en una tienda nueva.** Zara y Cacles se suman a Mango por
-motivos distintos entre sí: el árbol de Zara es su menú (536 sin cubrir de 766, encabezados por
-«VER TODO» ×81 y «COLECCIÓN» ×20, más dividers y editoriales) y las colecciones de Cacles son
-**planas** —Shopify no anida— con `infantil` haciendo de paraguas de todo el catálogo infantil, así
-que las otras 160 parecen huecos y no lo son. En Cacles además la pregunta de cobertura de verdad
-es otra: no «qué hoja falta» sino «qué `product_type` no está mapeado», y esa ya la canta
-`_categoria_desde_tipo()` por el log en cada pasada. Las tres que quedan fuera lo están por una
-razón dura y no por falta de ganas: H&M no publica endpoint de navegación (sus 30 facetas vienen
-con `values: []`) y su menú solo está en el HTML del escaparate, que es Akamai; en Hipercor la
-faceta del árbol vive bajo `/api`, que su `robots.txt` veta; Lefties ya recorre su menú entero en
-cada pasada pero es un menú de Inditex, con el mismo riesgo que Zara.
+**#179 midió las otras seis tiendas y el reparto quedó 4 vigiladas, 3 declaradas y 2 que no pueden
+enumerarse, que es el dato que conviene tener antes de prometer cobertura vigilada en una tienda
+nueva.** Zara y Cacles se suman a Mango por motivos distintos entre sí: el árbol de Zara es su menú
+(536 sin cubrir de 766, encabezados por «VER TODO» ×81 y «COLECCIÓN» ×20, más dividers y
+editoriales) y las colecciones de Cacles son **planas** —Shopify no anida— con `infantil` haciendo
+de paraguas de todo el catálogo infantil, así que las otras 160 parecen huecos y no lo son. En
+Cacles además la pregunta de cobertura de verdad es otra: no «qué hoja falta» sino «qué
+`product_type` no está mapeado», y esa ya la canta `_categoria_desde_tipo()` por el log en cada
+pasada.
+
+**Hipercor no puede enumerarse, y eso está medido y no supuesto** (05/08/2026). La faceta del árbol
+vive bajo `/api`, que su `robots.txt` veta, y la pregunta que quedaba era si la página servida —que
+sí podemos leer— lo publica por su cuenta. No lo hace: el documento trae **un solo enlace** a
+`moda-infantil` (la miga de pan) y sus 16 bloques `"categories"` son todos la **cadena de
+antepasados** de la página o del producto, el mismo dato que `page.hierarchy` del `dataLayer` —
+sirve para detectar el espejismo, no para enumerar, porque no nombra ni una hermana ni una hija. Y
+navegando **sin** bloquear `/api` tampoco aparecen: el menú que las listaría se despliega al
+interactuar y las pide entonces a la ruta vetada. O sea que no es que nos las perdamos por no
+ejecutar JS; es que ahí no están. Queda Lefties, que ya recorre su menú entero en cada pasada pero
+es un menú de Inditex, con el mismo riesgo que Zara.
 
 **Springfield estrena una tercera forma de enumerar, y es la barata.** No publica endpoint de
 categorías —su rejilla de SFCC está vetada por `robots.txt`, que es de lo que iba #81— pero no le
