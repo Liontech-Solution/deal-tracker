@@ -14,6 +14,7 @@ programado y sobre todas: comparten la regla de veredicto, no una copia de ella.
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from collections import Counter
 
@@ -173,10 +174,42 @@ def _dry_run(config: Config, slug: str) -> int:
     return 0
 
 
+def _configura_logging(nivel: str) -> None:
+    """Enciende el logging del scraper. Sin esto no se ve NADA por debajo de WARNING.
+
+    No es cosmético y es la mitad de #146: sin handler, el *last resort* de Python solo emite
+    WARNING y por encima, así que los `logger.info()` que mango, hm y springfield ya tenían escritos
+    llevaban desde siempre sin salir por ningún lado — y un `logging.info()` nuevo tampoco habría
+    salido. De paso los `logger.warning()` de las siete tiendas pasan a llevar hora y origen en vez
+    de aparecer pelados por stderr, que en un log de cinco horas es la diferencia entre poder situar
+    un aviso y no.
+
+    A stdout a propósito, con el resto de la salida del job: `kubectl logs` los mezcla igual, y así
+    el orden entre el progreso y el resumen final se conserva.
+
+    **Las librerías se quedan en WARNING**, y eso no es tiquismiquis: `httpx` emite un INFO por
+    petición, así que encender el INFO global pone una línea por ficha —2219 en Zara, 1224 en la
+    fría de Hipercor— y ahoga exactamente la señal que #146 existe para dar. Medido en la pasada de
+    verificación contra Cacles. Nuestro progreso es una línea cada cinco minutos a propósito; si
+    algún día hace falta el detalle por petición, `SCRAPER_LOG_LEVEL=DEBUG` lo devuelve.
+    """
+    nivel_num = getattr(logging, nivel.upper(), logging.INFO)
+    logging.basicConfig(
+        level=nivel_num,
+        format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stdout,
+    )
+    if nivel_num > logging.DEBUG:
+        for ruidosa in ("httpx", "httpcore", "hpack", "asyncio"):
+            logging.getLogger(ruidosa).setLevel(logging.WARNING)
+
+
 def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     args = _parse_args(argv)
     config = Config.from_env()
+    _configura_logging(config.log_level)
 
     if args.tree:
         return _tree(config, args.retailer, args.tree)
@@ -210,6 +243,7 @@ def main(argv: list[str] | None = None) -> int:
                 detail_refresh_max=config.detail_refresh_max,
                 detail_refresh_all=refresh_all,
                 scan_max_dead_ratio=config.scan_max_dead_ratio,
+                progress_every_seconds=config.progress_every_seconds,
             )
         except CatalogScanAborted as exc:
             # Un traceback aquí no aporta nada: el mensaje ya dice qué pasó y qué mirar.
