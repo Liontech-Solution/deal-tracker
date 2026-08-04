@@ -668,8 +668,8 @@ La capacidad es opcional y hermana de `SupportsLeafHealth`, porque son dos pregu
 **Una tienda sin endpoint de árbol puede publicarlo igual, embebido en su propia página.** H&M no
 tiene faceta de categorías (los endpoints de navegación plausibles dan 404/503 y las 30 facetas de
 la respuesta vienen con `values: []`). Pero **la página de categoría del escaparate trae el menú
-entero incrustado**, y se lee una vez con Chromium (el escaparate es Akamai; la API no). Desde
-#179 eso ya no es reconocimiento a mano: es su `category_tree()`, y es lo único de esa tienda que
+entero incrustado**, y se lee una vez con Chromium (el escaparate es Akamai; la API no). Desde #179
+eso ya no es reconocimiento a mano: es su `category_tree()`, y es lo único de esa tienda que
 necesita navegador. Y el resultado justifica el rodeo: se probaron **18 rutas plausibles de bebé y
 las 18 eran espejismo**, porque el árbol real dice dos cosas que nadie adivina:
 
