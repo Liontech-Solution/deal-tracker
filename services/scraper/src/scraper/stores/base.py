@@ -136,6 +136,17 @@ def ambito_cruzado(hojas: Sequence[ScrapeScope]) -> ScrapeScope:
     return ScrapeScope(gender, primera.section, primera.category)
 
 
+def genero_contrario(gender: str | None) -> str | None:
+    """La otra rama del cruce de géneros: `niño`↔`niña`. `None` para todo lo demás.
+
+    Ese "todo lo demás" incluye `unisex`, que no es una rama sino el resultado de cruzarlas, y el
+    `None` de una tienda que no separe por género. Existe aquí, junto a `ambito_cruzado()`, porque
+    es el mismo vocabulario: quién puede cruzarse con quién. `ingest.py` no tiene por qué saberlo.
+    """
+    contrarios = {"niño": "niña", "niña": "niño"}
+    return contrarios.get(gender or "")
+
+
 def con_unisex(scopes: Iterable[ScrapeScope]) -> list[ScrapeScope]:
     """Los ámbitos dados **más su equivalente `unisex`**, sin duplicar y en orden.
 
@@ -200,6 +211,16 @@ class ScanReport:
     # Que sea el mismo en los dos sitios es lo que hace que el vigía y la pasada nombren la misma
     # hoja de la misma manera cuando hay que ir a buscarla.
     failed_leaves: list[str] = field(default_factory=list)
+    # Ámbitos cuyo GÉNERO no es de fiar en esta pasada (#172). No es lo mismo que `failed_scopes`:
+    # estos se han listado perfectamente, y justo por eso son peligrosos. Al caerse la rama
+    # complementaria, el producto que la tienda publica en las dos deja de cruzarse y se emite con
+    # el género de la superviviente, o sea con el de ESTE ámbito, en vez de `unisex`. Medido en
+    # Hipercor: al caerse `zapatos-infantiles/nino`, 32 productos pasaron de `unisex` a `niña`.
+    #
+    # Solo lo pueblan las tiendas que pasan `tambien_unisex=True`, que son exactamente las que
+    # colapsan géneros con `ambito_cruzado()`. Una hoja ya `unisex` que se cae no lo toca: ahí no
+    # hay ninguna rama superviviente que pueda mentir.
+    cross_gender_suspect: set[ScrapeScope] = field(default_factory=set)
 
     def leaf_ok(self) -> None:
         """Registra una hoja listada con éxito."""
@@ -224,6 +245,10 @@ class ScanReport:
         Ese ámbito extra **no cuenta como una hoja más**: sumarlo a `leaves_failed` inflaría
         `dead_ratio` y dispararía `SCRAPER_SCAN_MAX_DEAD_RATIO` antes de tiempo. Es una hoja
         caída, no dos. Por lo mismo tampoco añade un nombre a `failed_leaves`.
+
+        Y anota **la rama contraria** en `cross_gender_suspect`, que es la otra consecuencia de la
+        misma hoja caída y la que no bastaba con sacar de las bajas: esa sí se lista, y lo hace
+        emitiendo con su género productos que son `unisex` (#172).
         """
         self.leaves_total += 1
         self.leaves_failed += 1
@@ -231,6 +256,9 @@ class ScanReport:
         self.failed_leaves.append(leaf)
         if tambien_unisex and scope.gender != "unisex":
             self.failed_scopes.add(ScrapeScope("unisex", scope.section, scope.category))
+            contraria = genero_contrario(scope.gender)
+            if contraria is not None:
+                self.cross_gender_suspect.add(ScrapeScope(contraria, scope.section, scope.category))
 
     @property
     def dead_ratio(self) -> float:

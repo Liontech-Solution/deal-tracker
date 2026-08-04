@@ -1094,6 +1094,185 @@ def test_refresh_all_repara_el_genero_sin_esperar_al_umbral(db_conn: Any) -> Non
     )
 
 
+# --- #172 Una hoja caída no puede reetiquetar el género de lo que sí se vio ----------------
+#
+# Las tiendas que colapsan géneros (`ambito_cruzado()`) marcan `unisex` lo que la tienda publica en
+# las dos ramas. Si una rama se cae, el producto solo se ve en la otra y el listado lo emite con el
+# género de la superviviente: eso NO se persiste, porque no es un cambio, es media observación.
+
+
+def _sin_una_rama(caida: ScrapeScope, leaf: str = "hoja-x") -> ScanReport:
+    """Un informe con esa hoja caída, construido por el camino real (`leaf_gone`).
+
+    A mano no valdría: lo que se está probando es justo lo que `leaf_gone` deduce de la hoja que
+    recibe, así que un `ScanReport(...)` con los conjuntos puestos a dedo probaría el test.
+    """
+    report = ScanReport()
+    for _ in range(3):
+        report.leaf_ok()
+    report.leaf_gone(caida, leaf, tambien_unisex=True)
+    return report
+
+
+def test_la_rama_superviviente_no_degrada_el_unisex_guardado(db_conn: Any) -> None:
+    """El fondo de #172: 32 productos de Hipercor pasaron de `unisex` a `niña` sin moverse.
+
+    Con la hoja de niño caída, el listado ve el producto solo en la de niña y lo emite como `niña`.
+    El género entra en el alcance de un interés (`interest.gender`), así que persistirlo lo saca
+    del aviso que su usuario había pedido — y ahí se queda hasta la siguiente pasada completa.
+    """
+    ingest(
+        db_conn,
+        FakeStore(
+            [_product("A", "Zapato", [_variant("A-1", "39.95")], gender="unisex")],
+            signatures={"A": "a1"},
+        ),
+        run_ts=T1,
+    )
+
+    # La huella cambia, así que esta vez SÍ se le pide el detalle: es la condición para que el
+    # género llegue a escribirse (`_upsert_product`), o sea para que el daño sea real.
+    store = ScanningFakeStore(
+        [_product("A", "Zapato", [_variant("A-1", "39.95")], gender="niña")],
+        signatures={"A": "a2"},
+        report=_sin_una_rama(ScrapeScope("niño", "zapateria", "zapatos")),
+        scopes=[_ZAPATOS, ScrapeScope("niño", "zapateria", "zapatos")],
+    )
+    result = ingest(db_conn, store, run_ts=T2)
+
+    assert store.detail_calls == ["A"]  # se le pidió el detalle: el género pasó por el upsert
+    assert (
+        _scalar(db_conn, "SELECT gender FROM product WHERE retailer_product_id = 'A'") == "unisex"
+    )
+    assert result.gender_frozen == 1
+    # El reparto del listado NO se maquilla: dice lo que la tienda enseñó, que es la señal de que
+    # se ha caído una rama. Lo que cambia es lo que se guarda.
+    assert result.gender_counts == {"niña": 1}
+    # Y queda escrito en la fila de la pasada, no solo en el stdout de un pod que se recicla.
+    assert "generos conservados: 1" in _scalar(
+        db_conn, "SELECT message FROM scrape_run ORDER BY id DESC LIMIT 1"
+    )
+
+
+def test_sin_hoja_caida_el_genero_se_corrige_como_siempre(db_conn: Any) -> None:
+    """La protección no puede congelar las correcciones legítimas: es media issue #172.
+
+    Mismo escenario que el test anterior sin la hoja caída. Si esto se rompe, la tienda que deja de
+    publicar un producto en las dos ramas nunca podría volver a tener género propio.
+    """
+    ingest(
+        db_conn,
+        FakeStore(
+            [_product("A", "Zapato", [_variant("A-1", "39.95")], gender="unisex")],
+            signatures={"A": "a1"},
+        ),
+        run_ts=T1,
+    )
+
+    result = ingest(
+        db_conn,
+        FakeStore(
+            [_product("A", "Zapato", [_variant("A-1", "39.95")], gender="niña")],
+            signatures={"A": "a2"},
+        ),
+        run_ts=T2,
+    )
+
+    assert _scalar(db_conn, "SELECT gender FROM product WHERE retailer_product_id = 'A'") == "niña"
+    assert result.gender_frozen == 0
+
+
+def test_solo_se_protege_el_unisex_no_un_cambio_de_nino_a_nina(db_conn: Any) -> None:
+    """La regla es estrecha a propósito: un `niño`→`niña` no es el artefacto del cruce.
+
+    Un producto que estaba en `niño` y ahora se lista en `niña` no puede ser el efecto de la rama
+    caída (ese siempre viene de un `unisex`), así que congelarlo sería frenar una corrección real
+    por un motivo que no le aplica.
+    """
+    ingest(
+        db_conn,
+        FakeStore(
+            [_product("A", "Zapato", [_variant("A-1", "39.95")], gender="niño")],
+            signatures={"A": "a1"},
+        ),
+        run_ts=T1,
+    )
+
+    store = ScanningFakeStore(
+        [_product("A", "Zapato", [_variant("A-1", "39.95")], gender="niña")],
+        signatures={"A": "a2"},
+        report=_sin_una_rama(ScrapeScope("niño", "zapateria", "zapatos")),
+        scopes=[_ZAPATOS, ScrapeScope("niño", "zapateria", "zapatos")],
+    )
+    result = ingest(db_conn, store, run_ts=T2)
+
+    assert _scalar(db_conn, "SELECT gender FROM product WHERE retailer_product_id = 'A'") == "niña"
+    assert result.gender_frozen == 0
+
+
+def test_un_producto_nuevo_en_el_ambito_sospechoso_se_guarda_como_lo_ve_el_listado(
+    db_conn: Any,
+) -> None:
+    """El límite aceptado de #172: de lo que no existe todavía no hay nada que conservar.
+
+    Un producto cruzado que aparece POR PRIMERA VEZ durante una pasada con la rama contraria caída
+    se guarda con el género de la superviviente, porque es la única información que hay. Se cura
+    cuando la hoja vuelve y le toca detalle, igual que el `gender_stale` de siempre.
+    """
+    store = ScanningFakeStore(
+        [_product("A", "Zapato", [_variant("A-1", "39.95")], gender="niña")],
+        signatures={"A": "a1"},
+        report=_sin_una_rama(ScrapeScope("niño", "zapateria", "zapatos")),
+        scopes=[_ZAPATOS, ScrapeScope("niño", "zapateria", "zapatos")],
+    )
+    result = ingest(db_conn, store, run_ts=T1)
+
+    assert _scalar(db_conn, "SELECT gender FROM product WHERE retailer_product_id = 'A'") == "niña"
+    assert result.gender_frozen == 0
+
+
+def test_leaf_gone_marca_la_rama_contraria_sin_contarla_como_hoja() -> None:
+    """Las dos consecuencias de una hoja caída, que son distintas y solo una estaba atendida.
+
+    Sacar el `unisex` de las bajas ya estaba; señalar la rama superviviente es lo que faltaba. Y
+    ninguna de las dos puede inflar `dead_ratio`: es una hoja caída, no tres.
+    """
+    report = ScanReport()
+    report.leaf_gone(ScrapeScope("niño", "zapateria", "zapatos"), "hoja-nino", tambien_unisex=True)
+
+    assert report.cross_gender_suspect == {ScrapeScope("niña", "zapateria", "zapatos")}
+    assert report.failed_scopes == {
+        ScrapeScope("niño", "zapateria", "zapatos"),
+        ScrapeScope("unisex", "zapateria", "zapatos"),
+    }
+    assert (report.leaves_total, report.leaves_failed) == (1, 1)
+    assert report.failed_leaves == ["hoja-nino"]
+
+
+def test_una_hoja_unisex_caida_no_deja_ninguna_rama_bajo_sospecha() -> None:
+    """El falso positivo que hay que evitar: Mango tiene hoy una hoja `unisex` caída (#176).
+
+    Ahí no hay ninguna rama superviviente que pueda mentir sobre el género, así que congelar algo
+    por eso sería frenar correcciones legítimas sin ganar nada.
+    """
+    report = ScanReport()
+    report.leaf_gone(
+        ScrapeScope("unisex", "ropa", "sudaderas"), "sudaderas_newborn", tambien_unisex=True
+    )
+
+    assert report.cross_gender_suspect == set()
+    assert report.failed_scopes == {ScrapeScope("unisex", "ropa", "sudaderas")}
+
+
+def test_una_tienda_que_no_colapsa_generos_no_marca_nada() -> None:
+    """`tambien_unisex` es lo que distingue a las cuatro tiendas que cruzan de las otras cinco."""
+    report = ScanReport()
+    report.leaf_gone(ScrapeScope("niño", "zapateria", "zapatos"), "hoja-nino")
+
+    assert report.cross_gender_suspect == set()
+    assert report.failed_scopes == {ScrapeScope("niño", "zapateria", "zapatos")}
+
+
 # --- #41 Hojas de categoría caídas: sin bajas falsas, y aborto si caen demasiadas ---------
 
 _CAMISETAS = ScrapeScope("niña", "ropa", "camisetas")
