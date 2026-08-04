@@ -354,6 +354,9 @@ def test_una_coleccion_vacia_es_una_hoja_retirada_y_no_un_catalogo_vacio() -> No
     # Todos los ámbitos quedan fuera de las bajas, no solo uno: esta tienda los cubre todos con
     # una única colección.
     assert informe.failed_scopes == set(store.scopes())
+    # Y esa colección se nombra UNA vez (#155), aunque hayan caído los cinco ámbitos: es una hoja
+    # caída, no cinco. Contarlas por ámbito inflaría `dead_ratio` y con él el aborto por umbral.
+    assert informe.failed_leaves == [_COLECCION.collection_handle]
 
 
 def test_la_pagina_vacia_despues_de_la_primera_es_el_fin_normal_de_la_paginacion() -> None:
@@ -420,6 +423,7 @@ def test_agotar_el_tope_de_paginas_no_cuenta_como_hoja_sana() -> None:
     assert informe.leaves_failed == 1, "la hoja truncada no puede contar como sana"
     assert informe.dead_ratio == 1.0
     assert informe.failed_scopes == set(store.scopes())
+    assert informe.failed_leaves == [_COLECCION.collection_handle]
 
 
 def test_una_pagina_solo_de_tipos_excluidos_no_es_el_final_del_catalogo() -> None:

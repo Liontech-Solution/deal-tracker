@@ -318,6 +318,9 @@ def test_hoja_ausente_del_menu_saca_su_ambito_de_las_bajas() -> None:
     assert ids == ["Z1"]
     assert (report.leaves_total, report.leaves_failed) == (2, 1)
     assert report.failed_scopes == _con_unisex(ScrapeScope("niña", "ropa", "camisetas"))
+    # Con su nombre (#155). Y una sola vez: el ámbito `unisex` extra es la misma hoja caída, no
+    # otra, así que no suma ni en `leaves_failed` ni aquí.
+    assert report.failed_leaves == ["1030267678"]
 
 
 def test_grid_que_da_404_se_trata_como_hoja_retirada() -> None:
@@ -332,9 +335,9 @@ def test_grid_que_da_404_se_trata_como_hoja_retirada() -> None:
     ids = [e.retailer_product_id for e in store.list_catalog()]
 
     assert ids == ["Z1"]
-    assert store.scan_report().failed_scopes == _con_unisex(
-        ScrapeScope("niña", "ropa", "camisetas")
-    )
+    report = store.scan_report()
+    assert report.failed_scopes == _con_unisex(ScrapeScope("niña", "ropa", "camisetas"))
+    assert report.failed_leaves == ["1030267678"]
 
 
 # --- #98 El cruce de géneros: publicado en las dos ramas = unisex ------------------------------

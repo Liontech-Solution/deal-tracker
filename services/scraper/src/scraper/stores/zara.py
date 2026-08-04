@@ -381,7 +381,7 @@ class ZaraStore:
                 except httpx.HTTPStatusError as exc:
                     if exc.response.status_code not in GONE_STATUS:
                         raise  # bloqueo o fallo del servidor: no es una hoja retirada
-                    self._scan.leaf_gone(scope)
+                    self._scan.leaf_gone(scope, str(cat.category_id))
                     continue
                 self._scan.leaf_ok()
                 for entry in parse_listing_entries(listing, cat):

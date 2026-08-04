@@ -543,16 +543,19 @@ class CaclesStore:
         crudos = payload.get("products")
         return parse_products(payload), len(crudos) if isinstance(crudos, list) else 0
 
-    def _hoja_comprometida(self, motivo: str) -> None:
+    def _hoja_comprometida(self, leaf: str, motivo: str) -> None:
         """Cuenta la hoja como caída y saca TODOS sus ámbitos de las bajas.
 
         Se cuenta como UNA hoja (no una por ámbito) para que `leaves_total` siga midiendo lo que
         dice medir; los ámbitos restantes se añaden aparte porque esta tienda cubre todos con una
         sola colección. Con una única hoja configurada, `dead_ratio` pasa a 1.0 y la ingesta aborta
         sin escribir, que es la red que queremos.
+
+        Por lo mismo `leaf` se pasa una sola vez: es el `handle` de la colección, y una colección
+        caída es un nombre en `failed_leaves`, no uno por cada ámbito que alimentaba.
         """
         ambitos = list(self.scopes())
-        self._scan.leaf_gone(ambitos[0])
+        self._scan.leaf_gone(ambitos[0], leaf)
         self._scan.failed_scopes.update(ambitos[1:])
         logger.warning("cacles: %s; se omiten las bajas de esta pasada", motivo)
 
@@ -578,8 +581,9 @@ class CaclesStore:
                     # paginación.
                     if not viva:
                         self._hoja_comprometida(
+                            handle,
                             f"la colección {handle!r} no devolvió ningún producto, "
-                            "así que se trata como hoja retirada"
+                            "así que se trata como hoja retirada",
                         )
                     truncada = False
                     break
@@ -614,8 +618,9 @@ class CaclesStore:
                 # que no se ha llegado a mirar no está retirado, y a las `delist_min_misses`
                 # pasadas se descatalogaría solo por no haber cabido en el tope.
                 self._hoja_comprometida(
+                    handle,
                     f"{handle!r} agotó el tope de {_MAX_PAGES} páginas sin llegar al final, "
-                    "así que el catálogo leído está incompleto"
+                    "así que el catálogo leído está incompleto",
                 )
             elif viva:
                 self._scan.leaf_ok()

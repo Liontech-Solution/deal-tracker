@@ -598,7 +598,7 @@ class SpringfieldStore:
                     entradas = parse_sitemap_products(xml)
                 except (httpx.HTTPError, ET.ParseError) as exc:
                     logger.warning("springfield: sitemap %s ilegible (%s)", nombre, exc)
-                    self._marcar_sitemap_caido()
+                    self._marcar_sitemap_caido(nombre)
                     continue
 
                 self._report.leaf_ok()
@@ -823,7 +823,7 @@ class SpringfieldStore:
         if len(colores_vistos) == 1 and imagenes:
             imagenes_por_color.setdefault(colores_vistos[0], []).extend(imagenes)
 
-    def _marcar_sitemap_caido(self) -> None:
+    def _marcar_sitemap_caido(self, nombre: str) -> None:
         """Un sitemap ilegible saca a TODOS los ámbitos de las bajas (ver `list_catalog`).
 
         Cuenta como **una** hoja caída, que es lo que es: un fichero de tres. Por eso se llama a
@@ -831,9 +831,16 @@ class SpringfieldStore:
         llamarlo 24 veces sumaría 24 hojas muertas de 24 y dispararía
         `SCRAPER_SCAN_MAX_DEAD_RATIO` con el primer fallo, abortando una pasada a la que todavía
         le quedan dos tercios del catálogo perfectamente legibles.
+
+        La hoja que se nombra es **el fichero de sitemap**, y ahí esta tienda es la excepción del
+        proyecto: su `check_leaves()` habla en `genero/segmento` y este mensaje habla en
+        `sitemap_1.xml`. La divergencia es deliberada porque las dos cosas son distintas de verdad
+        —el sondeo mira ramas, la pasada lee ficheros— y el fichero es lo que hay que ir a mirar
+        cuando esto salta. El ámbito no serviría: un sitemap es un corte arbitrario del catálogo,
+        así que los 24 ámbitos salen de las bajas por uno solo de los tres ficheros.
         """
         ambitos = list(self.scopes())
-        self._report.leaf_gone(ambitos[0])
+        self._report.leaf_gone(ambitos[0], nombre)
         self._report.failed_scopes.update(ambitos)
 
     def _client(self, *, seguir_redirecciones: bool = True) -> httpx.Client:

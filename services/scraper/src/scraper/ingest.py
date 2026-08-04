@@ -119,8 +119,9 @@ class IngestResult:
     skipped_scopes: int  # ámbitos con caída sospechosa: se omitieron sus bajas
     leaves_scanned: int  # hojas de categoría recorridas en el listado
     leaves_failed: int  # de las anteriores, las que la tienda ya no sirve (404)
-    # Las rutas de esas hojas, si la tienda las pasa (ver `ScanReport.failed_leaves`, #151). El
-    # resumen las nombra: «1/35 hojas no responden» no dice cuál hay que ir a buscar al árbol.
+    # Cómo se llaman esas hojas, en el vocabulario de cada tienda (ver `ScanReport.failed_leaves`,
+    # #151 y #155). El resumen las nombra: «1/35 hojas no responden» no dice cuál hay que ir a
+    # buscar al árbol.
     failed_leaves: list[str]
     unscanned_scopes: int  # ámbitos excluidos de las bajas por tener alguna hoja caída
     probes_sent: int  # candidatos a baja sondeados (confirmación activa)

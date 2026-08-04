@@ -713,6 +713,7 @@ class HMStore:
                     # bajo este ámbito, y con 200 en todas las peticiones.
                     self._hoja_comprometida(
                         scope,
+                        cat.page_id,
                         f"la hoja {cat.page_id!r} devolvió el cubo de {_CATEGORY_ID!r} "
                         "(espejismo), así que se trata como retirada",
                     )
@@ -720,6 +721,7 @@ class HMStore:
                 if not ids:
                     self._hoja_comprometida(
                         scope,
+                        cat.page_id,
                         f"la hoja {cat.page_id!r} devolvió 0 productos en su primera página, "
                         "así que se trata como retirada",
                     )
@@ -741,6 +743,7 @@ class HMStore:
             # no haber cabido en el tope.
             self._hoja_comprometida(
                 scope,
+                cat.page_id,
                 f"{cat.page_id!r} agotó el tope de {_MAX_PAGES} páginas sin llegar al final, "
                 "así que el catálogo leído está incompleto",
             )
@@ -748,12 +751,12 @@ class HMStore:
         self._scan.leaf_ok()
         return acumuladas
 
-    def _hoja_comprometida(self, scope: ScrapeScope, motivo: str) -> None:
+    def _hoja_comprometida(self, scope: ScrapeScope, leaf: str, motivo: str) -> None:
         """Cuenta la hoja como caída y saca su ámbito —y el `unisex` equivalente— de las bajas.
 
         El porqué de lo segundo está en `ScanReport.leaf_gone()`.
         """
-        self._scan.leaf_gone(scope, tambien_unisex=True)
+        self._scan.leaf_gone(scope, leaf, tambien_unisex=True)
         logger.warning("%s: %s; se omiten las bajas de ese ámbito", SLUG, motivo)
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:

@@ -1222,8 +1222,11 @@ def test_una_pasada_limpia_deja_el_mensaje_a_null(db_conn: Any) -> None:
 
 
 def test_una_hoja_caida_sin_ruta_sigue_contando_aunque_no_se_pueda_nombrar(db_conn: Any) -> None:
-    """`leaf` es opcional: las ocho tiendas que aún no lo pasan no pierden el aviso, solo el
-    nombre de la hoja.
+    """Desde #155 `leaf` es obligatorio, así que esto ya no le puede pasar a una tienda.
+
+    El caso se conserva porque el informe se construye desde **datos**, no desde el tipo: quien
+    escribe el mensaje recibe un `ScanReport` y no puede asumir que venga poblado. Lo que se fija
+    aquí es que la degradación siga siendo el aviso de siempre y no un corchete vacío.
     """
     products, sigs = _dos_ambitos()
     ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
@@ -1241,6 +1244,39 @@ def test_una_hoja_caida_sin_ruta_sigue_contando_aunque_no_se_pueda_nombrar(db_co
     assert "hojas caidas 1/4" in message
     assert "[" not in message  # sin ruta que nombrar, no se inventa un corchete vacío
     assert "niña/ropa/camisetas" in message
+
+
+def test_con_muchas_hojas_caidas_se_nombran_las_primeras_y_se_cuenta_el_resto(
+    db_conn: Any,
+) -> None:
+    """`message` tiene tope, y una tienda con 30 hojas muertas no puede gastárselo entero en
+    nombres: lo que importa entonces ya no es cuál, es que se ha caído media tienda.
+
+    Se nombran `_MAX_NAMED_LEAVES` en orden estable —alfabético, no el del recorrido, para que dos
+    pasadas comparables den el mismo texto— y el resto se resume con `+N`.
+    """
+    products, sigs = _dos_ambitos()
+    ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
+
+    hojas = [f"ninos/hoja-{n}" for n in range(7)]
+    store = ScanningFakeStore(
+        [],
+        signatures={},
+        report=ScanReport(
+            leaves_total=10,
+            leaves_failed=7,
+            failed_scopes={_CAMISETAS},
+            failed_leaves=hojas,
+        ),
+        scopes=[_CAMISETAS, _ZAPATOS],
+    )
+    ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    message = _scalar(db_conn, "SELECT message FROM scrape_run ORDER BY id DESC LIMIT 1")
+    assert message is not None
+    assert "hojas caidas 7/10" in message
+    assert "[ninos/hoja-0, ninos/hoja-1, ninos/hoja-2, ninos/hoja-3, ninos/hoja-4 +2]" in message
+    assert "ninos/hoja-6" not in message, "las que no caben se cuentan, no se nombran"
 
 
 def test_una_pasada_que_revienta_deja_rastro_en_scrape_run(db_conn: Any) -> None:

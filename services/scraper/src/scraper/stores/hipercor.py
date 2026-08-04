@@ -855,7 +855,7 @@ class HipercorStore:
                         if scope not in hojas:
                             hojas.append(scope)
                 except (LeafGone, LeafUnreadable):
-                    self._hoja_comprometida(scope)
+                    self._hoja_comprometida(scope, cat.category_path)
                     continue
                 except Exception as exc:
                     # Red ancha a propósito (#107): una segunda pasada murió entera por un timeout
@@ -870,7 +870,7 @@ class HipercorStore:
                         type(exc).__name__,
                         exc,
                     )
-                    self._hoja_comprometida(scope)
+                    self._hoja_comprometida(scope, cat.category_path)
                     continue
                 self._scan.leaf_ok()
 
@@ -883,12 +883,12 @@ class HipercorStore:
                 category=ambito.category,
             )
 
-    def _hoja_comprometida(self, scope: ScrapeScope) -> None:
+    def _hoja_comprometida(self, scope: ScrapeScope, leaf: str) -> None:
         """Cuenta la hoja como caída y saca su ámbito —y el `unisex` equivalente— de las bajas.
 
         El porqué de lo segundo está en `ScanReport.leaf_gone()`.
         """
-        self._scan.leaf_gone(scope, tambien_unisex=True)
+        self._scan.leaf_gone(scope, leaf, tambien_unisex=True)
 
     def scan_report(self) -> ScanReport:
         """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""

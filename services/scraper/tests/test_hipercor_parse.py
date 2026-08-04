@@ -582,6 +582,9 @@ def test_list_catalog_cuenta_el_espejismo_como_hoja_caida() -> None:
     informe = tienda.scan_report()
     assert informe.leaves_failed == 1
     assert informe.failed_scopes == _con_unisex(ScrapeScope("niña", "ropa", "vestidos"))
+    # Con su ruta (#155). El ámbito no la identifica: a `niña/ropa/vestidos` lo alimenta más de
+    # una hoja, así que sin esto la siguiente sesión tiene que volver a sondear la tienda entera.
+    assert informe.failed_leaves == [cat.category_path]
 
 
 def test_list_catalog_no_da_por_vacio_lo_que_no_ha_podido_leer() -> None:

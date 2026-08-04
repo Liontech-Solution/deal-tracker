@@ -65,11 +65,13 @@ def _reparto(counts: dict[str, int]) -> str:
 
 
 def _cuales(rutas: list[str]) -> str:
-    """` (ninos/bebe-nino/punto-y-jerseis)`, o vacío si la tienda no pasa las rutas.
+    """` (ninos/bebe-nino/punto-y-jerseis)`, con las hojas caídas nombradas.
 
     Existe porque el aviso decía CUÁNTAS hojas se habían caído pero no cuáles, y el número solo
-    sirve para asustarse (#151). Las tiendas que aún no pasan `leaf=` a `leaf_gone()` siguen
-    dando el aviso de siempre, sin paréntesis.
+    sirve para asustarse (#151). Desde #155 lo pasan las nueve tiendas —`leaf` es obligatorio en
+    `leaf_gone()`—, cada una en su vocabulario: la ruta en Sfera e Hipercor, el `catalogId` en
+    Mango, el fichero de sitemap en Springfield. La guarda del vacío se queda porque este informe
+    se construye desde datos, no desde el tipo.
     """
     return f" ({', '.join(sorted(rutas))})" if rutas else ""
 

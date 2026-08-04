@@ -982,8 +982,22 @@ también escribe `message`** cuando no está limpia —hojas caídas con su ruta
 sospechosa— y lo deja a `NULL` cuando lo está. La columna pasa a significar «por qué esta pasada no
 es limpia», no «por qué falló»; el `status` distingue los dos casos, y `WHERE message IS NOT NULL`
 es la consulta que separa las pasadas que hay que mirar de las que no. Nombrar la hoja exige que la
-tienda pase `leaf=` a `ScanReport.leaf_gone()`, y hoy solo lo hace Sfera: las otras ocho quedan bien
-contadas pero sin nombre.
+tienda pase `leaf` a `ScanReport.leaf_gone()`, y **desde #155 lo hacen las nueve**: nació como kwarg
+opcional, ocho de las nueve tiendas se olvidaron de él y durante semanas el mensaje dijo cuántas
+hojas se habían caído pero no cuáles — que es exactamente el dato por el que se creó. La lección es
+la del parámetro opcional: lo que la firma no exige, se omite. Ahora `leaf` es obligatorio y mypy lo
+cobra en `just check`; al hacerlo obligatorio salieron **8 errores, uno por tienda**, que es la
+medida del agujero.
+
+Cada tienda lo escribe **en su propio vocabulario, el mismo que pone en `LeafHealth.leaf`** — la
+ruta en Sfera e Hipercor, el `categoryId` en Zara y Lefties, el `catalogId` en Mango, el `pageId` en
+H&M, el `ipimId` en C&A, el `handle` de la colección en Cacles. Que sea el mismo identificador en el
+vigía y en la pasada es lo que hace que las dos nombren la misma hoja cuando hay que ir a buscarla.
+**Springfield es la excepción deliberada**: su `check_leaves()` habla de ramas (`ninos/pantalones`) y
+su pasada nombra el fichero de sitemap (`sitemap_4-Products.xml`), porque un sitemap es un corte
+arbitrario del catálogo que no se corresponde con ninguna rama — y el fichero es lo que hay que ir a
+mirar. Por lo mismo un solo fichero caído saca los 24 ámbitos de las bajas y cuenta como **una** hoja,
+igual que la colección única de Cacles.
 
 El coste medido de no tenerlo: en QA, 6 de los 10 productos vivos de `niño/ropa/sudaderas` llevaban
 sin verse desde el 24/07 con `missing_streak = 0` y `delisted_at IS NULL`. Ese cero es el detalle
@@ -1190,11 +1204,11 @@ las tres:
   declare, porque un ámbito no declarado no cuenta como escaneado y sus productos **no se
   descatalogan nunca**. Mismo motivo por el que Cacles declara el producto cartesiano de lo que su
   parser *puede* emitir.
-- **`ScanReport.leaf_gone(scope, tambien_unisex=True)`** — al marcar una hoja de género como caída,
-  sacar de las bajas también el ámbito `unisex` equivalente: si cae una de las dos ramas, el
+- **`ScanReport.leaf_gone(scope, leaf, tambien_unisex=True)`** — al marcar una hoja de género como
+  caída, sacar de las bajas también el ámbito `unisex` equivalente: si cae una de las dos ramas, el
   producto cruzado se emitiría con el género de la superviviente y su ámbito `unisex` parecería
   vaciado. Cuenta **una** hoja caída y no dos, o `SCRAPER_SCAN_MAX_DEAD_RATIO` saltaría antes de
-  tiempo.
+  tiempo — y por lo mismo el ámbito extra tampoco añade un nombre a `failed_leaves`.
 
 Aplicado en H&M (#102), Hipercor y Lefties (#98); Sfera no lo necesita mientras siga en cero. Un
 detalle de operación que conviene saber al arreglarlo en una tienda ya ingerida: el género de las

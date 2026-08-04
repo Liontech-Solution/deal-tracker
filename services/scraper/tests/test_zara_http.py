@@ -148,6 +148,9 @@ def test_el_ambito_de_la_hoja_muerta_sale_del_informe() -> None:
 
     assert (report.leaves_total, report.leaves_failed) == (3, 1)
     assert report.failed_scopes == {ScrapeScope("niña", "ropa", "camisetas")}
+    # Y con su nombre (#155): el ámbito no identifica la hoja, así que sin el id no se sabe cuál
+    # de las que lo alimentan hay que ir a buscar al árbol de la tienda.
+    assert report.failed_leaves == ["222"]
 
 
 def test_una_hoja_5xx_agotada_sigue_abortando_la_pasada() -> None:

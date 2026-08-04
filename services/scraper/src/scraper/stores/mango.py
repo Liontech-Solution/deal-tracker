@@ -793,7 +793,9 @@ class MangoStore:
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in GONE_STATUS:
                 self._hoja_comprometida(
-                    scope, f"la hoja {cat.catalog_id!r} devolvió {exc.response.status_code}"
+                    scope,
+                    cat.catalog_id,
+                    f"la hoja {cat.catalog_id!r} devolvió {exc.response.status_code}",
                 )
                 return None
             raise
@@ -801,7 +803,9 @@ class MangoStore:
             # No es que la hoja esté vacía: es que esto ya no tiene forma de listado, o sea un
             # cambio de la API. Su ámbito deja de ser seguro para dar bajas. Ver `es_listado()`.
             self._hoja_comprometida(
-                scope, f"la hoja {cat.catalog_id!r} respondió 200 sin la forma de un listado"
+                scope,
+                cat.catalog_id,
+                f"la hoja {cat.catalog_id!r} respondió 200 sin la forma de un listado",
             )
             return None
         self._scan.leaf_ok()
@@ -809,12 +813,12 @@ class MangoStore:
         # cuenta como leída y no aporta nada, que es exactamente lo que la tienda está diciendo.
         return parse_filas(payload)
 
-    def _hoja_comprometida(self, scope: ScrapeScope, motivo: str) -> None:
+    def _hoja_comprometida(self, scope: ScrapeScope, leaf: str, motivo: str) -> None:
         """Cuenta la hoja como caída y saca su ámbito —y el `unisex` equivalente— de las bajas.
 
         El porqué de lo segundo está en `ScanReport.leaf_gone()`.
         """
-        self._scan.leaf_gone(scope, tambien_unisex=True)
+        self._scan.leaf_gone(scope, leaf, tambien_unisex=True)
         logger.warning("%s: %s; se omiten las bajas de ese ámbito", SLUG, motivo)
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
