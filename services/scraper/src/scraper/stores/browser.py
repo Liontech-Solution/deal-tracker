@@ -10,8 +10,15 @@ peticiones de esas tiendas van por aquí:
   - `goto(url)`   — navega a una página de documento (siembra las cookies del origen).
   - `get_html(url)` — navega y devuelve `(status, HTML)`, para tiendas cuyo dato viaja en la
     propia página (Hipercor, cuyo `robots.txt` veta la API).
+  - `pedir_html(url)` — el mismo `(status, HTML)` **sin navegar**: descarga el documento servido
+    y no ejecuta nada. Cuando el dato viene servido es el mismo resultado por una fracción del
+    coste, y es la diferencia entre que la pasada de Hipercor quepa en su deadline o no (#160).
   - `get_json(url)` — pide una API del mismo origen con `page.request` (mismo fingerprint
     + cookies que el navegador), con reintentos/backoff como el cliente httpx de Zara.
+
+Los dos últimos comparten transporte (`page.request`) y por tanto comparten una letra pequeña:
+las cookies y el fingerprint son los del navegador, pero `route()` no los intercepta, así que
+`bloquear()` y `descartar_recursos()` solo gobiernan lo que se navega.
 
 Los tres reintentan **también cuando la navegación no llega a completarse** (timeout, `net::ERR_*`)
 y elevan `BrowserUnreachable` al agotar los intentos. No es un detalle: en una tienda que va por
@@ -256,6 +263,50 @@ class BrowserSession:
                             timeout=self._config.browser_hydrate_timeout * 1000,
                         )
                 return status, self._page.content()
+            self._backoff(attempt)
+        return 0, ""  # inalcanzable (el último intento retorna), tranquiliza a mypy
+
+    def pedir_html(self, url: str) -> tuple[int, str]:
+        """Pide una página **sin navegarla**: devuelve `(status, HTML servido)`.
+
+        Misma pareja que `get_html` y misma lectura del status (un 404 es información, no un
+        fallo), pero por `page.request` en vez de `page.goto`: se descarga el documento y ahí se
+        acaba. No se ejecuta JavaScript, no hay layout ni paint, no se piden subrecursos. Para una
+        tienda cuyo dato viaja **servido** dentro de la página, eso es exactamente el mismo dato
+        por una fracción del coste — medido en Hipercor sobre fichas reales, 0,08-0,42 s frente a
+        1,14-1,41 s navegando, con las mismas variantes, tallas y precios (#160). El ahorro es
+        sobre todo de CPU, que es el recurso que agotaba la pasada en el cluster.
+
+        **Sirve solo cuando lo que se parsea viene servido, y eso hay que comprobarlo por tienda y
+        por página.** En Hipercor el `ld+json` y el `dataLayer` vienen en el documento, pero el
+        selector de tallas lo pinta el JS: una ficha agotada —cuyas tallas solo están en ese
+        selector— parseada de aquí sale con una variante sin talla en vez de con ocho. Por eso
+        quien llama compara y navega como respaldo, en vez de confiar en que siempre valga.
+
+        Y hay una precondición que no se ve: **las cookies del origen**. Sin ellas Hipercor
+        contesta 403 a la ficha (la rejilla sí entra), así que una sesión que solo pida por aquí
+        tiene que sembrar antes con un `goto()`. Es el mismo motivo por el que existe `goto()`.
+
+        Ojo a lo que este camino **no** hace: `route()` no intercepta las peticiones de
+        `page.request`, así que ni `bloquear()` ni `descartar_recursos()` se aplican aquí. No es un
+        agujero en el veto del `robots.txt` —esto pide la URL que se le pasa y ninguna más, y una
+        página que no se renderiza no puede pedir nada por su cuenta—, pero conviene saberlo antes
+        de dar por hecho que un patrón bloqueado protege también a este camino.
+        """
+        assert self._page is not None, "usar dentro del context manager"
+        retries = self._config.request_retries
+        timeout_ms = self._config.browser_nav_timeout * 1000
+        for attempt in range(retries + 1):
+            self._polite_pause()
+            try:
+                resp = self._page.request.get(url, timeout=timeout_ms)
+            except self._pw_error as exc:
+                if attempt == retries:
+                    raise BrowserUnreachable(url, exc) from exc
+                self._backoff(attempt)
+                continue
+            if resp.status not in _RETRYABLE_STATUS or attempt == retries:
+                return resp.status, (resp.text() if resp.ok else "")
             self._backoff(attempt)
         return 0, ""  # inalcanzable (el último intento retorna), tranquiliza a mypy
 

@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -46,10 +47,12 @@ from scraper.stores.base import DelistCandidate, ScrapeScope
 from scraper.stores.browser import BrowserUnreachable
 from scraper.stores.hipercor import (
     _MAX_FICHAS_FALLIDAS,
+    BASE_URL,
     CATEGORIES,
     CategoryConfig,
     DetailUnavailable,
     HipercorStore,
+    agrupa_por_talla,
     es_espejismo,
     extraer_data_layer,
     extraer_enlaces,
@@ -100,13 +103,30 @@ class SesionFalsa:
     `respuestas` mapea URL -> (status, html), o -> una excepción a elevar, que es como se simula
     lo que `BrowserSession` hace cuando la navegación no llega a completarse. Una URL no
     registrada responde 404, que es lo que la tienda hace de verdad con una ficha retirada.
+
+    **Distingue pedir de navegar**, porque desde #160 la tienda distingue las dos cosas y son la
+    misma URL con distinto contenido: `pedir_html()` da el documento servido y `get_html()` el DOM
+    ya hidratado. `renderizadas` sirve para registrar el segundo cuando el caso lo necesita —la
+    ficha agotada, cuyas tallas solo las pinta el JS—; si una URL no está ahí, navegar devuelve lo
+    mismo que pedir, que es lo que pasa en la inmensa mayoría de las páginas de esta tienda.
+
+    `pedidas` conserva el nombre y el significado de siempre (todo lo que se ha ido a buscar, en
+    orden) y `navegadas` es el subconjunto que ha necesitado navegador. Un test que quiera afirmar
+    que NO se renderiza mira la segunda.
     """
 
-    def __init__(self, respuestas: dict[str, tuple[int, str] | BaseException]) -> None:
+    def __init__(
+        self,
+        respuestas: dict[str, tuple[int, str] | BaseException],
+        renderizadas: dict[str, tuple[int, str] | BaseException] | None = None,
+    ) -> None:
         self.respuestas = respuestas
+        self.renderizadas = renderizadas or {}
         self.pedidas: list[str] = []
+        self.navegadas: list[str] = []
         self.bloqueados: list[str] = []
         self.descartados: list[str] = []
+        self.sembrada = False
 
     def __enter__(self) -> SesionFalsa:
         return self
@@ -120,18 +140,42 @@ class SesionFalsa:
     def descartar_recursos(self, tipos: tuple[str, ...]) -> None:
         self.descartados.extend(tipos)
 
-    def get_html(self, url: str, espera_selector: str | None = None) -> tuple[int, str]:
+    def goto(self, url: str) -> int:
+        self.navegadas.append(url)
+        self.sembrada = True
+        return 200
+
+    def _responder(
+        self, tabla: dict[str, tuple[int, str] | BaseException], url: str
+    ) -> tuple[int, str]:
         self.pedidas.append(url)
-        respuesta = self.respuestas.get(url, (404, ""))
+        respuesta = tabla.get(url, (404, ""))
         if isinstance(respuesta, BaseException):
             raise respuesta
         return respuesta
 
+    def pedir_html(self, url: str) -> tuple[int, str]:
+        # La tienda contesta 403 a la ficha si no se han sembrado las cookies del origen. Que el
+        # doble lo imite es lo que convierte ese fallo —que en el cluster aborta la pasada a la
+        # sexta ficha— en un test que se cae aquí.
+        if not self.sembrada:
+            return 403, ""
+        return self._responder(self.respuestas, url)
+
+    def get_html(self, url: str, espera_selector: str | None = None) -> tuple[int, str]:
+        self.navegadas.append(url)
+        # Por URL y no por tabla: registrar la versión renderizada de UNA ficha no puede convertir
+        # en 404 a todas las demás.
+        tabla = self.renderizadas if url in self.renderizadas else self.respuestas
+        return self._responder(tabla, url)
+
 
 def _tienda(
-    respuestas: dict[str, tuple[int, str] | BaseException], cats: list[CategoryConfig]
+    respuestas: dict[str, tuple[int, str] | BaseException],
+    cats: list[CategoryConfig],
+    renderizadas: dict[str, tuple[int, str] | BaseException] | None = None,
 ) -> HipercorStore:
-    sesion = SesionFalsa(respuestas)
+    sesion = SesionFalsa(respuestas, renderizadas)
     return HipercorStore(_CFG, categories=cats, session_factory=lambda: sesion)
 
 
@@ -658,6 +702,135 @@ def test_fetch_details_se_salta_lo_que_ya_no_esta() -> None:
     entradas = list(tienda.list_catalog())
     # Ninguna ficha registrada -> la sesión falsa responde 404 a todas: 0 productos, sin reventar.
     assert list(tienda.fetch_details(entradas)) == []
+
+
+# --- pedir en vez de navegar (#160) -----------------------------------------------------------
+
+
+def _servido(html: str) -> str:
+    """El mismo marcado tal y como lo sirve el servidor: sin el selector que pinta el JS.
+
+    Medido en vivo el 04/08/2026: el documento de una ficha trae su `ld+json` y su `dataLayer`,
+    pero **no** los `size_option_`. Es la diferencia que decide si `pedir_html()` basta.
+    """
+    return re.sub(r'id="size_option_[^"]*"', 'id="ya_no_es_el_selector"', html)
+
+
+def test_la_ficha_normal_no_se_renderiza() -> None:
+    """El caso común: el documento servido ya trae las tallas, así que no se navega.
+
+    Es el ahorro entero de #160 —1,14-1,41 s de navegación por ficha frente a 0,08-0,42 s de
+    petición—, y lo que hace que la pasada en frío quepa en su deadline. Se afirma sobre
+    `navegadas` porque es lo único que distingue las dos rutas: las dos devuelven el mismo dato.
+    """
+    cat = _ZAPATOS
+    respuestas = _respuestas_de_hoja(cat, ["hipercor_rejilla_zapatos_nina.html"])
+    url_ficha = (
+        "https://www.hipercor.es/moda-y-accesorios/A56615356-sandalia-infantil-bio-cruzada-de-piel/"
+    )
+    respuestas[url_ficha] = (200, _servido(load_html("hipercor_ficha_zapato.html")))
+    tienda = _tienda(respuestas, [cat])
+    sesion = tienda._session_factory()
+
+    entradas = [e for e in tienda.list_catalog() if e.retailer_product_id == "A56615356"]
+    productos = list(tienda.fetch_details(entradas))
+
+    assert [p.retailer_product_id for p in productos] == ["A56615356"]
+    assert len(productos[0].variants) == 12, "sin renderizar se leen las mismas tallas"
+    assert url_ficha in sesion.pedidas
+    assert url_ficha not in sesion.navegadas, "la ficha normal no necesita navegador"
+
+
+def test_la_ficha_agotada_cae_al_respaldo_y_no_pierde_sus_tallas() -> None:
+    """El caso en que lo servido NO basta: agotada del todo, las tallas solo las pinta el JS.
+
+    Sin el respaldo esto no sería un ahorro sino una pérdida de dato: el producto entraría con una
+    sola variante sin talla en vez de con sus ocho, y el catálogo seguiría ofreciendo tallas de
+    algo que ya no se puede comprar. La primera afirmación mide justo eso —lo que daría el
+    documento servido a solas— para que el test explique por qué existe el respaldo.
+    """
+    agotada = load_html("hipercor_ficha_agotada.html")
+    cat = _VESTIDOS
+    url = "https://www.hipercor.es/moda-y-accesorios/A56369559-vestido-nina-schiffli/"
+
+    a_pelo = parse_pdp(_servido(agotada), cat, url)
+    assert a_pelo is not None and [v.size for v in a_pelo.variants] == [None], (
+        "si lo servido bastara, este respaldo sobraría"
+    )
+
+    respuestas = _respuestas_de_hoja(cat, ["hipercor_rejilla_nina_vestidos.html"])
+    respuestas[url] = (200, _servido(agotada))
+    tienda = _tienda(respuestas, [cat], renderizadas={url: (200, agotada)})
+    sesion = tienda._session_factory()
+
+    entrada = next(e for e in tienda.list_catalog() if e.retailer_product_id == "A56369559")
+    producto = next(iter(tienda.fetch_details([entrada])))
+
+    assert len(producto.variants) == 8, "el respaldo recupera las tallas del selector"
+    assert all(v.size is not None for v in producto.variants)
+    assert url in sesion.navegadas, "una ficha agotada sí necesita navegador"
+
+
+def test_la_ficha_de_talla_unica_no_paga_el_respaldo() -> None:
+    """Tampoco trae `ProductGroup`, pero renderizarla no añadiría nada y cuesta el doble.
+
+    Su selector no existe —`group_by: "None"`—, así que navegar significaría esperar el
+    `browser_hydrate_timeout` **entero** por cada uno de estos productos para acabar leyendo el
+    mismo `dataLayer` que ya estaba servido. Distinguirla de la agotada es lo que evita cambiar un
+    cuello de botella por otro.
+    """
+    unica = load_html("hipercor_ficha_talla_unica.html")
+    assert not agrupa_por_talla(unica), "la fixture ya no es de talla única"
+    assert agrupa_por_talla(load_html("hipercor_ficha_agotada.html")), (
+        "la agotada sí agrupa por talla: es lo que la separa de esta"
+    )
+
+    cat = _ZAPATOS
+    respuestas = _respuestas_de_hoja(cat, ["hipercor_rejilla_zapatos_nina.html"])
+    tienda = _tienda(respuestas, [cat])
+    entradas = list(tienda.list_catalog())
+    pid = next(iter(tienda._urls))
+    url = tienda._urls[pid]
+    respuestas[url] = (200, _servido(unica))
+    sesion = tienda._session_factory()
+
+    list(tienda.fetch_details([e for e in entradas if e.retailer_product_id == pid]))
+    assert url not in sesion.navegadas, "la talla única se resuelve con lo servido"
+
+
+def test_se_siembran_las_cookies_antes_de_pedir_la_primera_ficha() -> None:
+    """Sin cookies del origen, la tienda contesta 403 a la ficha aunque la rejilla sí entre.
+
+    Medido en vivo: bote vacío -> ficha 403, rejilla 200. Como `fetch_details` abre su propia
+    sesión y desde #160 ya no navega a ningún sitio, sin la siembra explícita de `_preparar` la
+    pasada moriría por `DetailUnavailable` a la sexta ficha, con un error que parece un bloqueo de
+    Akamai y no un fallo nuestro.
+    """
+    cat = _ZAPATOS
+    respuestas = _respuestas_de_hoja(cat, ["hipercor_rejilla_zapatos_nina.html"])
+    url_ficha = (
+        "https://www.hipercor.es/moda-y-accesorios/A56615356-sandalia-infantil-bio-cruzada-de-piel/"
+    )
+    respuestas[url_ficha] = (200, _servido(load_html("hipercor_ficha_zapato.html")))
+    tienda = _tienda(respuestas, [cat])
+    sesion = tienda._session_factory()
+
+    entradas = [e for e in tienda.list_catalog() if e.retailer_product_id == "A56615356"]
+    assert sesion.sembrada, "la siembra va al abrir la sesión, antes de pedir nada"
+    assert list(tienda.fetch_details(entradas)), "con la siembra hecha, la ficha entra"
+
+
+def test_la_rejilla_tampoco_se_renderiza() -> None:
+    """La fase de listado eran 30 minutos y también es documento servido (0,21 s vs 1,34 s)."""
+    cat = _VESTIDOS
+    respuestas = _respuestas_de_hoja(cat, ["hipercor_rejilla_nina_vestidos.html"])
+    tienda = _tienda(respuestas, [cat])
+    sesion = tienda._session_factory()
+
+    assert list(tienda.list_catalog()), "el listado sigue emitiendo entradas"
+    rejilla = HipercorStore.grid_url(cat.category_path, 1)
+    assert rejilla in sesion.pedidas
+    assert sesion.navegadas == [BASE_URL], "solo la siembra; ninguna rejilla se navega"
 
 
 # --- vigía y bajas ----------------------------------------------------------------------------
