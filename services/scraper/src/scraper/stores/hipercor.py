@@ -60,11 +60,30 @@ parecieron vivas). Se detecta sin peticiones extra: `products[].hierarchy` viene
 refleja la ruta *realmente resuelta*, así que basta comprobar que la ruta pedida es prefijo de
 ella. No hace falta cotejar ids contra el padre como en `sfera.py:324`.
 
-**No implementa `SupportsCategoryTree`** (y es la primera tienda con hojas de categoría que no
-lo hace, después de #56): la faceta que publica el árbol vive en `/api`, o sea en la ruta vetada.
-La lista de `CATEGORIES` se mantiene a mano, pero **cada hoja se valida sola**: una ruta que ya
-no exista cae en la comprobación de espejismo y se cuenta como hoja caída en vez de ingerir el
-catálogo del género entero.
+**No implementa `SupportsCategoryTree`, y esto está medido, no supuesto** (#179). La faceta que
+publica el árbol vive en `/api`, o sea en la ruta vetada, y la pregunta que quedaba era si la
+página servida —que sí podemos leer— lo publica por su cuenta. **No lo hace.** Medido el
+05/08/2026 sobre la rejilla de `nina-4-16-anos/vestidos`:
+
+  - el documento servido trae **un solo enlace** a `moda-infantil`, el del padre (la miga de pan);
+  - sus 16 bloques `"categories"` son todos la **cadena de antepasados** de la página o del
+    producto (`Moda y Accesorios → Moda Infantil → Niña 4-16 años → Vestidos`), que es el mismo
+    dato que `page.hierarchy` del `dataLayer`: sirve para detectar el espejismo, **no** para
+    enumerar, porque no nombra ni una hermana ni una hija;
+  - y navegando la página **sin bloquear `/api`** tampoco aparecen: el menú que las listaría se
+    despliega al interactuar y las pide entonces a la ruta vetada. O sea que no es que nos lo
+    perdamos por no ejecutar JS — es que ahí no está.
+
+Para repetirlo, con el veto puesto como lo pone `_preparar`:
+
+    session.bloquear("**/api/**"); session.pedir_html(<rejilla>)
+    -> re.findall(r'href="(/moda-y-accesorios/moda-infantil/[^"?#]*?/)"', html)
+
+Así que esta tienda se queda enumerándose a mano, que es la misma respuesta que dieron Zara y
+Cacles en #179 aunque por otro motivo. La lista de `CATEGORIES` se mantiene a mano, pero **cada
+hoja se valida sola**: una ruta que ya no exista cae en la comprobación de espejismo y se cuenta
+como hoja caída en vez de ingerir el catálogo del género entero. Lo que esto deja sin cubrir es lo
+contrario —una categoría **nueva** que la tienda publique— y hoy no hay forma legítima de verlo.
 """
 
 from __future__ import annotations
