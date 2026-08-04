@@ -5,14 +5,20 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 842d188a-5bed-4fff-9049-9f5776ad8a66
-  modified: 2026-08-04T09:33:17.478Z
+  modified: 2026-08-04T14:16:16.429Z
 ---
 
-Esta máquina no tiene `postgres`, `psql` ni `pg_isready` instalados (ver
-[[kubeconfig-location]]), **ni `docker` ni `podman`** — comprobado el 02/08/2026; lo que este
-apunte decía antes («sí tiene docker funcionando sin sudo») ya no vale y cuesta un rodeo creérselo.
+**Comprueba el equipo antes de creerte cualquiera de los dos caminos de abajo**: son [[kubeconfig-location|dos máquinas]] y no tienen lo mismo. `command -v docker postgres psql` cuesta un segundo y evita el rodeo. Medido:
+
+- **02/08/2026**: ni `postgres`/`psql`/`pg_isready` ni `docker`/`podman`.
+- **04/08/2026 (#149)**: `docker` **sí** está (29.7.1) y `psql`/`postgres` **no**. Un `postgres:16`
+  desechable con las tres bases de la sesión salió más barato que el montaje en espacio de usuario:
+  `docker run -d --name dt<issue>-pg -e POSTGRES_PASSWORD=… -e POSTGRES_USER=dt -p 55<issue>:5432
+  postgres:16`, y dentro `CREATE DATABASE` para `dt_<issue>`, `dt_<issue>_test` y la de ctype `C`.
+  Puerto propio por sesión, y `docker rm -f` al cerrar en vez de `dropdb`.
+
 Para los tests de ingesta y para probar el scraper contra las tiendas reales **sigue sin hacer
-falta el cluster**, pero la Postgres se levanta en espacio de usuario, sin root: paquetes Arch
+falta el cluster**. Si no hay docker, la Postgres se levanta en espacio de usuario, sin root: paquetes Arch
 `postgresql` + `postgresql-libs` + `numactl` extraídos a un prefijo local y arrancados con
 `initdb`/`pg_ctl` fijando `LD_LIBRARY_PATH`. El detalle, con sus dos gotchas de locale, está en la
 memoria de usuario `dev-local-postgres`.

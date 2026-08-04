@@ -3,7 +3,7 @@
 - [qa-test-user](qa-test-user.md) — user de prueba `test-qa` en QA; `python3 .claude/qa-login.py` da un token para probar la API
 - [mcp-sin-npx-pnpm](mcp-sin-npx-pnpm.md) — evita npx; MCP por binario global de pnpm o venv dedicado en `~/.local/share/mcp` (sin pipx ni sudo); no `pnpm setup`
 - [gitops-argocd-selfheal](gitops-argocd-selfheal.md) — cambios de cluster por repo de manifiestos; ArgoCD selfHeal revierte kubectl patch; refresh por annotate
-- [verificar-en-cluster-dev](verificar-en-cluster-dev.md) — esta máquina no tiene docker: Postgres en espacio de usuario para tests e ingesta (el web necesita **dos** bases con ctype distinto, y cada sesión otras dos: `dt_<issue>` para la pasada y `dt_<issue>_test` para pytest, que trunca), SQL contra dev/qa por `exec` con `psql` al pod de la CNPG, y el cluster solo para verificar despliegue (eso sí exige mergear a main)
+- [verificar-en-cluster-dev](verificar-en-cluster-dev.md) — comprueba qué equipo es antes de elegir camino (los dos difieren): Postgres desechable en docker si lo hay, si no en espacio de usuario, para tests e ingesta (el web necesita **dos** bases con ctype distinto, y cada sesión otras dos: `dt_<issue>` para la pasada y `dt_<issue>_test` para pytest, que trunca), SQL contra dev/qa por `exec` con `psql` al pod de la CNPG, y el cluster solo para verificar despliegue (eso sí exige mergear a main)
 - [adr-contexto-compartido](adr-contexto-compartido.md) — ADR en codebase-memory para deal-tracker y k3s-local-apps-manifests; contrato entre repos, versionado en `.claude/adr/`
 - [adr-update-por-cli](adr-update-por-cli.md) — `manage_adr --mode update` reemplaza el ADR entero; publicarlo con el CLI pasando `$(cat .claude/adr/…)`, nunca a mano
 - [verificar-arquitectura-imagen](verificar-arquitectura-imagen.md) — sin buildx ni `read:packages`; para probar que una imagen es multiarch, mirar en qué nodo arranca el pod
@@ -12,3 +12,4 @@
 - [buscar-issue-antes-de-abrir](buscar-issue-antes-de-abrir.md) — buscar si el hallazgo ya tiene issue (aunque sea mencionado de pasada) antes de abrir una nueva
 - [gh-pr-merge-desde-worktree](gh-pr-merge-desde-worktree.md) — el error «main is already used by worktree» llega DESPUÉS de mergear: comprobar el PR y borrar la rama a mano
 - [cerrar-issue-desde-el-pr](cerrar-issue-desde-el-pr.md) — «Cierra #N» en español no autocierra nada; la keyword va en inglés o se cierra a mano
+- [reindexar-tras-actualizar-main](reindexar-tras-actualizar-main.md) — `index_repository` lee el árbol del checkout principal, que no se actualiza al mergear desde un worktree: `merge --ff-only` antes de reindexar
