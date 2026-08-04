@@ -1116,6 +1116,75 @@ navegación cada una—, y la única forma barata de saber cuál manda es leer e
 real durante quince minutos. El límite de CPU va en `base` y no en un overlay: el cuello es
 estructural, y dev y qa tienen que rendir el mismo valor para que una medida de uno valga en el otro.
 
+### Y el cuello no era la CPU: era renderizar páginas que no hacía falta renderizar (#160)
+
+Todo lo de arriba está bien medido y aun así apuntaba al sitio equivocado, porque las tres medidas
+comparten un supuesto que nadie puso a prueba: **que para leer la página hay que ejecutarla**. En una
+tienda SSR es falso, y comprobarlo cuesta una petición.
+
+El `dataLayer` y el `ld+json` de Hipercor —o sea las tallas con su precio y su stock, y el precio
+tachado— vienen en el **documento servido**. `BrowserSession.pedir_html()` lo trae con
+`page.request` (mismas cookies y mismo fingerprint que el navegador) sin ejecutar JS, sin layout y
+sin subrecursos. Medido contra la tienda el 04/08/2026:
+
+| | navegando | pidiendo | pasada en frío completa en dev |
+|---|---|---|---|
+| ficha | 1,14-1,41 s | **0,08-0,42 s** | 15,4 s → **0,9 s**, planas en 1225 fichas |
+| rejilla | 1,34 s | **0,21 s** | listado 30 min → **2 min** |
+| total | ~5h41m (proyectado, **nunca terminó**) | | **22m34s**, el 7,5 % del deadline |
+| CPU del pod | **1943m clavados**, 98 % del tiempo | | mediana ~75m de un cap de 2000m |
+
+`run #46 OK — 1225 en catálogo (1222 con detalle), 8886 variantes, 8886 precios; bajas: 0/0`. O sea
+que la pregunta «¿cuántos cores le hacen falta?» era la pregunta equivocada: con el render fuera, el
+cap de 2 sobra tanto que el patch que iba a subirlo a 3 se cerró sin mergear.
+
+**Lo que no se puede ahorrar, y es lo que hace que esto no sea un cambio de una línea.** El ahorro se
+paga en dato en cuanto la página deja de ser la fuente completa, así que hay dos excepciones y las
+dos se deciden con lo que ya está descargado:
+
+- **La ficha agotada del todo** pierde el `ProductGroup` y sus tallas solo quedan en el selector que
+  pinta el JS: parseada de lo servido sale con **una variante sin talla en vez de ocho**. Ahí sí se
+  navega.
+- **La ficha de talla única** tampoco trae `ProductGroup` y por eso se parece a la anterior, pero su
+  dato está entero en lo servido. Renderizarla sería el **peor caso de todos**: su selector no existe,
+  así que se esperaría el `browser_hydrate_timeout` completo por cada una para leer lo mismo. Las
+  separa `dataLayer.product.group_by` (`"Talla"` frente a `"None"`).
+
+Y una precondición que no se ve venir: **sin cookies del origen la tienda contesta 403 a la ficha,
+pero 200 a la rejilla**. Como la fase de detalle abre su propia sesión y ya no navega a ningún sitio,
+sin una siembra explícita la pasada muere a la sexta ficha con cara de bloqueo de Akamai. La
+asimetría entre los dos tipos de página es lo que lo hace difícil de leer: la mitad del scraper
+funciona.
+
+Generalizable a las otras dos tiendas de navegador (`sfera`, `lefties`), que hoy siguen navegando: la
+pregunta a hacerse antes de optimizar un scraper de navegador no es cuánto recorta bloquear
+recursos, sino **si esa página concreta necesita navegador en absoluto**. Se contesta comparando
+`pedir_html()` contra `get_html()` sobre las mismas URLs y parseando las dos, que es media hora.
+
+### Un pod muerto deja su transacción abierta, y la siguiente pasada se queda muda esperándola
+
+Corolario operativo de que la ingesta sea atómica, y cuesta caro reconocerlo tarde. Al borrar un Job
+de scraping a mitad —o al matarlo el `activeDeadlineSeconds`— el backend de Postgres puede quedarse
+en `idle in transaction` **sosteniendo los locks** de las filas que ya tocó, porque el servidor tarda
+en enterarse de que el cliente murió. La siguiente pasada arranca, hace su primer `INSERT` sobre
+`retailer`, y se queda esperando ese lock.
+
+Lo que se ve desde fuera es exactamente lo que se vería si la pasada fuera lentísima: pod `Running`,
+log con una sola línea y ningún progreso. Lo que lo distingue es el consumo: **1m de CPU y 33Mi de
+memoria** — sin Chromium levantado —, medido el 04/08/2026 tras trece minutos parada. Una pasada
+lenta consume; una bloqueada, no.
+
+```sql
+SELECT pid, state, wait_event_type, now()-xact_start AS en_transaccion, query
+  FROM pg_stat_activity WHERE datname='deal_tracker' AND pid <> pg_backend_pid();
+```
+
+`state='active'` con `wait_event_type='Lock'` es el bloqueado; `idle in transaction` con horas
+encima es el culpable. Borrar el pod dueño suele bastar (se lleva su conexión y la transacción hace
+rollback); si el backend sobrevive al pod, `pg_terminate_backend(<pid>)` — y comprobando antes que
+el pod cliente ya no existe, porque en un cluster con varias sesiones eso puede ser el trabajo de
+otro corriendo.
+
 ### Una ficha que no se puede leer se convierte en una baja falsa dos pasadas después
 
 Es el contrato menos evidente entre `stores/*` e `ingest.py`, y no está escrito en ninguna firma.
