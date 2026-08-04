@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 
+from scraper import ingest as ingest_mod
 from scraper.ingest import CatalogScanAborted, ingest
 from scraper.stores.base import (
     DelistCandidate,
@@ -1239,3 +1240,139 @@ def test_una_pasada_con_exito_registra_su_duracion(db_conn: Any) -> None:
     )
     assert duracion is not None
     assert duracion.total_seconds() >= _PAUSA_LENTA / 2
+
+
+# --- progreso de la pasada (#146) -------------------------------------------------------------
+
+
+class _RelojFalso:
+    """Reloj que solo avanza cuando se le dice, no al leerlo.
+
+    `test_vigia.py` usa una lista de instantes porque allí se cronometra un tramo entero y las
+    lecturas son dos, contables con la mano. Aquí no vale: el latido lee el reloj varias veces por
+    ficha y el número de lecturas es un detalle de implementación, así que un test atado a él se
+    rompe en cuanto alguien añade una lectura — y se rompe diciendo algo que no es. Lo que este
+    test quiere fijar es *cuánto tarda la tienda*, y eso es exactamente `avanza()`.
+    """
+
+    def __init__(self) -> None:
+        self.ahora = 0.0
+
+    def avanza(self, segundos: float) -> None:
+        self.ahora += segundos
+
+    def __call__(self) -> float:
+        return self.ahora
+
+
+@pytest.fixture
+def reloj(monkeypatch: pytest.MonkeyPatch) -> _RelojFalso:
+    """Sustituye el reloj de la ingesta por uno que el test hace avanzar.
+
+    Se parchea `ingest._reloj` y no `time.monotonic`, por lo mismo que en `test_vigia.py`: parchear
+    el módulo `time` es global y afectaría a cualquier otra cosa del proceso — empezando por la
+    pausa de `test_una_pasada_con_exito_registra_su_duracion`, aquí al lado.
+    """
+    falso = _RelojFalso()
+    monkeypatch.setattr(ingest_mod, "_reloj", falso)
+    return falso
+
+
+class _TiendaQueTarda(FakeStore):
+    """Tienda cuyo detalle cuesta `segundos_por_ficha` de reloj (falso) por producto."""
+
+    def __init__(self, *args: Any, reloj: _RelojFalso, segundos_por_ficha: float, **kw: Any):
+        super().__init__(*args, **kw)
+        self._reloj = reloj
+        self._coste = segundos_por_ficha
+
+    def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
+        for product in super().fetch_details(entries):
+            self._reloj.avanza(self._coste)
+            yield product
+
+
+def _lineas(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [r.getMessage() for r in caplog.records if r.name == "scraper.ingest"]
+
+
+def test_una_pasada_rapida_no_emite_ni_un_latido(
+    db_conn: Any, caplog: pytest.LogCaptureFixture
+) -> None:
+    """La garantía de que el modo normal no se ensucia, que era el punto 3 de #146.
+
+    Sale gratis por ir el latido por tiempo y no por número de fichas: una pasada caliente de Zara
+    (1m35s) no llega al primer aviso de 5 min. Este test es lo que impide que alguien lo convierta
+    en «cada N fichas» sin darse cuenta de que eso llena el log de las nueve tiendas.
+    """
+    store = FakeStore(*_dos_productos())
+    with caplog.at_level("INFO", logger="scraper.ingest"):
+        ingest(db_conn, store, run_ts=T1)
+
+    latidos = [ln for ln in _lineas(caplog) if "listando" in ln or "fichas " in ln]
+    assert latidos == []
+    # Pero los hitos SÍ salen, que son los que no miran el reloj.
+    assert any("pasada arrancada" in ln for ln in _lineas(caplog))
+    assert any(ln.startswith("fake · listado:") for ln in _lineas(caplog))
+
+
+def _cuatro_productos() -> tuple[list[ScrapedProduct], dict[str, str]]:
+    productos = [_product(pid, f"Prenda {pid}", [_variant(f"{pid}-1", "10.00")]) for pid in "ABCD"]
+    return productos, {pid: f"{pid}1" for pid in "ABCD"}
+
+
+def test_la_pasada_larga_late_una_vez_por_ventana_y_no_por_ficha(
+    db_conn: Any, caplog: pytest.LogCaptureFixture, reloj: _RelojFalso
+) -> None:
+    """Con la ventana en 300 s y fichas de 200 s, late en la 2ª y en la 4ª. No en las cuatro.
+
+    Es la invariante que hace utilizable el log de una pasada de cinco horas: 1224 fichas a una
+    línea cada una son 1224 líneas y ningún ritmo; a una cada 5 minutos son ~60 y se lee de un
+    vistazo.
+    """
+    productos, sigs = _cuatro_productos()
+    store = _TiendaQueTarda(productos, sigs, reloj=reloj, segundos_por_ficha=200.0)
+
+    with caplog.at_level("INFO", logger="scraper.ingest"):
+        ingest(db_conn, store, run_ts=T1, progress_every_seconds=300.0)
+
+    fichas = [ln for ln in _lineas(caplog) if "fichas " in ln]
+    assert len(fichas) == 2, fichas
+    assert "fichas 2/4 (50%)" in fichas[0]
+    assert "fichas 4/4 (100%)" in fichas[1]
+    # El ritmo es el de la fase 2 sola y es el número con el que se compara una tienda consigo
+    # misma entre pasadas: 400 s de reloj entre 2 fichas.
+    assert "200.0 s/ficha" in fichas[0]
+
+
+def test_progreso_desactivado_no_emite_latidos_pero_si_los_hitos(
+    db_conn: Any, caplog: pytest.LogCaptureFixture, reloj: _RelojFalso
+) -> None:
+    """`0` apaga el latido. Los hitos se quedan: son dos líneas por pasada, no son el ruido."""
+    productos, sigs = _cuatro_productos()
+    store = _TiendaQueTarda(productos, sigs, reloj=reloj, segundos_por_ficha=9000.0)
+
+    with caplog.at_level("INFO", logger="scraper.ingest"):
+        ingest(db_conn, store, run_ts=T1, progress_every_seconds=0)
+
+    assert [ln for ln in _lineas(caplog) if "fichas " in ln or "listando" in ln] == []
+    assert any("pasada arrancada" in ln for ln in _lineas(caplog))
+
+
+def test_la_frontera_se_anuncia_aunque_no_haya_nada_que_pedir(
+    db_conn: Any, caplog: pytest.LogCaptureFixture
+) -> None:
+    """El caso que más se parece a una colgada: segunda pasada sin cambios, 0 fichas.
+
+    Sin esta línea, una pasada que no pide detalle no escribe nada entre el arranque y el resumen
+    — y es justo la forma que tiene una pasada sana de parecer muerta.
+    """
+    productos, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(productos, sigs), run_ts=T1)
+
+    with caplog.at_level("INFO", logger="scraper.ingest"):
+        ingest(db_conn, FakeStore(productos, sigs), run_ts=T2)
+
+    frontera = [ln for ln in _lineas(caplog) if "listado:" in ln]
+    assert len(frontera) == 1
+    assert "se piden 0 fichas, 2 sin cambios" in frontera[0]

@@ -70,6 +70,14 @@ class Config:
     # previas entran en la mediana que hace de línea base; con menos de 2 no se compara.
     vigia_factor_aviso: float = 3.0
     vigia_base_muestras: int = 4
+    # Cada cuántos segundos la pasada dice por dónde va (#146). Por TIEMPO y no por número de fichas
+    # para que el volumen del log no dependa del tamaño del catálogo — y de paso sale gratis que una
+    # pasada caliente no se ensucie: Zara en 1m35s no llega al primer aviso. `0` lo desactiva.
+    # `log_level` existe porque encender el handler enciende también los `logger.info()` que ya
+    # tenían escritos mango, hm y springfield: si alguna vez molestan, WARNING los calla sin tocar
+    # código.
+    progress_every_seconds: float = 300.0
+    log_level: str = "INFO"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
@@ -103,6 +111,8 @@ class Config:
             browser_channel=env.get("SCRAPER_BROWSER_CHANNEL") or None,
             vigia_factor_aviso=float(env.get("SCRAPER_VIGIA_FACTOR_AVISO", "3.0")),
             vigia_base_muestras=int(env.get("SCRAPER_VIGIA_BASE_MUESTRAS", "4")),
+            progress_every_seconds=float(env.get("SCRAPER_PROGRESS_EVERY_SECONDS", "300")),
+            log_level=env.get("SCRAPER_LOG_LEVEL", "INFO"),
         )
 
 
