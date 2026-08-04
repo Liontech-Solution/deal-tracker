@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: 31501bb9-0b33-4106-9061-4e31b18a2197
-  modified: 2026-08-01T16:07:36.149Z
+  modified: 2026-08-03T17:42:48.330Z
 ---
 
 `manage_adr(mode='update')` **reemplaza el ADR completo** con lo que le pases en `content`: no
@@ -26,3 +26,10 @@ transcribirlo. Con la herramienta MCP directa es fácil mandar contenido parcial
 **How to apply:** editar el fichero `.claude/adr/<proyecto>.md`, y solo entonces republicar con el
 CLI. Comprobar después con `manage_adr(mode='sections')` que salen todas las secciones esperadas —
 si sale una lista corta, el ADR del grafo se ha perdido y hay que republicarlo.
+
+**Y esa comprobación sirve para algo más que contar secciones: el parser trata CUALQUIER línea que
+empiece por `#` como encabezado.** En este ADR el texto va justificado a ~100 columnas y las
+referencias a issues (`#135`, `#64`) son constantes, así que es fácil que el ajuste de línea deje
+una al principio de una línea — y entonces sale como sección falsa en medio del índice, que es lo
+primero que se consulta para orientarse. Pasó el 03/08/2026 con dos. Se detecta con
+`grep -n "^#" .claude/adr/<proyecto>.md` y se arregla reajustando la línea, sin tocar el contenido.

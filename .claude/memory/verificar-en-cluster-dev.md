@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 842d188a-5bed-4fff-9049-9f5776ad8a66
-  modified: 2026-08-03T10:08:15.476Z
+  modified: 2026-08-04T09:33:17.478Z
 ---
 
 Esta máquina no tiene `postgres`, `psql` ni `pg_isready` instalados (ver
@@ -75,7 +75,20 @@ Un worktree tampoco trae `.venv` ni `node_modules`, así que en él hay que reha
 
 La verificación **del despliegue** sí va contra el cluster:
 
-**SQL contra la BD de dev o de qa**, sin montar nada y sin escribir en el cluster:
+**SQL contra la BD de dev o de qa**, sin montar nada y sin escribir en el cluster.
+
+**El camino corto es el pod de la propia CNPG, que sí trae `psql`** (medido el 04/08/2026, y es
+bastante más barato que todo lo que sigue — un `-c` y ya):
+
+```bash
+kubectl -n data-dev exec platform-postgres-dev-1 -c postgres -- \
+  psql -U postgres -d deal_tracker_qa -c "SELECT ..."
+```
+
+El pod es el de la cluster CNPG `platform-postgres-dev` (ver [[kubeconfig-location]]), y desde ahí
+se llega a las bases de los dos entornos: `deal_tracker` (dev) y `deal_tracker_qa`. Ojo con las
+comillas si la consulta lleva `$$` o `%`. El resto de este apartado es el rodeo que hacía falta
+cuando se creía que solo se podía entrar por el pod del web:
 
 ```bash
 kubectl -n deal-tracker-dev exec deploy/deal-tracker-web -- node -e "
@@ -87,6 +100,13 @@ El pod del web ya tiene el cliente `postgres` y la `DATABASE_URL` del entorno, a
 `exec` y nada más. Es bastante más barato que el pod efímero `postgres:16-alpine` + ConfigMap que
 recomendaba este apunte, y funciona con el modo de permisos automático. Sirve igual para
 `deal-tracker-qa`.
+
+**Ojo con la resolución de módulos en ese `exec`** (medido el 03/08/2026): `node -e "require('pg')"`
+falla con `MODULE_NOT_FOUND`, y `require('postgres')` también si el cwd del exec no es `/app` —
+meterle un `cd /app &&` por delante **tampoco** lo arregló. Lo que sí funciona es un fichero copiado
+al pod (`kubectl cp`) que importe por ruta absoluta:
+`import postgres from '/app/node_modules/postgres/src/index.js'`. Y el driver es `postgres`, no
+`pg`: `pg` no está en la imagen. Tampoco hay `psql` dentro del contenedor.
 
 **Pasada de scraper a mano**: los CronJobs están `suspend: true` en dev. `kubectl create job
 --from=cronjob/...` **no admite añadir env**, así que hay que volcar el `jobTemplate` a un Job y
