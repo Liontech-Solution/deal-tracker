@@ -1,6 +1,6 @@
 ---
 name: cerrar-sesion
-description: Cierre de una sesión de trabajo — consolida en `main` todo lo que la sesión ha hecho (commit, PR y merge de los PR propios que sigan abiertos, siempre con los checks en verde), reindexa el grafo de codebase-memory, actualiza el ADR si la sesión cambió algo estructural, deja por escrito en las issues todo lo pendiente y los hallazgos nuevos (abriendo issue si se salen del scope) y limpia lo que sobra: el worktree de la propia sesión (nunca los de otras), las ramas ya mergeadas y las bases de datos temporales `dt_<issue>` de las issues que ha trabajado. Usar siempre que se dé por terminada la sesión, aunque no se pida explícitamente nada de esto: "vamos a cerrar sesión", "lo dejamos por hoy", "ya está por hoy", "me voy", "terminamos", o cualquier señal de que se cierra el terminal.
+description: Cierre de una sesión de trabajo — consolida en `main` todo lo que la sesión ha hecho (commit, PR y merge de los PR propios que sigan abiertos, siempre con los checks en verde), reindexa el grafo de codebase-memory, actualiza el ADR si la sesión cambió algo estructural, deja por escrito en las issues todo lo pendiente y los hallazgos nuevos (abriendo issue etiquetada con su prioridad `prioridad-1..4` si se salen del scope) y limpia lo que sobra: el worktree de la propia sesión (nunca los de otras), las ramas ya mergeadas y las bases de datos temporales `dt_<issue>` de las issues que ha trabajado. Usar siempre que se dé por terminada la sesión, aunque no se pida explícitamente nada de esto: "vamos a cerrar sesión", "lo dejamos por hoy", "ya está por hoy", "me voy", "terminamos", o cualquier señal de que se cierra el terminal.
 ---
 
 # Cerrar sesión
@@ -216,6 +216,40 @@ de que algo pasaba, no un plan — y en tres semanas cuesta más reconstruirla q
 
 Si dudas entre comentario e issue nueva, el criterio es si tiene vida propia: ¿se puede cerrar la
 issue de hoy dejando esto sin hacer? Si la respuesta es sí, es una issue.
+
+### Y sale con prioridad puesta
+
+Una issue sin prioridad no queda neutral, queda al final. Cuando dentro de un mes haya veinte
+abiertas y `revisar-backlog` tenga que ordenarlas, lo único que le quedará para juzgarla es el
+título; y un título no distingue lo que está corrompiendo datos en cada pasada de una idea suelta
+que se apuntó de camino. Hoy sí lo sabes —acabas de verlo— y ese es el dato que se pierde si no lo
+escribes ahora.
+
+Así que cada issue que abras lleva **una** de estas cuatro, además de la etiqueta de tipo
+(`bug`/`enhancement`), que dice otra cosa distinta:
+
+- **`prioridad-1`** — está haciendo daño ahora mismo: ensucia datos en cada pasada, deja un entorno
+  desplegado roto, o bloquea a varias issues a la vez. Si nadie la mira, mañana cuesta más que hoy.
+- **`prioridad-2`** — hay que hacerlo y algo lo empuja: la siguiente release, una tienda registrada
+  que todavía no ingiere, algo que se ve mal en QA. No empeora solo, pero se nota que falta.
+- **`prioridad-3`** — mejora de verdad algo (robustez, un canon, una API incompleta) y puede esperar
+  semanas sin coste.
+- **`prioridad-4`** — apuntado para que no se pierda. Puede quedarse sin hacer un año sin que pase
+  nada; lo que no puede es desaparecer.
+
+```bash
+gh issue create --label bug --label prioridad-2 --title "…" --body "…"
+gh issue edit <n> --add-label prioridad-1        # también sirve para corregir una ya abierta
+```
+
+La calibración es lo único delicado: si todo acaba en `prioridad-1`, la etiqueta ha dejado de
+ordenar nada y estamos donde estábamos. La prueba no es cuánto te molesta el hallazgo, es
+comparativa — ¿va de verdad **antes** que lo que ya está marcado como 1? Míralo antes de poner otra
+(`gh issue list --label prioridad-1`), y si no la adelanta, es un 2.
+
+Vale también al revés: si la sesión ha demostrado que una issue ya abierta es más urgente o menos
+de lo que dice su etiqueta, cámbiasela y dilo en el resumen del cierre. Eso es un hallazgo de hoy
+como cualquier otro, y es de los que solo se ven trabajando el código.
 
 ## 6. Limpieza: worktrees y ramas que ya no sirven
 
