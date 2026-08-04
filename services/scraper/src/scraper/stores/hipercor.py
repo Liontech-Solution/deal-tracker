@@ -29,9 +29,20 @@ sigue trayendo sus 12 productos y la ficha sus tallas:
     `dataLayer` añade el precio tachado (`o_price`), que el `ld+json` no da.
 
 Consecuencia de coste, y hay que tenerla presente al fijar el CronJob: aquí el detalle **sí**
-cuesta una petición por producto (una navegación real, ~450 KB), a diferencia de Sfera, que lo
-sirve desde la caché del listado. El detalle condicional por huella (#16) no es un ahorro
-cómodo en esta tienda, es lo que la hace viable.
+cuesta una petición por producto, a diferencia de Sfera, que lo sirve desde la caché del listado.
+El detalle condicional por huella (#16) no es un ahorro cómodo en esta tienda, es lo que la hace
+viable.
+
+**Que la página sea SSR no solo permite este camino: hace que no haya que renderizarla** (#160).
+Ni la rejilla ni la ficha se navegan — se piden con `pedir_html()` y se parsea el documento
+servido, que es donde ya viven el `dataLayer` y el `ld+json`. Medido sobre fichas reales: mismas
+variantes, mismas tallas y mismos precios en 0,08-0,42 s frente a 1,14-1,41 s navegando, y la
+rejilla en 0,21 s frente a 1,34 s. Lo que desaparece es ejecutar el JS de la página, que es
+trabajo de CPU, y era el motivo por el que la pasada en frío no cabía en su deadline.
+
+Quedan dos navegaciones de verdad, las dos necesarias y ninguna por producto: la **siembra de
+cookies** al abrir la sesión (sin ellas la ficha da 403, ver `_preparar`) y el **respaldo de la
+ficha agotada**, cuyas tallas solo existen en el DOM que pinta el JS (ver `_ficha`).
 
 Y tiene una contrapartida que conviene saber antes de tocar `SCRAPER_DETAIL_MAX_AGE_DAYS`: la
 rejilla **no da stock por talla**, solo un estado global del producto. Así que una talla que se
@@ -113,20 +124,24 @@ _DATA_LAYER_RE = re.compile(r"dataLayer\s*=\s*(\[.*?\]);", re.DOTALL)
 _LD_JSON_RE = re.compile(
     r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', re.DOTALL
 )
-# Ruta que el `robots.txt` de la tienda veta. Se bloquea en el navegador (ver `_abrir`) para que
-# el cumplimiento no dependa de que ninguna URL del scraper la escriba: la página puede pedirla
-# sola al hidratarse.
+# Ruta que el `robots.txt` de la tienda veta. Se bloquea en el navegador (ver `_preparar`) para
+# que el cumplimiento no dependa de que ninguna URL del scraper la escriba: la página puede
+# pedirla sola al hidratarse. Desde #160 casi nada se hidrata, pero el veto se queda: protege las
+# navegaciones que siguen existiendo y no cuesta nada.
 _RUTA_VETADA = "**/api/**"
 
-# Selector que marca que la ficha ya ha pintado sus **tallas**, que es lo que hay que esperar: el
-# documento inicial llega sin ellas y son el dato que justifica pedir la ficha. Vale para los dos
-# esquemas (con `ProductGroup` y agotada); esperar al `ProductGroup` sería peor, porque en una
-# ficha agotada no llega nunca y regalaría la espera entera a cada producto sin stock.
+# Selector que marca que la ficha ya ha pintado sus **tallas**. Es lo que hay que esperar cuando
+# se navega, porque el documento servido llega sin él: lo pinta el JS. Desde #160 esa espera es
+# **solo el respaldo de la ficha agotada** (ver `_ficha`) — en la forma normal las tallas vienen
+# en el `ld+json` servido y no hay nada que esperar. Sigue siendo el selector correcto para ese
+# caso: esperar al `ProductGroup` no valdría, porque en una ficha agotada no llega nunca.
 _SELECTOR_TALLAS = '[id^="size_option_"]'
 
-# Recursos que la ficha carga y el scraper no lee: las fotos que guardamos son las URLs que ya
-# vienen en el JSON de la página. Descartarlos baja el coste por ficha de 4,10 s a 3,55 s (medido
-# el 02/08/2026 sobre 5 fichas, con el mismo número de variantes parseadas).
+# Recursos que la página carga y el scraper no lee: las fotos que guardamos son las URLs que ya
+# vienen en el JSON de la página. Descartarlos bajaba el coste por ficha de 4,10 s a 3,55 s
+# (medido el 02/08/2026 sobre 5 fichas, con el mismo número de variantes parseadas). Desde #160
+# gobierna muchas menos peticiones —solo lo que se navega, que son la siembra y las fichas
+# agotadas—, porque `pedir_html()` no descarga subrecursos en absoluto.
 _RECURSOS_INUTILES = ("image", "font", "media", "stylesheet")
 
 # Enlace a ficha dentro de la rejilla: de ahí sale la URL con la que se pide el detalle. No se
@@ -479,6 +494,29 @@ def product_group(bloques: Iterable[Any]) -> dict[str, Any] | None:
     return bloque_schema(bloques, "ProductGroup")
 
 
+def agrupa_por_talla(html: str) -> bool:
+    """¿Esta ficha tiene tallas que elegir? Lo dice `dataLayer.product.group_by`.
+
+    Separa los dos esquemas que **no** traen `ProductGroup`, que a simple vista se parecen y
+    cuestan cosas muy distintas (#160):
+
+    - `"Talla"` sin `ProductGroup` = ficha **agotada del todo**. Sus tallas existen, pero solo en
+      el selector que pinta el JS, así que el documento servido no basta y hay que renderizar.
+    - `"None"` = producto de **talla única**. No hay selector ni lo habrá, y su sku viaja en el
+      propio `dataLayer`: renderizar no añadiría nada y encima se pagaría entera la espera del
+      selector, que en esta ficha no aparece nunca.
+
+    Ante la duda —sin `dataLayer` legible, o con un `group_by` que no reconocemos— responde que
+    sí: el precio de renderizar de más es tiempo, y el de renderizar de menos es perder las
+    tallas de un producto agotado.
+    """
+    dl = extraer_data_layer(html)
+    producto = dl.get("product") if isinstance(dl, dict) else None
+    if not isinstance(producto, dict):
+        return True
+    return str(producto.get("group_by") or "").strip().lower() != "none"
+
+
 def _tallas_del_selector(html: str) -> list[tuple[str, str | None]]:
     """`(sku, talla)` de cada opción del selector de tallas de la ficha.
 
@@ -688,6 +726,23 @@ class HipercorStore:
         self._urls: dict[str, str] = {}  # code_a -> URL de ficha, rellenado por list_catalog()
         self._scan = ScanReport()
 
+    # --- sesión -------------------------------------------------------------------------------
+
+    def _preparar(self, session: BrowserSession) -> None:
+        """Deja la sesión lista para pedir páginas: veto del `robots.txt`, peso inútil y cookies.
+
+        Las tres cosas van juntas y en un solo sitio porque olvidar cualquiera rompe la pasada de
+        una forma distinta, y la tercera es la que no se ve venir: desde #160 el listado y la ficha
+        se piden **sin navegar** (`pedir_html`), y sin cookies del origen Hipercor contesta **403 a
+        la ficha** —la rejilla sí entra, que es lo que hace el fallo desconcertante—. Con el tope
+        de `_MAX_FICHAS_FALLIDAS`, eso aborta la pasada a la sexta ficha.
+
+        La siembra es una navegación de verdad, y es la única que queda en toda la pasada.
+        """
+        session.bloquear(_RUTA_VETADA)
+        session.descartar_recursos(_RECURSOS_INUTILES)
+        session.goto(BASE_URL)
+
     # --- URLs ---------------------------------------------------------------------------------
 
     @staticmethod
@@ -715,7 +770,9 @@ class HipercorStore:
         page = 1
         total = 1
         while page <= total and page <= _MAX_PAGES:
-            status, html = session.get_html(self.grid_url(cat.category_path, page))
+            # Sin navegar: la rejilla trae su `dataLayer` y sus enlaces a ficha en el documento
+            # servido, así que renderizarla era pagar 1,34 s por lo mismo que cuesta 0,21 s (#160).
+            status, html = session.pedir_html(self.grid_url(cat.category_path, page))
             if status in GONE_STATUS:
                 raise LeafGone(f"{cat.category_path} -> HTTP {status}")
             if status != 200:
@@ -777,8 +834,7 @@ class HipercorStore:
         latido = Latido(self._config.progress_every_seconds, SLUG, _LOG)
         total_hojas = len(self._categories)
         with self._session_factory() as session:
-            session.bloquear(_RUTA_VETADA)
-            session.descartar_recursos(_RECURSOS_INUTILES)
+            self._preparar(session)
             for n_hoja, cat in enumerate(self._categories, start=1):
                 # Al ENTRAR en la hoja y no al salir: si la pasada se atasca, lo que hace falta
                 # saber es en cuál se ha quedado, no cuál fue la última que terminó bien.
@@ -854,6 +910,36 @@ class HipercorStore:
             category=entry.category or "",
         )
 
+    def _ficha(self, session: BrowserSession, url: str) -> tuple[int, str]:
+        """El HTML de una ficha: servido si basta, renderizado si no. Devuelve `(status, HTML)`.
+
+        La ficha se pide **sin navegar**, que es de donde sale el ahorro de #160. El documento
+        servido ya trae el `ld+json` y el `dataLayer`, o sea las tallas con su precio y su stock y
+        el precio tachado: medido sobre fichas reales, mismas variantes, mismas tallas y mismos
+        precios que navegando, en una fracción del tiempo.
+
+        Pero hay un caso en el que **no** basta, y es justo el que no se ve en un recon de un rato:
+        cuando el producto se agota entero, el `ld+json` degrada a `Product` suelto y las tallas
+        solo quedan en el selector, **que lo pinta el JS**. Parsear el documento servido de una
+        ficha así devuelve una variante sin talla en vez de las ocho que tiene (comprobado sobre la
+        fixture `hipercor_ficha_agotada.html`), y eso no es un ahorro: es perder el stock por
+        tallas de los productos agotados, que es precisamente el dato que hace falta para dejar de
+        ofrecerlos. Así que cuando el servido no trae `ProductGroup` se navega, se espera al
+        selector y se devuelve eso.
+
+        El respaldo se paga solo en los productos agotados —una minoría— y se decide con lo que ya
+        está descargado, sin pedir nada extra para averiguarlo. Y **no** se paga en los de talla
+        única, que tampoco traen `ProductGroup` pero cuyo dato sí está entero en lo servido: ahí
+        renderizar sería además el peor caso, porque su selector no existe y se esperaría el
+        `browser_hydrate_timeout` completo para acabar leyendo lo mismo (ver `agrupa_por_talla`).
+        """
+        status, html = session.pedir_html(url)
+        if status != 200 or product_group(extraer_ld_json(html)) is not None:
+            return status, html
+        if not agrupa_por_talla(html):
+            return status, html
+        return session.get_html(url, _SELECTOR_TALLAS)
+
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
         """Pide la ficha de cada entrada. Una navegación por producto: aquí está el coste.
 
@@ -872,14 +958,13 @@ class HipercorStore:
             return
         fallos = 0
         with self._session_factory() as session:
-            session.bloquear(_RUTA_VETADA)
-            session.descartar_recursos(_RECURSOS_INUTILES)
+            self._preparar(session)
             for entry in pendientes:
                 url = self._urls.get(entry.retailer_product_id)
                 if url is None:
                     continue  # sin URL no hay ficha que pedir (no salió en esta pasada)
                 try:
-                    status, html = session.get_html(url, _SELECTOR_TALLAS)
+                    status, html = self._ficha(session, url)
                 except BrowserUnreachable as exc:
                     # La navegación no completó ni tras los reintentos. Es «no he podido verlo»,
                     # exactamente igual que un 403: cuenta como fallo, nunca como baja.
@@ -919,8 +1004,7 @@ class HipercorStore:
         comprobación de espejismo este sondeo informaría «12 productos» de una categoría inventada.
         """
         with self._session_factory() as session:
-            session.bloquear(_RUTA_VETADA)
-            session.descartar_recursos(_RECURSOS_INUTILES)
+            self._preparar(session)
             for cat in self._categories:
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
                 try:
@@ -970,8 +1054,7 @@ class HipercorStore:
             return {}
         veredictos: dict[str, bool] = {}
         with self._session_factory() as session:
-            session.bloquear(_RUTA_VETADA)
-            session.descartar_recursos(_RECURSOS_INUTILES)
+            self._preparar(session)
             for candidato in pendientes:
                 url = candidato.url or self._urls.get(candidato.retailer_product_id)
                 if url is None:
