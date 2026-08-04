@@ -1179,6 +1179,70 @@ def test_una_tienda_sin_informe_se_comporta_igual_que_siempre(db_conn: Any) -> N
     assert result.products_delisted == 2
 
 
+def test_una_pasada_con_exito_y_hojas_caidas_dice_cuales(db_conn: Any) -> None:
+    """El agujero de #151: la pasada de Sfera cerró en `success` con `errors = 15` y dentro había
+    una hoja retirada —un ámbito entero sin detección de bajas—. Cuando alguien fue a mirar, el
+    único sitio donde lo ponía era el log del pod, ya reciclado.
+    """
+    products, sigs = _dos_ambitos()
+    ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
+
+    store = ScanningFakeStore(
+        [],
+        signatures={},
+        report=ScanReport(
+            leaves_total=4,
+            leaves_failed=1,
+            failed_scopes={_CAMISETAS},
+            failed_leaves=["ninos/bebe-nino/punto-y-jerseis"],
+        ),
+        scopes=[_CAMISETAS, _ZAPATOS],
+    )
+    ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    # La pasada es un éxito: una hoja retirada no la tumba, y ese es justo el motivo por el que
+    # pasa inadvertida.
+    assert _scalar(db_conn, "SELECT status FROM scrape_run ORDER BY id DESC LIMIT 1") == "success"
+    message = _scalar(db_conn, "SELECT message FROM scrape_run ORDER BY id DESC LIMIT 1")
+    assert message is not None
+    assert "hojas caidas 1/4" in message
+    assert "ninos/bebe-nino/punto-y-jerseis" in message  # QUÉ hoja, que es lo que faltaba
+    assert "niña/ropa/camisetas" in message  # y qué ámbito se queda sin bajas
+
+
+def test_una_pasada_limpia_deja_el_mensaje_a_null(db_conn: Any) -> None:
+    """El simétrico del anterior, y el que hace útil al otro: sin esto, `message IS NOT NULL`
+    dejaría de ser la consulta que separa las pasadas que hay que mirar de las que no.
+    """
+    products, sigs = _dos_ambitos()
+    ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
+
+    assert _scalar(db_conn, "SELECT message FROM scrape_run ORDER BY id DESC LIMIT 1") is None
+    assert _scalar(db_conn, "SELECT status FROM scrape_run ORDER BY id DESC LIMIT 1") == "success"
+
+
+def test_una_hoja_caida_sin_ruta_sigue_contando_aunque_no_se_pueda_nombrar(db_conn: Any) -> None:
+    """`leaf` es opcional: las ocho tiendas que aún no lo pasan no pierden el aviso, solo el
+    nombre de la hoja.
+    """
+    products, sigs = _dos_ambitos()
+    ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
+
+    store = ScanningFakeStore(
+        [],
+        signatures={},
+        report=ScanReport(leaves_total=4, leaves_failed=1, failed_scopes={_CAMISETAS}),
+        scopes=[_CAMISETAS, _ZAPATOS],
+    )
+    ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    message = _scalar(db_conn, "SELECT message FROM scrape_run ORDER BY id DESC LIMIT 1")
+    assert message is not None
+    assert "hojas caidas 1/4" in message
+    assert "[" not in message  # sin ruta que nombrar, no se inventa un corchete vacío
+    assert "niña/ropa/camisetas" in message
+
+
 def test_una_pasada_que_revienta_deja_rastro_en_scrape_run(db_conn: Any) -> None:
     """Vale para cualquier fallo, no solo para el aborto por hojas caídas.
 

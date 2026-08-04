@@ -64,6 +64,16 @@ def _reparto(counts: dict[str, int]) -> str:
     return ", ".join(f"{k}: {v}" for k, v in sorted(counts.items()))
 
 
+def _cuales(rutas: list[str]) -> str:
+    """` (ninos/bebe-nino/punto-y-jerseis)`, o vacío si la tienda no pasa las rutas.
+
+    Existe porque el aviso decía CUÁNTAS hojas se habían caído pero no cuáles, y el número solo
+    sirve para asustarse (#151). Las tiendas que aún no pasan `leaf=` a `leaf_gone()` siguen
+    dando el aviso de siempre, sin paréntesis.
+    """
+    return f" ({', '.join(sorted(rutas))})" if rutas else ""
+
+
 def _report_dead_leaves(store: BaseStore) -> None:
     """Avisa de las hojas de categoría que la tienda ya no sirve (solo en `--dry-run`)."""
     if not isinstance(store, SupportsScanReport):
@@ -71,7 +81,8 @@ def _report_dead_leaves(store: BaseStore) -> None:
     report = store.scan_report()
     if report.leaves_failed:
         print(
-            f"⚠ {report.leaves_failed}/{report.leaves_total} hojas de categoría no responden: "
+            f"⚠ {report.leaves_failed}/{report.leaves_total} hojas de categoría no responden"
+            f"{_cuales(report.failed_leaves)}: "
             f"busca sus ids nuevos en el árbol de categorías de la tienda"
         )
 
@@ -296,7 +307,8 @@ def main(argv: list[str] | None = None) -> int:
     if result.leaves_failed:
         ambitos = result.unscanned_scopes
         print(
-            f"⚠ {result.leaves_failed}/{result.leaves_scanned} hojas de categoría no responden: "
+            f"⚠ {result.leaves_failed}/{result.leaves_scanned} hojas de categoría no responden"
+            f"{_cuales(result.failed_leaves)}: "
             f"esas categorías han dejado de ingerirse y "
             f"{ambitos} ámbito{'' if ambitos == 1 else 's'} se "
             f"{'queda' if ambitos == 1 else 'quedan'} sin detección de bajas. "
