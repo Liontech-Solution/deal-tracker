@@ -80,6 +80,31 @@ espacio de las edades y habría que volver sobre esto (es la ambigüedad de #103
 `media.mango.com/is/image/punto/{productId}-{colorId}-{portraitId}`. La ficha trae la galería
 completa por color, que es la que se usa cuando se pide el detalle.
 
+**10. La zapatería de Mango es calzado convencional, y por eso no la ve nadie en el catálogo.** No
+es un fallo del clasificador (#150). Medido el 04/08/2026 sobre las **10 hojas de `zapateria`**, 137
+productos con descripción los 137: **0 con señal fuerte** (ninguna ficha nombra «barefoot»,
+«respetuoso», «descalzo», «minimalista» ni el drop), 3 con señal negativa —dos «Plataforma» y un
+«Punta fina»—, y **134 `desconocido`**. El menú tampoco publica ninguna hoja de calzado respetuoso:
+`--tree ninos` da 272 categorías y cero coincidencias. O sea que `desconocido` es **correcto**, y la
+consecuencia —el catálogo filtra `barefoot=si` por defecto, así que Mango no aporta calzado a la
+zapatería— es la deseada: la página enseña solo calzado respetuoso.
+
+**Cuidado con el atajo de ampliar el vocabulario, que aquí es una trampa medida.** Las viñetas de
+Mango describen estética, no construcción: **«Punta redonda» sale en 92 de los 137** y es puro
+adjetivo de estilo (convive con «Plataforma» y con tacón), así que meterla en `_DEBILES` le pondría
+media señal a dos tercios de la zapatería. Lo mismo con la única «horma» del catálogo, que es una
+bailarina con lazo y velcro («Nuevo ajuste de horma con un diseño más ancho»). La regla de las **dos
+señales débiles** ya está haciendo su trabajo: hay 5 productos con «Puntera redondeada» —que sí está
+en `_DEBILES`— y los 5 se quedan en `desconocido` porque no traen una segunda, que es exactamente el
+sesgo que `barefoot.py` documenta. `mango_ficha_zapato.html` fija uno de esos 5.
+
+**La señal barata para re-medirlo**, el día que Mango se meta en calzado respetuoso, es la misma
+consulta de la que salió #150 (caso D8 de `/validar-qa`):
+
+    SELECT p.barefoot, count(*) FROM product p JOIN retailer r ON r.id = p.retailer_id
+    WHERE r.slug = 'mango' AND p.section = 'zapateria' AND p.delisted_at IS NULL
+    GROUP BY 1;
+
 Cumplimiento (comprobado el 03/08/2026): el `robots.txt` de `shop.mango.com` **sí se puede leer**
 (al contrario que el de H&M, Hipercor y Sfera) y declara `Crawl-delay: 0.2`. Veta `/*/c/f/*` —la
 rejilla FILTRADA, que no usamos—, `/*.html` —y las fichas de Mango no acaban en `.html`—,
