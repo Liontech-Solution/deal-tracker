@@ -48,6 +48,12 @@ Cinco cosas que hay que tener presentes al tocar este fichero, todas medidas con
    `73011006127`): es dato por fila en vez de una bandera de página, y además es el valor que ya
    hace falta como `retailer_variant_id`.
 
+**Enumera su árbol sin pedir nada** (`SupportsCategoryTree`, #179), y es la única de las nueve que
+lo hace así: la taxonomía viaja en la ruta de cada URL, o sea que el árbol son las rutas distintas
+del sitemap que ya se descarga. Por eso su `count` es de productos servidos y no declarados. Se
+vigila cada semana (`SupportsCoverageWatch`) porque el árbol es una taxonomía de verdad, no un menú
+con promociones rotando: medido el 04/08/2026, 65 rutas bajo los dos géneros y ni un hueco.
+
 Alcance: solo el mundo `ninos-de-5-a-14` (1378 productos el 03/08/2026). `teen` (84) se queda fuera
 a propósito —es otro mundo con su propia taxonomía y el brief habla de ropa infantil—, y las ~8
 URLs infantiles sin taxonomía (`/es/es/ninos-de-5-a-14/pijama-flores/1310137.html`) se saltan en
@@ -66,6 +72,7 @@ import random
 import re
 import time
 import xml.etree.ElementTree as ET
+from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
@@ -77,6 +84,7 @@ from ..barefoot import classify
 from ..config import Config
 from .base import (
     GONE_STATUS,
+    CategoryNode,
     DelistCandidate,
     LeafHealth,
     ListingEntry,
@@ -175,6 +183,37 @@ class EntradaSitemap:
 
     url: str
     lastmod: str
+
+
+@dataclass(frozen=True)
+class RutaProducto:
+    """La taxonomía que la URL de un producto declara, **en el vocabulario de la tienda**.
+
+    Distinta de `Ubicacion` a propósito: aquí no hay traducción a nuestro dominio. Es lo que la
+    tienda dice, y es lo que necesita la capa de cobertura para poder señalar precisamente lo que
+    NO sabemos traducir.
+    """
+
+    retailer_product_id: str
+    # (género, categoría) o (género, categoría, subcategoría). Nunca menos de dos.
+    taxonomia: tuple[str, ...]
+
+    @property
+    def genero(self) -> str:
+        return self.taxonomia[0]
+
+    @property
+    def categoria(self) -> str:
+        return self.taxonomia[1]
+
+    def ancestros(self) -> list[str]:
+        """Las rutas del árbol a las que este producto pertenece, de arriba abajo.
+
+        `nina/pantalones/shorts` cuenta también para `nina/pantalones` y para `nina`: un producto
+        que cuelga de una subcategoría está dentro de su categoría, y si no se contase así el
+        `count` de las ramas saldría corto justo donde la tienda anida.
+        """
+        return ["/".join(self.taxonomia[: i + 1]) for i in range(len(self.taxonomia))]
 
 
 @dataclass(frozen=True)
@@ -318,16 +357,22 @@ def parse_sitemap_products(xml: str) -> list[EntradaSitemap]:
     return entradas
 
 
-def clasificar(url: str) -> Ubicacion | None:
-    """Género, sección y categoría a partir de la ruta. `None` = esta URL no se ingiere.
+def trocear_ruta(url: str) -> RutaProducto | None:
+    """Id y taxonomía de una URL de producto infantil. `None` = esta URL no cuenta para nada.
 
-    La ruta es `/es/es/{mundo}/{género}/{categoría}[/{subcategoría}]/{slug}/{id}.html`, y con eso
-    se resuelve el ámbito **sin una sola petición**, que es lo que hace viable esta tienda.
+    La ruta es `/es/es/{mundo}/{género}/{categoría}[/{subcategoría}]/{slug}/{id}.html`. Es lo único
+    que hay que leer para saber dónde cae un producto, y por eso lo comparten los **tres** que
+    miran el sitemap: `clasificar()` (qué se ingiere), `check_leaves()` (sigue viva la rama) y
+    `category_tree()` (qué publica la tienda). Estaba escrito tres veces y separarse habría sido
+    cuestión de tiempo: la capa de cobertura solo sirve si habla exactamente el mismo idioma que
+    el listado.
 
-    Se devuelve `None` —sin ruido— en los cuatro casos que no son un error:
-    otro mundo (`mujer`, `hombre`, `teen`), una categoría que no está en el mapa (`pijamas`,
-    `complementos`), un género que no es `nino`/`nina`, y las ~8 URLs infantiles sin taxonomía
-    (`/es/es/ninos-de-5-a-14/pijama-flores/1310137.html`), que tienen solo 3 segmentos.
+    Se devuelve `None` —sin ruido— en los casos que no son un error: otro mundo (`mujer`, `hombre`,
+    `teen`), un género que no es `nino`/`nina`, las ~8 URLs infantiles sin taxonomía
+    (`/es/es/ninos-de-5-a-14/pijama-flores/1310137.html`), que tienen solo 3 segmentos, y lo que no
+    acabe en un id numérico. Ojo a lo que **no** filtra: la categoría, aunque no esté en
+    `CATEGORIA_POR_SEGMENTO`. Eso es cosa de `clasificar()`, porque la cobertura necesita ver justo
+    lo que no ingerimos.
     """
     resto = url.split(f"{BASE_URL}/es/es/", 1)[-1]
     if resto == url:  # la URL no era de esta tienda
@@ -335,10 +380,7 @@ def clasificar(url: str) -> Ubicacion | None:
     segmentos = resto.split("/")
     if len(segmentos) < 5 or segmentos[0] != _MUNDO_INFANTIL:
         return None
-
-    gender = _GENERO_POR_SEGMENTO.get(segmentos[1])
-    seccion_categoria = CATEGORIA_POR_SEGMENTO.get(segmentos[2])
-    if gender is None or seccion_categoria is None:
+    if segmentos[1] not in _GENERO_POR_SEGMENTO:
         return None
 
     fichero = segmentos[-1]
@@ -348,8 +390,29 @@ def clasificar(url: str) -> Ubicacion | None:
     if not product_id.isdigit():
         return None
 
+    # Los dos últimos segmentos son el slug y el fichero; la taxonomía es lo que queda por delante,
+    # o sea género, categoría y —cuando la hay— subcategoría.
+    return RutaProducto(product_id, tuple(segmentos[1:-2]))
+
+
+def clasificar(url: str) -> Ubicacion | None:
+    """Género, sección y categoría a partir de la ruta. `None` = esta URL no se ingiere.
+
+    Resuelve el ámbito **sin una sola petición**, que es lo que hace viable esta tienda. Sobre lo
+    que `trocear_ruta()` acepta, añade el único filtro propio de la ingesta: que la categoría esté
+    en el mapa (`pijamas` y `complementos` no lo están, y por eso no se ingieren).
+    """
+    ruta = trocear_ruta(url)
+    if ruta is None:
+        return None
+
+    gender = _GENERO_POR_SEGMENTO[ruta.genero]
+    seccion_categoria = CATEGORIA_POR_SEGMENTO.get(ruta.categoria)
+    if seccion_categoria is None:
+        return None
+
     section, category = seccion_categoria
-    return Ubicacion(product_id, gender, section, category)
+    return Ubicacion(ruta.retailer_product_id, gender, section, category)
 
 
 def parse_ld_json(html: str) -> FichaBase | None:
@@ -668,14 +731,7 @@ class SpringfieldStore:
         ramas = list(HOJAS)
 
         try:
-            with self._client() as client:
-                indice = self._get_texto(client, _SITEMAP_URL.format(name=_SITEMAP_INDICE))
-                nombres = parse_sitemap_index(indice)
-                entradas: list[EntradaSitemap] = []
-                for nombre in nombres:
-                    entradas += parse_sitemap_products(
-                        self._get_texto(client, _SITEMAP_URL.format(name=nombre))
-                    )
+            rutas = self._rutas_del_sitemap()
         except (httpx.HTTPError, ET.ParseError) as exc:
             # Sin sitemap no hay veredicto sobre ninguna rama: `None` es «no lo sé», que NO es lo
             # mismo que «retirada». Dar False aquí descatalogaría el catálogo entero.
@@ -686,18 +742,101 @@ class SpringfieldStore:
                 yield LeafHealth(scope, f"{genero}/{segmento}", None, detalle)
             return
 
-        cuenta: dict[tuple[str, str], int] = {}
-        for entrada in entradas:
-            segmentos = entrada.url.split(f"{BASE_URL}/es/es/", 1)[-1].split("/")
-            if len(segmentos) < 5 or segmentos[0] != _MUNDO_INFANTIL:
-                continue
-            cuenta[(segmentos[1], segmentos[2])] = cuenta.get((segmentos[1], segmentos[2]), 0) + 1
-
+        cuenta = Counter(f"{r.genero}/{r.categoria}" for r in rutas)
         for genero, segmento in ramas:
             section, category = CATEGORIA_POR_SEGMENTO[segmento]
             scope = ScrapeScope(_GENERO_POR_SEGMENTO[genero], section, category)
-            n = cuenta.get((genero, segmento), 0)
+            n = cuenta.get(f"{genero}/{segmento}", 0)
             yield LeafHealth(scope, f"{genero}/{segmento}", n > 0, f"{n} productos en el sitemap")
+
+    def _rutas_del_sitemap(self) -> list[RutaProducto]:
+        """Los productos infantiles del sitemap, **uno por id**, con su taxonomía.
+
+        Deduplicar no es cosmético: el sitemap **repite cada URL** entre sus ficheros de producto
+        (medido el 04/08/2026: 3207 filas para 1382 productos, un factor de 2,3). Contando filas,
+        `check_leaves()` decía «446 productos» donde hay 193 y la cobertura habría publicado esos
+        mismos números inflados. No cambia ningún veredicto —lo que se mira es que la rama no baje
+        a 0— pero sí lo que se lee, y este número se compara a ojo con el del catálogo.
+
+        Un fichero ilegible **propaga**, al revés que en `list_catalog()`: allí perder un tercio del
+        catálogo es una pasada incompleta que hay que acotar, y aquí es un sondeo que se repite en
+        una hora. Quien llama decide, y los dos que llaman saben decir «no lo sé».
+        """
+        with self._client() as client:
+            indice = self._get_texto(client, _SITEMAP_URL.format(name=_SITEMAP_INDICE))
+            entradas: list[EntradaSitemap] = []
+            for nombre in parse_sitemap_index(indice):
+                entradas += parse_sitemap_products(
+                    self._get_texto(client, _SITEMAP_URL.format(name=nombre))
+                )
+
+        por_id: dict[str, RutaProducto] = {}
+        for entrada in entradas:
+            ruta = trocear_ruta(entrada.url)
+            if ruta is not None:
+                por_id.setdefault(ruta.retailer_product_id, ruta)
+        return list(por_id.values())
+
+    def mapped_leaves(self) -> Iterable[str]:
+        """Ver `stores.base.SupportsCategoryTree`. Las 19 ramas de `HOJAS`.
+
+        El mismo vocabulario que usa `check_leaves()` para su `LeafHealth.leaf`, y a propósito: dos
+        idiomas para el mismo sitio es cómo se llega a que una capa diga que falta lo que la otra
+        está ingiriendo.
+        """
+        return [f"{genero}/{segmento}" for genero, segmento in HOJAS]
+
+    def tree_roots(self) -> Iterable[str]:
+        """Ver `stores.base.SupportsCoverageWatch`. Los dos géneros del mundo infantil.
+
+        No se barre desde `ninos-de-5-a-14`: el mundo no es un nodo del árbol que publicamos —la
+        taxonomía empieza en el género— y los otros mundos (`mujer`, `hombre`, `teen`) quedan fuera
+        del brief a propósito. Medido el 04/08/2026: **65 rutas** entre las dos (29 de niño y 36 de
+        niña, subcategorías incluidas) sobre 1382 productos.
+        """
+        return ["nino", "nina"]
+
+    def tree_separator(self) -> str:
+        """Ver `stores.base.SupportsCoverageWatch`. La ruta de Springfield anida con `/`."""
+        return "/"
+
+    def category_tree(self, root: str) -> Iterable[CategoryNode]:
+        """Ver `stores.base.SupportsCategoryTree`. El árbol sale del sitemap, sin pedir nada nuevo.
+
+        Esta tienda no publica un endpoint de categorías —su rejilla de SFCC está vetada por el
+        `robots.txt`, que es de lo que va #81— pero **no le hace falta**: la taxonomía viaja en la
+        ruta de cada URL de producto, así que el árbol es el conjunto de rutas distintas de las
+        1382 URLs que `check_leaves()` ya se descarga. 4 peticiones para el árbol entero.
+
+        Eso le da una propiedad que no tienen ni Sfera ni C&A: aquí `count` es el número de
+        productos que la tienda **sirve** en esa rama, no el que **declara** su faceta. En Sfera los
+        dos números no coinciden (8 declarados contra 18 servidos, medido en #72), y el aviso de
+        `CategoryNode.count` es justo sobre eso. Aquí no hay hueco entre los dos porque se cuenta lo
+        mismo que se ingiere.
+
+        Un nodo con hijas **también cuenta sus productos**: los 71 `shorts` de `nina/pantalones`
+        están dentro de los 193 de `nina/pantalones`, porque la tienda cuelga el producto de la
+        subcategoría y de su padre a la vez.
+        """
+        rutas = self._rutas_del_sitemap()
+        prefijo = f"{root}/"
+
+        cuenta: Counter[str] = Counter()
+        for ruta in rutas:
+            for ancestro in ruta.ancestros():
+                if ancestro.startswith(prefijo):  # solo descendientes de la raíz pedida
+                    cuenta[ancestro] += 1
+
+        con_hijas = {p.rsplit("/", 1)[0] for p in cuenta}
+        for path in sorted(cuenta):
+            yield CategoryNode(
+                path=path,
+                # La tienda no publica un rótulo aparte: el segmento ES como la llama.
+                title=path.rsplit("/", 1)[-1],
+                count=cuenta[path],
+                depth=path.count("/") - root.count("/"),
+                has_children=path in con_hijas,
+            )
 
     def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
         """Pregunta por la ficha: 200 directo = vivo, 404 = retirado, lo demás sin veredicto.

@@ -15,6 +15,7 @@ from scraper.stores.zara import (
     CATEGORIES,
     CategoryConfig,
     ZaraStore,
+    parse_category_tree,
     parse_detail_product,
     parse_listing_entries,
 )
@@ -295,3 +296,123 @@ def test_discount_pct() -> None:
     assert _discount_pct(Decimal("40"), Decimal("40")) is None  # sin rebaja real
     assert _discount_pct(Decimal("30"), Decimal("60")) == Decimal("50.00")
     assert _discount_pct(Decimal("50"), Decimal("40")) is None  # precio > original: no es descuento
+
+
+# --- el árbol de categorías (#179) -------------------------------------------
+
+
+def arbol() -> dict:
+    return load_fixture("zara_categories_ninos.json")
+
+
+def tienda_con_arbol() -> ZaraStore:
+    """La tienda sirviendo el árbol capturado, sin red."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=arbol())
+
+    store = ZaraStore(Config(database_url="postgresql:///no-usada", request_delay=0.0))
+    store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
+    return store
+
+
+def test_la_ruta_es_la_cadena_de_ids_y_no_el_id_suelto() -> None:
+    """Es lo que deja saber que un nodo cuelga de una hoja que ya ingerimos.
+
+    Los ids de Zara son opacos: `2427327` no dice de quién es hijo. Sin la cadena, los 183 nodos
+    que cuelgan de una hoja mapeada saldrían como huecos.
+    """
+    nodos = {n.path: n for n in parse_category_tree(arbol(), "2112261")}
+
+    assert "2112261/2425905" in nodos, "la rama de niña cuelga directamente de la raíz"
+    ruta_pantalones = "2112261/2425905/2643261/2427327"
+    assert ruta_pantalones in nodos
+    assert nodos[ruta_pantalones].title == "PANTALONES"
+
+
+def test_la_profundidad_se_mide_contra_la_raiz_pedida() -> None:
+    """Pedir una rama o el catálogo entero no puede dar dos profundidades al mismo nodo."""
+    desde_raiz = {n.path: n for n in parse_category_tree(arbol(), "2112261")}
+    desde_rama = {n.path: n for n in parse_category_tree(arbol(), "2112261/2425905")}
+
+    ruta = "2112261/2425905/2643261/2427327"
+    assert desde_raiz[ruta].depth == 3
+    assert desde_rama[ruta].depth == 2, "dos niveles por debajo de la rama de niña"
+
+
+def test_solo_salen_los_descendientes_de_la_raiz_pedida() -> None:
+    """Y la raíz no se emite a sí misma: es lo que se ha preguntado, no un hallazgo."""
+    rutas = {n.path for n in parse_category_tree(arbol(), "2112261/2425905")}
+
+    assert rutas
+    assert all(r.startswith("2112261/2425905/") for r in rutas)
+
+
+def test_un_nodo_sin_hijas_no_se_las_inventa() -> None:
+    nodos = {n.path: n for n in parse_category_tree(arbol(), "2112261")}
+
+    assert not nodos["2112261/2311136"].has_children, "TIENDAS es una hoja del menú"
+    assert nodos["2112261/2425905"].has_children
+
+
+def test_el_count_es_none_porque_este_endpoint_no_lo_dice() -> None:
+    """`None` es «no lo dice» y 0 sería «rama vacía»: confundirlos diría que la tienda se cayó."""
+    assert all(n.count is None for n in parse_category_tree(arbol(), "2112261"))
+
+
+def test_una_raiz_que_el_arbol_ya_no_publica_no_revienta() -> None:
+    """Un id retirado devuelve árbol vacío; quien avisa de que la hoja murió es `check_leaves()`."""
+    assert parse_category_tree(arbol(), "9999999") == []
+
+
+def test_un_payload_sin_categorias_no_inventa_arbol() -> None:
+    assert parse_category_tree({}, "2112261") == []
+    assert parse_category_tree({"categories": []}, "2112261") == []
+
+
+def test_el_menu_publica_ruido_que_no_es_catalogo() -> None:
+    """El porqué de que esta tienda no se vigile cada semana: su árbol no es una taxonomía.
+
+    Si algún día se quisiera vigilar, esto es lo que habría que declarar una por una.
+    """
+    titulos = {n.title for n in parse_category_tree(arbol(), "2112261")}
+
+    assert "DIVIDER_MENU_KIDS5" in titulos
+    assert "TIENDAS" in titulos
+    assert "VER TODO" in titulos
+
+
+def test_mapped_leaves_devuelve_cadenas_y_no_ids_sueltos() -> None:
+    """Tienen que hablar el mismo idioma que el árbol o la cobertura no cruza nada."""
+    store = tienda_con_arbol()
+    hojas = set(store.mapped_leaves())
+
+    assert hojas, "el fixture trae la rama de niña, con 14 hojas mapeadas"
+    assert all("/" in h for h in hojas)
+    assert "2112261/2425905/2643261/2427327" in hojas
+
+
+def test_mapped_leaves_omite_la_hoja_cuyo_id_ha_caducado() -> None:
+    """Inventarle una cadena la marcaría como ingerida; quien lo canta es `check_leaves()`."""
+    store = tienda_con_arbol()
+    store._categories = [*store._categories, CategoryConfig(9999999, "niña", "ropa", "vestidos")]
+
+    assert not any(h.endswith("9999999") for h in store.mapped_leaves())
+
+
+def test_el_arbol_se_pide_una_sola_vez_por_instancia() -> None:
+    """`run --tree` llama a `mapped_leaves()` y a `category_tree()`: sin caché serían 2 MB."""
+    llamadas = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal llamadas
+        llamadas += 1
+        return httpx.Response(200, json=arbol())
+
+    store = ZaraStore(Config(database_url="postgresql:///no-usada", request_delay=0.0))
+    store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
+
+    list(store.mapped_leaves())
+    list(store.mapped_leaves())
+
+    assert llamadas == 1

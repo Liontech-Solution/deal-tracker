@@ -7,6 +7,12 @@ navegador (imagen ligera). Tres endpoints:
   - listado de categoría: /category/{id}/products?ajax=true   (ids + precio por color)
   - detalle (con tallas):  /products-details?productIds={id}&ajax=true
 
+El árbol se enumera (`SupportsCategoryTree`, #179) y con él va `--tree`, que es lo que hay que
+lanzar cuando una hoja da 404 (ver la nota sobre ids caducados más abajo). Lo que **no** se hace es
+vigilarlo cada semana: ese árbol es el menú de navegación, con 536 nodos sin cubrir de 766 que son
+«VER TODO», «COLECCIÓN», dividers y editoriales. El motivo, medido, está en
+`vigia.COBERTURA_SIN_VIGILAR`.
+
 El id estable del producto es `seo.discernProductId` (independiente de temporada);
 la variante estable es `{productId}-{colorId}-{sizeId}`.
 
@@ -35,6 +41,7 @@ from ..barefoot import classify as classify_barefoot
 from ..config import Config
 from .base import (
     GONE_STATUS,
+    CategoryNode,
     DelistCandidate,
     LeafHealth,
     ListingEntry,
@@ -48,6 +55,11 @@ from .base import (
 SLUG = "zara"  # a nivel de módulo porque las funciones puras de parseo también lo necesitan
 BASE_URL = "https://www.zara.com/es/es/"
 _CATEGORY_URL = BASE_URL + "category/{cat_id}/products?ajax=true"
+# El árbol de navegación entero en una petición (~1 MB). Solo lo usa el recon (`--tree`), no la
+# pasada: para saber si una hoja sigue viva se le pide su listado, no esto (ver `check_leaves`).
+_CATEGORIES_URL = BASE_URL + "categories?ajax=true"
+# El nodo del que cuelga todo el catálogo infantil, que es el alcance de este scraper.
+_RAIZ_NINOS = 2112261
 # El endpoint de detalle solo devuelve datos para UN productId por llamada
 # (con varios ids separados por coma responde una lista vacía).
 _DETAILS_URL = BASE_URL + "products-details?productIds={product_id}&ajax=true"
@@ -310,6 +322,58 @@ def parse_detail_product(
     )
 
 
+def parse_category_tree(payload: Any, root: str) -> list[CategoryNode]:
+    """El árbol que publica `/categories`, por debajo de `root`. Pura (JSON -> nodos).
+
+    **La ruta es la cadena de ids desde la raíz pedida** (`2425905/2427327`), no el id suelto, y es
+    la decisión que hace útil a toda la capa: los ids de Zara son opacos —al revés que los de C&A,
+    donde `3-7-1-2` ya dice que cuelga de `3-7-1`— así que sin cadena no hay forma de saber que un
+    nodo está dentro de una hoja que ya ingerimos. Medido el 04/08/2026: de los 878 nodos del árbol
+    infantil, **183 cuelgan de una hoja de `CATEGORIES`**, y a id suelto los 183 se señalarían como
+    huecos. Un informe con 183 falsos positivos no lo lee nadie dos veces.
+
+    El `count` es `None` en todos: este endpoint publica la navegación, no cuántos productos hay
+    detrás. `None` es «no lo dice», que no es 0 (ver `CategoryNode`).
+    """
+    raiz = _buscar_nodo(payload.get("categories") or [], int(root.rsplit("/", 1)[-1]))
+    if raiz is None:
+        return []
+
+    nodos: list[CategoryNode] = []
+
+    def walk(nodo: Mapping[str, Any], cadena: str, depth: int) -> None:
+        for hija in nodo.get("subcategories") or []:
+            if not isinstance(hija, dict) or not isinstance(hija.get("id"), int):
+                continue
+            ruta = f"{cadena}/{hija['id']}"
+            nodos.append(
+                CategoryNode(
+                    path=ruta,
+                    title=str(hija.get("name") or ""),
+                    count=None,
+                    depth=depth,
+                    has_children=bool(hija.get("subcategories")),
+                )
+            )
+            walk(hija, ruta, depth + 1)
+
+    walk(raiz, root, 1)
+    return nodos
+
+
+def _buscar_nodo(nodos: Iterable[Any], category_id: int) -> Mapping[str, Any] | None:
+    """El nodo con ese id en cualquier profundidad, o `None` si el árbol ya no lo publica."""
+    for nodo in nodos:
+        if not isinstance(nodo, dict):
+            continue
+        if nodo.get("id") == category_id:
+            return nodo
+        encontrado = _buscar_nodo(nodo.get("subcategories") or [], category_id)
+        if encontrado is not None:
+            return encontrado
+    return None
+
+
 class ZaraStore:
     """Scraper de Zara. Implementa el Protocol BaseStore."""
 
@@ -321,6 +385,7 @@ class ZaraStore:
         self._config = config
         self._categories = categories if categories is not None else CATEGORIES
         self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
+        self._rutas: list[str] | None = None  # árbol cacheado; ver `_cadenas()`
 
     def scopes(self) -> Iterable[ScrapeScope]:
         # Ámbitos que se recorren, deducidos de las categorías configuradas (sin duplicar).
@@ -392,6 +457,52 @@ class ZaraStore:
     def scan_report(self) -> ScanReport:
         """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""
         return self._scan
+
+    def category_tree(self, root: str) -> Iterable[CategoryNode]:
+        """Ver `stores.base.SupportsCategoryTree`. Una sola petición para el árbol entero.
+
+        `/categories?ajax=true` es el endpoint que la cabecera de este módulo ya manda consultar a
+        mano cada vez que una hoja da 404 — «toca buscar el id nuevo». Esto es exactamente eso, pero
+        sin salir del proyecto y cruzado contra lo que ingerimos, que es la parte que a ojo se hace
+        mal: son 878 nodos.
+
+        `root` es una cadena de ids (`2112261` para NIÑOS, `2112261/2425905` para su rama de niña),
+        y basta con el último para localizar el nodo: los ids son únicos en todo el árbol.
+        """
+        with self._client() as client:
+            payload = self._get_json(client, _CATEGORIES_URL)
+        return parse_category_tree(payload, root)
+
+    def mapped_leaves(self) -> Iterable[str]:
+        """Ver `stores.base.SupportsCategoryTree`. Las hojas de `CATEGORIES`, en cadena de ids.
+
+        Hay que resolverlas contra el árbol porque `CATEGORIES` guarda el id suelto y el vocabulario
+        de esta capa es la cadena (ver `parse_category_tree`). Cuesta la misma petición que el
+        árbol y se cachea, así que `run --tree` sigue haciendo una sola.
+
+        Una hoja que el árbol ya no publica **se omite**, y eso no es tragarse un fallo: significa
+        que su id ha caducado, que es justo lo que `check_leaves()` sí sabe decir y con el veredicto
+        que corresponde. Aquí inventarle una cadena sería peor — la marcaría como ingerida.
+        """
+        arbol = {ruta.rsplit("/", 1)[-1]: ruta for ruta in self._cadenas()}
+        return [
+            arbol[str(cat.category_id)] for cat in self._categories if str(cat.category_id) in arbol
+        ]
+
+    def tree_separator(self) -> str:
+        """Ver `stores.base.SupportsCategoryTree`. La cadena de ids se anida con `/`.
+
+        Es nuestro, no de la tienda: sus ids son opacos y no se anidan solos (ver
+        `parse_category_tree`). Da igual cuál sea mientras no aparezca dentro de un id, y un id de
+        Zara es siempre un número.
+        """
+        return "/"
+
+    def _cadenas(self) -> list[str]:
+        """Las rutas del árbol infantil completo, cacheadas por instancia."""
+        if self._rutas is None:
+            self._rutas = [n.path for n in self.category_tree(str(_RAIZ_NINOS))]
+        return self._rutas
 
     def check_leaves(self) -> Iterable[LeafHealth]:
         """Sondea las hojas configuradas (ver `stores.base.SupportsLeafHealth`).

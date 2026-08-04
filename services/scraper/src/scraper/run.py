@@ -26,11 +26,16 @@ from .stores.base import (
     BaseStore,
     CategoryNode,
     SupportsCategoryTree,
-    SupportsCoverageWatch,
     SupportsScanReport,
 )
 from .stores.registry import available_slugs, get_store
-from .vigia import COBERTURA_DECLARADA, Informe, cubierta, revisar_hojas
+from .vigia import (
+    COBERTURA_DECLARADA,
+    COBERTURA_SIN_VIGILAR,
+    Informe,
+    cubierta,
+    revisar_hojas,
+)
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -155,7 +160,10 @@ def _tree(config: Config, slug: str, root: str) -> int:
     # cuelgan de una hoja que sí ingerimos. Dos lecturas distintas del mismo árbol es cómo alguien
     # se convence de que el vigía está roto.
     declaradas = COBERTURA_DECLARADA.get(slug, {})
-    sep = store.tree_separator() if isinstance(store, SupportsCoverageWatch) else None
+    # Desde #179 el separador lo declara quien enumera, no quien se vigila: antes las tiendas que
+    # enumeran sin vigilarse (Mango, Zara) se quedaban sin él y pintaban como hueco todo lo que
+    # cuelga de una hoja ingerida, que en la rama de niña de Zara eran 139 de 153.
+    sep = store.tree_separator()
 
     huecos = 0
     lineas: list[str] = []
@@ -178,7 +186,13 @@ def _tree(config: Config, slug: str, root: str) -> int:
         lineas.append(f"  {marca} {sangria}{nodo.path:<44}{cuenta}  {nodo.title}{hijos}")
 
     if nodos:
-        aviso = "" if sep else " (sin vigilancia de cobertura: no se descuenta lo que cuelga)"
+        # El vigía solo mira las tiendas sin declarar, así que decirlo aquí evita la lectura de
+        # que estos huecos suenen solos el jueves: en las declaradas, este comando ES la vigilancia.
+        aviso = (
+            " (sin vigilancia semanal: estos huecos no los va a cantar nadie)"
+            if slug in COBERTURA_SIN_VIGILAR
+            else ""
+        )
         print(f"{slug} · árbol de {root}: {len(nodos)} categorías, {huecos} sin cubrir{aviso}")
         for linea in lineas:
             print(linea)
