@@ -978,6 +978,40 @@ las declara la tienda (`tree_roots()`) eligiendo coste, no cobertura máxima. Y 
 `vigia_run` sin migración, que era justo lo que la `0022` había previsto al guardar una fila por
 capa en vez de una columna por capa.
 
+### La cobertura dice dónde mirar, no qué hay: el nombre de una hoja no predice su contenido (#175)
+
+Los cuatro huecos que la tabla de arriba le contó a Sfera eran sus `ropa-deportiva`, y la issue que
+salió de ahí daba por supuesto lo que decía la etiqueta: que faltaba una categoría deportiva y había
+que crearla en todas las tiendas. **Medido el 04/08/2026, la etiqueta tapaba tres cosas distintas en
+las tres tiendas que enumeran su árbol:**
+
+| tienda | qué es «ropa de deporte» ahí | medida | qué se hizo |
+|---|---|---|---|
+| sfera | sus sudaderas con otro nombre | 91 productos: `Sudaderas sin capucha` 56, `Conjuntos` 25, `con capucha` 10 | mapeadas a `sudaderas` |
+| c-and-a | vista transversal, como «Básicos» o «Novedades» | 42 de 45 ya entran por camisetas/pantalones/sudaderas; los 3 exclusivos son chaquetas y un chubasquero | declarada, con el número |
+| mango | colección promocional | `dest_chandal_*`, y solo 3 ramas —sin `nina`— | documentada como transversal |
+
+De ahí la regla: **antes de mapear una hoja hay que mirar qué tiene dentro, y hay una forma barata
+de hacerlo.** Sfera publica en el mismo `_menubar` que ya lee `parse_category_tree()` una faceta
+`attr.fashion_level3` («Tipo de producto») con valores y conteos, así que se sabe qué clases de
+prenda hay en una hoja **sin pedir una sola ficha**. Lo que no se puede es filtrar después de
+traer: el listado firefly **no** trae `attr` por producto (comprobado sobre el fixture), así que
+quedarse con parte de una hoja exige pedirla ya acotada por la faceta, una petición más por hoja.
+
+Dos consecuencias que sobreviven a esta issue:
+
+- **Una hoja nueva se añade AL FINAL de `CATEGORIES`.** `list_catalog()` deduplica con «gana la
+  primera», así que en Sfera los 47 de deporte que ya entraban por `sudaderas` conservaron su hoja
+  y **ningún producto vivo cambió de ámbito** — que es justo el disparador de la falsa «caída
+  sospechosa» (#174). Lo que aporta la hoja es entonces exactamente su residuo: +44 medidos con el
+  catálogo en un solo instante (594 → 638), y no los ~80 que la faceta declaraba.
+- **Una afirmación no medida envejece como si fuera dato.** Al retirar `bebe-nino/punto-y-jerseis`
+  (#151) se escribió en el código que no había sustituta porque «`ropa-deportiva` … no son
+  `sudaderas`». Nadie lo había mirado: son 14 sudaderas y 4 conjuntos que la tienda misma etiqueta
+  así. El coste de esa frase fue que la rama de bebé de niño se quedó **sin ninguna sudadera** hasta
+  hoy (ahora 18; en niña, 22). Cuando un comentario justifique dejar algo fuera, o lleva el número
+  al lado o dice que no se ha medido.
+
 **Y el límite que hay que tener presente al leerlo en verde: el vigía no dice nada de la ingesta.**
 Responde «¿nos dejan entrar?» —hojas vivas y parseo de 5 productos, sin tocar el catálogo—,
 así que una tienda puede llevar semanas con el vigía en verde y un CronJob desplegado **sin haber

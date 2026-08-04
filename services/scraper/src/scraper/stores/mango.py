@@ -213,6 +213,13 @@ class CategoryConfig:
 # (`dest_*`, `basicos_*`, `best_sellers_*`, `nuevo_*`, `licencias_*`, `denim`, `lino`, `pre-teen`,
 # `total-look`, `nuevos-artículos-añadidos`), que solapan con las hojas de género y duplicarían el
 # trabajo para los mismos productos — el mismo criterio que en H&M.
+#
+# De esas transversales conviene nombrar una, porque su etiqueta invita a mapearla y en #175 se
+# comprobó que no: `dest_chandal_*` («kids.colecciones.ropadeportiva»). Es `dest_`, o sea la familia
+# de destacados que rota con la campaña, y la tienda solo publica **tres** ramas —`nino`,
+# `babynina`, `babynino`, sin `nina`—, que es la asimetría típica de una promoción y no de una
+# taxonomía. En Sfera la hoja del mismo nombre resultó ser sudaderas y en C&A una vista transversal;
+# aquí es promoción.
 CATEGORIES: list[CategoryConfig] = [
     # --- nina (niña) ---
     CategoryConfig("prendas_nina.camisas_nina", "niña", "ropa", "camisetas"),

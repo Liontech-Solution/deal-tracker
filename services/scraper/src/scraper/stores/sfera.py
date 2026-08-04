@@ -185,11 +185,12 @@ CATEGORIES: list[CategoryConfig] = [
     # mientras que `bebe-nina` SÍ la sigue publicando (7 productos). Es la asimetría entre ramas
     # que avisa el comentario de arriba, ahora también en el tiempo.
     #
-    # Se retira en vez de sustituirse porque no hay sustituta: lo que la rama publica y no
-    # ingerimos es `ropa-deportiva` y `abrigos-y-cazadoras`, que no son `sudaderas`. El ámbito
-    # `niño/ropa/sudaderas` no se queda huérfano — lo siguen alimentando `ninos/nino/sudaderas` y
-    # `ninos/nino/punto-y-jerseis`—, y eso es justo lo que había que comprobar: una hoja muerta
-    # excluía el ámbito ENTERO de la detección de bajas en cada pasada.
+    # Se retiró en vez de sustituirse porque se dio por hecho que no había sustituta: «lo que la
+    # rama publica y no ingerimos es `ropa-deportiva` y `abrigos-y-cazadoras`, que no son
+    # `sudaderas`». **Eso era una suposición y se ha medido en #175: es falsa.**
+    # `bebe-nino/ropa-deportiva` son 18 productos que la propia tienda etiqueta «Sudaderas sin
+    # capucha» (14) y «Conjuntos» (4) en su faceta `attr.fashion_level3`. Sí había sustituta, y va
+    # mapeada al final de esta lista.
     #
     # Si vuelve en otoño (es ropa de temporada) no lo dirá el vigía, que solo sonda lo mapeado:
     # lo delata `--tree`.
@@ -201,7 +202,31 @@ CATEGORIES: list[CategoryConfig] = [
     # engorda, lo que toca es filtrar por `attr.fashion_level3`, no seguir tragándola entera.
     #
     # Se quedan FUERA a propósito, por no ser ninguna de las cinco del brief y porque su equivalente
-    # de 6-14 tampoco se mapea: `bano` / `banadores-bebe`, `ropa-deportiva` y `abrigos-y-cazadoras`.
+    # de 6-14 tampoco se mapea: `bano` / `banadores-bebe` y `abrigos-y-cazadoras`.
+    #
+    # --- «ropa deportiva», que en esta tienda son SUDADERAS (#175) ---
+    # El nombre de la hoja engaña y por eso llevaba fuera desde el principio: aquí no hay ni una
+    # malla ni una camiseta técnica. Medido el 04/08/2026 sobre las cuatro hojas, 91 productos, con
+    # la faceta `attr.fashion_level3` («Tipo de producto») que la propia tienda publica:
+    #
+    #     Sudaderas sin capucha 56 · Conjuntos 25 · Sudaderas con capucha 10
+    #
+    # y los títulos dicen lo mismo: 66 empiezan por «Sudadera» y 25 por «Conjunto». Así que van a
+    # `sudaderas`, que es lo que son. Los conjuntos (chándal de sudadera + pantalón) entran con
+    # ellas, por el mismo criterio con el que `accesorios-y-pijamas` entra sucia: son 25 y
+    # separarlos exigiría pedir la hoja filtrada por la faceta, una petición más por hoja para
+    # mover una prenda que ya está en la categoría adyacente.
+    #
+    # Van AL FINAL a propósito. `list_catalog()` deduplica con «gana la primera», así que los 47 que
+    # ya entran por `ninos/{nina,nino}/sudaderas` conservan su hoja y ningún producto vivo cambia de
+    # ámbito (una mudanza de ámbito se lee como caída sospechosa y omite las bajas de ese ámbito
+    # durante la pasada, #174). Lo que aportan son los **44 exclusivos**, y ahí está lo que importa:
+    # 32 son de bebé, donde `bebe-nino` no tiene hoja de sudaderas desde #151 y `bebe-nina` solo
+    # tiene `punto-y-jerseis` (9). Ninguna estrena ámbito.
+    CategoryConfig("ninos/nina/ropa-deportiva", "niña", "ropa", "sudaderas"),
+    CategoryConfig("ninos/nino/ropa-deportiva", "niño", "ropa", "sudaderas"),
+    CategoryConfig("ninos/bebe-nina/ropa-deportiva", "niña", "ropa", "sudaderas"),
+    CategoryConfig("ninos/bebe-nino/ropa-deportiva", "niño", "ropa", "sudaderas"),
 ]
 
 
