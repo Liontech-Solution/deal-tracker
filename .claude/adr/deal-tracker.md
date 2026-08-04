@@ -71,6 +71,18 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
   (Sfera). Se declara a nivel de tienda **en vez de** usar `category="barefoot"`: ese slug dejaría
   todo el catálogo bajo una sola categoría y mataría la faceta. Cacles es la primera tienda donde
   categoría y respetuosidad son ejes ortogonales; en Zara y Lefties siguen mezclados.
+- **La heurística de texto tiene techo, y un cero redondo no es un fallo suyo.** Medido en Mango el
+  04/08/2026 (#150): 137 zapatos en sus 10 hojas de `zapateria`, **0 con señal fuerte** y 3 con
+  negativa, o sea toda la zapatería de la tienda en `desconocido` e invisible bajo el filtro por
+  defecto. No había nada que arreglar — Mango no vende calzado respetuoso, y su menú tampoco publica
+  ninguna hoja de ello (`--tree ninos`: 272 categorías, cero coincidencias). Lo que sí hay es una
+  **trampa medida para el que venga a ampliar el vocabulario**: las viñetas de estas cadenas
+  describen estética, no construcción, y «Punta redonda» sale en **92 de los 137**, así que meter en
+  `_DEBILES` lo que *suena* a barefoot le pondría media señal a dos tercios del calzado. La regla de
+  las dos señales débiles es lo que sostiene el sesgo de `barefoot.py` (5 productos con «Puntera
+  redondeada» suelta se quedan en `desconocido`, correctamente). Consecuencia de producto: **una
+  cadena de moda convencional puede aportar cero a la zapatería y eso es lo correcto**; lo que no
+  puede es pasar inadvertido, y quien lo detecta es el caso D8 de `/validar-qa`, no el scraper.
 - El **web** expone `/api/catalog/*`, `/api/interests`, `/api/settings/telegram`, `/api/config`,
   `/api/health`, y el job `dist/jobs/matching.job.js` que evalúa ofertas y notifica por Telegram.
 - `services/web/src/database/schema.ts` (Drizzle) es un **espejo** del SQL, no la fuente de verdad.

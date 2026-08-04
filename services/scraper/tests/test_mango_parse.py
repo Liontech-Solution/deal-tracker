@@ -14,6 +14,10 @@ que su cabecera documenta:
   status.
 - `mango_ficha_pantalon.html` — la ficha de `37051350`, con el payload RSC del que salen nombre,
   URL canónica, colores, tallas, stock y tachado en una sola petición.
+- `mango_ficha_zapato.html` — la ficha de `37053308`, capturada el 04/08/2026 para #150: es uno de
+  los **5 zapatos de los 137** cuya descripción trae una señal débil de `barefoot.py` («Puntera
+  redondeada») y ninguna más. Ejerce por primera vez el camino barefoot de esta tienda, que las seis
+  fixturas anteriores no tocaban por ser todas de ropa.
 - `mango_menu.json` — el menú público del que sale `category_tree()`, y con él los `catalogId` de
   `CATEGORIES`: no están adivinados.
 
@@ -24,8 +28,10 @@ rompa los tests.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -39,6 +45,7 @@ from scraper.stores.mango import (
     FichaIlegible,
     MangoStore,
     _ambito,
+    _descripcion,
     es_listado,
     firma_listado,
     foto_de_listado,
@@ -58,6 +65,10 @@ def _json(nombre: str) -> object:
 
 def _html(nombre: str) -> str:
     return (_FIXTURES / nombre).read_text(encoding="utf-8")
+
+
+def _html_ficha(cual: str) -> Mapping[str, Any]:
+    return parse_ficha(_html(f"mango_ficha_{cual}.html"))
 
 
 def _hoja(gender: str, section: str, category: str, contiene: str) -> CategoryConfig:
@@ -246,6 +257,37 @@ def test_una_ficha_sin_payload_no_se_confunde_con_un_producto_retirado() -> None
 def test_un_producto_sin_variantes_no_se_emite() -> None:
     assert producto({"id": "1", "colors": []}, ScrapeScope("niña", "ropa", "pantalones")) is None
     assert producto({"colors": [{"id": "01"}]}, ScrapeScope("niña", "ropa", "pantalones")) is None
+
+
+# --- barefoot ------------------------------------------------------------------------------
+
+
+def test_la_ropa_no_recibe_marca_barefoot_y_el_calzado_si() -> None:
+    """`NULL` (no aplica) y `desconocido` (no se sabe) no son lo mismo: decide `section`."""
+    ropa = producto(_html_ficha("pantalon"), ScrapeScope("niña", "ropa", "pantalones"))
+    zapato = producto(_html_ficha("zapato"), ScrapeScope("niña", "zapateria", "zapatos"))
+    assert ropa is not None and zapato is not None
+    assert ropa.barefoot is None
+    assert zapato.barefoot is not None
+
+
+def test_una_sola_senal_debil_deja_el_zapato_de_mango_en_desconocido() -> None:
+    """El caso que motivó #150, fijado sobre dato real de la tienda.
+
+    Mango no etiqueta el calzado respetuoso en su árbol ni es barefoot nativa, así que decide el
+    texto — y su texto describe estética, no construcción. Esta ficha trae «Puntera redondeada», que
+    **sí** es una de las señales débiles de `barefoot.py`, y ninguna más: el veredicto es
+    `desconocido`, no `si`. Es el sesgo deliberado del módulo (en la duda nunca `si`) ejercido sobre
+    el catálogo que lo puso a prueba, y la razón por la que la zapatería de Mango no sale en el
+    catálogo por defecto.
+    """
+    ficha = _html_ficha("zapato")
+    prod = producto(ficha, ScrapeScope("niña", "zapateria", "zapatos"))
+    assert prod is not None
+    descripcion = _descripcion(ficha)
+    assert descripcion is not None, "sin viñetas el veredicto sería `desconocido` por otro motivo"
+    assert "Puntera redondeada" in descripcion, "la fixture ya no ejerce la señal débil suelta"
+    assert prod.barefoot == "desconocido"
 
 
 # --- las hojas -----------------------------------------------------------------------------
