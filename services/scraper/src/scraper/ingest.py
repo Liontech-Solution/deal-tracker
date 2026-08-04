@@ -126,6 +126,12 @@ class IngestResult:
     # dónde empezar a mirar. `scrape_run.message` ya los nombraba (ver `_success_message`); lo que
     # faltaba era decirlo también en el resumen, que es lo que alguien lee.
     skipped_scope_names: list[str]
+    # Ámbitos que HABRÍAN salido como caída sospechosa y no lo hacen porque sus productos se han
+    # mudado a otro ámbito, no desaparecido (#174). No es un error —por eso no suma en `errors`—
+    # pero se publica: es la única señal de que esta pasada ha visto un cambio de clasificación, y
+    # sin ella el arreglo y una regresión del arreglo se leen igual (silencio en las dos).
+    remapped_scopes: int
+    remapped_scope_names: list[str]
     leaves_scanned: int  # hojas de categoría recorridas en el listado
     leaves_failed: int  # de las anteriores, las que la tienda ya no sirve (404)
     # Cómo se llaman esas hojas, en el vocabulario de cada tienda (ver `ScanReport.failed_leaves`,
@@ -197,9 +203,20 @@ class _ExistingProduct:
     signature: str | None
     delisted: bool
     last_detail_at: datetime | None  # None = nunca se le pidió detalle (o pre-migración 0009)
-    # Género almacenado: solo se usa para detectar que la fila conserva el de una pasada anterior
-    # (ver `gender_stale` en IngestResult). Lo escribe `_upsert_product`, o sea solo el detalle.
+    # ÁMBITO ALMACENADO: el que escribió una pasada anterior, que no tiene por qué ser el que el
+    # listado le asigna hoy. Sirve para dos cosas distintas:
+    #   - `gender` solo, para detectar que la fila conserva el género viejo (`gender_stale` en
+    #     IngestResult). Lo escribe `_upsert_product`, o sea solo el detalle.
+    #   - los tres juntos, para saber qué productos se han MUDADO de ámbito (#174, ver
+    #     `_moved_out_counts`). Ahí importa justamente que sea el viejo: es el lado del que hay
+    #     que descontar la caída.
     gender: str | None = None
+    section: str | None = None
+    category: str | None = None
+
+    @property
+    def scope(self) -> _ScopeKey:
+        return (self.gender, self.section, self.category)
 
 
 def _load_existing(cur: psycopg.Cursor, retailer_id: int) -> dict[str, _ExistingProduct]:
@@ -207,14 +224,20 @@ def _load_existing(cur: psycopg.Cursor, retailer_id: int) -> dict[str, _Existing
     cur.execute(
         """
         SELECT retailer_product_id, id, listing_signature, (delisted_at IS NOT NULL),
-               last_detail_at, gender
+               last_detail_at, gender, section, category
         FROM product WHERE retailer_id = %s
         """,
         (retailer_id,),
     )
     return {
         row[0]: _ExistingProduct(
-            id=row[1], signature=row[2], delisted=row[3], last_detail_at=row[4], gender=row[5]
+            id=row[1],
+            signature=row[2],
+            delisted=row[3],
+            last_detail_at=row[4],
+            gender=row[5],
+            section=row[6],
+            category=row[7],
         )
         for row in cur.fetchall()
     }
@@ -498,10 +521,40 @@ def _load_active_counts(cur: psycopg.Cursor, retailer_id: int) -> dict[_ScopeKey
     return {(row[0], row[1], row[2]): row[3] for row in cur.fetchall()}
 
 
+def _moved_out_counts(
+    entries: list[ListingEntry], existing: dict[str, _ExistingProduct]
+) -> dict[_ScopeKey, int]:
+    """Productos que han cambiado de ámbito, contados en su ámbito de ORIGEN (#174).
+
+    `prior_active` habla el vocabulario que escribió la pasada anterior y `seen_by_scope` el del
+    código de ahora, así que un cambio de clasificación —el arreglo unisex de #98, el de #139— hace
+    que los productos «se muden»: el ámbito que pierde población parece desplomarse aunque no falte
+    ni uno. Medido en Hipercor `niña/zapateria/zapatos`: 21 productos vivos, 0 perdidos, y las runs
+    #45 y #46 avisando de caída sospechosa y omitiendo las bajas de ese ámbito.
+
+    No hace falta reclasificar nada para verlo: la entrada del listado ya trae la clasificación de
+    ahora y `existing` la de antes, así que cruzarlas por `retailer_product_id` dice exactamente
+    quién se ha mudado y desde dónde.
+
+    Solo cuentan los que estaban ACTIVOS: `prior_active` no incluye a los dados de baja, así que
+    sumar uno de esos descontaría de una caída que sí es real. Y se cuenta en el ámbito de origen
+    porque es el que hay que rescatar de la sospecha, no el de destino, que ya los ve llegar.
+    """
+    moved: Counter[_ScopeKey] = Counter()
+    for entry in entries:
+        prior = existing.get(entry.retailer_product_id)
+        if prior is None or prior.delisted:
+            continue
+        if prior.scope != (entry.gender, entry.section, entry.category):
+            moved[prior.scope] += 1
+    return dict(moved)
+
+
 def _suspicious_scopes(
     scanned: list[ScrapeScope],
     seen_by_scope: dict[_ScopeKey, int],
     prior_active: dict[_ScopeKey, int],
+    moved_out: dict[_ScopeKey, int],
     min_baseline: int,
     drop_ratio: float,
 ) -> set[_ScopeKey]:
@@ -509,12 +562,18 @@ def _suspicious_scopes(
 
     Solo se consideran ámbitos con una población previa mínima (`min_baseline`) para no
     saltar por ruido en ámbitos pequeños. Devuelve las claves cuyas bajas hay que OMITIR.
+
+    Lo mudado cuenta como visto (#174): un producto que ahora se lista en otro ámbito **no ha
+    desaparecido**, así que restarlo de la caída es lo que distingue una reclasificación de una
+    tienda rota. No afloja la red donde importa: si un ámbito se vacía de verdad, sus productos no
+    aparecen en ningún otro y `moved_out` es cero. Y si solo se muda parte, los que faltan de verdad
+    siguen su camino normal por histéresis y sondeo de confirmación.
     """
     suspicious: set[_ScopeKey] = set()
     for scope in scanned:
         key = (scope.gender, scope.section, scope.category)
         base = prior_active.get(key, 0)
-        seen = seen_by_scope.get(key, 0)
+        seen = seen_by_scope.get(key, 0) + moved_out.get(key, 0)
         if base >= min_baseline and seen < base * drop_ratio:
             suspicious.add(key)
     return suspicious
@@ -755,7 +814,10 @@ def _render_scope(scope: ScrapeScope | _ScopeKey) -> str:
 
 
 def _success_message(
-    report: ScanReport, suspicious: set[_ScopeKey], gender_frozen: int = 0
+    report: ScanReport,
+    suspicious: set[_ScopeKey],
+    gender_frozen: int = 0,
+    rescued: set[_ScopeKey] | None = None,
 ) -> str | None:
     """Por qué esta pasada, aun con éxito, no está del todo limpia. `None` si lo está (#151).
 
@@ -772,6 +834,11 @@ def _success_message(
     esta pasada ha tomado sobre el dato guardado (#172), y si solo se dijera por stdout habría que
     creerse el log de un pod que se recicla — que es exactamente lo que hizo falta y no había
     cuando se midió el caso de Hipercor.
+
+    `rescued` entra por el mismo motivo y con la misma condición de no sumar en `errors` (#174):
+    son ámbitos que HABRÍAN salido como caída sospechosa y no lo hacen porque sus productos se han
+    mudado. Dicho aquí, un cambio de clasificación deja rastro en la fila de la pasada en vez de
+    parecer que no pasó nada.
     """
     partes: list[str] = []
     if report.leaves_failed:
@@ -788,6 +855,9 @@ def _success_message(
     if suspicious:
         ambitos = sorted(_render_scope(s) for s in suspicious)
         partes.append(f"ambitos con caida sospechosa: {', '.join(ambitos)}")
+    if rescued:
+        ambitos = sorted(_render_scope(s) for s in rescued)
+        partes.append(f"ambitos remapeados: {', '.join(ambitos)}")
     if gender_frozen:
         partes.append(f"generos conservados: {gender_frozen}")
     return " · ".join(partes)[:_MAX_FAIL_MESSAGE] if partes else None
@@ -965,8 +1035,29 @@ def ingest(
             seen_by_scope: dict[_ScopeKey, int] = Counter(
                 (e.gender, e.section, e.category) for e in entries
             )
+            # …y (#174) lo que no ha desaparecido, solo se ha mudado de ámbito: sin esto, cualquier
+            # cambio de clasificación deja al ámbito de origen sin bajas durante una o dos pasadas.
+            moved_out = _moved_out_counts(entries, existing)
             suspicious = _suspicious_scopes(
-                scanned, seen_by_scope, prior_active, delist_min_baseline, delist_drop_ratio
+                scanned,
+                seen_by_scope,
+                prior_active,
+                moved_out,
+                delist_min_baseline,
+                delist_drop_ratio,
+            )
+            # Los RESCATADOS por la mudanza: los que habrían saltado sin contarla. Se publican
+            # aunque NO sean un error porque si el rescate fuera mudo, una regresión que dejara de
+            # detectar la mudanza se vería exactamente igual que el arreglo funcionando. Mismo
+            # criterio que `generos conservados` (#172). Se calcula volviendo a llamar con las
+            # mudanzas a cero en vez de repitiendo el umbral aquí, que es lo que se desincronizaría.
+            rescued = (
+                _suspicious_scopes(
+                    scanned, seen_by_scope, prior_active, {}, delist_min_baseline, delist_drop_ratio
+                )
+                - suspicious
+                if moved_out
+                else set()
             )
             safe_scopes = [
                 s for s in scanned if (s.gender, s.section, s.category) not in suspicious
@@ -1012,7 +1103,7 @@ def ingest(
                     # entran: son benignos por diseño —se reintentan en la siguiente pasada— y
                     # meterlos haría que casi ninguna pasada tuviera el `message` a NULL, que es
                     # lo único que hace útil la consulta.
-                    _success_message(report, suspicious, gender_frozen),
+                    _success_message(report, suspicious, gender_frozen, rescued),
                     run_id,
                 ),
             )
@@ -1033,6 +1124,8 @@ def ingest(
             scanned_scopes=len(scanned),
             skipped_scopes=len(suspicious),
             skipped_scope_names=sorted(_render_scope(s) for s in suspicious),
+            remapped_scopes=len(rescued),
+            remapped_scope_names=sorted(_render_scope(s) for s in rescued),
             leaves_scanned=report.leaves_total,
             leaves_failed=report.leaves_failed,
             failed_leaves=sorted(report.failed_leaves),

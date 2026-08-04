@@ -219,8 +219,10 @@ CATEGORIES: list[CategoryConfig] = [
     #
     # Van AL FINAL a propósito. `list_catalog()` deduplica con «gana la primera», así que los 47 que
     # ya entran por `ninos/{nina,nino}/sudaderas` conservan su hoja y ningún producto vivo cambia de
-    # ámbito (una mudanza de ámbito se lee como caída sospechosa y omite las bajas de ese ámbito
-    # durante la pasada, #174). Lo que aportan son los **44 exclusivos**, y ahí está lo que importa:
+    # ámbito. Desde #174 una mudanza ya no se lee como caída sospechosa —la red descuenta lo que se
+    # ha mudado—, así que el orden ya no es lo que evita perder las bajas de un ámbito durante una
+    # pasada; sigue siendo lo que hace que el reparto por hojas no dependa de cuál se listó primero.
+    # Lo que aportan son los **44 exclusivos**, y ahí está lo que importa:
     # 32 son de bebé, donde `bebe-nino` no tiene hoja de sudaderas desde #151 y `bebe-nina` solo
     # tiene `punto-y-jerseis` (9). Ninguna estrena ámbito.
     CategoryConfig("ninos/nina/ropa-deportiva", "niña", "ropa", "sudaderas"),
