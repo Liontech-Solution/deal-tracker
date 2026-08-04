@@ -305,12 +305,23 @@ def main(argv: list[str] | None = None) -> int:
         print(f"calzado por marca barefoot: {_reparto(result.barefoot_counts)}")
     if result.gender_counts:
         print(f"género en el listado: {_reparto(result.gender_counts)}")
+    if result.gender_frozen:
+        print(
+            f"⚠ {result.gender_frozen} productos conservan su género `unisex` en vez del que dice "
+            "el listado: se ha caído la rama de género contraria (mira «ambitos sin bajas» de "
+            "arriba), así que el listado solo los ha visto en una de las dos y no puede saber que "
+            "se cruzan. No es un fallo del parseo; se resuelve solo cuando la hoja vuelva."
+        )
     if result.gender_stale:
         print(
             f"⚠ {result.gender_stale} productos guardan un género distinto del que dice el "
-            "listado: solo se reescribe al pedir el detalle, así que vienen de una pasada anterior "
-            "a algún arreglo de género. Los corrige una pasada con --refresh-all, el refresco "
-            "forzado (SCRAPER_DETAIL_MAX_AGE_DAYS) o una que les cambie la huella."
+            "listado: solo se reescribe al pedir el detalle, así que a estos no se les ha pedido. "
+            "Dos causas posibles, y conviene no confundirlas: una pasada anterior a algún arreglo "
+            "de género, o una hoja caída en ESTA pasada, que hace que el listado emita con el "
+            "género de la rama superviviente lo que en realidad es `unisex` (#172). Si hay hojas "
+            "caídas arriba, sospecha de lo segundo. Los del primer caso los corrige una pasada con "
+            "--refresh-all, el refresco forzado (SCRAPER_DETAIL_MAX_AGE_DAYS) o un cambio de "
+            "huella."
         )
     if result.details_refreshed:
         motivo = (

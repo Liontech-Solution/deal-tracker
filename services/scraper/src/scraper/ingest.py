@@ -15,7 +15,10 @@
 Una hoja de categoría que la tienda ya no sirve (404) no tumba la pasada: el scraper la salta y
 la apunta en su `ScanReport`, la ingesta saca su ámbito de las bajas —lo que no se ha podido
 mirar no está retirado— y solo aborta si cae una proporción alta de las hojas, que ya no es una
-categoría retirada sino un bloqueo o un cambio de API.
+categoría retirada sino un bloqueo o un cambio de API. Esa hoja caída tiene además una segunda
+consecuencia, en un ámbito **distinto** del suyo: en las tiendas que colapsan géneros, la rama
+que sobrevive lista como suyos productos que son `unisex`, así que su género tampoco se escribe
+(ver `_gender_a_escribir`, #172).
 
 Todo ocurre en una única transacción por ejecución (`scrape_run`), y si algo revienta se deshace
 entera — pero **la pasada fallida se registra igual** (`status = 'failed'` y el motivo en
@@ -151,6 +154,12 @@ class IngestResult:
     # llegue a ella. Se publica porque sin esta cifra la única forma de verlo era una consulta a
     # mano contra la base, que es lo que costó #139.
     gender_stale: int = 0
+    # Productos a los que esta pasada NO les ha escrito el género que decía el listado, porque se
+    # había caído la rama complementaria y el listado no podía saber que eran `unisex` (#172). Es la
+    # cifra que separa "aquí no pasó nada" de "aquí una hoja caída estuvo a punto de reetiquetar
+    # medio ámbito": el reparto de `gender_counts` refleja igualmente el desplazamiento, porque es
+    # lo que el listado dijo, y sin esta cifra parecería que se ha guardado.
+    gender_frozen: int = 0
 
 
 def _scalar_int(cur: psycopg.Cursor) -> int:
@@ -226,7 +235,15 @@ def _upsert_product(
     run_ts: datetime,
     product: ScrapedProduct,
     signature: str,
+    gender: str | None,
 ) -> int:
+    """Escribe el producto. `gender` va aparte del resto de `product` a propósito (#172).
+
+    Es el único campo de la fila que la pasada puede decidir NO recalcular: cuando se ha caído la
+    rama de género complementaria, el listado emite como `niño`/`niña` un producto que es `unisex`,
+    y eso hay que conservarlo en vez de escribirlo. Lo decide quien tiene delante el `ScanReport`
+    y la fila previa, o sea `ingest()`; aquí solo se obedece.
+    """
     cur.execute(
         """
         INSERT INTO product (retailer_id, retailer_product_id, name, gender, section,
@@ -257,7 +274,7 @@ def _upsert_product(
             retailer_id,
             product.retailer_product_id,
             product.name,
-            product.gender,
+            gender,
             product.section,
             product.category,
             product.barefoot,
@@ -270,6 +287,37 @@ def _upsert_product(
         ),
     )
     return _scalar_int(cur)
+
+
+def _gender_a_escribir(
+    product: ScrapedProduct,
+    prior: _ExistingProduct | None,
+    cross_gender_suspect: set[ScrapeScope],
+) -> str | None:
+    """El género que se guarda: el del listado, salvo que esta pasada no pueda saberlo (#172).
+
+    Una tienda que colapsa géneros (`ambito_cruzado()`) marca `unisex` al producto que publica en
+    las dos ramas. Si una rama se cae, ese producto solo se ve en la otra y el listado lo emite con
+    el género de la superviviente — no porque haya cambiado, sino porque falta media observación.
+    Persistirlo lo saca del alcance del interés que su usuario pidió (`interest.gender`).
+
+    La protección es deliberadamente estrecha: **solo** se conserva un `unisex` ya guardado, y solo
+    en los ámbitos que `ScanReport.cross_gender_suspect` señala. Todo lo demás se escribe normal,
+    incluida una corrección legítima de `niño`↔`niña`, que no tiene nada que ver con el cruce.
+
+    Dos límites que se aceptan a sabiendas:
+
+    - Un producto **nuevo** en un ámbito sospechoso se guarda con el género de la superviviente:
+      no hay nada previo que conservar y es la única información que existe.
+    - Un `unisex`→`niña` de verdad se retrasa hasta una pasada con las dos ramas vivas.
+
+    Los dos se curan solos en cuanto la hoja vuelve y al producto le toca detalle, que es la misma
+    forma en que se cura el `gender_stale` de siempre.
+    """
+    if prior is None or prior.gender != "unisex" or product.gender == "unisex":
+        return product.gender
+    scope = ScrapeScope(product.gender, product.section, product.category)
+    return "unisex" if scope in cross_gender_suspect else product.gender
 
 
 def _replace_product_images(
@@ -706,7 +754,9 @@ def _render_scope(scope: ScrapeScope | _ScopeKey) -> str:
     return "/".join(p or "-" for p in partes)
 
 
-def _success_message(report: ScanReport, suspicious: set[_ScopeKey]) -> str | None:
+def _success_message(
+    report: ScanReport, suspicious: set[_ScopeKey], gender_frozen: int = 0
+) -> str | None:
     """Por qué esta pasada, aun con éxito, no está del todo limpia. `None` si lo está (#151).
 
     Existe porque `errors` es un entero que suma tres cosas distintas —ámbitos sospechosos,
@@ -717,6 +767,11 @@ def _success_message(report: ScanReport, suspicious: set[_ScopeKey]) -> str | No
 
     Devolver `None` cuando no hay nada que contar no es cosmética: es lo que hace que la consulta
     sea `WHERE message IS NOT NULL` en vez de un `LIKE` sobre texto libre.
+
+    `gender_frozen` entra aquí aunque NO sea un error y no sume en `errors`: es una decisión que
+    esta pasada ha tomado sobre el dato guardado (#172), y si solo se dijera por stdout habría que
+    creerse el log de un pod que se recicla — que es exactamente lo que hizo falta y no había
+    cuando se midió el caso de Hipercor.
     """
     partes: list[str] = []
     if report.leaves_failed:
@@ -733,6 +788,8 @@ def _success_message(report: ScanReport, suspicious: set[_ScopeKey]) -> str | No
     if suspicious:
         ambitos = sorted(_render_scope(s) for s in suspicious)
         partes.append(f"ambitos con caida sospechosa: {', '.join(ambitos)}")
+    if gender_frozen:
+        partes.append(f"generos conservados: {gender_frozen}")
     return " · ".join(partes)[:_MAX_FAIL_MESSAGE] if partes else None
 
 
@@ -874,7 +931,7 @@ def ingest(
             )
 
             # Fase 2: detalle de nuevos/cambiados/rancios -> upsert + apilar precio.
-            details_fetched = variants_seen = prices_recorded = 0
+            details_fetched = variants_seen = prices_recorded = gender_frozen = 0
             fase2_inicio = latido.transcurrido
             for product in store.fetch_details(to_fetch):
                 details_fetched += 1
@@ -890,7 +947,12 @@ def ingest(
                     f"{por_ficha:.1f} s/ficha · faltan ~{duracion(quedan * por_ficha)}"
                 )
                 signature = signature_by_id.get(product.retailer_product_id, "")
-                product_id = _upsert_product(cur, retailer_id, run_ts, product, signature)
+                gender = _gender_a_escribir(
+                    product, existing.get(product.retailer_product_id), report.cross_gender_suspect
+                )
+                if gender != product.gender:
+                    gender_frozen += 1
+                product_id = _upsert_product(cur, retailer_id, run_ts, product, signature, gender)
                 _replace_product_images(cur, product_id, product.images)
                 for variant in product.variants:
                     variant_id = _upsert_variant(cur, product_id, run_ts, variant)
@@ -950,7 +1012,7 @@ def ingest(
                     # entran: son benignos por diseño —se reintentan en la siguiente pasada— y
                     # meterlos haría que casi ninguna pasada tuviera el `message` a NULL, que es
                     # lo único que hace útil la consulta.
-                    _success_message(report, suspicious),
+                    _success_message(report, suspicious, gender_frozen),
                     run_id,
                 ),
             )
@@ -984,6 +1046,7 @@ def ingest(
             # lo declare tiene que verse en el reparto, no desaparecer de él.
             gender_counts=dict(sorted(Counter(e.gender or "sin-marcar" for e in entries).items())),
             gender_stale=gender_stale,
+            gender_frozen=gender_frozen,
         )
     except Exception as exc:
         conn.rollback()
