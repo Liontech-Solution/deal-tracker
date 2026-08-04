@@ -4,7 +4,18 @@
       "Bash(gh issue *)",
       "Bash(gh api *)",
       "Bash(gh pr *)",
-      "mcp__codebase-memory-mcp__manage_adr"
+      "mcp__codebase-memory-mcp__manage_adr",
+      "Bash(kubectl -n deal-tracker-qa get *)",
+      "Bash(kubectl -n deal-tracker-qa describe *)",
+      "Bash(kubectl -n deal-tracker-qa logs *)",
+      "Bash(kubectl -n argocd get *)",
+      "Bash(curl -s https://dealtracker-qa.liontechsolution.com/*)",
+      "Bash(.claude/skills/validar-qa/scripts/qa-sql.sh *)",
+      "Bash(.claude/skills/validar-qa/scripts/qa-estado.sh *)",
+      "Bash(.claude/skills/validar-qa/scripts/qa-token.sh)"
+    ],
+    "deny": [
+      "Bash(.claude/skills/validar-qa/scripts/qa-sql.sh --escribir *)"
     ]
   }
 }
