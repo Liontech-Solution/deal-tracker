@@ -12,6 +12,14 @@ en un detalle interno de httpcore, y si un bump lo rompe volvemos a comer 429 si
 entere. La señal existía —`--check-categories` y los tests `*_LIVE=1`— pero **solo corría a mano**,
 y nadie la lanza tres semanas después, que es justo cuando hace falta.
 
+**Qué pregunta cada capa.** «¿Siguen vivas las hojas que ingerimos?» (`revisar_hojas`), «¿la cadena
+entera sigue produciendo productos usables?» (`revisar_parseo`), «¿publica la tienda algo que NO
+estamos ingiriendo?» (`revisar_cobertura`, #156) y «¿nos dejan entrar al ritmo de siempre?»
+(`comparar_con_base`, #111). La tercera es la simétrica de la primera y faltaba: `check_leaves()`
+itera lo ya mapeado, así que una categoría **nueva** —o una de temporada que vuelve, como el
+`punto-y-jerseis` de bebé que #151 retiró en julio— no la sondaba nadie. La herramienta existía
+(`run.py --tree`) y solo se lanzaba a mano, que en este vigía significa no tenerla.
+
 **Por qué en el cluster y no en CI.** La pregunta que responde no es «¿la tienda está viva?» sino
 «¿nos deja entrar *a nosotros*?», y eso depende de por dónde salimos a internet. Un runner de
 GitHub tiene otra IP y otra reputación que el cluster: contestaría por otro. Corre como CronJob
@@ -51,9 +59,12 @@ from .avisos import AvisoGitHub
 from .config import Config, load_dotenv
 from .stores.base import (
     BaseStore,
+    CategoryNode,
     LeafHealth,
     ListingEntry,
     ScrapedProduct,
+    SupportsCategoryTree,
+    SupportsCoverageWatch,
     SupportsLeafHealth,
 )
 from .stores.registry import available_slugs, get_store
@@ -68,6 +79,81 @@ _reloj = time.monotonic
 # explícita y revisable y no un olvido silencioso; quien añada una entrada aquí está diciendo «esta
 # tienda no se puede sondear por hojas y sé por qué».
 SIN_VIGILANCIA_DE_HOJAS: dict[str, str] = {}
+
+# Tiendas que saben enumerar su árbol pero a las que NO se les vigila la cobertura, con el motivo
+# escrito. Mismo papel que `SIN_VIGILANCIA_DE_HOJAS`: que la excepción sea una decisión revisable.
+COBERTURA_SIN_VIGILAR: dict[str, str] = {
+    "mango": (
+        "su árbol es el menú de navegación, no una taxonomía: publica promociones que rotan "
+        "(dest_toystory, dest_ramadam, nuevosarticulosanadidos) y un espejo `rebajas_*` de cada "
+        "rama de prendas. Medido el 04/08/2026 acotando ya las raíces a lo que ingerimos, harían "
+        "falta 72 declaraciones y caducarían con la campaña siguiente. Conserva su `--tree`"
+    ),
+}
+
+# Categorías que la tienda PUBLICA y que no ingerimos **a propósito**, por tienda y con el motivo
+# escrito (#156). Todo lo demás que aparezca en el árbol y no esté mapeado es accionable.
+#
+# Es la mitad que hace que esta capa sirva. Sin ella el vigía avisaría cada jueves de las mismas
+# categorías que ya decidimos no ingerir, y un vigía con falsas alarmas rutinarias acaba
+# silenciado — que es peor que no tenerlo, y la razón por la que `Informe` separa `accionable` de
+# `aviso`. Con ella, lo que suena es lo NUEVO: una categoría que la tienda acaba de publicar o una
+# de temporada que ha vuelto.
+#
+# **Declarar una rama calla a sus hijas** (ver `cubierta`), que es lo que mantiene la lista corta:
+# en C&A, declarar `3-1-5` (Baño) se lleva sus tres hijas, y así 56 rutas huérfanas se declaran con
+# 23 entradas. Por eso van las ramas y no las hojas sueltas.
+#
+# La ruta va en el vocabulario de `CategoryNode.path`, el mismo que `mapped_leaves()`. Declarar
+# aquí algo que además ingerimos es una declaración caducada y rompe
+# `test_cobertura_declarada_no_solapa_con_lo_mapeado`: la lista tiene que envejecer con ruido, no
+# en silencio, porque una entrada de sobra tapa exactamente lo que esta capa existe para ver.
+COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
+    # Medido el 04/08/2026 sobre las cuatro ramas: 46 rutas, 13 sin cubrir. Nueve se declaran aquí
+    # y **cuatro se dejan sonar a propósito** (las `ropa-deportiva`), que es el hallazgo de #156.
+    "sfera": {
+        "ninos/nina/abrigos-y-cazadoras": "abrigo no es ninguna de las 5 categorías del brief",
+        "ninos/nino/abrigos-y-cazadoras": "abrigo no es ninguna de las 5 categorías del brief",
+        "ninos/bebe-nina/abrigos-y-cazadoras": "abrigo no es ninguna de las 5 categorías del brief",
+        "ninos/bebe-nino/abrigos-y-cazadoras": "abrigo no es ninguna de las 5 categorías del brief",
+        "ninos/nina/bano": "baño no es ninguna de las 5 categorías del brief",
+        "ninos/bebe-nina/bano": "baño no es ninguna de las 5 categorías del brief",
+        "ninos/nino/banadores": "baño no es ninguna de las 5 categorías del brief",
+        "ninos/nina/accesorios": "complementos: ni ropa ni calzado",
+        "ninos/nino/accesorios": "complementos: ni ropa ni calzado",
+    },
+    # Las 23 ramas que `c_and_a.CATEGORIES` ya dejaba fuera **en prosa**; esta lista es la misma
+    # decisión, pero comprobable. Declarar la rama basta: sus hijas se callan solas (`cubierta`).
+    "c-and-a": {
+        "3-1-5": "baño no es ninguna de las 5 categorías del brief",
+        "3-7-4": "baño no es ninguna de las 5 categorías del brief",
+        "3-1-25": "pijama entra por `ropa-interior` en las hojas ya mapeadas",
+        "3-7-25": "pijama entra por `ropa-interior` en las hojas ya mapeadas",
+        "3-1-8": "chaqueta no es ninguna de las 5 categorías del brief",
+        "3-7-7": "chaqueta no es ninguna de las 5 categorías del brief",
+        "3-1-10": "complementos: ni ropa ni calzado",
+        "3-7-9": "complementos: ni ropa ni calzado",
+        "3-1-18": "conjuntos: mezcla prendas de varias categorías en un solo id",
+        "3-7-17": "conjuntos: mezcla prendas de varias categorías en un solo id",
+        "3-1-23": "«Básicos» es una vista transversal, no una categoría",
+        "3-7-22": "«Básicos» es una vista transversal, no una categoría",
+        "3-1-21": "«Premium» es una vista transversal, no una categoría",
+        "3-7-20": "«Premium» es una vista transversal, no una categoría",
+        "3-1-22": "packs: agrupan prendas de varias categorías",
+        "3-7-21": "packs: agrupan prendas de varias categorías",
+        "3-1-14": "«Novedades» es una vista transversal, no una categoría",
+        "3-7-13": "«Novedades» es una vista transversal, no una categoría",
+        "3-2-29": "«Vuelta al cole» es campaña transversal (rama 3-2, promoción)",
+        "8-449": "trajes de ceremonia: no es ninguna de las 5 categorías del brief",
+        "8-77": "ropa de lluvia: no es ninguna de las 5 categorías del brief",
+        # Nota, porque es la única entrada que no es obvia: en Sfera esta misma categoría se deja
+        # SIN declarar a propósito y va a sonar. No es un despiste — `CATEGORIES` de esta tienda ya
+        # la había dejado fuera midiendo, y revocar aquella decisión de tapadillo sería peor. Que
+        # «ropa de deporte» sea o no del brief hay que decidirlo una vez y para todas las tiendas.
+        "3-1-24": "ya excluida al mapear la tienda; pendiente de decidir a la vez que la de Sfera",
+        "3-7-23": "ya excluida al mapear la tienda; pendiente de decidir a la vez que la de Sfera",
+    },
+}
 
 # Cuántos productos se llevan hasta el final (listado -> detalle -> parseo) por tienda. Cinco basta
 # para saber que la cadena entera sigue produciendo productos con variantes y precios, y acota el
@@ -275,8 +361,101 @@ def revisar_parseo(store: BaseStore, informe: Informe, muestra: int) -> None:
     )
 
 
+def cubierta(ruta: str, cubren: Iterable[str], sep: str) -> bool:
+    """¿Es `ruta` una de `cubren` o cuelga de alguna? (ver `SupportsCoverageWatch.tree_separator`)
+
+    Pura y con el separador explícito para poder testear la trampa sin red: a prefijo pelado,
+    `3-1-11` colgaría de `3-1-1` y las dos son hojas hermanas que ingerimos por separado.
+    """
+    return any(ruta == c or ruta.startswith(c + sep) for c in cubren)
+
+
+def revisar_cobertura(store: BaseStore, informe: Informe) -> None:
+    """Capa 3: ¿publica la tienda categorías que NO estamos ingiriendo? (#156)
+
+    La simétrica de `revisar_hojas`, y la que faltaba. Aquella itera `CATEGORIES`, o sea lo que ya
+    tenemos mapeado, así que responde «¿sigue viva la hoja que ingerimos?» y es ciega a la otra
+    mitad: una categoría nueva, o una de temporada que vuelve —`ninos/bebe-nino/punto-y-jerseis` se
+    retiró en julio y #151 la quitó de `CATEGORIES`; si la tienda la republica en otoño, nadie la
+    sonda—. El resultado es catálogo que existe y no ingerimos sin que nadie se entere: medido en
+    Sfera, 31 prendas entre las dos `ropa-deportiva` de bebé.
+
+    **Lo no mapeado es accionable salvo que esté declarado** en `COBERTURA_DECLARADA`. Es lo
+    contrario del criterio de las otras capas —allí lo dudoso avisa y solo lo cierto rompe— y es a
+    propósito: `main()` únicamente publica en GitHub las tiendas con accionables, así que un aviso
+    se quedaría en el log del pod, que es exactamente el punto ciego que esta capa viene a tapar.
+    Lo que evita la alarma semanal no es bajar el veredicto, es que la excepción sea explícita.
+
+    **Una tienda que no sabe enumerarse no es un hallazgo.** Solo 3 de 9 implementan
+    `SupportsCategoryTree`, y exigirlo —como sí se exige `check_leaves()`— obligaría a escribirlo en
+    seis tiendas más para poder mergear. Se anota como línea y se sigue.
+    """
+    if not isinstance(store, SupportsCategoryTree):
+        informe.lineas.append("cobertura: no la sabe enumerar (no implementa SupportsCategoryTree)")
+        return
+    motivo = COBERTURA_SIN_VIGILAR.get(store.slug)
+    if motivo:
+        informe.lineas.append(f"cobertura: sin vigilar por decisión ({motivo})")
+        return
+    if not isinstance(store, SupportsCoverageWatch):
+        informe.accionables.append(
+            "sabe enumerar su árbol pero no se le puede vigilar la cobertura: implementa "
+            "`SupportsCoverageWatch` (tree_roots + tree_separator) en la tienda, o declara el "
+            "motivo en `COBERTURA_SIN_VIGILAR` de scraper/vigia.py"
+        )
+        return
+
+    sep = store.tree_separator()
+    raices = list(store.tree_roots())
+    cubren = set(store.mapped_leaves()) | set(COBERTURA_DECLARADA.get(store.slug, {}))
+    nodos: list[CategoryNode] = []
+    rotas: list[str] = []
+
+    with _cronometrar(informe, "cobertura", "nodo", lambda: len(nodos)):
+        for raiz in raices:
+            try:
+                # Se acumula a medida que llega y no con `list(...)`: en estas tiendas un 403 suelto
+                # de Akamai es rutina, y `list` no devuelve nada parcial si el generador revienta a
+                # mitad. Perder el barrido entero —y las peticiones que costó— por el último tramo
+                # sería lo contrario de para lo que sirve. Mismo criterio que `run._tree()`.
+                for nodo in store.category_tree(raiz):
+                    nodos.append(nodo)
+            except Exception as exc:  # red o bloqueo: se anota y siguen las demás raíces
+                rotas.append(f"{raiz} — {type(exc).__name__}: {exc}")
+
+    # Una ruta puede salir por dos raíces distintas si los árboles se solapan; cuenta una vez. Y la
+    # raíz nunca se señala a sí misma: es lo que hemos preguntado, no un hallazgo — aunque alguna
+    # tienda se emita a sí misma al pedir su propio árbol.
+    rutas = {n.path: n for n in nodos if n.path not in raices}
+    sin_cubrir = {p: n for p, n in rutas.items() if not cubierta(p, cubren, sep)}
+
+    informe.lineas.append(
+        f"cobertura: {len(rutas)} ruta(s) publicadas bajo {len(raices)} raíz/raíces, "
+        f"{len(rutas) - len(sin_cubrir)} ingeridas, colgando de una ingerida o declaradas"
+    )
+    if sin_cubrir:
+        # Solo las maximales: si `Baño` no está cubierta, sus tres hijas tampoco, y nombrarlas
+        # todas convertiría un hallazgo en una parrafada. Se señala la rama y quien la atienda
+        # decide sobre ella entera.
+        maximales = [
+            n
+            for p, n in sorted(sin_cubrir.items())
+            if not cubierta(p, sin_cubrir.keys() - {p}, sep)
+        ]
+        informe.accionables.append(
+            f"{len(maximales)} categoría(s) publicadas y SIN cubrir — decide si se ingieren "
+            "(añádelas a CATEGORIES) o no (declara el motivo en COBERTURA_DECLARADA de "
+            "scraper/vigia.py):\n" + "\n".join(f"  - {_describe_nodo(n)}" for n in maximales)
+        )
+    if rotas:
+        informe.avisos.append(
+            f"{len(rotas)} raíz/raíces del árbol sin recorrer (fallo del barrido, no cobertura):\n"
+            + "\n".join(f"  - {r}" for r in rotas)
+        )
+
+
 def revisar_tienda(slug: str, config: Config, muestra: int) -> Informe:
-    """Las dos capas sobre una tienda. Nunca eleva: un fallo inesperado ES el hallazgo."""
+    """Las tres capas sobre una tienda. Nunca eleva: un fallo inesperado ES el hallazgo."""
     informe = Informe(slug)
     try:
         store = get_store(slug, config)
@@ -294,12 +473,19 @@ def revisar_tienda(slug: str, config: Config, muestra: int) -> Informe:
         # primera capa deja el navegador a medio arrancar y el de la segunda sale distinto y
         # engañoso («usa la API async»), tapando la causa real con un síntoma derivado. Un vigía
         # que apunta a la pista falsa es peor que uno que dice una sola cosa cierta.
-        informe.avisos.append("smoke de parseo omitido: el sondeo de hojas ya falló")
+        informe.avisos.append("parseo y cobertura omitidos: el sondeo de hojas ya falló")
         return informe
     try:
         revisar_parseo(store, informe, muestra)
     except Exception as exc:
         informe.accionables.append(f"el smoke de parseo reventó — {type(exc).__name__}: {exc}")
+    # La cobertura sí se intenta aunque el parseo haya fallado: son preguntas independientes —el
+    # árbol se lee del menú o de la faceta, no del listado— y saber que la tienda publica una
+    # categoría nueva sigue valiendo aunque hoy el detalle no se deje parsear.
+    try:
+        revisar_cobertura(store, informe)
+    except Exception as exc:
+        informe.accionables.append(f"el barrido de cobertura reventó — {type(exc).__name__}: {exc}")
     return informe
 
 
@@ -364,6 +550,19 @@ def _duracion(segundos: float) -> str:
 def _describe(hoja: LeafHealth) -> str:
     ambito = f"{hoja.scope.gender}/{hoja.scope.section}/{hoja.scope.category}"
     return f"{hoja.leaf} ({ambito}) {hoja.detail}"
+
+
+def _describe_nodo(nodo: CategoryNode) -> str:
+    """Una categoría sin mapear, con lo justo para decidir sin volver a pedir el árbol.
+
+    El conteo va entre paréntesis pero es **lo que la tienda declara**, que no es lo que sirve:
+    medido en Sfera, la faceta decía 8 en `leggings` y el listado dio 18 (ver `CategoryNode`).
+    Orienta sobre el peso; no vale para decidir si la hoja merece la pena — para eso hay que pedir
+    el listado. `?` es «no lo dice», distinto de 0.
+    """
+    cuenta = "?" if nodo.count is None else str(nodo.count)
+    hijos = ", con hijas" if nodo.has_children else ""
+    return f"{nodo.path} ({cuenta}) «{nodo.title}»{hijos}"
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:

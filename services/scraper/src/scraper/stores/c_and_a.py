@@ -669,6 +669,24 @@ class CAndAStore:
         """Ver `stores.base.SupportsCategoryTree`. Las hojas que esta tienda tiene configuradas."""
         return [cat.ipim_id for cat in self._categories]
 
+    def tree_roots(self) -> Iterable[str]:
+        """Ver `stores.base.SupportsCoverageWatch`. Las dos ramas de ropa infantil.
+
+        No se barre desde `3` (Niños) sino desde sus dos ramas de ropa: `3-2` «Destacados» es
+        promoción transversal que solapa con las dos y ya se deja fuera de `CATEGORIES` por eso
+        mismo, así que meterla aquí sería declarar como excepción algo que basta con no pedir.
+
+        **Coste, que aquí no es despreciable**: `category_tree()` gasta una petición por nodo, y
+        medido el 04/08/2026 son **122 rutas en ~80 s** entre las dos ramas. Es el barrido más caro
+        del vigía y se paga una vez por semana; si algún día molesta, lo que hay que recortar es la
+        profundidad, no las ramas — el hueco que esta capa busca aparece siempre al primer nivel.
+        """
+        return ["3-1", "3-7"]
+
+    def tree_separator(self) -> str:
+        """Ver `stores.base.SupportsCoverageWatch`. El `ipimId` es jerárquico y anida con `-`."""
+        return "-"
+
     def category_tree(self, root: str) -> Iterable[CategoryNode]:
         """Ver `stores.base.SupportsCategoryTree`. Una petición por nodo.
 

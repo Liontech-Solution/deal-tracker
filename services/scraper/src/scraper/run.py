@@ -22,9 +22,15 @@ from . import db
 from .config import Config, load_dotenv
 from .ingest import CatalogScanAborted, ingest
 from .migrate import apply_migrations
-from .stores.base import BaseStore, CategoryNode, SupportsCategoryTree, SupportsScanReport
+from .stores.base import (
+    BaseStore,
+    CategoryNode,
+    SupportsCategoryTree,
+    SupportsCoverageWatch,
+    SupportsScanReport,
+)
 from .stores.registry import available_slugs, get_store
-from .vigia import Informe, revisar_hojas
+from .vigia import COBERTURA_DECLARADA, Informe, cubierta, revisar_hojas
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -139,12 +145,27 @@ def _tree(config: Config, slug: str, root: str) -> int:
     except Exception as exc:  # red, bloqueo, respuesta ilegible: se informa y se sigue
         fallo = f"{type(exc).__name__}: {exc}"
 
-    sin_mapear = 0
+    # Las marcas son las MISMAS categorías que decide el vigía (#156), y eso importa: antes esto
+    # contaba «sin mapear» a secas y decía 44 donde el vigía dice 0 huecos, porque 42 de esas 44
+    # cuelgan de una hoja que sí ingerimos. Dos lecturas distintas del mismo árbol es cómo alguien
+    # se convence de que el vigía está roto.
+    declaradas = COBERTURA_DECLARADA.get(slug, {})
+    sep = store.tree_separator() if isinstance(store, SupportsCoverageWatch) else None
+
+    huecos = 0
     lineas: list[str] = []
     for nodo in nodos:
-        marca = "✓" if nodo.path in mapeadas else "·"
-        if nodo.path not in mapeadas:
-            sin_mapear += 1
+        if nodo.path in mapeadas:
+            marca = "✓"
+        elif nodo.path in declaradas:
+            marca = "×"
+        elif sep and cubierta(nodo.path, mapeadas, sep):
+            marca = "↳"  # cuelga de una que ingerimos: sus productos ya entran por el padre
+        elif sep and cubierta(nodo.path, declaradas, sep):
+            marca = "×"
+        else:
+            marca = "·"
+            huecos += 1
         sangria = "  " * nodo.depth
         # `None` y 0 son cosas distintas: «no lo dice» frente a «hoja real y vacía».
         cuenta = "     ?" if nodo.count is None else f"{nodo.count:>6}"
@@ -152,10 +173,15 @@ def _tree(config: Config, slug: str, root: str) -> int:
         lineas.append(f"  {marca} {sangria}{nodo.path:<44}{cuenta}  {nodo.title}{hijos}")
 
     if nodos:
-        print(f"{slug} · árbol de {root}: {len(nodos)} categorías, {sin_mapear} sin mapear")
+        aviso = "" if sep else " (sin vigilancia de cobertura: no se descuenta lo que cuelga)"
+        print(f"{slug} · árbol de {root}: {len(nodos)} categorías, {huecos} sin cubrir{aviso}")
         for linea in lineas:
             print(linea)
-        print("  ✓ = ya en CATEGORIES · · = existe y no la ingerimos · ▸ = tiene hijas")
+        print(
+            "  ✓ = ya en CATEGORIES · ↳ = cuelga de una que ingerimos · "
+            "× = fuera a propósito (COBERTURA_DECLARADA) · · = hueco: el vigía avisa · "
+            "▸ = tiene hijas"
+        )
     elif fallo is None:
         print(f"{slug}: {root} no publica ninguna categoría por debajo (¿es ya una hoja?).")
 

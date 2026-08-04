@@ -318,7 +318,9 @@ def test_el_comando_marca_lo_que_ya_ingerimos_y_lo_que_no() -> None:
     codigo, salida = _tree_con(store, "ninos/bebe-nino")
 
     assert codigo == 0
-    assert "1 sin mapear" in salida
+    # «sin cubrir» y no «sin mapear» desde #156: lo que cuenta es lo que el vigía señalaría, que
+    # descuenta lo que cuelga de una hoja ya ingerida.
+    assert "1 sin cubrir" in salida
     marcas = {
         linea.split()[1]: linea.split()[0] for linea in salida.splitlines() if "ninos/" in linea
     }

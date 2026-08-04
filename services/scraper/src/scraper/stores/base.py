@@ -346,7 +346,11 @@ class SupportsCategoryTree(Protocol):
     """Capacidad OPCIONAL: enumerar el árbol de categorías que la tienda publica.
 
     Es la herramienta de reconocimiento para decidir **cobertura**: qué hay ahí fuera que no
-    estemos ingiriendo. No participa en la pasada ni en las bajas; se ejecuta a mano.
+    estemos ingiriendo. No participa en la pasada ni en las bajas.
+
+    Desde #156 la ejecuta además el vigía cada semana (`vigia.revisar_cobertura`), que es lo que
+    convierte la pregunta en periódica: `check_leaves()` solo sabe si sigue viva una hoja que ya
+    mapeamos, así que una categoría **nueva** —o una de temporada que vuelve— era invisible.
     """
 
     def category_tree(self, root: str) -> Iterable[CategoryNode]:
@@ -362,6 +366,53 @@ class SupportsCategoryTree(Protocol):
 
         Sirve para cruzar el árbol publicado con lo que ingerimos y que el informe pueda decir
         qué falta, que es la única pregunta que justifica pedir el árbol.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsCoverageWatch(Protocol):
+    """Capacidad OPCIONAL: que el **vigía** barra el árbol cada semana buscando huecos (#156).
+
+    Aparte de `SupportsCategoryTree` a propósito, y no es una sutileza: enumerar el árbol a mano
+    (`run.py --tree`) es reconocimiento y vale para cualquier tienda que sepa hacerlo, mientras que
+    vigilarlo sin supervisión exige además que el ruido sea acotable. Medido el 04/08/2026, Mango
+    sabe lo primero y no lo segundo: su «árbol» es el menú de navegación, con promociones que rotan
+    (`dest_toystory`, `dest_ramadam`, `nuevosarticulosanadidos`) y un espejo `rebajas_*` de cada
+    rama de prendas, así que hacen falta **72 declaraciones** y caducan solas. Una tienda así se
+    declara en `vigia.COBERTURA_SIN_VIGILAR` con el motivo, y conserva su `--tree`.
+    """
+
+    def tree_roots(self) -> Iterable[str]:
+        """Raíces que el vigía barre cada semana, en el vocabulario de `CategoryNode.path`.
+
+        Existe porque `category_tree()` pide una raíz y hasta #156 la ponía la persona en la línea
+        de comandos: sin esto el vigía no sabría por dónde empezar. La declara la tienda y no el
+        vigía porque el vocabulario es suyo, y **no se deriva de `mapped_leaves()`**: en Sfera la
+        ruta padre es un prefijo de texto, pero el `ipim_id` de C&A es opaco y no tiene padre que
+        derivar.
+
+        Elegirlas es una decisión de **coste**, no de cobertura máxima: el barrido se repite todas
+        las semanas contra la tienda, y hay árboles que se piden con una petición por nodo. Quien
+        las declare mide cuántos nodos cuelgan de cada una y lo escribe.
+        """
+        ...
+
+    def tree_separator(self) -> str:
+        """El carácter con el que la tienda anida sus rutas (`/` en Sfera, `-` en C&A).
+
+        Es lo que deja saber si una categoría **cuelga de otra**, y sin eso la capa de cobertura no
+        sirve: medido en C&A, de 122 rutas publicadas 53 son subcategorías de hojas que YA
+        ingerimos (`3-7-1-2` Camisetas bajo `3-7-1`, que está en `CATEGORIES`). Sus productos ya
+        entran por el padre, así que señalarlas sería ruido — y ese ruido era la mitad del informe.
+
+        La comparación es `ruta == ancestro or ruta.startswith(ancestro + sep)`, **con el separador
+        y no a prefijo pelado**: `3-1-11` (Calcetines) empieza por `3-1-1` (Camisetas) y las dos
+        están mapeadas, así que a prefijo pelado una taparía a la otra.
+
+        Que el id jerárquico predice la contención está **medido, no supuesto**: `3-7-2-3` (Shorts)
+        aporta 0 productos nuevos porque está contenido entero en `3-7-2` (Pantalones), y eso ya
+        estaba anotado en `c_and_a.CATEGORIES` antes de esta capa.
         """
         ...
 
