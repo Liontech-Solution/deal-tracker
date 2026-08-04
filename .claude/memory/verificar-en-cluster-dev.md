@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 842d188a-5bed-4fff-9049-9f5776ad8a66
-  modified: 2026-08-04T14:16:16.429Z
+  modified: 2026-08-04T20:31:04.105Z
 ---
 
 Son [[kubeconfig-location|dos máquinas]] y no tienen lo mismo, así que comprueba el equipo antes de
@@ -50,9 +50,25 @@ servidor que chocaría de puerto con el bueno.
 
 Tampoco es el del camino que probó **#149** (04/08/2026), que levantaba un `postgres:16` desechable
 por sesión —`docker run -d --name dt<issue>-pg -p 55<issue>:5432 postgres:16`, puerto propio y
-`docker rm -f` al cerrar en vez de `dropdb`—: aquello usaba otro nombre y otra imagen, y **no ha
-dejado nada corriendo aquí**. Sigue siendo una alternativa válida si algún día hace falta aislar de
-verdad; hoy no se usa, y el de espacio de usuario es el único vivo en esta máquina.
+`docker rm -f` al cerrar en vez de `dropdb`—: aquello usaba otro nombre y otra imagen.
+
+> **Corregido el 04/08/2026 (#175): ese camino NO es hipotético, está en uso activo.** Esa tarde
+> convivían dos contenedores `postgres:17`, uno por sesión —`dt172-pg` en el 5433 y `dt175-pg` en el
+> 5434—, mientras el servidor de espacio de usuario estaba **parado** (`pg_isready -h /tmp` → «sin
+> respuesta»). O sea que en esta máquina hay **dos caminos vivos**, no uno, y elegir mal no rompe
+> nada pero cuesta minutos.
+>
+> Dos consecuencias prácticas:
+>
+> - **Comprueba el puerto de las otras sesiones antes de elegir el tuyo**: `docker ps --format
+>   '{{.Names}} {{.Ports}}'`. Con `--name dt<issue>-pg` y un puerto propio no hay colisión, y el
+>   `docker rm -f dt<issue>-pg` al cerrar sustituye al `dropdb` (sin `--force`, que aquí no aplica:
+>   el contenedor es tuyo entero).
+> - **El falso negativo del PATH sigue mordiendo, y en la dirección contraria a la de arriba.** Ese
+>   día `which psql/initdb/pg_ctl` no encontró nada y se levantó Docker sin comprobar el prefijo; la
+>   instalación de espacio de usuario **estaba**, solo que sin arrancar. Mirar
+>   `ls -d ~/.local/share/pgsql-local` cuesta un segundo y decide entre arrancar la que hay
+>   (comando al final de esta memoria) o levantar un contenedor.
 
 Lo mismo vale al revés: el `postgres-mcp` de la máquina apunta a
 `postgresql://dealtracker:dealtracker@localhost:5432/deal_tracker_test`, que es **esta misma**
