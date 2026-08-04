@@ -1,6 +1,6 @@
 ---
 name: verificar-en-cluster-dev
-description: Cómo ejecutar pasadas de scraper y SQL contra deal-tracker-dev; la Postgres local existe pero NO está en el PATH, comprobar el prefijo antes de darla por ausente
+description: Cómo ejecutar pasadas de scraper y SQL contra deal-tracker-dev; la Postgres local está INSTALADA EN ESPACIO DE USUARIO (no en Docker) y fuera del PATH, así que command -v miente y el contenedor dt-pg parado es un resto
 metadata: 
   node_type: memory
   type: project
@@ -8,34 +8,62 @@ metadata:
   modified: 2026-08-04T14:16:16.429Z
 ---
 
-**Comprueba el equipo antes de creerte cualquiera de los dos caminos de abajo**: son [[kubeconfig-location|dos máquinas]] y no tienen lo mismo. Medido:
+Son [[kubeconfig-location|dos máquinas]] y no tienen lo mismo, así que comprueba el equipo antes de
+creerte los caminos de abajo. Pero **en esta la pregunta ya está contestada**, y contestarla mal
+cuesta caro:
 
-> ⚠️ **`command -v postgres` da un FALSO NEGATIVO y cuesta caro** (04/08/2026, #155). El montaje en
-> espacio de usuario vive en un prefijo que **no está en el PATH**, así que `which`/`command -v` no
-> lo ven aunque el servidor esté **ya arrancado y aceptando conexiones**. Ese día se dio la máquina
-> por «sin Postgres», los tests de ingesta se dejaron sin correr y el fallo salió en CI. La
-> comprobación buena es mirar el prefijo y el socket, no el PATH:
+## La Postgres local: INSTALADA EN ESPACIO DE USUARIO, no en un contenedor
+
+Verificado el 04/08/2026 mirando el proceso, los sockets y el catálogo, no la documentación:
+
+| | |
+|---|---|
+| **Qué es** | Instalación en espacio de usuario, **sin root y sin contenedor** |
+| **Binarios** | `~/.local/share/pgsql-local/usr/bin` (necesitan `LD_LIBRARY_PATH=~/.local/share/pgsql-local/usr/lib`) |
+| **Datos** | `~/.local/share/pgsql-local/data` |
+| **Versión** | PostgreSQL **18.4** |
+| **Escucha en LAS DOS** | socket `/tmp/.s.PGSQL.5432` **y** TCP `127.0.0.1:5432` |
+| **Usuarios** | `dealtracker` y `postgres`, con auth `trust` (sin contraseña) |
+| **Bases fijas** | `deal_tracker_test` (UTF8 / `C.UTF-8`) y `deal_tracker_ctype_c` (UTF8 / `C` / `C`) |
+| **¿Arranca sola?** | **NO.** Ni unit de systemd de usuario ni hook del shell: tras un reinicio hay que levantarla a mano |
+
+> ⚠️ **`command -v postgres` da un FALSO NEGATIVO** (medido el 04/08/2026, #155). El prefijo **no
+> está en el PATH**, así que `which`/`command -v` no lo ven **aunque el servidor esté arrancado y
+> aceptando conexiones**. Ese día se dio la máquina por «sin Postgres», los tests de ingesta se
+> dejaron sin correr en local y el fallo salió en CI. La comprobación buena mira el proceso y el
+> socket, nunca el PATH:
 > ```bash
-> ls ~/.local/share/pgsql-local/usr/bin
 > LD_LIBRARY_PATH=~/.local/share/pgsql-local/usr/lib \
 >   ~/.local/share/pgsql-local/usr/bin/pg_isready -h /tmp   # /tmp:5432 - aceptando conexiones
 > ```
-> Y `pip install pgserver` / `postgresql-wheel` **no** son la salida: ninguno tiene distribución
-> para esta plataforma.
+> Si contesta que no, **no es que no esté instalada: es que no está arrancada** — el comando de
+> arranque está más abajo. Y `pip install pgserver` / `postgresql-wheel` no son la salida: ninguno
+> tiene distribución para esta plataforma.
 
+### El contenedor `dt-pg` es un resto, no el servidor
 
-- **02/08/2026**: ni `postgres`/`psql`/`pg_isready` ni `docker`/`podman`.
-- **04/08/2026 (#149)**: `docker` **sí** está (29.7.1) y `psql`/`postgres` **no**. Un `postgres:16`
-  desechable con las tres bases de la sesión salió más barato que el montaje en espacio de usuario:
-  `docker run -d --name dt<issue>-pg -e POSTGRES_PASSWORD=… -e POSTGRES_USER=dt -p 55<issue>:5432
-  postgres:16`, y dentro `CREATE DATABASE` para `dt_<issue>`, `dt_<issue>_test` y la de ctype `C`.
-  Puerto propio por sesión, y `docker rm -f` al cerrar en vez de `dropdb`.
+`docker` **sí** está instalado (29.7.1) y `docker ps -a` enseña un contenedor **`dt-pg`
+(`postgres:16-alpine`)**, creado el 27/07/2026 y en `Exited (0)` desde el 31/07. **No sirve nada**:
+quien atiende el 5432 es el proceso de espacio de usuario de arriba. Verlo ahí y concluir «aquí la
+Postgres va en Docker» es el error simétrico del `command -v`, y lleva a levantar un segundo
+servidor que chocaría de puerto con el bueno.
 
-Para los tests de ingesta y para probar el scraper contra las tiendas reales **sigue sin hacer
-falta el cluster**. Si no hay docker, la Postgres se levanta en espacio de usuario, sin root: paquetes Arch
-`postgresql` + `postgresql-libs` + `numactl` extraídos a un prefijo local y arrancados con
-`initdb`/`pg_ctl` fijando `LD_LIBRARY_PATH`. El detalle, con sus dos gotchas de locale, está en la
-memoria de usuario `dev-local-postgres`.
+Tampoco es el del camino que probó **#149** (04/08/2026), que levantaba un `postgres:16` desechable
+por sesión —`docker run -d --name dt<issue>-pg -p 55<issue>:5432 postgres:16`, puerto propio y
+`docker rm -f` al cerrar en vez de `dropdb`—: aquello usaba otro nombre y otra imagen, y **no ha
+dejado nada corriendo aquí**. Sigue siendo una alternativa válida si algún día hace falta aislar de
+verdad; hoy no se usa, y el de espacio de usuario es el único vivo en esta máquina.
+
+Lo mismo vale al revés: el `postgres-mcp` de la máquina apunta a
+`postgresql://dealtracker:dealtracker@localhost:5432/deal_tracker_test`, que es **esta misma**
+instalación por TCP. O sea que pararla o borrarle bases también afecta a esa herramienta.
+
+### Si hubiera que rehacerla
+
+Para los tests de ingesta y para probar el scraper contra las tiendas reales **sigue sin hacer falta
+el cluster**. El montaje son paquetes Arch `postgresql` + `postgresql-libs` + `numactl` extraídos a
+un prefijo local y arrancados con `initdb`/`pg_ctl` fijando `LD_LIBRARY_PATH`. El detalle, con sus
+dos gotchas de locale, está en la memoria de usuario `dev-local-postgres`.
 
 Un atajo que ahorra los dos gotchas: crear el cluster con
 `initdb --auth=trust --username=postgres --encoding=UTF8 --locale=C.UTF-8`. Así cualquier
@@ -56,14 +84,13 @@ y se pasa en `TEST_DATABASE_URL_CTYPE_C` junto a `TEST_DATABASE_URL`. Sin ella l
 **se saltan**, que es peor de lo que parece — con el locale bueno `lower('ÍNDIGO')` da `'índigo'` y
 todo sale verde mientras el cluster hace otra cosa.
 
-Los paquetes de Postgres se extraen sin sudo desde un mirror de Arch (`postgresql`,
-`postgresql-libs` y `numactl`, que hace falta para el binario del servidor) a
-`~/.local/share/pgsql-local`, y los binarios necesitan `LD_LIBRARY_PATH=<prefijo>/usr/lib`.
+Los paquetes se extraen sin sudo desde un mirror de Arch (`postgresql`, `postgresql-libs` y
+`numactl`, que hace falta para el binario del servidor) al prefijo de la tabla de arriba.
 
 **Al arrancarlo hay que decirle dónde pone el socket**, o falla con un `FATAL` que no menciona el
 socket sino un `.lock`: `could not create lock file "/run/postgresql/.s.PGSQL.5432.lock"`. Ese
-directorio es del paquete del sistema, que aquí no está instalado. Las dos bases ya existen
-(`deal_tracker_test` y `deal_tracker_ctype_c`), así que arrancar y usarlo es:
+directorio es del paquete del sistema, que aquí no está instalado. Las dos bases ya existen, así
+que **tras un reinicio arrancarla es esto y nada más** (no hay que volver a crear nada):
 
 ```bash
 export PG=~/.local/share/pgsql-local LD_LIBRARY_PATH=~/.local/share/pgsql-local/usr/lib
