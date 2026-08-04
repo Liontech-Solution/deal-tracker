@@ -493,6 +493,53 @@ def test_lo_que_cuelga_de_una_hoja_ya_mapeada_no_es_un_hueco() -> None:
     assert informe.esta_bien, informe.accionables
 
 
+def test_el_cajon_que_contiene_una_hoja_mapeada_no_es_un_hueco() -> None:
+    """El simétrico del anterior, y lo que destapó H&M (#179).
+
+    `/kids/boys/clothing` no es catálogo que nos falte: es el cajón donde están `trousers` y
+    `nightwear`, que sí ingerimos. Es la primera tienda con taxonomía de tres niveles —Sfera y
+    Springfield cuelgan las hojas de la raíz—, así que hasta ahora nadie emitía un nodo intermedio.
+    """
+    tienda = TiendaConArbol(
+        {
+            "/kids/boys": [
+                _nodo("/kids/boys/clothing", hijas=True),
+                _nodo("/kids/boys/clothing/trousers", depth=2),
+            ]
+        },
+        mapeadas=["/kids/boys/clothing/trousers"],
+    )
+    informe = Informe("falsa")
+
+    revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+
+    assert informe.esta_bien, informe.accionables
+
+
+def test_el_cajon_no_tapa_a_una_hija_nueva() -> None:
+    """El límite de la regla anterior: silencia el nodo intermedio, nunca lo que cuelga de él.
+
+    Si callara también a las hijas, la capa entera dejaría de servir justo donde vive el brief.
+    """
+    tienda = TiendaConArbol(
+        {
+            "/kids/boys": [
+                _nodo("/kids/boys/clothing", hijas=True),
+                _nodo("/kids/boys/clothing/trousers", depth=2),
+                _nodo("/kids/boys/clothing/dungarees", depth=2),
+            ]
+        },
+        mapeadas=["/kids/boys/clothing/trousers"],
+    )
+    informe = Informe("falsa")
+
+    revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+
+    assert not informe.esta_bien
+    assert "dungarees" in informe.accionables[0]
+    assert "/kids/boys/clothing " not in informe.accionables[0]
+
+
 def test_el_separador_evita_que_una_hermana_tape_a_otra() -> None:
     """La trampa del prefijo pelado: `3-1-11` (Calcetines) empieza por `3-1-1` (Camisetas).
 

@@ -181,6 +181,146 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
     #
     # Declarar la rama basta y por eso no aparecen las subcategorías (`nina/bano/bikinis`,
     # `nino/complementos/gorras`, `nina/chaquetas/chalecos`…): se callan solas por `cubierta`.
+    # H&M enumera desde #179. Son 119 declaraciones para 393 rutas bajo las siete ramas de
+    # `tree_roots()`, y esa proporción es la propia tienda: publica 17 vistas por rama de género
+    # («Básicos», «Ver todo», «Multipacks», «Licencias»…) que reagrupan lo que ya entra por su
+    # categoría. Se declaran **hoja a hoja bajo `clothing` y de rama entera fuera**: declarar
+    # `/kids/boys/clothing` de una vez serían 7 líneas en lugar de 90, pero taparía una categoría
+    # nueva justo donde el brief vive, que es lo único que esta capa existe para ver.
+    #
+    # Cuatro NO son decisión firme, y conviene que se lean así (mismo formato que #187 en
+    # springfield): el uniforme escolar publica pantalón, vestido, polo, jersey y zapato, o sea
+    # prendas del brief en una rama que no ingerimos; `sport`/`sportswear` es la ropa deportiva
+    # cuya decisión ya tiene issue (#180); y los monos entran por `vestidos` en Lefties y aquí no.
+    # El día que se resuelvan, esas entradas se van y la rama pasa a `CATEGORIES`.
+    "hm": {
+        # --- niño 2-8 (/kids/boys) ---
+        "/kids/boys/accessories": "complementos: ni ropa ni calzado (8)",
+        "/kids/boys/clothing/basics": "«Básicos»: reagrupa lo ya ingerido (1)",
+        "/kids/boys/clothing/blazers-suits": "trajes y americanas: fuera del brief (1)",
+        "/kids/boys/clothing/care-products": "cuidado de la ropa: no es ropa (1)",
+        "/kids/boys/clothing/characters": "licencias: vista transversal (1)",
+        "/kids/boys/clothing/fancy-dress-costumes": "disfraces: fuera del brief (1)",
+        "/kids/boys/clothing/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
+        "/kids/boys/clothing/jackets-coats": "abrigo: fuera del brief (1)",
+        "/kids/boys/clothing/linen": "vista transversal por material (1)",
+        "/kids/boys/clothing/multipacks": "packs: varias prendas en una referencia (1)",
+        "/kids/boys/clothing/party-occasion": "vista transversal por ocasión (1)",
+        "/kids/boys/clothing/sets-outfits": "conjuntos: prendas de varias categorías (1)",
+        "/kids/boys/clothing/socks": "calcetines: fuera del brief (1)",
+        "/kids/boys/clothing/sport": "deportiva, transversal: #180 (1)",
+        "/kids/boys/clothing/swimwear": "baño: fuera del brief (1)",
+        "/kids/boys/clothing/view-all": "«Ver todo»: la rama entera (1)",
+        "/kids/boys/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
+        "/kids/boys/outerwear": "abrigo: fuera del brief (9)",
+        "/kids/boys/school": "uniforme: lleva prendas del brief, sin decidir (12)",
+        "/kids/boys/sportswear": "deportiva, transversal: #180 (12)",
+        # --- niño 9-14 (/kids/boys-9-14y) ---
+        "/kids/boys-9-14y/accessories": "complementos: ni ropa ni calzado (8)",
+        "/kids/boys-9-14y/clothing/basics": "«Básicos»: reagrupa lo ya ingerido (1)",
+        "/kids/boys-9-14y/clothing/blazers-suits": "trajes y americanas: fuera del brief (1)",
+        "/kids/boys-9-14y/clothing/care-products": "cuidado de la ropa: no es ropa (1)",
+        "/kids/boys-9-14y/clothing/characters": "licencias: vista transversal (1)",
+        "/kids/boys-9-14y/clothing/fancy-dress-costumes": "disfraces: fuera del brief (1)",
+        "/kids/boys-9-14y/clothing/jackets-coats": "abrigo: fuera del brief (1)",
+        "/kids/boys-9-14y/clothing/linen": "vista transversal por material (1)",
+        "/kids/boys-9-14y/clothing/multipacks": "packs: varias prendas en una referencia (1)",
+        "/kids/boys-9-14y/clothing/party-occasion": "vista transversal por ocasión (1)",
+        "/kids/boys-9-14y/clothing/sets-outfits": "conjuntos: prendas de varias categorías (1)",
+        "/kids/boys-9-14y/clothing/socks": "calcetines: fuera del brief (1)",
+        "/kids/boys-9-14y/clothing/sport": "deportiva, transversal: #180 (1)",
+        "/kids/boys-9-14y/clothing/swimwear": "baño: fuera del brief (1)",
+        "/kids/boys-9-14y/clothing/view-all": "«Ver todo»: la rama entera (1)",
+        "/kids/boys-9-14y/outerwear": "abrigo: fuera del brief (9)",
+        "/kids/boys-9-14y/sportswear": "deportiva, transversal: #180 (12)",
+        "/kids/boys-9-14y/swimwear1": "baño: fuera del brief (1)",
+        # --- niña 2-8 (/kids/girls) ---
+        "/kids/girls/accessories": "complementos: ni ropa ni calzado (8)",
+        "/kids/girls/clothing/basics": "«Básicos»: reagrupa lo ya ingerido (1)",
+        "/kids/girls/clothing/care-products": "cuidado de la ropa: no es ropa (1)",
+        "/kids/girls/clothing/characters": "licencias: vista transversal (1)",
+        "/kids/girls/clothing/fancy-dress-costumes": "disfraces: fuera del brief (1)",
+        "/kids/girls/clothing/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
+        "/kids/girls/clothing/jackets-coats": "abrigo: fuera del brief (1)",
+        "/kids/girls/clothing/jumpsuits-playsuits": "monos: sin decidir, ver Lefties (1)",
+        "/kids/girls/clothing/linen": "vista transversal por material (1)",
+        "/kids/girls/clothing/multipacks": "packs: varias prendas en una referencia (1)",
+        "/kids/girls/clothing/party-occasion": "vista transversal por ocasión (1)",
+        "/kids/girls/clothing/sets-outfits": "conjuntos: prendas de varias categorías (1)",
+        "/kids/girls/clothing/socks-tights": "calcetines: fuera del brief (1)",
+        "/kids/girls/clothing/sport": "deportiva, transversal: #180 (1)",
+        "/kids/girls/clothing/swimwear": "baño: fuera del brief (1)",
+        "/kids/girls/clothing/view-all": "«Ver todo»: la rama entera (1)",
+        "/kids/girls/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
+        "/kids/girls/outerwear": "abrigo: fuera del brief (11)",
+        "/kids/girls/school": "uniforme: lleva prendas del brief, sin decidir (15)",
+        "/kids/girls/sportswear": "deportiva, transversal: #180 (15)",
+        # --- niña 9-14 (/kids/girls-9-14y) ---
+        "/kids/girls-9-14y/accessories": "complementos: ni ropa ni calzado (8)",
+        "/kids/girls-9-14y/body-hair": "cuidado personal: no es ropa (1)",
+        "/kids/girls-9-14y/clothing/basics": "«Básicos»: reagrupa lo ya ingerido (1)",
+        "/kids/girls-9-14y/clothing/care-products": "cuidado de la ropa: no es ropa (1)",
+        "/kids/girls-9-14y/clothing/characters": "licencias: vista transversal (1)",
+        "/kids/girls-9-14y/clothing/fancy-dress-costumes": "disfraces: fuera del brief (1)",
+        "/kids/girls-9-14y/clothing/jackets-coats": "abrigo: fuera del brief (1)",
+        "/kids/girls-9-14y/clothing/jumpsuits-playsuits": "monos: sin decidir, ver Lefties (1)",
+        "/kids/girls-9-14y/clothing/linen": "vista transversal por material (1)",
+        "/kids/girls-9-14y/clothing/multipacks": "packs: varias prendas en una referencia (1)",
+        "/kids/girls-9-14y/clothing/party-occasion": "vista transversal por ocasión (1)",
+        "/kids/girls-9-14y/clothing/sets-outfits": "conjuntos: prendas de varias categorías (1)",
+        "/kids/girls-9-14y/clothing/socks-tights": "calcetines: fuera del brief (1)",
+        "/kids/girls-9-14y/clothing/sport": "deportiva, transversal: #180 (1)",
+        "/kids/girls-9-14y/clothing/swimwear": "baño: fuera del brief (1)",
+        "/kids/girls-9-14y/clothing/view-all": "«Ver todo»: la rama entera (1)",
+        "/kids/girls-9-14y/outerwear": "abrigo: fuera del brief (10)",
+        "/kids/girls-9-14y/sportswear": "deportiva, transversal: #180 (15)",
+        "/kids/girls-9-14y/swimwear1": "baño: fuera del brief (1)",
+        # --- bebé niño (/baby/boys) ---
+        "/baby/boys/accessories": "complementos: ni ropa ni calzado (5)",
+        "/baby/boys/clothing/basics": "«Básicos»: reagrupa lo ya ingerido (1)",
+        "/baby/boys/clothing/characters": "licencias: vista transversal (1)",
+        "/baby/boys/clothing/fancy-dress-costumes": "disfraces: fuera del brief (1)",
+        "/baby/boys/clothing/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
+        "/baby/boys/clothing/jackets-coats": "abrigo: fuera del brief (1)",
+        "/baby/boys/clothing/multipacks": "packs: varias prendas en una referencia (1)",
+        "/baby/boys/clothing/party-occasion": "vista transversal por ocasión (1)",
+        "/baby/boys/clothing/rompers": "monos: sin decidir, ver Lefties (1)",
+        "/baby/boys/clothing/sets-outfits": "conjuntos: prendas de varias categorías (1)",
+        "/baby/boys/clothing/socks": "calcetines: fuera del brief (1)",
+        "/baby/boys/clothing/swimwear": "baño: fuera del brief (1)",
+        "/baby/boys/clothing/view-all": "«Ver todo»: la rama entera (1)",
+        "/baby/boys/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
+        "/baby/boys/outerwear": "abrigo: fuera del brief (5)",
+        "/baby/boys/swimwear1": "baño: fuera del brief (1)",
+        # --- bebé niña (/baby/girls) ---
+        "/baby/girls/accessories": "complementos: ni ropa ni calzado (5)",
+        "/baby/girls/clothing/basics": "«Básicos»: reagrupa lo ya ingerido (1)",
+        "/baby/girls/clothing/characters": "licencias: vista transversal (1)",
+        "/baby/girls/clothing/fancy-dress-costumes": "disfraces: fuera del brief (1)",
+        "/baby/girls/clothing/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
+        "/baby/girls/clothing/jackets-coats": "abrigo: fuera del brief (1)",
+        "/baby/girls/clothing/multipacks": "packs: varias prendas en una referencia (1)",
+        "/baby/girls/clothing/party-occasion": "vista transversal por ocasión (1)",
+        "/baby/girls/clothing/rompers": "monos: sin decidir, ver Lefties (1)",
+        "/baby/girls/clothing/sets-outfits": "conjuntos: prendas de varias categorías (1)",
+        "/baby/girls/clothing/socks-tights": "calcetines: fuera del brief (1)",
+        "/baby/girls/clothing/swimwear": "baño: fuera del brief (1)",
+        "/baby/girls/clothing/view-all": "«Ver todo»: la rama entera (1)",
+        "/baby/girls/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
+        "/baby/girls/outerwear": "abrigo: fuera del brief (6)",
+        "/baby/girls/swimwear1": "baño: fuera del brief (1)",
+        # --- recién nacido (/baby/newborn) ---
+        "/baby/newborn/accessories": "complementos: ni ropa ni calzado (4)",
+        "/baby/newborn/clothing/charcater-shop": "licencias (el typo es de la tienda) (1)",
+        "/baby/newborn/clothing/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
+        "/baby/newborn/clothing/linen": "vista transversal por material (1)",
+        "/baby/newborn/clothing/outerwear": "abrigo: fuera del brief (1)",
+        "/baby/newborn/clothing/rompers": "monos: sin decidir, ver Lefties (1)",
+        "/baby/newborn/clothing/sets-outfits": "conjuntos: prendas de varias categorías (1)",
+        "/baby/newborn/clothing/socks-tights": "calcetines: fuera del brief (1)",
+        "/baby/newborn/clothing/view-all": "«Ver todo»: la rama entera (1)",
+        "/baby/newborn/outerwear": "abrigo: fuera del brief (4)",
+    },
     "springfield": {
         "nina/complementos": "complementos: ni ropa ni calzado (52)",
         "nino/complementos": "complementos: ni ropa ni calzado (36)",
@@ -410,12 +550,39 @@ def revisar_parseo(store: BaseStore, informe: Informe, muestra: int) -> None:
 
 
 def cubierta(ruta: str, cubren: Iterable[str], sep: str) -> bool:
-    """¿Es `ruta` una de `cubren` o cuelga de alguna? (ver `SupportsCoverageWatch.tree_separator`)
+    """¿Está `ruta` contada ya, por debajo o por encima? (ver `SupportsCategoryTree.tree_separator`)
 
     Pura y con el separador explícito para poder testear la trampa sin red: a prefijo pelado,
     `3-1-11` colgaría de `3-1-1` y las dos son hojas hermanas que ingerimos por separado.
+
+    Son **dos** relaciones, y las dos significan «esto no es un hueco»:
+
+    - `ruta` cuelga de una cubierta — sus productos entran por el padre, que ya ingerimos. Es lo
+      que midió #179 en C&A: 53 de 122 rutas eran subcategorías de hojas de `CATEGORIES`.
+    - `ruta` es **antepasada** de una cubierta — su catálogo entra por sus hijas. `/kids/boys/
+      clothing` no es catálogo que nos falte: es el cajón donde están `trousers`, `jeans` y
+      `nightwear`, que sí ingerimos.
+
+    La segunda apareció con H&M (#179), la primera tienda de taxonomía en tres niveles
+    (rama/sección/hoja): Sfera y Springfield cuelgan las hojas directamente de la raíz, así que
+    nunca emiten un nodo intermedio. Sin ella eran 7 nodos señalados cada jueves como huecos que no
+    lo son, y es la misma familia de ruido que el separador vino a quitar — un informe que señala
+    lo que ya ingerimos no lo lee nadie dos veces.
+
+    Ojo a lo que **no** hace: silencia el nodo intermedio, nunca a sus hijas. Una hoja nueva bajo
+    `/kids/boys/clothing` no cuelga de ninguna cubierta ni es antepasada de ninguna, así que sigue
+    saliendo — que es justo para lo que existe esta capa.
+
+    Las dos direcciones se separan en `cuelga_de` porque **no siempre valen las dos**: reducir el
+    informe a las rutas maximales pregunta solo por la primera, y con la segunda se comería el
+    hallazgo entero (una rama sin cubrir es antepasada de sus propias hijas sin cubrir).
     """
-    return any(ruta == c or ruta.startswith(c + sep) for c in cubren)
+    return cuelga_de(ruta, cubren, sep) or any(c.startswith(ruta + sep) for c in cubren)
+
+
+def cuelga_de(ruta: str, otras: Iterable[str], sep: str) -> bool:
+    """¿Es `ruta` una de `otras` o desciende de alguna? Solo hacia abajo (ver `cubierta`)."""
+    return any(ruta == c or ruta.startswith(c + sep) for c in otras)
 
 
 def revisar_cobertura(store: BaseStore, informe: Informe) -> None:
@@ -434,9 +601,10 @@ def revisar_cobertura(store: BaseStore, informe: Informe) -> None:
     se quedaría en el log del pod, que es exactamente el punto ciego que esta capa viene a tapar.
     Lo que evita la alarma semanal no es bajar el veredicto, es que la excepción sea explícita.
 
-    **Una tienda que no sabe enumerarse no es un hallazgo.** Solo 3 de 9 implementan
-    `SupportsCategoryTree`, y exigirlo —como sí se exige `check_leaves()`— obligaría a escribirlo en
-    seis tiendas más para poder mergear. Se anota como línea y se sigue.
+    **Una tienda que no sabe enumerarse no es un hallazgo.** Hoy lo implementan 7 de 9 (#179 subió
+    de 3 a 7: springfield, zara, cacles y hm), pero exigirlo —como sí se exige `check_leaves()`—
+    seguiría siendo caro donde no hay por dónde: en Hipercor el árbol vive bajo la ruta que su
+    `robots.txt` veta. Se anota como línea y se sigue.
     """
     if not isinstance(store, SupportsCategoryTree):
         informe.lineas.append("cobertura: no la sabe enumerar (no implementa SupportsCategoryTree)")
@@ -485,10 +653,14 @@ def revisar_cobertura(store: BaseStore, informe: Informe) -> None:
         # Solo las maximales: si `Baño` no está cubierta, sus tres hijas tampoco, y nombrarlas
         # todas convertiría un hallazgo en una parrafada. Se señala la rama y quien la atienda
         # decide sobre ella entera.
+        #
+        # `cuelga_de` y no `cubierta`: aquí la pregunta es solo «¿desciende de otra sin cubrir?».
+        # Con la regla de antepasados de `cubierta`, una rama quedaría tapada por sus propias
+        # hijas —y ellas por ella— y no sobreviviría ninguna.
         maximales = [
             n
             for p, n in sorted(sin_cubrir.items())
-            if not cubierta(p, sin_cubrir.keys() - {p}, sep)
+            if not cuelga_de(p, sin_cubrir.keys() - {p}, sep)
         ]
         informe.accionables.append(
             f"{len(maximales)} categoría(s) publicadas y SIN cubrir — decide si se ingieren "

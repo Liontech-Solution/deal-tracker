@@ -105,6 +105,7 @@ Las funciones `parse_*`, `es_espejismo()` y `_talla()` son puras y se testean co
 from __future__ import annotations
 
 import contextlib
+import json
 import logging
 import random
 import re
@@ -120,6 +121,7 @@ from ..barefoot import classify as classify_barefoot
 from ..config import Config
 from ..progreso import Latido
 from .base import (
+    CategoryNode,
     LeafHealth,
     ListingEntry,
     ScanReport,
@@ -130,6 +132,7 @@ from .base import (
     ambito_cruzado,
     con_unisex,
 )
+from .browser import BrowserSession
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +146,16 @@ _CATEGORY_ID = "kids_all"
 # Ruta deliberadamente inventada: la respuesta a esto ES el cubo, y con ella se reconocen las hojas
 # muertas. Lleva el nombre del proyecto para que, si alguien la ve en los logs de H&M, se entienda.
 _CANARIO_PAGE_ID = "/deal-tracker/esta-hoja-no-existe"
+
+# Página del escaparate de la que se lee el ÁRBOL (#179). Da igual cuál sea mientras exista: el
+# menú es el mismo en todas, así que se usa una hoja que ya está en `CATEGORIES` — si algún día
+# dejara de resolver, `check_leaves()` lo dice antes y con mejor diagnóstico que esta capa.
+_MENU_URL = f"{BASE_URL}/es_es/ninos/nina/ropa/vestidos.html"
+# Una entrada del menú: rótulo y ruta navegable, en ese orden y pegados. Ver `parse_category_tree`
+# para por qué se leen `title`/`path` y no `targetPath` ni las rutas sueltas del documento.
+_RE_MENU = re.compile(
+    r'"title":"(?P<title>(?:[^"\\]|\\.)*)","path":"/es_es(?P<path>/(?:kids|baby)[a-z0-9\-/]*)\.html"'
+)
 # Fracción de la primera página que ha de coincidir con el canario para llamarlo espejismo. Medido:
 # 100 % en las hojas muertas, 0-8 % en las vivas.
 _SOLAPE_ESPEJISMO = 0.5
@@ -181,13 +194,12 @@ class CategoryConfig:
 
 
 # Las 59 hojas, **preguntadas a la tienda y verificadas una a una con el canario** (02/08/2026), no
-# adivinadas. H&M no publica árbol —no hay endpoint de navegación y las 30 facetas de la respuesta
-# vienen con `values: []`, así que esta tienda NO implementa `SupportsCategoryTree`—, pero la propia
-# página de categoría de `www2` trae embebido el menú entero: 507 rutas `/kids/…` y 183 `/baby/…`.
-# Se leyó una vez con Chromium (el escaparate es Akamai) y de ahí salen éstas. Para repetirlo:
+# adivinadas. La API no publica el árbol —no hay endpoint de navegación y las 30 facetas de la
+# respuesta vienen con `values: []`—, pero la propia página de categoría de `www2` trae embebido el
+# menú entero. De ahí salen éstas, y desde #179 eso ya no es un apaño de reconocimiento: lo hace
+# `category_tree()`, así que para repetirlo basta
 #
-#   BrowserSession.get_html("https://www2.hm.com/es_es/ninos/nina/ropa/vestidos.html")
-#   -> re.findall(r"/(?:kids|baby)/[a-z0-9\-/]+", html)
+#   python -m scraper.run --retailer hm --tree /kids
 #
 # Dos cosas que ese árbol destapó y que ninguna ruta adivinada habría dado:
 #
@@ -446,6 +458,60 @@ def es_espejismo(ids_hoja: Sequence[str], ids_canario: Sequence[str]) -> bool:
     return comunes / len(set(ids_hoja)) >= _SOLAPE_ESPEJISMO
 
 
+def parse_category_tree(html: str, root: str) -> list[CategoryNode]:
+    """El árbol que publica el menú del escaparate, por debajo de `root`. Pura (HTML -> nodos).
+
+    **El menú no es un endpoint: viaja embebido en cualquier página de categoría de `www2`.** Por
+    eso el árbol entero cuesta UNA petición, y por eso hay que leerlo con navegador (Akamai), que
+    es la única cosa de esta tienda que no entra por `api.hm.com`.
+
+    Se recogen los pares `"title"`+`"path"` del propio menú y **no todas las rutas que aparezcan en
+    el documento**, que es lo que proponía la receta anotada en `CATEGORIES` desde #77
+    (`re.findall(r"/(?:kids|baby)/[a-z0-9\\-/]+", html)`). Medido el 05/08/2026, la diferencia no
+    es cosmética: el regex suelto saca **690 rutas y el menú publica 651**, porque también recoge
+    el `<meta name="contentPath">` de la propia página y los `praData`, que nombran las mismas
+    categorías con OTRO vocabulario (`1/kids/kids_girls/kids_girls_clothing`). Treinta y nueve
+    rutas que no existen como categoría se habrían señalado como hueco cada jueves.
+
+    La ruta es `path` sin el prefijo de idioma ni el `.html`, o sea **el mismo vocabulario que
+    `CategoryConfig.page_id`** — por eso `mapped_leaves()` no tiene que resolver nada, al revés que
+    en Zara. Y se lee de `path` y no de `targetPath`, que es a dónde apunta la entrada y no lo que
+    la entrada es: `/kids/boys/clothing/jackets-coats` tiene `targetPath` a
+    `/kids/boys/outerwear/view-all`, así que por ahí una hoja se leería con el nombre de otra.
+
+    `count=None` en todos: el menú publica navegación, no cuántos productos hay detrás. `None` es
+    «no lo dice», que no es 0 (ver `CategoryNode`).
+    """
+    vistas: dict[str, str] = {}
+    for m in _RE_MENU.finditer(html):
+        ruta = m.group("path")
+        # Se queda la PRIMERA: la misma categoría sale varias veces en el menú (740 entradas para
+        # 651 rutas) porque cuelga de más de una vista, y todas traen el mismo rótulo.
+        vistas.setdefault(ruta, _texto_json(m.group("title")))
+
+    prefijo = root + "/"
+    con_hijas = {r.rsplit("/", 1)[0] for r in vistas}
+    return [
+        CategoryNode(
+            path=ruta,
+            title=vistas[ruta],
+            count=None,
+            depth=ruta.count("/") - root.count("/"),
+            has_children=ruta in con_hijas,
+        )
+        for ruta in sorted(vistas)
+        if ruta.startswith(prefijo)  # solo descendientes: la raíz no se emite a sí misma
+    ]
+
+
+def _texto_json(crudo: str) -> str:
+    """Deshace los escapes de la cadena JSON del menú (`H\\u0026M Adorables` -> `H&M Adorables`)."""
+    try:
+        return str(json.loads(f'"{crudo}"'))
+    except ValueError:
+        return crudo  # un rótulo ilegible no justifica perder el nodo
+
+
 def _variantes(filas: Iterable[Fila]) -> list[ScrapedVariant]:
     """Una `ScrapedVariant` por (color × talla) de todas las filas del mismo modelo.
 
@@ -556,6 +622,7 @@ class HMStore:
         self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
         self._cache: dict[str, ScrapedProduct] = {}
         self._canario: list[str] | None = None
+        self._menu: str | None = None  # el escaparate del que sale el árbol; ver `_menu_html()`
 
     # --- red ---------------------------------------------------------------------------------
 
@@ -772,6 +839,83 @@ class HMStore:
         return self._scan
 
     # --- capacidades opcionales --------------------------------------------------------------
+
+    def category_tree(self, root: str) -> Iterable[CategoryNode]:
+        """Ver `stores.base.SupportsCategoryTree`. Una petición para el árbol entero (#179).
+
+        Es lo único de esta tienda que necesita navegador: el menú vive en el escaparate, que es
+        Akamai, y no en `api.hm.com`. **No participa en la pasada**, así que el CronJob de H&M
+        sigue siendo httpx pelado; quien paga el Chromium es el vigía del jueves, que ya lo lleva
+        en la imagen por Sfera, Lefties e Hipercor.
+
+        Se navega (`get_html`) en vez de pedir el documento servido (`pedir_html`), y es una
+        decisión medida el 05/08/2026, no el descuido que parece después de #160: `pedir_html()` en
+        frío da **403** —Akamai quiere las cookies que siembra una navegación de verdad— y con la
+        sesión ya sembrada devuelve el mismo menú, las mismas 651 rutas, en 0,96 s frente a 2,10 s.
+        O sea que serviría, pero **exige una navegación previa igualmente**: para UNA página al mes
+        salen dos peticiones donde `get_html()` hace una. El día que haya que leer varias páginas
+        del escaparate, el cálculo cambia y esto pasa a ser sembrar + `pedir_html()`.
+        """
+        return parse_category_tree(self._menu_html(), root)
+
+    def _menu_html(self) -> str:
+        """El escaparate del que sale el árbol, cacheado por instancia.
+
+        `--tree` sobre `/kids` y `/baby` y el barrido del vigía sobre las siete ramas piden el
+        árbol varias veces, y el menú es el mismo en todas: sin caché serían siete navegaciones
+        para el mismo dato.
+        """
+        if self._menu is None:
+            with BrowserSession(self._config) as session:
+                status, html = session.get_html(_MENU_URL)
+            if status != 200:
+                raise ValueError(f"{SLUG}: el escaparate respondió HTTP {status} al pedir el menú")
+            self._menu = html
+        return self._menu
+
+    def mapped_leaves(self) -> Iterable[str]:
+        """Ver `stores.base.SupportsCategoryTree`. Los `page_id` de `CATEGORIES`, tal cual.
+
+        Sin resolver nada contra el árbol, al revés que en Zara: allí `CATEGORIES` guarda el id
+        suelto y el vocabulario de esta capa es la cadena de ids, mientras que aquí `page_id` **ya
+        es** la ruta que publica el menú. Comprobado el 05/08/2026: las 59 salen en el menú.
+
+        Una hoja que el menú dejara de publicar se sigue emitiendo tal cual, y es a propósito: lo
+        que hay que decir entonces es que la hoja ha muerto, y eso lo dice `check_leaves()` con su
+        canario y con el veredicto que corresponde. Omitirla aquí solo conseguiría que además
+        apareciese como hueco de cobertura, que es el mismo hecho contado dos veces y peor.
+        """
+        return [cat.page_id for cat in self._categories]
+
+    def tree_separator(self) -> str:
+        """Ver `stores.base.SupportsCategoryTree`. H&M anida sus rutas con `/`, y son suyas."""
+        return "/"
+
+    def tree_roots(self) -> Iterable[str]:
+        """Ver `stores.base.SupportsCoverageWatch`. Las siete ramas donde vive el catálogo.
+
+        No se barre desde `/kids` y `/baby` por el mismo motivo que Sfera no barre desde `ninos` y
+        Springfield no barre desde su mundo: la taxonomía del brief empieza en la rama de género, y
+        colgando de los dos departamentos hay mucho que no lo es. Medido el 05/08/2026: el árbol
+        entero son **651 rutas**, de las que **393 caen bajo estas siete**; las 258 restantes son
+        casa y juguetes (`bedding`, `furniture-lighting`, `toys`, `rugs`…), vistas transversales
+        que reagrupan lo mismo (`shop-by-product` ×133, `9-14y` ×74) y campaña que caduca sola
+        (`last-chance`, `new-arrivals`, `seasonal-trending`, `global-node-*`). Declararlas serían
+        ~60 entradas que envejecen sin que nadie las mire, que es justo lo que #179 midió en Zara.
+
+        Lo que queda fuera del barrido **no queda fuera del alcance**: `--tree /kids` y
+        `--tree /baby` siguen enumerando el árbol entero, y es ahí donde se mira si un día aparece
+        un departamento nuevo — que es exactamente como se encontró el de bebé de Zara (#186).
+        """
+        return [
+            "/kids/boys",
+            "/kids/boys-9-14y",
+            "/kids/girls",
+            "/kids/girls-9-14y",
+            "/baby/boys",
+            "/baby/girls",
+            "/baby/newborn",
+        ]
 
     def check_leaves(self) -> Iterable[LeafHealth]:
         """Sondea las hojas configuradas. Ver `stores.base.SupportsLeafHealth`.
