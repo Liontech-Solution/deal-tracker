@@ -1335,6 +1335,45 @@ Y una precondición que no estaba escrita en ningún sitio: `findCandidates` hac
 haga lo que haga el scraper**. Vincular exige a un humano pulsando «Start» sobre un deep-link de un
 solo uso (`POST /api/settings/telegram/link`); no hay forma de hacerlo desde el cluster.
 
+### Un interés se identifica por su ALCANCE, y por eso la baja es lógica
+
+La protección contra el aviso repetido no vive solo en el `UNIQUE (interest_id, variant_id,
+price_event_key)` de la `0005`: vive en que **el `interest_id` sobreviva**. Todo lo que borre esa
+fila reabre el duplicado, porque `notification.interest_id` es `ON DELETE CASCADE` y se lleva por
+delante las filas que protegían. Hasta la `0025` la API solo sabía **borrar** un interés, así que
+dejar de seguir una prenda —un clic que el usuario lee como «ya no me interesa esto»— borraba el
+historial de avisos entregados y con él la garantía (#149; reproducido en QA sobre el interés de
+Zara con sus 13 avisos, que hubo que desactivar por columna en vez de por la API para no perderlos).
+
+Son **dos mitades y hacen falta las dos**, que es lo que se puede deshacer sin querer:
+
+1. La baja es lógica (`active = false`). Ya la respetaban el listado del usuario y `findCandidates`;
+   lo que faltaba era que alguien la escribiera.
+2. **Volver a seguir el mismo alcance reactiva la fila que ya existía.** Conservar el historial sin
+   conservar el id no arregla nada: el aviso del mismo evento de precio vuelve a salir por un id
+   nuevo, con el UNIQUE mirando. Por eso la `0025` añade `interest_alcance_uniq` sobre las **nueve
+   columnas del alcance** (`user_id` + los tres apuntados + los cinco filtros) y el alta es un
+   `ON CONFLICT DO UPDATE`, no un `INSERT`.
+
+La regla de aviso (`min_discount_pct`, `compare_base`, `window_days`) **no** entra en la clave:
+volver a seguir lo mismo con otro umbral es cambiar de opinión sobre el mismo seguimiento. `active`
+tampoco, o la clave dejaría de impedir el duplicado justo en el caso que existe para cubrir.
+
+Dos detalles medidos que sostienen la implementación:
+
+- **`NULLS NOT DISTINCT` no es cosmético** (Postgres 15+; el cluster corre 16.4). Aquí un `NULL`
+  significa «cualquiera», no «desconocido»: con la semántica por defecto dos intereses de «cualquier
+  talla» nunca colisionarían, el `ON CONFLICT` no dispararía jamás y la reactivación no ocurriría.
+- **La inferencia del árbitro por lista de columnas SÍ encuentra un índice `NULLS NOT DISTINCT`**
+  (comprobado contra Postgres 16 el 04/08/2026). Importa porque Drizzle no sabe expresar
+  `ON CONFLICT ON CONSTRAINT`, y pasar a SQL crudo cambiaría el contrato de la API: la respuesta en
+  camelCase sale de su mapeo.
+
+El contrato HTTP no cambió — `DELETE` sigue devolviendo 204 y `POST` 201 — así que la SPA no se
+enteró. Eso es lo que hace el cambio fácil de revertir sin darse cuenta: un `create()` «simplificado»
+a un `INSERT` a secas, o un borrado físico reintroducido como endpoint, pasan los tests de contrato
+y solo se notan cuando alguien recibe dos veces el mismo aviso.
+
 ### El vocabulario de categorías diverge entre tiendas, y es deliberado
 
 `sandalias` y `botas` existen en `cacles` y `lefties` —las dos tiendas que dan esa distinción

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type postgres from 'postgres';
 
 import { schema } from '../src/database/schema';
+import { InterestsService } from '../src/interests/interests.service';
 import { MatchingService } from '../src/matching/matching.service';
 import { TelegramApiClient } from '../src/telegram/telegram-api.client';
 import { makeSql, resetSchema, seedCatalog, seedUser, TEST_DB } from './helpers';
@@ -139,6 +140,35 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
 
     expect(second.candidates).toBe(1); // vuelve a evaluarlo...
     expect(second.notified).toBe(0); // ...pero no vuelve a avisar
+    expect(sent).toHaveLength(1);
+    expect(await countNotifications()).toBe(1);
+  });
+
+  it('dejar de seguir y volver a seguir no reabre el aviso ya entregado (#149)', async () => {
+    // El ciclo completo por el que existe la 0025, con el servicio de intereses de verdad y no con
+    // un UPDATE a mano: mientras la baja fue física, el CASCADE de `notification.interest_id` se
+    // llevaba la fila que protegía este evento de precio y el aviso volvía a salir por un id nuevo.
+    const user = await seedLinkedUser('kc-match-refollow', 903);
+    const { client, sent } = fakeTelegram();
+    const service = makeService(client);
+    const interests = new InterestsService(drizzle(sql, { schema }) as never);
+
+    const creado = await interests.create(user.id, { productId: seeded.productId });
+    await service.run(false);
+    expect(sent).toHaveLength(1);
+
+    await interests.remove(user.id, creado.id);
+    const reactivado = await interests.create(user.id, { productId: seeded.productId });
+    expect(reactivado.id).toBe(creado.id); // la misma fila, con su historial debajo
+    expect(await countNotifications()).toBe(1);
+
+    // Con la marca de agua rebobinada el lote se vuelve a evaluar entero, que es el escenario que
+    // de verdad puede repetir el mensaje.
+    await sql`UPDATE job_state SET last_scrape_run_id = 0 WHERE job = 'matching'`;
+    const second = await service.run(false);
+
+    expect(second.candidates).toBe(1);
+    expect(second.notified).toBe(0);
     expect(sent).toHaveLength(1);
     expect(await countNotifications()).toBe(1);
   });
