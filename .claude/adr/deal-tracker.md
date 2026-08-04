@@ -1062,21 +1062,27 @@ La §4 de #93 llevaba cuatro intentos leyendo el `activeDeadlineSeconds` como la
 era: el pod estuvo pegado a su cap de 1 CPU el **98 % de 295 minutos**. Pero al instrumentar la
 pasada aparecieron dos correcciones más, y la segunda invalida un cálculo que parecía sólido:
 
-- **La fase de listado no es despreciable, y se creía que sí.** Se estimaba en ~3,5 min extrapolando
-  los 5,4 s/hoja de #111; medida de verdad, sus **tres primeras hojas cuestan 4m17s, 4m42s y 4m52s**
-  con cpu 1. El error no fue de cálculo: los 5,4 s/hoja son del **sondeo del vigía**, que hace *una*
-  petición por hoja, mientras que `list_catalog` pagina cada hoja con el navegador. Moraleja general
-  y cara: una medida de una capa no vale para otra aunque la unidad se llame igual («segundos por
-  hoja»). El total de la fase queda **sin cerrar a propósito** — 32 hojas × 4m37s darían ~2h28m, pero
-  eso asume que todas cuestan igual y las tres medidas ya producen 114, 47 y 127 entradas, así que el
-  tiempo no sigue al tamaño. Súmese que la fría entera de dev del 02/08 se cronometró en 3h27m, que
-  es *menos* que esa extrapolación más las fichas: o las hojas restantes son mucho más baratas, o
-  las dos medidas no son comparables. **Sin resolver.**
-- **Subir el cap de 1 a 2 da ×1,44 y sigue saturando.** Esto sí es comparación limpia: mismo Job,
-  mismo nodo, misma imagen, mismas env, solo cambia el límite. 3m06s / 3m13s / 3m18s (media
-  **3m12s**) contra 4m37s, y las entradas acumuladas coinciden hoja a hoja (114, 161, 288), o sea el
-  mismo trabajo. Pero el pod marca **1943m de 2000m**: dos cores también se saturan, así que ×1,44 es
-  lo que da subir a 2, no el techo de la mejora.
+- **La fase de listado son 30 min, y las hojas NO cuestan lo mismo ni de lejos.** Se estimaba en
+  ~3,5 min extrapolando los 5,4 s/hoja de #111 — número del **sondeo del vigía**, que hace *una*
+  petición por hoja, mientras que `list_catalog` pagina cada hoja con el navegador. Primera moraleja:
+  una medida de una capa no vale para otra aunque la unidad se llame igual («segundos por hoja»).
+  Pero la segunda es peor y me la comí entera el 04/08/2026: al medir las **tres primeras** hojas
+  (4m17s, 4m42s, 4m52s con cpu 1) extrapolé ×32 y anuncié ~2h28m. **Falso.** La pasada completa
+  publicó `listado: 1229 entradas en 30m`, porque las primeras hojas son las caras y a partir de la
+  sexta bajan a **~35-40 s** (hoja 6→10: 4 hojas en 2m19s; 10→14: 4 en 2m30s). Extrapolar de las
+  primeras hojas sobreestima **×3,4**. Con el instrumento puesto, el número real cuesta media hora de
+  espera: no hace falta extrapolar nada, y aquí la extrapolación habría hecho dimensionar el CronJob
+  por un fantasma.
+- **Las fichas arrancan a 14,7 s, no a los ~10 s que se venían asumiendo**, con la estimación en
+  4h59m sobre las 9 primeras (dato de arranque: el ritmo de Zara se estabilizó de 0,8 a 0,7 s/ficha
+  en el primer minuto, así que este también puede bajar). Sumado a los 30 min de listado, la pasada
+  en frío queda **en el filo de los 18000 s** del deadline, no holgadamente dentro.
+- **Subir el cap de 1 a 2 da ×1,44 y sigue saturando.** Esto sí es comparación limpia, y sobrevive
+  al error de arriba porque compara **las mismas tres hojas** contra sí mismas: mismo Job, mismo
+  nodo, misma imagen, mismas env, solo cambia el límite. 3m06s / 3m13s / 3m18s (media **3m12s**)
+  contra 4m37s, y las entradas acumuladas coinciden hoja a hoja (114, 161, 288), o sea el mismo
+  trabajo. Pero el pod marca **1943m de 2000m**: dos cores también se saturan, así que ×1,44 es lo
+  que da subir a 2, no el techo de la mejora.
 
 Consecuencia práctica para dimensionar cualquier tienda de navegador: el `activeDeadlineSeconds` hay
 que repartirlo entre **dos** fases que escalan distinto —hojas × páginas por hoja, y fichas × una
