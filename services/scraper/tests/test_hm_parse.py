@@ -505,6 +505,8 @@ def test_una_hoja_que_devuelve_el_cubo_se_trata_como_retirada() -> None:
     informe = store.scan_report()
     assert informe.leaves_failed == 1
     assert ScrapeScope("niño", "ropa", "pantalones") in informe.failed_scopes
+    # Y nombrada por su `pageId` (#155), que es lo que hay que llevarse al árbol de la tienda.
+    assert informe.failed_leaves == ["/kids/boys/clothing/trousers"]
 
 
 def test_al_caer_una_hoja_de_genero_tambien_se_protege_el_ambito_unisex() -> None:

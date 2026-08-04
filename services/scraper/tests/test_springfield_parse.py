@@ -5,10 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+import httpx
+
 from scraper.config import Config
 from scraper.stores.base import ScrapedProduct
 from scraper.stores.springfield import (
     _GENERO_POR_SEGMENTO,
+    _SITEMAP_INDICE,
     CATEGORIA_POR_SEGMENTO,
     HOJAS,
     ColorInfo,
@@ -65,6 +68,38 @@ def test_toda_entrada_del_sitemap_trae_lastmod_que_es_la_huella() -> None:
     assert all(e.lastmod for e in entradas)
     # Formato ISO con zona, tal y como lo publica la tienda.
     assert all(e.lastmod.endswith("Z") for e in entradas)
+
+
+def test_un_sitemap_ilegible_se_cuenta_como_una_hoja_y_dice_cual() -> None:
+    """El informe nombra el FICHERO, que es lo único que sirve para ir a mirarlo (#155).
+
+    Springfield es la excepción del proyecto en esto: su `check_leaves()` habla de ramas
+    (`ninos/pantalones`) y aquí se habla de ficheros, porque un sitemap es un corte arbitrario del
+    catálogo y no se corresponde con ninguna rama. Por eso mismo caen los 24 ámbitos con un solo
+    fichero, y por eso mismo cuenta como UNA hoja: sumar un ámbito por hoja dispararía
+    `SCRAPER_SCAN_MAX_DEAD_RATIO` con el primer fallo y abortaría una pasada a la que le quedan
+    dos tercios del catálogo perfectamente legibles.
+    """
+    indice = load_html("springfield_sitemap_index.xml")
+    productos = load_html("springfield_sitemap_products.xml")
+    roto = "sitemap_4-Products.xml"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nombre = request.url.params.get("name", "")
+        if nombre == roto:
+            return httpx.Response(200, text="<urlset><url><loc>sin cerrar")  # ET.ParseError
+        return httpx.Response(200, text=indice if nombre == _SITEMAP_INDICE else productos)
+
+    store = SpringfieldStore(Config(database_url="postgresql:///no-usada", request_delay=0.0))
+    store._client = lambda **_: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
+
+    entradas = list(store.list_catalog())
+
+    informe = store.scan_report()
+    assert (informe.leaves_total, informe.leaves_failed) == (3, 1)
+    assert informe.failed_leaves == [roto], "sin el nombre solo se sabe que se cayó uno de tres"
+    assert informe.failed_scopes == set(store.scopes())
+    assert entradas, "los otros dos sitemaps se leen igual: una hoja caída no tumba la pasada"
 
 
 # --- clasificación por URL ---------------------------------------------------

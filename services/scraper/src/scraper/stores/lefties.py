@@ -431,14 +431,14 @@ class LeftiesStore:
                     # Zara. Se salta, pero su ámbito sale de las bajas — el comentario que había
                     # aquí daba por hecho que la red por ámbito lo cubría, y no es así: `scopes()`
                     # se deriva de CATEGORIES, así que el ámbito seguía contando como escaneado.
-                    self._hoja_comprometida(scope)
+                    self._hoja_comprometida(scope, str(cat.category_id))
                     continue
                 try:
                     grid = session.get_json(_GRID_URL.format(grid_id=grid_id))
                 except BrowserHTTPError as exc:
                     if exc.status not in GONE_STATUS:
                         raise
-                    self._hoja_comprometida(scope)
+                    self._hoja_comprometida(scope, str(cat.category_id))
                     continue
                 self._scan.leaf_ok()
                 for entry in parse_listing_entries(grid, cat):
@@ -468,12 +468,12 @@ class LeftiesStore:
                 category=ambito.category,
             )
 
-    def _hoja_comprometida(self, scope: ScrapeScope) -> None:
+    def _hoja_comprometida(self, scope: ScrapeScope, leaf: str) -> None:
         """Cuenta la hoja como caída y saca su ámbito —y el `unisex` equivalente— de las bajas.
 
         El porqué de lo segundo está en `ScanReport.leaf_gone()`.
         """
-        self._scan.leaf_gone(scope, tambien_unisex=True)
+        self._scan.leaf_gone(scope, leaf, tambien_unisex=True)
 
     def scan_report(self) -> ScanReport:
         """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""

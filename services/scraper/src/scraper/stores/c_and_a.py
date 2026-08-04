@@ -549,6 +549,7 @@ class CAndAStore:
                 if page == _PAGINA_INICIAL and declarado == 0:
                     self._hoja_comprometida(
                         scope,
+                        cat.ipim_id,
                         f"la hoja {cat.ipim_id!r} devolvió productCount 0, "
                         "así que se trata como retirada",
                     )
@@ -581,15 +582,16 @@ class CAndAStore:
             # no haber cabido en el tope.
             self._hoja_comprometida(
                 scope,
+                cat.ipim_id,
                 f"{cat.ipim_id!r} agotó el tope de {_MAX_PAGES} páginas sin llegar al final, "
                 "así que el catálogo leído está incompleto",
             )
         else:
             self._scan.leaf_ok()
 
-    def _hoja_comprometida(self, scope: ScrapeScope, motivo: str) -> None:
+    def _hoja_comprometida(self, scope: ScrapeScope, leaf: str, motivo: str) -> None:
         """Cuenta la hoja como caída y saca su ámbito de las bajas de esta pasada."""
-        self._scan.leaf_gone(scope)
+        self._scan.leaf_gone(scope, leaf)
         logger.warning("%s: %s; se omiten las bajas de ese ámbito", SLUG, motivo)
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:

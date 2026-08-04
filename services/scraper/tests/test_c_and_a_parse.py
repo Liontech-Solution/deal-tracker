@@ -431,6 +431,8 @@ def test_una_hoja_con_productCount_cero_se_trata_como_retirada() -> None:
     informe = store.scan_report()
     assert informe.leaves_failed == 1
     assert ScrapeScope("niño", "ropa", "camisetas") in informe.failed_scopes
+    # Nombrada por su `ipimId` (#155), que es justo el identificador que no cambia con el idioma.
+    assert informe.failed_leaves == [_CAT_NINO.ipim_id]
 
 
 def test_una_hoja_viva_pero_vacia_en_la_primera_pagina_no_se_da_por_muerta() -> None:
@@ -446,6 +448,7 @@ def test_agotar_el_tope_de_paginas_compromete_la_hoja() -> None:
     store = _store_sirviendo(llenas, product_count=99999)
     list(store.list_catalog())
     assert store.scan_report().leaves_failed == 1
+    assert store.scan_report().failed_leaves == [_CAT_NINO.ipim_id]
 
 
 # --------------------------------------------------------------------------------------

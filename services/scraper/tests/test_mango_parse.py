@@ -341,6 +341,9 @@ def test_una_respuesta_sin_forma_de_listado_si_compromete_la_hoja() -> None:
     store._get = lambda *a, **k: _Resp()  # type: ignore[method-assign, assignment]
     assert store._leer_hoja(None, cat) is None  # type: ignore[arg-type]
     assert store.scan_report().leaves_failed == 1
+    # Nombrada por su `catalogId` (#155), el mismo que le da el menú público de la tienda y el
+    # mismo que el vigía pone en `LeafHealth.leaf`.
+    assert store.scan_report().failed_leaves == [cat.catalog_id]
 
 
 # --- el circuito de corte de las fichas ----------------------------------------------------
