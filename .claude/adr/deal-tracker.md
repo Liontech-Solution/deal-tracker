@@ -49,7 +49,10 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
   Desde esa tarde las nueve corren también en **QA**, semanalmente y sin ninguna suspendida
   (juanjocop/k3s-local-apps-manifests#76). Que una tienda esté en el registry, tenga CronJob y salga
   verde en el vigía **no prueba que ingiera**: lo demostraron #93 y #99, y por eso lo que se cuenta
-  aquí son pasadas con catálogo en una base, no altas en el registry.
+  aquí son pasadas con catálogo en una base, no altas en el registry. **Y ese «corren en QA» tampoco
+  es ingerir**: medido el 04/08/2026 sobre v0.1.5, en QA solo **siete** tienen catálogo — Cacles a
+  cero por el 429 de huella TLS e Hipercor sin fila ni en `retailer`. La distinción registry /
+  CronJob / catálogo hay que rehacerla **por entorno**, porque dev y QA divergen por diseño.
 - **`price_history.retailer_min_30d` (0018) es el primer dato del contrato que no observamos
   nosotros**: es el mínimo de 30 días que la tienda **declara** por la directiva Ómnibus. Importa
   porque el detector de descuentos engañosos vivía de una sola fuente —nuestro propio histórico—,
@@ -105,6 +108,26 @@ Este repo produce imágenes; aquel decide qué corre.
 
 Consecuencia: **dev sigue `sha-<7>`, QA sigue semver**, y el binario de QA es bit a bit el que se
 validó en dev. Los `newTag` de ambos kustomizations son **machine-edited — no editar a mano**.
+
+**La cadena acaba en QA sin ninguna puerta funcional, y por eso existe `/validar-qa`** (skill en
+`.claude/skills/validar-qa/` + tres subagentes `validador-qa-*`, 04/08/2026). Lo que hay antes no
+mira lo desplegado: el CI del web valida lint, typecheck y vitest, y del frontend **solo que
+compila** —no hay ni un test de navegador en el repo—, y los e2e corren contra una Postgres sembrada
+a mano, con el `JwtAuthGuard` sustituido por un usuario falso y el locale de CI, no contra el
+`UTF8 | C | C` del cluster. `release-qa` promueve por digest y su «gate humano» es lanzar el
+workflow. Consecuencia medida sobre v0.1.5, solo con mirar: Cacles con la última pasada en `failed`
+por el 429 de huella TLS (#120), Hipercor **sin una sola fila** en `scrape_run` y sin fila siquiera
+en `retailer`, con sus dos jobs muertos por `DeadlineExceeded` (#93), **7 de 9 tiendas** en
+`/api/catalog/facets`, y una hoja de categoría de Sfera muerta escondida dentro de `errors = 15`.
+Ninguna alarma se disparó.
+
+Dos decisiones de diseño de esa puerta que no son obvias: el frente de UI **corre solo** porque el
+navegador de Playwright es un MCP único y dos agentes se pisan las pestañas; y el veredicto tiene
+tres valores, no dos — un frente que no se pudo ejercer da **NO CONCLUYENTE**, nunca APTO, porque
+aprobar por omisión es la única forma real de que la puerta haga daño. Los informes se versionan en
+`.claude/qa-reports/<version>.md` por su bloque de cifras: es la línea base contra la que la
+validación siguiente detecta que una tienda pasó de 3381 productos a 40 con la pasada cerrando en
+`success`, que es el daño que ninguna otra comprobación ve.
 
 **El corolario que ya ha mordido dos veces: en QA, capacidad nueva ≠ capacidad disponible.** Como
 QA solo avanza con un `release-qa` manual, todo lo que se mergea a `main` llega a dev al instante y
@@ -925,6 +948,19 @@ un minuto**, y la secuencia para cerrar el círculo al añadir tienda es mergear
 CI → **comprobar que ArgoCD ha sincronizado la imagen en el CronJob** (disparar antes muere con
 `Tienda desconocida`) → disparar el job a mano → leer el log. Diez minutos de reloj, casi todos de
 espera.
+
+**Y una trampa de lectura en esa consulta: `scrape_run.errors` no cuenta productos perdidos.** Es
+`len(sospechosos) + sondeos_sin_resolver + hojas_de_categoría_caídas`, tres cosas de gravedad muy
+distinta sumadas en un entero. Medido el 04/08/2026 en QA: los `errors = 69` de Zara eran sondeos de
+confirmación de baja sin resolver **que se reintentan en la pasada siguiente** —ningún producto
+faltaba del catálogo—, mientras que los `errors = 15` de Sfera eran 14 sondeos **más una hoja de
+categoría muerta de 35**, es decir una categoría entera que dejó de ingerirse y un ámbito sin
+detección de bajas, que es un hallazgo propio y mucho peor. Leer el contador como «N productos
+perdidos» es falso en los dos sentidos: alarma de más en un caso y esconde el grave en el otro. El
+desglose está en la línea de resumen del log del pod (`confirmación activa: …` y
+`⚠ N/M hojas de categoría no responden`), **que caduca cuando el pod se recolecta**; la copia
+duradera es `scrape_run.message` y las `status.conditions` del Job. Cuando `kubectl logs` responde
+`error: timed out waiting for the condition`, eso no es red: es que ese job ya no tiene pod.
 
 **Y el segundo grado, que el vigía tampoco ve: «nos dejan entrar» no es binario.** Puede estar la
 puerta abierta y el paso regulado, y el vigía solo sabe leer la puerta. Medido el 02/08/2026 (#107)

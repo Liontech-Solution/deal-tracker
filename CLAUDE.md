@@ -67,6 +67,15 @@ pnpm job:matching             # deal matching + Telegram notifications
 pnpm lint && pnpm typecheck && pnpm test
 ```
 
+Validation of the deployed QA environment is a Claude Code skill, not a `just` recipe — it drives a
+browser, the API, the cluster and the QA database at once:
+
+```
+/validar-qa                   # full sweep of QA + verdict APTO / NO APTO / NO CONCLUYENTE
+/validar-qa rapida            # no cluster jobs, ~20 min; never grants APTO
+/validar-qa --frente datos    # a single front (ui | api | datos)
+```
+
 Config comes from the environment (`.env`, see `.env.example` at the root for the scraper and
 `services/web/.env.example` for the web). `DATABASE_URL` is required by both. `TEST_DATABASE_URL`
 gates the scraper's ingestion tests — they are **skipped** if unset, so a green `just check` without
@@ -150,6 +159,16 @@ is the problem it exists to solve, so dev pauses it instead, to avoid asking twi
 **Local verification does not need the cluster.** A throwaway Postgres in Docker covers the
 ingestion tests and a real full pass. The dev cluster is only for verifying **deployment**, and that
 does require merging to `main` (CI only publishes images on push to main).
+
+**Nothing gets promoted to prod without a green `/validar-qa` report.** CI proves the code compiles
+and its unit tests pass; it says nothing about what is actually deployed. There is not a single
+browser test in this repo, and the e2e specs run against a hand-seeded Postgres with the auth guard
+faked and CI's locale — not against the cluster's `UTF8 | C | C`. So the gate is the skill: it
+sweeps the SPA in a real browser, the API contract, the data and ingestion state, and the cluster,
+then writes a verdict to `.claude/qa-reports/<version>.md`. **That report is versioned on purpose**
+— its `## Cifras` block is the baseline the next validation diffs against to catch a store whose
+catalogue silently collapsed. A front that could not be exercised yields `NO CONCLUYENTE`, never a
+pass by omission.
 
 ## Infrastructure
 
