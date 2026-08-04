@@ -1,6 +1,6 @@
 ---
 name: verificar-en-cluster-dev
-description: Cómo ejecutar pasadas de scraper y SQL contra deal-tracker-dev; esta máquina no tiene Postgres ni psql
+description: Cómo ejecutar pasadas de scraper y SQL contra deal-tracker-dev; la Postgres local existe pero NO está en el PATH, comprobar el prefijo antes de darla por ausente
 metadata: 
   node_type: memory
   type: project
@@ -8,7 +8,21 @@ metadata:
   modified: 2026-08-04T14:16:16.429Z
 ---
 
-**Comprueba el equipo antes de creerte cualquiera de los dos caminos de abajo**: son [[kubeconfig-location|dos máquinas]] y no tienen lo mismo. `command -v docker postgres psql` cuesta un segundo y evita el rodeo. Medido:
+**Comprueba el equipo antes de creerte cualquiera de los dos caminos de abajo**: son [[kubeconfig-location|dos máquinas]] y no tienen lo mismo. Medido:
+
+> ⚠️ **`command -v postgres` da un FALSO NEGATIVO y cuesta caro** (04/08/2026, #155). El montaje en
+> espacio de usuario vive en un prefijo que **no está en el PATH**, así que `which`/`command -v` no
+> lo ven aunque el servidor esté **ya arrancado y aceptando conexiones**. Ese día se dio la máquina
+> por «sin Postgres», los tests de ingesta se dejaron sin correr y el fallo salió en CI. La
+> comprobación buena es mirar el prefijo y el socket, no el PATH:
+> ```bash
+> ls ~/.local/share/pgsql-local/usr/bin
+> LD_LIBRARY_PATH=~/.local/share/pgsql-local/usr/lib \
+>   ~/.local/share/pgsql-local/usr/bin/pg_isready -h /tmp   # /tmp:5432 - aceptando conexiones
+> ```
+> Y `pip install pgserver` / `postgresql-wheel` **no** son la salida: ninguno tiene distribución
+> para esta plataforma.
+
 
 - **02/08/2026**: ni `postgres`/`psql`/`pg_isready` ni `docker`/`podman`.
 - **04/08/2026 (#149)**: `docker` **sí** está (29.7.1) y `psql`/`postgres` **no**. Un `postgres:16`
