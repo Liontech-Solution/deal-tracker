@@ -939,22 +939,33 @@ accionable, así que degradarlo a aviso lo habría dejado en el log del pod, que
 la capa venía a tapar.
 
 Lo que hay que saber antes de tocarla es que **«no mapeado» no es «hueco», y suponerlo la
-inutiliza**. Medido sobre las tres tiendas que enumeran su árbol:
+inutiliza**. Medido sobre las tiendas que enumeran su árbol (seis desde #179; las tres primeras son
+las de #156):
 
 | tienda | rutas publicadas | «sin mapear» en crudo | huecos reales |
 |---|---:|---:|---:|
 | c-and-a | 122 | 109 | **0** |
 | sfera | 46 | 13 | **4** |
 | mango | 197 | 87 | no aplica (ver abajo) |
+| springfield | 65 | 33 | **0** |
+| zara | 766 | 536 | no aplica (ver abajo) |
+| cacles | 161 | 160 | no aplica (ver abajo) |
 
 Las 109 de C&A eran ruido por dos motivos distintos, y los dos hay que descontarlos:
 
 1. **53 son subcategorías de hojas que YA ingerimos** (`3-7-1-2` Camisetas cuelga de `3-7-1`, que
-   está en `CATEGORIES`): sus productos entran por el padre. De ahí `SupportsCoverageWatch.
+   está en `CATEGORIES`): sus productos entran por el padre. De ahí `SupportsCategoryTree.
    tree_separator()` y la comparación **con separador y no a prefijo pelado** — `3-1-11`
    (Calcetines) empieza por `3-1-1` (Camisetas) y son hermanas mapeadas por separado. Que el id
    jerárquico predice la contención no se supone: ya estaba medido en `c_and_a.CATEGORIES`, donde
    `3-7-2-3` (Shorts) aporta 0 productos nuevos por estar contenido entero en `3-7-2`.
+
+   El separador **vivía en `SupportsCoverageWatch` hasta #179**, y moverlo no fue cosmético: lo que
+   decide si una rama cuelga de otra es el vocabulario, o sea cosa de quien enumera, mientras que
+   lo que es una decisión de coste del barrido semanal es `tree_roots()`. Mientras estuvo del otro
+   lado, las tiendas que enumeran **sin** vigilarse se quedaban sin él y su `--tree` pintaba como
+   hueco todo lo que cuelga de una hoja ingerida: 139 de 153 en la rama de niña de Zara. Mango
+   arrastraba el fallo desde #156 sin que se viera, porque su árbol tiene poca profundidad.
 2. **El resto son ramas fuera del brief** (Baño, Chaquetas, Accesorios, Packs, Novedades…), que se
    declaran en `vigia.COBERTURA_DECLARADA` con el motivo. Declarar la rama calla a sus hijas, y eso
    es lo que mantiene la lista corta: 56 rutas huérfanas se declaran con 23 entradas. Esa lista es,
@@ -971,6 +982,28 @@ lista que se pudre. Por eso `SupportsCoverageWatch` es un protocolo **aparte** d
 vigilar sin supervisión exige además que el ruido sea acotable. Mango conserva su `--tree` y se
 declara en `COBERTURA_SIN_VIGILAR`, con la misma forma que `SIN_VIGILANCIA_DE_HOJAS`: la excepción,
 explícita y revisable.
+
+**#179 midió las otras seis tiendas y el reparto quedó 3 a 3, que es el dato que conviene tener
+antes de prometer cobertura vigilada en una tienda nueva.** Zara y Cacles se suman a Mango por
+motivos distintos entre sí: el árbol de Zara es su menú (536 sin cubrir de 766, encabezados por
+«VER TODO» ×81 y «COLECCIÓN» ×20, más dividers y editoriales) y las colecciones de Cacles son
+**planas** —Shopify no anida— con `infantil` haciendo de paraguas de todo el catálogo infantil, así
+que las otras 160 parecen huecos y no lo son. En Cacles además la pregunta de cobertura de verdad
+es otra: no «qué hoja falta» sino «qué `product_type` no está mapeado», y esa ya la canta
+`_categoria_desde_tipo()` por el log en cada pasada. Las tres que quedan fuera lo están por una
+razón dura y no por falta de ganas: H&M no publica endpoint de navegación (sus 30 facetas vienen
+con `values: []`) y su menú solo está en el HTML del escaparate, que es Akamai; en Hipercor la
+faceta del árbol vive bajo `/api`, que su `robots.txt` veta; Lefties ya recorre su menú entero en
+cada pasada pero es un menú de Inditex, con el mismo riesgo que Zara.
+
+**Springfield estrena una tercera forma de enumerar, y es la barata.** No publica endpoint de
+categorías —su rejilla de SFCC está vetada por `robots.txt`, que es de lo que iba #81— pero no le
+hace falta: la taxonomía viaja en la ruta de cada URL de producto, así que el árbol son las rutas
+distintas del sitemap que `check_leaves()` ya se descarga. Cero peticiones nuevas, y una propiedad
+que ninguna otra tienda puede dar: su `count` es de productos **servidos**, no declarados (en Sfera
+los dos números no coinciden — 8 declarados contra 18 servidos, medido en #72). El precio de leer
+el sitemap es acordarse de que **repite cada URL entre sus ficheros**: 3207 filas para 1382
+productos, un factor de 2,3 que hay que deduplicar por id o los números salen inflados.
 
 Dos consecuencias operativas: la capa **cuesta peticiones semanales contra la tienda** —122 rutas y
 1m 29s en C&A, que las pide de una en una, contra 9,5 s y 46 rutas en Sfera— y por eso las raíces
