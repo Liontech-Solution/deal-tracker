@@ -1328,6 +1328,22 @@ las tres:
   producto cruzado se emitiría con el género de la superviviente y su ámbito `unisex` parecería
   vaciado. Cuenta **una** hoja caída y no dos, o `SCRAPER_SCAN_MAX_DEAD_RATIO` saltaría antes de
   tiempo — y por lo mismo el ámbito extra tampoco añade un nombre a `failed_leaves`.
+- **`ScanReport.cross_gender_suspect` + `ingest._gender_a_escribir()`** — la misma hoja caída tiene
+  una **segunda** consecuencia, en un ámbito distinto del suyo, y sacar el `unisex` de las bajas no
+  la cubría (#172): la rama que **sí** se lista emite con su género productos que son `unisex`, y
+  `_upsert_product` los guardaba así. `leaf_gone` anota la rama contraria y la ingesta conserva ahí
+  el `unisex` ya guardado en vez de escribir el del listado. La protección es estrecha a propósito:
+  solo un `unisex` guardado, y solo en esos ámbitos — un `niño`↔`niña` legítimo se escribe como
+  siempre, y un producto nuevo se guarda con lo único que se sabe de él. Medido contra el catálogo
+  real de Hipercor con `zapatos-infantiles/nino` rota: el listado se desplaza a 564/416/193 desde
+  470/462/285, y la base se queda quieta (91 géneros conservados, que la pasada escribe en
+  `scrape_run.message`).
+
+Las dos consecuencias son distintas y conviene no confundirlas al leer un aviso: `failed_scopes`
+son los ámbitos que **no se han podido mirar**, y `cross_gender_suspect` los que se han listado
+perfectamente y justo por eso mienten. Que sea un campo propio y no una deducción sobre
+`failed_scopes` es deliberado: ahí dentro también entra una hoja genuinamente `unisex` que se cae
+—Mango tuvo una, #176— y esa no deja ninguna rama superviviente que pueda mentir.
 
 Aplicado en H&M (#102), Hipercor y Lefties (#98); Sfera no lo necesita mientras siga en cero. Un
 detalle de operación que conviene saber al arreglarlo en una tienda ya ingerida: el género de las
