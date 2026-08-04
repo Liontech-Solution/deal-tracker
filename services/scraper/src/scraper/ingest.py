@@ -20,8 +20,15 @@ categoría retirada sino un bloqueo o un cambio de API.
 Todo ocurre en una única transacción por ejecución (`scrape_run`), y si algo revienta se deshace
 entera — pero **la pasada fallida se registra igual** (`status = 'failed'` y el motivo en
 `message`, ver `_record_failed_run`): una tienda que deja de ingerir tiene que verse en la BD, no
-solo en unos logs que rotan. Las bajas se detectan por
-ausencia: lo no visto conserva un `last_seen_at` anterior, suma una pasada a `missing_streak`
+solo en unos logs que rotan.
+
+Por lo mismo, `message` **no es solo del camino de fallo**: una pasada con éxito lo rellena cuando
+no está del todo limpia —hojas caídas, ámbitos con caída sospechosa— y lo deja a `NULL` cuando lo
+está (ver `_success_message`, #151). O sea que la columna significa «por qué esta pasada no es
+limpia», no «por qué falló»; el `status` es el que distingue los dos casos.
+
+Las bajas se detectan por ausencia: lo no visto conserva un `last_seen_at` anterior, suma una
+pasada a `missing_streak`
 y solo se marca `delisted_at` tras N pasadas consecutivas sin verlo (histéresis). Si la tienda
 sabe responder por un producto concreto (`SupportsAliveProbe`), antes de descatalogar se le
 pregunta directamente y solo se da de baja lo confirmado como retirado.
@@ -72,6 +79,10 @@ DEFAULT_PROGRESS_EVERY_SECONDS = 300.0
 # Tope del motivo que se guarda en `scrape_run.message`: un traceback de una librería puede venir
 # con kilobytes de ruido y esta columna es para leerla de un vistazo.
 _MAX_FAIL_MESSAGE = 500
+# Tope de hojas caídas que se nombran en `message` (ver `_success_message`). Con más, el número ya
+# lo dice todo: eso no es una categoría retirada, es un cambio de API — y por encima de
+# `SCRAPER_SCAN_MAX_DEAD_RATIO` la pasada ni siquiera llega aquí.
+_MAX_NAMED_LEAVES = 5
 
 _ScopeKey = tuple[str | None, str | None, str | None]
 
@@ -108,6 +119,9 @@ class IngestResult:
     skipped_scopes: int  # ámbitos con caída sospechosa: se omitieron sus bajas
     leaves_scanned: int  # hojas de categoría recorridas en el listado
     leaves_failed: int  # de las anteriores, las que la tienda ya no sirve (404)
+    # Las rutas de esas hojas, si la tienda las pasa (ver `ScanReport.failed_leaves`, #151). El
+    # resumen las nombra: «1/35 hojas no responden» no dice cuál hay que ir a buscar al árbol.
+    failed_leaves: list[str]
     unscanned_scopes: int  # ámbitos excluidos de las bajas por tener alguna hoja caída
     probes_sent: int  # candidatos a baja sondeados (confirmación activa)
     probes_alive: int  # el sondeo los encontró vivos: rescatados, no se dan de baja
@@ -677,6 +691,44 @@ def _delist(
     return products_delisted, cur.rowcount
 
 
+def _render_scope(scope: ScrapeScope | _ScopeKey) -> str:
+    """`niña/ropa/sudaderas`. El `-` es un ámbito que la tienda deja sin declarar, no un error."""
+    partes = (
+        (scope.gender, scope.section, scope.category) if isinstance(scope, ScrapeScope) else scope
+    )
+    return "/".join(p or "-" for p in partes)
+
+
+def _success_message(report: ScanReport, suspicious: set[_ScopeKey]) -> str | None:
+    """Por qué esta pasada, aun con éxito, no está del todo limpia. `None` si lo está (#151).
+
+    Existe porque `errors` es un entero que suma tres cosas distintas —ámbitos sospechosos,
+    sondeos sin resolver y hojas caídas— y el detalle solo se decía por stdout. Una pasada de QA
+    cerró en `success` con `errors = 15` llevando dentro una hoja de Sfera retirada, o sea un
+    ámbito entero sin detección de bajas durante semanas; cuando alguien fue a mirar, el log del
+    pod ya se había reciclado y no había forma de saber **qué hoja**.
+
+    Devolver `None` cuando no hay nada que contar no es cosmética: es lo que hace que la consulta
+    sea `WHERE message IS NOT NULL` en vez de un `LIKE` sobre texto libre.
+    """
+    partes: list[str] = []
+    if report.leaves_failed:
+        detalle = f"hojas caidas {report.leaves_failed}/{report.leaves_total}"
+        nombradas = sorted(report.failed_leaves)[:_MAX_NAMED_LEAVES]
+        if nombradas:
+            de_mas = len(report.failed_leaves) - len(nombradas)
+            cola = f" +{de_mas}" if de_mas > 0 else ""
+            detalle += f" [{', '.join(nombradas)}{cola}]"
+        partes.append(detalle)
+        if report.failed_scopes:
+            ambitos = sorted(_render_scope(s) for s in report.failed_scopes)
+            partes.append(f"ambitos sin bajas: {', '.join(ambitos)}")
+    if suspicious:
+        ambitos = sorted(_render_scope(s) for s in suspicious)
+        partes.append(f"ambitos con caida sospechosa: {', '.join(ambitos)}")
+    return " · ".join(partes)[:_MAX_FAIL_MESSAGE] if partes else None
+
+
 def _record_failed_run(
     conn: psycopg.Connection, store: BaseStore, run_ts: datetime, exc: BaseException
 ) -> None:
@@ -880,13 +932,18 @@ def ingest(
                 """
                 UPDATE scrape_run
                 SET finished_at = clock_timestamp(), status = 'success',
-                    products_seen = %s, variants_seen = %s, errors = %s
+                    products_seen = %s, variants_seen = %s, errors = %s, message = %s
                 WHERE id = %s
                 """,
                 (
                     len(entries),
                     variants_seen,
                     len(suspicious) + probe.unresolved + report.leaves_failed,
+                    # `errors` cuenta; `message` dice QUÉ (#151). Los sondeos sin resolver no
+                    # entran: son benignos por diseño —se reintentan en la siguiente pasada— y
+                    # meterlos haría que casi ninguna pasada tuviera el `message` a NULL, que es
+                    # lo único que hace útil la consulta.
+                    _success_message(report, suspicious),
                     run_id,
                 ),
             )
@@ -908,6 +965,7 @@ def ingest(
             skipped_scopes=len(suspicious),
             leaves_scanned=report.leaves_total,
             leaves_failed=report.leaves_failed,
+            failed_leaves=sorted(report.failed_leaves),
             unscanned_scopes=len(declared) - len(scanned),
             probes_sent=probe.sent,
             probes_alive=probe.alive,

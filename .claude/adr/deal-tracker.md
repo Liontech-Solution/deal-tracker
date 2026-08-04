@@ -958,9 +958,29 @@ categoría muerta de 35**, es decir una categoría entera que dejó de ingerirse
 detección de bajas, que es un hallazgo propio y mucho peor. Leer el contador como «N productos
 perdidos» es falso en los dos sentidos: alarma de más en un caso y esconde el grave en el otro. El
 desglose está en la línea de resumen del log del pod (`confirmación activa: …` y
-`⚠ N/M hojas de categoría no responden`), **que caduca cuando el pod se recolecta**; la copia
-duradera es `scrape_run.message` y las `status.conditions` del Job. Cuando `kubectl logs` responde
-`error: timed out waiting for the condition`, eso no es red: es que ese job ya no tiene pod.
+`⚠ N/M hojas de categoría no responden`), **que caduca cuando el pod se recolecta**.
+
+**Y esa copia duradera no existía: `scrape_run.message` solo se rellenaba en el camino de fallo**
+(`_record_failed_run`), o sea justo en el caso en el que la pasada NO cierra en `success`. La hoja
+de Sfera cerró en `success`, así que su detalle no se guardó en ninguna parte y para cuando alguien
+fue a buscarlo el pod ya se había reciclado: hubo que volver a sondear la tienda con
+`--check-categories` para saber cuál era (`ninos/bebe-nino/punto-y-jerseis`, retirada entre el 24/07
+y el 02/08/2026 — la rama `bebe-nina` sí la sigue publicando). Desde #151 **una pasada con éxito
+también escribe `message`** cuando no está limpia —hojas caídas con su ruta, y ámbitos con caída
+sospechosa— y lo deja a `NULL` cuando lo está. La columna pasa a significar «por qué esta pasada no
+es limpia», no «por qué falló»; el `status` distingue los dos casos, y `WHERE message IS NOT NULL`
+es la consulta que separa las pasadas que hay que mirar de las que no. Nombrar la hoja exige que la
+tienda pase `leaf=` a `ScanReport.leaf_gone()`, y hoy solo lo hace Sfera: las otras ocho quedan bien
+contadas pero sin nombre.
+
+El coste medido de no tenerlo: en QA, 6 de los 10 productos vivos de `niño/ropa/sudaderas` llevaban
+sin verse desde el 24/07 con `missing_streak = 0` y `delisted_at IS NULL`. Ese cero es el detalle
+que lo hace invisible también en los datos — un ámbito excluido de las bajas no avanza la histéresis,
+así que sus zombis no se distinguen de un producto sano ni por SQL.
+
+Lo demás sigue igual: las `status.conditions` del Job son la otra copia duradera, y cuando
+`kubectl logs` responde `error: timed out waiting for the condition`, eso no es red: es que ese job
+ya no tiene pod.
 
 **Y el segundo grado, que el vigía tampoco ve: «nos dejan entrar» no es binario.** Puede estar la
 puerta abierta y el paso regulado, y el vigía solo sabe leer la puerta. Medido el 02/08/2026 (#107)

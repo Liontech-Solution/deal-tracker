@@ -191,12 +191,22 @@ class ScanReport:
     leaves_total: int = 0
     leaves_failed: int = 0
     failed_scopes: set[ScrapeScope] = field(default_factory=set)
+    # Las RUTAS de las hojas caídas, para poder nombrarlas después (#151). El ámbito no las
+    # identifica: `niño/ropa/sudaderas` lo alimentan tres hojas en Sfera, así que saber que un
+    # ámbito se cayó no dice cuál hay que ir a buscar al árbol de la tienda.
+    #
+    # Se rellena solo cuando la tienda pasa `leaf`, y hoy solo lo hace Sfera. Es a propósito: son
+    # veinte llamadas repartidas por nueve tiendas y uniformarlas no era el alcance de #151. Una
+    # tienda que no lo pase sigue quedando bien contada en `leaves_failed`, que es lo que decide.
+    failed_leaves: list[str] = field(default_factory=list)
 
     def leaf_ok(self) -> None:
         """Registra una hoja listada con éxito."""
         self.leaves_total += 1
 
-    def leaf_gone(self, scope: ScrapeScope, *, tambien_unisex: bool = False) -> None:
+    def leaf_gone(
+        self, scope: ScrapeScope, *, tambien_unisex: bool = False, leaf: str | None = None
+    ) -> None:
         """Registra una hoja que la tienda ya no sirve; su ámbito queda fuera de las bajas.
 
         `tambien_unisex` lo pasan las tiendas que resuelven el cruce de géneros con
@@ -208,10 +218,15 @@ class ScanReport:
         Ese ámbito extra **no cuenta como una hoja más**: sumarlo a `leaves_failed` inflaría
         `dead_ratio` y dispararía `SCRAPER_SCAN_MAX_DEAD_RATIO` antes de tiempo. Es una hoja
         caída, no dos.
+
+        `leaf` es la ruta de la hoja, opcional (ver `failed_leaves`): la pasada la escribe en
+        `scrape_run.message` para que la siguiente sesión no dependa del log del pod.
         """
         self.leaves_total += 1
         self.leaves_failed += 1
         self.failed_scopes.add(scope)
+        if leaf is not None:
+            self.failed_leaves.append(leaf)
         if tambien_unisex and scope.gender != "unisex":
             self.failed_scopes.add(ScrapeScope("unisex", scope.section, scope.category))
 

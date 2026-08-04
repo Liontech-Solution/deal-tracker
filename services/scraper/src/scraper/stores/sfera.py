@@ -180,7 +180,19 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig("ninos/bebe-nino/bermudas-y-petos", "niño", "ropa", "pantalones"),
     CategoryConfig("ninos/bebe-nino/camisetas", "niño", "ropa", "camisetas"),
     CategoryConfig("ninos/bebe-nino/camisas", "niño", "ropa", "camisetas"),
-    CategoryConfig("ninos/bebe-nino/punto-y-jerseis", "niño", "ropa", "sudaderas"),
+    # NO hay `ninos/bebe-nino/punto-y-jerseis` (#151). La tenía, y la tienda la retiró entre el
+    # 24/07 y el 02/08/2026: `--tree ninos/bebe-nino` publica ocho categorías y ninguna es esa,
+    # mientras que `bebe-nina` SÍ la sigue publicando (7 productos). Es la asimetría entre ramas
+    # que avisa el comentario de arriba, ahora también en el tiempo.
+    #
+    # Se retira en vez de sustituirse porque no hay sustituta: lo que la rama publica y no
+    # ingerimos es `ropa-deportiva` y `abrigos-y-cazadoras`, que no son `sudaderas`. El ámbito
+    # `niño/ropa/sudaderas` no se queda huérfano — lo siguen alimentando `ninos/nino/sudaderas` y
+    # `ninos/nino/punto-y-jerseis`—, y eso es justo lo que había que comprobar: una hoja muerta
+    # excluía el ámbito ENTERO de la detección de bajas en cada pasada.
+    #
+    # Si vuelve en otoño (es ropa de temporada) no lo dirá el vigía, que solo sonda lo mapeado:
+    # lo delata `--tree`.
     CategoryConfig("ninos/bebe-nino/accesorios-y-pijamas", "niño", "ropa", "ropa-interior"),
     # `accesorios-y-pijamas` es la única del bloque que entra sucia: mezcla los pijamas (que sí son
     # ropa interior, igual que en `pijamas-y-calcetines` de 6-14) con gorros y baberos, que no lo
@@ -631,11 +643,11 @@ class SferaStore:
                 except BrowserHTTPError as exc:
                     if exc.status not in GONE_STATUS:
                         raise  # bloqueo de Akamai o fallo del servidor: no es una hoja retirada
-                    self._scan.leaf_gone(scope)
+                    self._scan.leaf_gone(scope, leaf=cat.category_path)
                     continue
                 except LeafMirage:
                     # El 404 que esta tienda no da: la ruta ya no existe (#54). Mismo trato.
-                    self._scan.leaf_gone(scope)
+                    self._scan.leaf_gone(scope, leaf=cat.category_path)
                     continue
                 except Exception as exc:
                     # Red ancha a propósito (#107): un timeout de navegación —el fallo transitorio
@@ -651,7 +663,7 @@ class SferaStore:
                         type(exc).__name__,
                         exc,
                     )
-                    self._scan.leaf_gone(scope)
+                    self._scan.leaf_gone(scope, leaf=cat.category_path)
                     continue
                 self._scan.leaf_ok()
 

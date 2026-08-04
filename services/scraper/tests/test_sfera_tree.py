@@ -382,7 +382,10 @@ def test_la_ropa_de_bebe_no_estrena_ningun_ambito() -> None:
     del_resto = [c for c in CATEGORIES if "bebe-" not in c.category_path]
     ambitos_previos = {ScrapeScope(c.gender, c.section, c.category) for c in del_resto}
 
-    assert len(de_bebe) == 14  # 12 de ropa (#56) + las 2 de calzado (#33)
+    # 12 de ropa (#56) + 2 de calzado (#33), menos `bebe-nino/punto-y-jerseis`, que la tienda
+    # retiró en agosto de 2026 (#151). Su ámbito `niño/ropa/sudaderas` no se pierde: lo siguen
+    # alimentando las dos hojas de la rama 6-14.
+    assert len(de_bebe) == 13
     for cat in de_bebe:
         assert ScrapeScope(cat.gender, cat.section, cat.category) in ambitos_previos
 
@@ -402,12 +405,16 @@ def test_la_ropa_de_bebe_se_mapea_como_su_equivalente_de_6_14() -> None:
         "ninos/bebe-nino/bermudas-y-petos": ("niño", "ropa", "pantalones"),
         "ninos/bebe-nino/camisetas": ("niño", "ropa", "camisetas"),
         "ninos/bebe-nino/camisas": ("niño", "ropa", "camisetas"),
-        "ninos/bebe-nino/punto-y-jerseis": ("niño", "ropa", "sudaderas"),
         "ninos/bebe-nino/accesorios-y-pijamas": ("niño", "ropa", "ropa-interior"),
     }
     for ruta, (genero, seccion, categoria) in esperado.items():
         cat = por_ruta[ruta]
         assert (cat.gender, cat.section, cat.category) == (genero, seccion, categoria), ruta
+
+    # La simetría entre ramas es de la TIENDA, no nuestra, y se rompe también con el tiempo:
+    # `bebe-nina` sigue publicando `punto-y-jerseis` y `bebe-nino` dejó de hacerlo (#151).
+    assert "ninos/bebe-nina/punto-y-jerseis" in por_ruta
+    assert "ninos/bebe-nino/punto-y-jerseis" not in por_ruta
 
 
 def test_ninguna_hoja_esta_configurada_dos_veces() -> None:
