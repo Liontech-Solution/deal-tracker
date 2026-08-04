@@ -156,25 +156,46 @@ export const appUser = pgTable('app_user', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const interest = pgTable('interest', {
-  id: bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
-  userId: bigint('user_id', { mode: 'number' })
-    .notNull()
-    .references(() => appUser.id, { onDelete: 'cascade' }),
-  retailerId: bigint('retailer_id', { mode: 'number' }).references(() => retailer.id),
-  productId: bigint('product_id', { mode: 'number' }),
-  variantId: bigint('variant_id', { mode: 'number' }),
-  gender: text('gender'),
-  section: text('section'),
-  category: text('category'),
-  size: text('size'),
-  color: text('color'),
-  minDiscountPct: numeric('min_discount_pct', { precision: 5, scale: 2 }).notNull().default('20'),
-  compareBase: text('compare_base').notNull().default('recent_min'),
-  windowDays: integer('window_days').notNull().default(30),
-  active: boolean('active').notNull().default(true),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const interest = pgTable(
+  'interest',
+  {
+    id: bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
+    userId: bigint('user_id', { mode: 'number' })
+      .notNull()
+      .references(() => appUser.id, { onDelete: 'cascade' }),
+    retailerId: bigint('retailer_id', { mode: 'number' }).references(() => retailer.id),
+    productId: bigint('product_id', { mode: 'number' }),
+    variantId: bigint('variant_id', { mode: 'number' }),
+    gender: text('gender'),
+    section: text('section'),
+    category: text('category'),
+    size: text('size'),
+    color: text('color'),
+    minDiscountPct: numeric('min_discount_pct', { precision: 5, scale: 2 }).notNull().default('20'),
+    compareBase: text('compare_base').notNull().default('recent_min'),
+    windowDays: integer('window_days').notNull().default(30),
+    active: boolean('active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  // Migración 0025: el alcance identifica al interés, y por eso el alta puede reactivar la fila que
+  // ya existía en vez de crear otra (#149). `nullsNotDistinct` porque aquí un NULL es «cualquiera»,
+  // no «desconocido»: sin él, dos intereses de «cualquier talla» no colisionarían nunca.
+  (t) => [
+    unique('interest_alcance_uniq')
+      .on(
+        t.userId,
+        t.retailerId,
+        t.productId,
+        t.variantId,
+        t.gender,
+        t.section,
+        t.category,
+        t.size,
+        t.color,
+      )
+      .nullsNotDistinct(),
+  ],
+);
 
 export const notification = pgTable(
   'notification',

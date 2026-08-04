@@ -198,4 +198,129 @@ describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
       await otherApp.close();
     }
   });
+
+  it('dejar de seguir NO borra los avisos ya entregados (#149)', async () => {
+    // La regresión de la issue. `notification.interest_id` es ON DELETE CASCADE, así que mientras el
+    // DELETE fue físico este clic se llevaba por delante el historial de avisos — que es la
+    // evidencia de que el producto cumple su promesa, y el usuario cree estar diciendo otra cosa.
+    const user = await seedUser(sql, 'kc-baja-logica');
+    const app = await makeApp(user);
+    try {
+      const created = await request(app.getHttpServer())
+        .post('/api/interests')
+        .send({ productId: ids.productId })
+        .expect(201);
+      const id: number = created.body.id;
+
+      await sql`
+        INSERT INTO notification (user_id, interest_id, variant_id, price, price_event_key)
+        VALUES (${user.id}, ${id}, ${ids.variantId}, 19.99, '7:19.99')`;
+
+      await request(app.getHttpServer()).delete(`/api/interests/${id}`).expect(204);
+
+      // Desaparece de la lista del usuario, que es lo que él ha pedido...
+      await request(app.getHttpServer())
+        .get('/api/interests')
+        .expect(200)
+        .expect((r) => expect(r.body).toHaveLength(0));
+
+      // ...pero la fila sigue viva, inactiva, y el aviso entregado con ella.
+      const [fila] = await sql<{ active: boolean }[]>`SELECT active FROM interest WHERE id = ${id}`;
+      expect(fila.active).toBe(false);
+      const avisos = await sql`SELECT id FROM notification WHERE interest_id = ${id}`;
+      expect(avisos).toHaveLength(1);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('volver a seguir lo mismo reactiva la fila y conserva la protección del UNIQUE (#149)', async () => {
+    // La otra mitad del arreglo: conservar el historial sin conservar el `interest_id` no arreglaría
+    // nada, porque el `UNIQUE (interest_id, variant_id, price_event_key)` cuelga de ese id y el
+    // aviso del mismo evento de precio volvería a salir por la puerta de al lado.
+    const user = await seedUser(sql, 'kc-re-alta');
+    const app = await makeApp(user);
+    try {
+      const primera = await request(app.getHttpServer())
+        .post('/api/interests')
+        .send({ productId: ids.productId, minDiscountPct: 30 })
+        .expect(201);
+      const id: number = primera.body.id;
+
+      await sql`
+        INSERT INTO notification (user_id, interest_id, variant_id, price, price_event_key)
+        VALUES (${user.id}, ${id}, ${ids.variantId}, 19.99, '7:19.99')`;
+
+      await request(app.getHttpServer()).delete(`/api/interests/${id}`).expect(204);
+
+      // Vuelve a seguir lo mismo, y de paso cambia de opinión sobre el umbral.
+      const segunda = await request(app.getHttpServer())
+        .post('/api/interests')
+        .send({ productId: ids.productId, minDiscountPct: 40 })
+        .expect(201);
+      expect(segunda.body.id).toBe(id);
+      expect(segunda.body.minDiscountPct).toBe('40.00');
+      expect(segunda.body.active).toBe(true);
+
+      // Una sola fila, no dos equivalentes.
+      const filas = await sql`SELECT id FROM interest WHERE user_id = ${user.id}`;
+      expect(filas).toHaveLength(1);
+
+      // Y el mismo evento de precio sigue sin poder avisar dos veces.
+      await expect(
+        sql`
+          INSERT INTO notification (user_id, interest_id, variant_id, price, price_event_key)
+          VALUES (${user.id}, ${id}, ${ids.variantId}, 19.99, '7:19.99')`,
+      ).rejects.toThrow(/duplicate key|unique/i);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('la re-alta reconoce el mismo alcance aunque la talla venga en crudo (#149)', async () => {
+    // El alcance se compara por lo GUARDADO, que es canónico: si no fuera así, seguir el '26' desde
+    // el chip y el '26 (16,3 cm)' desde la API abrirían dos intereses para la misma prenda y el
+    // historial quedaría partido en dos.
+    const user = await seedUser(sql, 'kc-re-alta-canon');
+    const app = await makeApp(user);
+    try {
+      const primera = await request(app.getHttpServer())
+        .post('/api/interests')
+        .send({ size: '26' })
+        .expect(201);
+      const segunda = await request(app.getHttpServer())
+        .post('/api/interests')
+        .send({ size: '26 (16,3 cm)' })
+        .expect(201);
+      expect(segunda.body.id).toBe(primera.body.id);
+
+      const filas = await sql`SELECT id FROM interest WHERE user_id = ${user.id}`;
+      expect(filas).toHaveLength(1);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('dos intereses de «cualquier talla» son el mismo interés (NULLS NOT DISTINCT, #149)', async () => {
+    // El motivo de que la 0025 lleve NULLS NOT DISTINCT. Aquí un NULL significa «cualquiera», no
+    // «desconocido»: con la semántica por defecto de Postgres estas dos altas no colisionarían, el
+    // ON CONFLICT no dispararía nunca y la reactivación no llegaría a ocurrir.
+    const user = await seedUser(sql, 'kc-nulls');
+    const app = await makeApp(user);
+    try {
+      const primera = await request(app.getHttpServer())
+        .post('/api/interests')
+        .send({ section: 'zapateria' })
+        .expect(201);
+      await request(app.getHttpServer()).delete(`/api/interests/${primera.body.id}`).expect(204);
+
+      const segunda = await request(app.getHttpServer())
+        .post('/api/interests')
+        .send({ section: 'zapateria' })
+        .expect(201);
+      expect(segunda.body.id).toBe(primera.body.id);
+    } finally {
+      await app.close();
+    }
+  });
 });

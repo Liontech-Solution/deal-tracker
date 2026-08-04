@@ -68,6 +68,19 @@ export class InterestsService {
       );
     }
 
+    // Alta O reactivación, en una sola sentencia (#149). El alcance —las nueve columnas de
+    // `interest_alcance_uniq`, migración 0025— identifica al interés, así que volver a seguir algo
+    // que ya se seguía recupera LA MISMA FILA. Importa por lo que cuelga de su id: `notification`
+    // guarda ahí los avisos entregados, y con ellos el `UNIQUE (interest_id, variant_id,
+    // price_event_key)` que impide repetir el aviso del mismo evento de precio. Con una fila nueva
+    // el id cambiaría y esa protección se perdería igual que cuando el borrado era físico.
+    //
+    // En una sentencia y no «buscar y luego insertar» a propósito: dos POST simultáneos del mismo
+    // alcance no pueden partir el historial en dos intereses equivalentes.
+    //
+    // Se actualiza la REGLA (umbral, base de comparación, ventana) porque volver a seguir con otro
+    // umbral es cambiar de opinión sobre el mismo seguimiento. No se toca `created_at`: un
+    // seguimiento recuperado vuelve a su sitio en la lista (ordenada por fecha) y no al principio.
     const [row] = await this.db
       .insert(interest)
       .values({
@@ -89,16 +102,54 @@ export class InterestsService {
         ...(dto.compareBase !== undefined ? { compareBase: dto.compareBase } : {}),
         ...(dto.windowDays !== undefined ? { windowDays: dto.windowDays } : {}),
       })
+      // El árbitro se infiere por la lista de columnas y no por el nombre de la restricción porque
+      // Drizzle no sabe expresar `ON CONFLICT ON CONSTRAINT`, y la respuesta de esta API es la fila
+      // que Drizzle mapea a camelCase — con SQL crudo cambiaría el contrato. Comprobado contra
+      // Postgres 16 que la inferencia SÍ encuentra un índice `NULLS NOT DISTINCT` a partir de sus
+      // columnas, que era la duda: dos filas con NULL en el mismo hueco colisionan como deben.
+      .onConflictDoUpdate({
+        target: [
+          interest.userId,
+          interest.retailerId,
+          interest.productId,
+          interest.variantId,
+          interest.gender,
+          interest.section,
+          interest.category,
+          interest.size,
+          interest.color,
+        ],
+        // `excluded` es la fila que se habría insertado, así que la regla queda exactamente igual
+        // que si el interés se hubiera creado de cero: lo que el DTO omite recupera el DEFAULT de
+        // la 0004. Un POST describe el seguimiento entero, no un parche sobre el anterior.
+        set: {
+          active: true,
+          minDiscountPct: sql`excluded.min_discount_pct`,
+          compareBase: sql`excluded.compare_base`,
+          windowDays: sql`excluded.window_days`,
+        },
+      })
       .returning();
     return row;
   }
 
+  /**
+   * Baja LÓGICA del interés (#149). No borra la fila: `notification.interest_id` es
+   * `ON DELETE CASCADE`, así que un borrado físico se llevaba los avisos ya entregados y, con
+   * ellos, el `UNIQUE (interest_id, variant_id, price_event_key)` que impide repetir el aviso del
+   * mismo evento de precio. El usuario entiende este clic como «ya no me interesa esto», no como
+   * «bórrame el historial».
+   *
+   * Sigue devolviendo 404 cuando no cambia nada —incluido un interés ya inactivo— porque `list()`
+   * solo muestra los activos: lo que no está en la lista del usuario no puede darse de baja.
+   */
   async remove(userId: number, id: number): Promise<void> {
-    const deleted = await this.db
-      .delete(interest)
-      .where(and(eq(interest.id, id), eq(interest.userId, userId)))
+    const deactivated = await this.db
+      .update(interest)
+      .set({ active: false })
+      .where(and(eq(interest.id, id), eq(interest.userId, userId), eq(interest.active, true)))
       .returning({ id: interest.id });
-    if (deleted.length === 0) {
+    if (deactivated.length === 0) {
       throw new NotFoundException(`Interés ${id} no encontrado`);
     }
   }
