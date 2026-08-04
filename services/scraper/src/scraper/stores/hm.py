@@ -118,6 +118,7 @@ import httpx
 
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
+from ..progreso import Latido
 from .base import (
     LeafHealth,
     ListingEntry,
@@ -645,15 +646,29 @@ class HMStore:
         modelo, que se reparten entre páginas y hojas, y ver si un modelo sale en hojas de géneros
         distintos, que es lo que lo hace `unisex`. Son 6518 filas: la memoria da igual, y el ámbito
         de una entrada ya emitida no se puede corregir.
+
+        Ese acumular deja **ciega** a la instrumentación de `ingest.py` (#146): late al recibir
+        entradas y aquí no recibe ninguna hasta el final, así que la fase 1 salía muda. Por eso el
+        latido por hoja va aquí dentro — es el único sitio donde se sabe por qué hoja va. Esta
+        tienda es la más barata de las dos que acumulan (httpx contra `api.hm.com`, no un
+        navegador), pero es también la del catálogo más grande del proyecto.
         """
         self._scan = ScanReport()
         self._cache = {}
         self._canario = None
         filas_por_raiz: dict[str, list[Fila]] = {}
         hojas_por_raiz: dict[str, list[CategoryConfig]] = {}
+        latido = Latido(self._config.progress_every_seconds, SLUG, logger)
+        total_hojas = len(self._categories)
 
         with self._client() as client:
-            for cat in self._categories:
+            for n_hoja, cat in enumerate(self._categories, start=1):
+                # Al ENTRAR en la hoja y no al salir: si la pasada se atasca, lo que hace falta
+                # saber es en cuál se ha quedado, no cuál fue la última que terminó bien.
+                latido.late(
+                    f"listando · hoja {n_hoja}/{total_hojas} {cat.page_id} · "
+                    f"{sum(len(f) for f in filas_por_raiz.values())} filas"
+                )
                 filas = self._leer_hoja(client, cat)
                 if filas is None:
                     continue  # hoja caída: ya está contada y su ámbito fuera de las bajas
