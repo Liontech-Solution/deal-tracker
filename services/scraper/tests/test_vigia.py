@@ -15,19 +15,25 @@ import pytest
 from scraper import vigia
 from scraper.config import Config
 from scraper.stores.base import (
+    CategoryNode,
     LeafHealth,
     ListingEntry,
     ScrapedProduct,
     ScrapedVariant,
     ScrapeScope,
+    SupportsCategoryTree,
+    SupportsCoverageWatch,
     SupportsLeafHealth,
 )
 from scraper.stores.registry import available_slugs, get_store
 from scraper.vigia import (
+    COBERTURA_DECLARADA,
+    COBERTURA_SIN_VIGILAR,
     SIN_VIGILANCIA_DE_HOJAS,
     Informe,
     Medida,
     comparar_con_base,
+    revisar_cobertura,
     revisar_hojas,
     revisar_parseo,
     revisar_tienda,
@@ -385,3 +391,245 @@ def test_un_ritmo_dentro_del_factor_se_publica_sin_avisar() -> None:
 
     assert not informe.avisos
     assert "(×1,9)" in informe.render()
+
+
+# --- capa de cobertura (#156) --------------------------------------------------------------
+
+
+class TiendaConArbol(TiendaFalsa):
+    """`TiendaFalsa` que además publica un árbol: cumple `SupportsCoverageWatch`."""
+
+    def __init__(
+        self,
+        nodos: dict[str, list[CategoryNode]],
+        mapeadas: list[str],
+        *,
+        separador: str = "/",
+        hojas: list[LeafHealth] | None = None,
+    ) -> None:
+        super().__init__(hojas=hojas)
+        self._nodos = nodos
+        self._mapeadas = mapeadas
+        self._separador = separador
+
+    def mapped_leaves(self):  # type: ignore[no-untyped-def]
+        return self._mapeadas
+
+    def tree_roots(self):  # type: ignore[no-untyped-def]
+        return list(self._nodos)
+
+    def tree_separator(self):  # type: ignore[no-untyped-def]
+        return self._separador
+
+    def category_tree(self, root):  # type: ignore[no-untyped-def]
+        nodos = self._nodos[root]
+        if isinstance(nodos, Exception):
+            raise nodos
+        yield from nodos
+
+
+def _nodo(path: str, *, count: int | None = 7, depth: int = 1, hijas: bool = False) -> CategoryNode:
+    return CategoryNode(path, path.rsplit("/", 1)[-1], count, depth, hijas)
+
+
+def test_una_categoria_publicada_y_sin_mapear_es_accionable_y_se_nombra() -> None:
+    """El caso de #156: la tienda publica `ropa-deportiva` y nadie la ingiere.
+
+    Accionable y no aviso porque `main()` solo abre issue con lo accionable, y un hallazgo que se
+    queda en el log del pod es exactamente el punto ciego que esta capa viene a tapar.
+    """
+    tienda = TiendaConArbol(
+        {
+            "ninos/nina": [
+                _nodo("ninos/nina/camisetas"),
+                _nodo("ninos/nina/ropa-deportiva", count=25),
+            ]
+        },
+        mapeadas=["ninos/nina/camisetas"],
+    )
+    informe = Informe("falsa")
+
+    revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+
+    assert not informe.esta_bien
+    assert len(informe.accionables) == 1
+    assert "ninos/nina/ropa-deportiva (25)" in informe.accionables[0]
+    assert "ninos/nina/camisetas" not in informe.accionables[0]
+
+
+def test_una_categoria_declarada_no_suena() -> None:
+    """La mitad que evita la alarma semanal: lo que ya decidimos no ingerir se calla."""
+    tienda = TiendaConArbol(
+        {"ninos/nina": [_nodo("ninos/nina/bano")]},
+        mapeadas=[],
+    )
+    informe = Informe("falsa")
+
+    COBERTURA_DECLARADA["falsa"] = {"ninos/nina/bano": "no es del brief"}
+    try:
+        revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+    finally:
+        del COBERTURA_DECLARADA["falsa"]
+
+    assert informe.esta_bien
+    assert not informe.accionables
+
+
+def test_lo_que_cuelga_de_una_hoja_ya_mapeada_no_es_un_hueco() -> None:
+    """Medido en C&A: 53 de 122 rutas eran subcategorías de hojas que YA ingerimos.
+
+    Sus productos entran por el padre, así que señalarlas sería ruido — y ese ruido era la mitad
+    del informe, que es como una capa así deja de leerse.
+    """
+    tienda = TiendaConArbol(
+        {"3-7": [_nodo("3-7-1"), _nodo("3-7-1-2", depth=2), _nodo("3-7-1-10", depth=2)]},
+        mapeadas=["3-7-1"],
+        separador="-",
+    )
+    informe = Informe("falsa")
+
+    revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+
+    assert informe.esta_bien, informe.accionables
+
+
+def test_el_separador_evita_que_una_hermana_tape_a_otra() -> None:
+    """La trampa del prefijo pelado: `3-1-11` (Calcetines) empieza por `3-1-1` (Camisetas).
+
+    Sin el separador, mapear una taparía a la otra y un hueco real pasaría por cubierto.
+    """
+    tienda = TiendaConArbol(
+        {"3-1": [_nodo("3-1-11")]},
+        mapeadas=["3-1-1"],
+        separador="-",
+    )
+    informe = Informe("falsa")
+
+    revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+
+    assert not informe.esta_bien
+    assert "3-1-11" in informe.accionables[0]
+
+
+def test_solo_se_nombra_la_rama_y_no_todas_sus_hijas() -> None:
+    """Una rama sin cubrir arrastra las suyas; nombrarlas todas haría del hallazgo una parrafada."""
+    tienda = TiendaConArbol(
+        {
+            "ninos/nina": [
+                _nodo("ninos/nina/bano", hijas=True),
+                _nodo("ninos/nina/bano/bikinis", depth=2),
+                _nodo("ninos/nina/bano/banadores", depth=2),
+            ]
+        },
+        mapeadas=[],
+    )
+    informe = Informe("falsa")
+
+    revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+
+    assert "1 categoría(s)" in informe.accionables[0]
+    assert "ninos/nina/bano " in informe.accionables[0]
+    assert "bikinis" not in informe.accionables[0]
+
+
+def test_la_raiz_no_se_señala_a_si_misma() -> None:
+    """Alguna tienda se emite a sí misma al pedir su árbol; la raíz es la pregunta, no el hueco."""
+    tienda = TiendaConArbol(
+        {"ninos/nina": [_nodo("ninos/nina", depth=0)]},
+        mapeadas=[],
+    )
+    informe = Informe("falsa")
+
+    revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+
+    assert informe.esta_bien, informe.accionables
+
+
+def test_una_raiz_que_revienta_avisa_y_las_demas_se_barren() -> None:
+    """Un 403 suelto de Akamai es rutina: no puede llevarse por delante el resto del barrido."""
+    tienda = TiendaConArbol(
+        {
+            "ninos/nina": RuntimeError("403 de Akamai"),  # type: ignore[dict-item]
+            "ninos/nino": [_nodo("ninos/nino/ropa-deportiva")],
+        },
+        mapeadas=[],
+    )
+    informe = Informe("falsa")
+
+    revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+
+    assert len(informe.avisos) == 1
+    assert "403 de Akamai" in informe.avisos[0]
+    assert "ninos/nino/ropa-deportiva" in informe.accionables[0]
+
+
+def test_una_tienda_que_no_enumera_su_arbol_no_es_un_hallazgo() -> None:
+    """Solo 3 de 9 saben enumerarse; exigirlo obligaría a escribirlo en seis tiendas más."""
+    informe = Informe("falsa")
+
+    revisar_cobertura(TiendaFalsa(), informe)  # type: ignore[arg-type]
+
+    assert informe.esta_bien
+    assert any("no la sabe enumerar" in linea for linea in informe.lineas)
+
+
+def test_la_cobertura_se_cronometra_como_las_demas_capas() -> None:
+    """Sin la medida en `vigia_run` no habría línea base con la que ver su deriva (#111)."""
+    tienda = TiendaConArbol(
+        {"ninos/nina": [_nodo("ninos/nina/camisetas")]},
+        mapeadas=["ninos/nina/camisetas"],
+    )
+    informe = Informe("falsa")
+
+    revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+
+    assert informe.tiempos["cobertura"].unidades == 1
+    assert informe.tiempos["cobertura"].unidad == "nodo"
+
+
+# --- el vigía de las declaraciones ----------------------------------------------------------
+
+
+@pytest.mark.parametrize("slug", available_slugs())
+def test_toda_tienda_que_enumera_su_arbol_se_vigila_o_se_declara(slug: str) -> None:
+    """Simétrico del de hojas, pero acotado: solo obliga a quien YA sabe enumerar su árbol.
+
+    No se exige `SupportsCategoryTree` a todas —seis tiendas no lo implementan y pedirlo sería otra
+    issue entera—, pero la que sabe enumerarse o se vigila (`SupportsCoverageWatch`) o dice por qué
+    no. Sin esto, añadir `category_tree()` a una tienda la dejaría fuera de la capa en silencio.
+    """
+    store = get_store(slug, _CFG)
+    if not isinstance(store, SupportsCategoryTree):
+        return
+    if isinstance(store, SupportsCoverageWatch):
+        assert list(store.tree_roots()), f"{slug!r} declara vigilancia de cobertura sin raíces"
+        assert store.tree_separator(), f"{slug!r} no declara con qué separador anida sus rutas"
+        return
+    assert COBERTURA_SIN_VIGILAR.get(slug), (
+        f"la tienda {slug!r} sabe enumerar su árbol pero no implementa `SupportsCoverageWatch`, "
+        "así que el vigía no puede ver una categoría nueva. Impleméntalo, o declara el motivo en "
+        "`COBERTURA_SIN_VIGILAR` de scraper/vigia.py."
+    )
+
+
+@pytest.mark.parametrize("slug", sorted(COBERTURA_DECLARADA))
+def test_cobertura_declarada_no_solapa_con_lo_mapeado(slug: str) -> None:
+    """Una declaración que además ingerimos está caducada, y una caducada TAPA lo que hay que ver.
+
+    Es el modo de fallo propio de una lista de excepciones: se escribe una vez, la tienda cambia y
+    nadie la revisa. Que rompa `just check` es lo que la obliga a envejecer con ruido.
+    """
+    store = get_store(slug, _CFG)
+    mapeadas = set(store.mapped_leaves())  # type: ignore[attr-defined]
+    solapan = mapeadas & set(COBERTURA_DECLARADA[slug])
+    assert not solapan, (
+        f"{slug!r} declara como «fuera a propósito» {sorted(solapan)}, pero además están en "
+        "CATEGORIES. Quita la declaración: sobra, y de paso taparía una hija que sí fuese un hueco."
+    )
+
+
+@pytest.mark.parametrize("slug", sorted(COBERTURA_DECLARADA))
+def test_toda_declaracion_lleva_su_motivo(slug: str) -> None:
+    """El motivo hace la excepción revisable; sin él es un olvido con formato de decisión."""
+    sin_motivo = [ruta for ruta, motivo in COBERTURA_DECLARADA[slug].items() if not motivo.strip()]
+    assert not sin_motivo, f"{slug!r} declara sin motivo: {sin_motivo}"

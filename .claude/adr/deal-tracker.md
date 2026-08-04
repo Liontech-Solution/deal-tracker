@@ -928,6 +928,56 @@ Corolario aprendido en la misma sesión: **cuando una capa revienta, no se ejecu
 Con Lefties sin Chromium, el segundo error salía derivado («usa la API async») y tapaba la causa
 real. Un vigía que apunta a la pista falsa es peor que uno que dice una sola cosa cierta.
 
+### La pregunta simétrica, y por qué el árbol de una tienda no es comparable tal cual (#156)
+
+El vigía preguntaba «¿sigue viva la hoja que ingerimos?» y nada más, porque `check_leaves()` itera
+`CATEGORIES`. Eso deja invisible la mitad contraria —una categoría **nueva**, o una de temporada que
+vuelve— y no es teórico: es el tercer caso del mismo patrón, después de #56 y #72. Desde el
+04/08/2026 hay una tercera capa (`vigia.revisar_cobertura`) que cruza el árbol publicado contra
+`mapped_leaves()`, y **lo no cubierto es accionable, no aviso**: `main()` solo abre issue con lo
+accionable, así que degradarlo a aviso lo habría dejado en el log del pod, que es el punto ciego que
+la capa venía a tapar.
+
+Lo que hay que saber antes de tocarla es que **«no mapeado» no es «hueco», y suponerlo la
+inutiliza**. Medido sobre las tres tiendas que enumeran su árbol:
+
+| tienda | rutas publicadas | «sin mapear» en crudo | huecos reales |
+|---|---:|---:|---:|
+| c-and-a | 122 | 109 | **0** |
+| sfera | 46 | 13 | **4** |
+| mango | 197 | 87 | no aplica (ver abajo) |
+
+Las 109 de C&A eran ruido por dos motivos distintos, y los dos hay que descontarlos:
+
+1. **53 son subcategorías de hojas que YA ingerimos** (`3-7-1-2` Camisetas cuelga de `3-7-1`, que
+   está en `CATEGORIES`): sus productos entran por el padre. De ahí `SupportsCoverageWatch.
+   tree_separator()` y la comparación **con separador y no a prefijo pelado** — `3-1-11`
+   (Calcetines) empieza por `3-1-1` (Camisetas) y son hermanas mapeadas por separado. Que el id
+   jerárquico predice la contención no se supone: ya estaba medido en `c_and_a.CATEGORIES`, donde
+   `3-7-2-3` (Shorts) aporta 0 productos nuevos por estar contenido entero en `3-7-2`.
+2. **El resto son ramas fuera del brief** (Baño, Chaquetas, Accesorios, Packs, Novedades…), que se
+   declaran en `vigia.COBERTURA_DECLARADA` con el motivo. Declarar la rama calla a sus hijas, y eso
+   es lo que mantiene la lista corta: 56 rutas huérfanas se declaran con 23 entradas. Esa lista es,
+   literalmente, la prosa que `c_and_a.CATEGORIES` ya tenía en un comentario, convertida en algo
+   comprobable — con un test que rompe si una declaración caduca, porque una entrada de sobra tapa
+   exactamente lo que la capa existe para ver.
+
+**Y la restricción que no se veía venir: hay tiendas cuyo «árbol» no es una taxonomía.** El de Mango
+es su menú de navegación — promociones que rotan (`dest_toystory`, `dest_ramadam`,
+`nuevosarticulosanadidos`) y un espejo `rebajas_*` de cada rama de prendas. Aun acotando las raíces
+a lo que ingerimos hacen falta **72 declaraciones y caducan con la campaña siguiente**, o sea la
+lista que se pudre. Por eso `SupportsCoverageWatch` es un protocolo **aparte** de
+`SupportsCategoryTree`: enumerar a mano (`--tree`) vale para cualquiera que sepa hacerlo, pero
+vigilar sin supervisión exige además que el ruido sea acotable. Mango conserva su `--tree` y se
+declara en `COBERTURA_SIN_VIGILAR`, con la misma forma que `SIN_VIGILANCIA_DE_HOJAS`: la excepción,
+explícita y revisable.
+
+Dos consecuencias operativas: la capa **cuesta peticiones semanales contra la tienda** —122 rutas y
+1m 29s en C&A, que las pide de una en una, contra 9,5 s y 46 rutas en Sfera— y por eso las raíces
+las declara la tienda (`tree_roots()`) eligiendo coste, no cobertura máxima. Y el número entra en
+`vigia_run` sin migración, que era justo lo que la `0022` había previsto al guardar una fila por
+capa en vez de una columna por capa.
+
 **Y el límite que hay que tener presente al leerlo en verde: el vigía no dice nada de la ingesta.**
 Responde «¿nos dejan entrar?» —hojas vivas y parseo de 5 productos, sin tocar el catálogo—,
 así que una tienda puede llevar semanas con el vigía en verde y un CronJob desplegado **sin haber

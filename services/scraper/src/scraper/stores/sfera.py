@@ -724,6 +724,19 @@ class SferaStore:
         """Ver `stores.base.SupportsCategoryTree`. Las rutas que esta tienda tiene configuradas."""
         return [cat.category_path for cat in self._categories]
 
+    def tree_roots(self) -> Iterable[str]:
+        """Ver `stores.base.SupportsCoverageWatch`. Las cuatro ramas del mundo infantil.
+
+        No se barre desde `ninos` sino desde sus cuatro hijas porque es donde cuelgan las hojas:
+        una petición de más por el nivel intermedio, y a cambio el informe no arrastra los cuatro
+        nodos de rama. Medido el 04/08/2026: **46 rutas** entre las cuatro.
+        """
+        return ["ninos/nina", "ninos/nino", "ninos/bebe-nina", "ninos/bebe-nino"]
+
+    def tree_separator(self) -> str:
+        """Ver `stores.base.SupportsCoverageWatch`. Sfera anida sus rutas con `/`."""
+        return "/"
+
     def category_tree(self, root: str) -> Iterable[CategoryNode]:
         """Ver `stores.base.SupportsCategoryTree`. Una petición por nodo con hijos.
 
