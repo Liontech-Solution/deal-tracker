@@ -5,6 +5,13 @@ de serie, sin navegador ni anti-bot:
 
   - listado de colección: /collections/{handle}/products.json?limit=250&page=N
   - producto suelto:      /products/{handle}.json    (solo para `probe_alive`)
+  - colecciones:          /collections.json          (solo para el recon, `--tree`)
+
+Enumera su árbol (`SupportsCategoryTree`, #179) pero **no se vigila**: las colecciones de Shopify
+son planas y `infantil` ya es el paraguas de todo el catálogo infantil, así que las otras 160 no
+son huecos aunque lo parezcan. El motivo, medido, está en `vigia.COBERTURA_SIN_VIGILAR`. Aquí la
+pregunta de cobertura de verdad es otra —qué `product_type` no está mapeado— y la contesta el
+`logger.warning` de `_categoria_desde_tipo()` en cada pasada.
 
 A diferencia de Zara, el listado YA trae variantes, precios e imágenes, así que no hay dos fases
 reales: `list_catalog()` parsea productos completos y los cachea, y `fetch_details()` sirve de esa
@@ -89,6 +96,7 @@ from ..tls import (
 )
 from .base import (
     GONE_STATUS,
+    CategoryNode,
     DelistCandidate,
     LeafHealth,
     ListingEntry,
@@ -105,6 +113,8 @@ SLUG = "cacles"  # a nivel de módulo porque las funciones puras de parseo tambi
 BASE_URL = "https://www.caclesbarefoot.com/"
 _COLLECTION_URL = BASE_URL + "collections/{handle}/products.json?limit={limit}&page={page}"
 _PRODUCT_URL = BASE_URL + "products/{handle}.json"
+# El catálogo de colecciones, plano y en una petición. Solo lo usa el recon (`--tree`).
+_COLLECTIONS_URL = BASE_URL + "collections.json?limit=250"
 
 # Códigos que merece la pena reintentar (throttling / errores transitorios del servidor).
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
@@ -214,6 +224,37 @@ class CategoryConfig:
 CATEGORIES: list[CategoryConfig] = [
     CategoryConfig("infantil", "infantil (todo el catálogo de niño)"),
 ]
+
+
+def parse_collections(payload: Any) -> list[CategoryNode]:
+    """Las colecciones que publica `/collections.json`. Pura (JSON -> nodos).
+
+    Todas a `depth=1` y sin hijas: en Shopify las colecciones no anidan (ver `category_tree`).
+    `products_count` viene casi siempre y es lo que la tienda declara; si falta, `None` —que es
+    «no lo dice»— en vez de 0.
+    """
+    colecciones = payload.get("collections") if isinstance(payload, dict) else None
+    if not isinstance(colecciones, list):
+        return []
+
+    nodos: list[CategoryNode] = []
+    for col in colecciones:
+        if not isinstance(col, dict):
+            continue
+        handle = col.get("handle")
+        if not isinstance(handle, str) or not handle:
+            continue
+        cuenta = col.get("products_count")
+        nodos.append(
+            CategoryNode(
+                path=handle,
+                title=str(col.get("title") or handle),
+                count=cuenta if isinstance(cuenta, int) and not isinstance(cuenta, bool) else None,
+                depth=1,
+                has_children=False,
+            )
+        )
+    return nodos
 
 
 def _precio(value: Any) -> Decimal | None:
@@ -679,6 +720,37 @@ class CaclesStore:
                     else:
                         # 200 y vacío: en Shopify es lo que responde una colección inexistente.
                         yield LeafHealth(scope, leaf, False, "HTTP 200 pero sin productos")
+
+    def category_tree(self, root: str) -> Iterable[CategoryNode]:
+        """Ver `stores.base.SupportsCategoryTree`. Las colecciones de la tienda, y son **planas**.
+
+        Shopify publica `/collections.json`, así que enumerar sale por una petición. Lo que no sale
+        es una jerarquía: una colección de Shopify no cuelga de otra, todas están al mismo nivel y
+        los solapes son por pertenencia múltiple del producto, no por anidamiento. Por eso todos los
+        nodos salen a `depth=1` y sin hijas, y por eso esta tienda está en `COBERTURA_SIN_VIGILAR`:
+        con el árbol plano no hay forma de decir «esto ya entra por su padre», que es justo lo que
+        pasa aquí — la colección `infantil` ya trae el catálogo infantil entero.
+
+        `root` se ignora **a propósito**: no hay ninguna raíz de la que colgar y aceptar cualquiera
+        para devolver siempre lo mismo es menos engañoso que fingir una jerarquía que no existe.
+        Se documenta aquí porque es la única tienda de las cinco que lo hace.
+        """
+        with self._client() as client:
+            payload = self._get_json(client, _COLLECTIONS_URL)
+        return parse_collections(payload)
+
+    def mapped_leaves(self) -> Iterable[str]:
+        """Ver `stores.base.SupportsCategoryTree`. Los handles de `CATEGORIES` (hoy, `infantil`)."""
+        return [cat.collection_handle for cat in self._categories]
+
+    def tree_separator(self) -> str:
+        """Ver `stores.base.SupportsCategoryTree`. No hay anidamiento que separar.
+
+        Se devuelve `/` por decir algo utilizable: con un árbol plano `cubierta()` degenera en
+        comparar cadenas iguales, que es exactamente el comportamiento correcto aquí. Ningún handle
+        de Shopify lleva `/`, así que tampoco puede emparentar dos colecciones por accidente.
+        """
+        return "/"
 
     def _probe_one(self, client: httpx.Client, url: str | None) -> bool | None:
         """¿Sigue a la venta? True/False; None si la tienda no da respuesta utilizable."""

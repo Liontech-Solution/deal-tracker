@@ -397,6 +397,31 @@ class SupportsCategoryTree(Protocol):
         """
         ...
 
+    def tree_separator(self) -> str:
+        """El carácter con el que la tienda anida sus rutas (`/` en Sfera, `-` en C&A).
+
+        Es lo que deja saber si una categoría **cuelga de otra**, y sin eso el árbol no se puede
+        leer: medido en C&A, de 122 rutas publicadas 53 son subcategorías de hojas que YA
+        ingerimos (`3-7-1-2` Camisetas bajo `3-7-1`, que está en `CATEGORIES`). Sus productos ya
+        entran por el padre, así que señalarlas sería ruido — y ese ruido era la mitad del informe.
+
+        La comparación es `ruta == ancestro or ruta.startswith(ancestro + sep)`, **con el separador
+        y no a prefijo pelado**: `3-1-11` (Calcetines) empieza por `3-1-1` (Camisetas) y las dos
+        están mapeadas, así que a prefijo pelado una taparía a la otra.
+
+        Que el id jerárquico predice la contención está **medido, no supuesto**: `3-7-2-3` (Shorts)
+        aporta 0 productos nuevos porque está contenido entero en `3-7-2` (Pantalones), y eso ya
+        estaba anotado en `c_and_a.CATEGORIES` antes de esta capa.
+
+        Vive aquí y no en `SupportsCoverageWatch` desde #179, y la diferencia es visible: `--tree`
+        lo necesita igual que el vigía, así que mientras estuvo en el otro protocolo las tiendas
+        que enumeran sin vigilarse (Mango, y ahora Zara) imprimían como huecos los nodos que cuelgan
+        de una hoja ingerida — 139 de 153 en la rama de niña de Zara. Lo que decide si una rama
+        cuelga de otra es el **vocabulario**, que es cosa de quien enumera; lo que es una decisión
+        de coste del barrido semanal es `tree_roots()`, y esa sí se queda allí.
+        """
+        ...
+
 
 @runtime_checkable
 class SupportsCoverageWatch(Protocol):
@@ -423,24 +448,6 @@ class SupportsCoverageWatch(Protocol):
         Elegirlas es una decisión de **coste**, no de cobertura máxima: el barrido se repite todas
         las semanas contra la tienda, y hay árboles que se piden con una petición por nodo. Quien
         las declare mide cuántos nodos cuelgan de cada una y lo escribe.
-        """
-        ...
-
-    def tree_separator(self) -> str:
-        """El carácter con el que la tienda anida sus rutas (`/` en Sfera, `-` en C&A).
-
-        Es lo que deja saber si una categoría **cuelga de otra**, y sin eso la capa de cobertura no
-        sirve: medido en C&A, de 122 rutas publicadas 53 son subcategorías de hojas que YA
-        ingerimos (`3-7-1-2` Camisetas bajo `3-7-1`, que está en `CATEGORIES`). Sus productos ya
-        entran por el padre, así que señalarlas sería ruido — y ese ruido era la mitad del informe.
-
-        La comparación es `ruta == ancestro or ruta.startswith(ancestro + sep)`, **con el separador
-        y no a prefijo pelado**: `3-1-11` (Calcetines) empieza por `3-1-1` (Camisetas) y las dos
-        están mapeadas, así que a prefijo pelado una taparía a la otra.
-
-        Que el id jerárquico predice la contención está **medido, no supuesto**: `3-7-2-3` (Shorts)
-        aporta 0 productos nuevos porque está contenido entero en `3-7-2` (Pantalones), y eso ya
-        estaba anotado en `c_and_a.CATEGORIES` antes de esta capa.
         """
         ...
 

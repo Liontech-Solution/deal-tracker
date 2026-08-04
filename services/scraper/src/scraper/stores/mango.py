@@ -1011,6 +1011,16 @@ class MangoStore:
         """Las hojas que ingerimos hoy, en el vocabulario de `CategoryNode.path`."""
         return [c.catalog_id for c in self._categories]
 
+    def tree_separator(self) -> str:
+        """Ver `stores.base.SupportsCategoryTree`. El `catalogId` anida con un punto.
+
+        `prendas_nina.camisetas_nina` cuelga de `prendas_nina`. Lo declara desde #179: hasta
+        entonces el separador vivía en `SupportsCoverageWatch`, que esta tienda no implementa —está
+        declarada en `COBERTURA_SIN_VIGILAR`— así que su `--tree` no sabía descontar lo que cuelga
+        de una hoja ingerida y lo pintaba como hueco.
+        """
+        return "."
+
 
 def _recorrer(nodo: Mapping[str, Any], profundidad: int) -> Iterable[tuple[Mapping[str, Any], int]]:
     """Los descendientes de `nodo` con su profundidad, de arriba abajo (solo el mundo infantil)."""

@@ -594,16 +594,19 @@ def test_la_cobertura_se_cronometra_como_las_demas_capas() -> None:
 def test_toda_tienda_que_enumera_su_arbol_se_vigila_o_se_declara(slug: str) -> None:
     """Simétrico del de hojas, pero acotado: solo obliga a quien YA sabe enumerar su árbol.
 
-    No se exige `SupportsCategoryTree` a todas —seis tiendas no lo implementan y pedirlo sería otra
+    No se exige `SupportsCategoryTree` a todas —tres tiendas no lo implementan y pedirlo sería otra
     issue entera—, pero la que sabe enumerarse o se vigila (`SupportsCoverageWatch`) o dice por qué
     no. Sin esto, añadir `category_tree()` a una tienda la dejaría fuera de la capa en silencio.
     """
     store = get_store(slug, _CFG)
     if not isinstance(store, SupportsCategoryTree):
         return
+    # El separador se le exige a TODA la que enumera, se vigile o no (#179): sin él, `--tree` no
+    # sabe qué cuelga de una hoja ingerida y lo publica como hueco, que es ruido en el único
+    # instrumento que tienen las tiendas declaradas.
+    assert store.tree_separator(), f"{slug!r} no declara con qué separador anida sus rutas"
     if isinstance(store, SupportsCoverageWatch):
         assert list(store.tree_roots()), f"{slug!r} declara vigilancia de cobertura sin raíces"
-        assert store.tree_separator(), f"{slug!r} no declara con qué separador anida sus rutas"
         return
     assert COBERTURA_SIN_VIGILAR.get(slug), (
         f"la tienda {slug!r} sabe enumerar su árbol pero no implementa `SupportsCoverageWatch`, "

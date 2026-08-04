@@ -22,6 +22,7 @@ from scraper.stores.cacles import (
     CategoryConfig,
     _categoria_desde_tipo,
     _genero_desde_tags,
+    parse_collections,
     parse_products,
     product_signature,
 )
@@ -582,3 +583,82 @@ def test_retry_after_con_decimales_se_respeta() -> None:
 
     assert esperas[0] >= 24, "debería esperar los 30 s que pide la tienda (con jitter a la baja)"
     assert esperas[1] < 2, "un valor ilegible cae al backoff exponencial, no revienta"
+
+
+# --- el árbol de colecciones (#179) ------------------------------------------
+
+
+def colecciones() -> Any:
+    return load_fixture("cacles_collections.json")
+
+
+def tienda() -> CaclesStore:
+    """La tienda con su `CATEGORIES` de verdad: lo que se cruza es lo que ingerimos."""
+    return CaclesStore(Config(database_url="postgresql:///no-usada", request_delay=0.0))
+
+
+def test_las_colecciones_salen_planas_y_sin_hijas() -> None:
+    """En Shopify una colección no cuelga de otra: fingir jerarquía sería inventarse el dato.
+
+    Es lo que hace que esta tienda no se pueda vigilar sola — sin anidamiento no hay forma de
+    decir «esto ya entra por su padre», y aquí todo entra por `infantil`.
+    """
+    nodos = parse_collections(colecciones())
+
+    assert nodos
+    assert all(n.depth == 1 for n in nodos)
+    assert not any(n.has_children for n in nodos)
+
+
+def test_el_handle_es_la_ruta_y_el_titulo_es_como_la_llama_la_tienda() -> None:
+    nodos = {n.path: n for n in parse_collections(colecciones())}
+
+    assert "infantil" in nodos
+    assert nodos["infantil"].title
+    assert nodos["infantil"].path in set(tienda().mapped_leaves())
+
+
+def test_el_arbol_publica_las_colecciones_que_no_ingerimos() -> None:
+    """Y son casi todas: el recon del 04/08/2026 dio 161, y solo `infantil` está mapeada."""
+    rutas = {n.path for n in parse_collections(colecciones())}
+    mapeadas = set(tienda().mapped_leaves())
+
+    assert rutas - mapeadas, "si no sobrara ninguna, esta capa no tendría nada que contar"
+    assert "best-sellers" in rutas, "marketing, no catálogo"
+    assert "calcetines-barefoot-adulto" in rutas, "adulto, fuera del alcance del scraper"
+
+
+def test_el_count_sale_de_products_count_y_su_ausencia_es_none() -> None:
+    """`None` es «no lo dice» y 0 sería «colección vacía», que es lo que responde una retirada."""
+    nodos = {n.path: n for n in parse_collections(colecciones())}
+    assert nodos["infantil"].count is not None
+    assert nodos["infantil"].count > 0
+
+    sin_cuenta = parse_collections({"collections": [{"handle": "x", "title": "X"}]})
+    assert sin_cuenta[0].count is None
+
+
+def test_un_products_count_booleano_no_se_cuela_como_un_uno() -> None:
+    """`True` es un `int` en Python, y colarlo diría que la colección tiene un producto."""
+    nodos = parse_collections({"collections": [{"handle": "x", "products_count": True}]})
+    assert nodos[0].count is None
+
+
+def test_una_respuesta_recortada_no_inventa_arbol() -> None:
+    assert parse_collections({}) == []
+    assert parse_collections({"collections": "no es una lista"}) == []
+    assert parse_collections({"collections": [{"title": "sin handle"}]}) == []
+
+
+def test_el_arbol_no_depende_de_la_raiz_pedida() -> None:
+    """No hay jerarquía, así que no hay raíz: se documenta devolviendo lo mismo para cualquiera."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=colecciones())
+
+    store = CaclesStore(Config(database_url="postgresql:///no-usada", request_delay=0.0))
+    store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
+
+    assert [n.path for n in store.category_tree("all")] == [
+        n.path for n in store.category_tree("infantil")
+    ]

@@ -83,6 +83,24 @@ SIN_VIGILANCIA_DE_HOJAS: dict[str, str] = {}
 # Tiendas que saben enumerar su árbol pero a las que NO se les vigila la cobertura, con el motivo
 # escrito. Mismo papel que `SIN_VIGILANCIA_DE_HOJAS`: que la excepción sea una decisión revisable.
 COBERTURA_SIN_VIGILAR: dict[str, str] = {
+    "zara": (
+        "su árbol es el menú de navegación, no una taxonomía, y es el caso más extremo de los "
+        "medidos. El 04/08/2026, acotando ya las raíces a las cinco ramas infantiles: 766 nodos "
+        "y 536 sin cubrir, encabezados por «VER TODO» ×81 y «COLECCIÓN» ×20, más los "
+        "DIVIDER_MENU_*, EDITORIAL, SPECIAL PRICES y LICENCIAS. Declararlos serían 536 entradas "
+        "que caducan con la campaña siguiente. Conserva su `--tree`, que además es lo que la "
+        "cabecera de zara.py manda usar cuando un id de hoja caduca (#179)"
+    ),
+    "cacles": (
+        "sus colecciones de Shopify son PLANAS: no anidan, así que no hay forma de decir «esto ya "
+        "entra por su padre» y la única hoja que ingerimos —`infantil`— es justo el paraguas de "
+        "todo el catálogo infantil. Medido el 04/08/2026: 161 colecciones, y las que no son de "
+        "adulto son de marketing (`60-de-descuento`, `best-sellers`, `barefoot-padel-paddle-"
+        "tennis`) o cortes por tipo cuyos productos ya entran por `infantil`. Vigilarlo sería 160 "
+        "huecos semanales, todos falsos. Aquí la pregunta de cobertura no es «qué hoja falta» "
+        "sino «qué `product_type` no está mapeado», y esa ya la canta `_categoria_desde_tipo()` "
+        "por el log en cada pasada (#179)"
+    ),
     "mango": (
         "su árbol es el menú de navegación, no una taxonomía: publica promociones que rotan "
         "(dest_toystory, dest_ramadam, nuevosarticulosanadidos) y un espejo `rebajas_*` de cada "
@@ -155,6 +173,33 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         # y un chubasquero impermeable, que ya están fuera por su propia categoría.
         "3-1-24": "vista transversal: 42 de 45 ya entran por camisetas/pantalones/sudaderas (#175)",
         "3-7-23": "vista transversal: 42 de 45 ya entran por camisetas/pantalones/sudaderas (#175)",
+    },
+    # Lo que la cabecera de `springfield.py` ya dejaba fuera **en prosa**, hecho comprobable (#179).
+    # Contado sobre el sitemap del 04/08/2026: **productos distintos**, no filas — el sitemap repite
+    # cada URL entre sus tres ficheros y a filas estos números salen 2,3 veces más grandes. Las
+    # ramas van por género porque la taxonomía de esta tienda empieza ahí: no hay `pijamas` suelto.
+    #
+    # Declarar la rama basta y por eso no aparecen las subcategorías (`nina/bano/bikinis`,
+    # `nino/complementos/gorras`, `nina/chaquetas/chalecos`…): se callan solas por `cubierta`.
+    "springfield": {
+        "nina/complementos": "complementos: ni ropa ni calzado (52)",
+        "nino/complementos": "complementos: ni ropa ni calzado (36)",
+        "nina/bano": "baño no es ninguna de las 5 categorías del brief (20)",
+        "nino/bano": "baño no es ninguna de las 5 categorías del brief (21)",
+        "nina/chaquetas": "chaqueta no es ninguna de las 5 categorías del brief (19)",
+        "nino/chaquetas": "chaqueta no es ninguna de las 5 categorías del brief (17)",
+        "nina/abrigos": "abrigo no es ninguna de las 5 categorías del brief (9)",
+        "nino/abrigos": "abrigo no es ninguna de las 5 categorías del brief (5)",
+        "nino/chalecos": "chaleco no es ninguna de las 5 categorías del brief (2)",
+        "nina/promociones": "«Promociones» es una vista transversal, no una categoría (14)",
+        "nina/total-looks": "los looks agrupan prendas de varias categorías (2)",
+        # Las dos únicas de esta lista que NO son una decisión firme, y conviene que se lean así:
+        # en H&M y en Hipercor el pijama SÍ se ingiere, como `ropa-interior` (~700 prendas allí).
+        # Que aquí no entre es una incoherencia entre tiendas que #179 destapó, no una regla del
+        # brief. Se declara para que el vigía no la cante cada jueves mientras se decide, y tiene
+        # issue propia: el día que se resuelva, esta entrada se va y la rama pasa a `CATEGORIES`.
+        "nina/pijamas": "incoherencia con H&M/Hipercor, que sí lo ingieren como ropa-interior (41)",
+        "nino/pijamas": "incoherencia con H&M/Hipercor, que sí lo ingieren como ropa-interior (23)",
     },
 }
 
@@ -403,8 +448,8 @@ def revisar_cobertura(store: BaseStore, informe: Informe) -> None:
     if not isinstance(store, SupportsCoverageWatch):
         informe.accionables.append(
             "sabe enumerar su árbol pero no se le puede vigilar la cobertura: implementa "
-            "`SupportsCoverageWatch` (tree_roots + tree_separator) en la tienda, o declara el "
-            "motivo en `COBERTURA_SIN_VIGILAR` de scraper/vigia.py"
+            "`SupportsCoverageWatch` (tree_roots) en la tienda, o declara el motivo en "
+            "`COBERTURA_SIN_VIGILAR` de scraper/vigia.py"
         )
         return
 

@@ -1,0 +1,52 @@
+{
+ "collections": [
+  {
+   "handle": "60-de-descuento",
+   "title": "60% de descuento",
+   "products_count": 12,
+   "published_at": "2026-07-13T18:42:51+02:00"
+  },
+  {
+   "handle": "all",
+   "title": "All",
+   "products_count": 3108,
+   "published_at": "2024-08-19T19:42:08+02:00"
+  },
+  {
+   "handle": "be-lenka-kids",
+   "title": "Be Lenka Kids",
+   "products_count": 20,
+   "published_at": "2022-05-03T20:00:37+02:00"
+  },
+  {
+   "handle": "best-sellers",
+   "title": "Best-sellers de Cacles Barefoot",
+   "products_count": 45,
+   "published_at": "2026-02-23T10:34:07+01:00"
+  },
+  {
+   "handle": "botas-y-botines",
+   "title": "Botas y Botines barefoot infantiles",
+   "products_count": 77,
+   "published_at": "2022-09-02T20:42:08+02:00"
+  },
+  {
+   "handle": "calcetines-barefoot-adulto",
+   "title": "Calcetines barefoot adulto",
+   "products_count": 154,
+   "published_at": "2022-11-24T18:08:14+01:00"
+  },
+  {
+   "handle": "infantil",
+   "title": "Infantil",
+   "products_count": 770,
+   "published_at": "2022-02-26T13:12:59+01:00"
+  },
+  {
+   "handle": "sandalias-barefoot-para-ninos",
+   "title": "Sandalias barefoot para niños: Libertad total para sus pies en crecimiento",
+   "products_count": 118,
+   "published_at": "2023-03-03T13:24:46+01:00"
+  }
+ ]
+}

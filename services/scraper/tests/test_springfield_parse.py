@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from decimal import Decimal
 
 import httpx
+import pytest
 
 from scraper.config import Config
 from scraper.stores.base import ScrapedProduct
@@ -423,3 +425,121 @@ def test_un_producto_sin_variantes_utilizables_no_se_emite() -> None:
     assert (
         producto(base, Ubicacion("5653304", "niño", "ropa", "camisetas"), [], {}, {}, "u") is None
     )
+
+
+# --- el árbol de categorías (#179) -------------------------------------------
+
+
+def tienda_con_sitemap(productos: str | None = None) -> SpringfieldStore:
+    """La tienda sirviendo el índice y, para los tres ficheros, el mismo sitemap de producto.
+
+    Que los tres devuelvan lo mismo no es pereza: es como la tienda repite de verdad cada URL
+    entre sus ficheros, y lo que deja comprobar que el árbol cuenta productos y no filas.
+    """
+    indice = load_html("springfield_sitemap_index.xml")
+    cuerpo = productos if productos is not None else load_html("springfield_sitemap_products.xml")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nombre = request.url.params.get("name", "")
+        return httpx.Response(200, text=indice if nombre == _SITEMAP_INDICE else cuerpo)
+
+    store = SpringfieldStore(Config(database_url="postgresql:///no-usada", request_delay=0.0))
+    store._client = lambda **_: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
+    return store
+
+
+def test_el_arbol_publica_categorias_que_no_ingerimos() -> None:
+    """El porqué de la capa: `pijamas` y `complementos` existen y no están en `HOJAS`.
+
+    `check_leaves()` no puede verlas —sondea lo que ya está mapeado— así que sin el árbol la
+    tienda podría estrenar una categoría del brief y nadie se enteraría.
+    """
+    nodos = {n.path: n for n in tienda_con_sitemap().category_tree("nino")}
+
+    assert "nino/pijamas" in nodos
+    assert "nino/pijamas" not in set(tienda().mapped_leaves())
+    assert nodos["nino/camisetas"].path in set(tienda().mapped_leaves()), "y lo mapeado sale igual"
+
+
+def test_el_arbol_baja_a_las_subcategorias_que_hojas_no_conoce() -> None:
+    """`HOJAS` llega al nivel de categoría; la tienda anida un nivel más."""
+    nodos = {n.path: n for n in tienda_con_sitemap().category_tree("nino")}
+
+    assert nodos["nino/calzado"].depth == 1
+    assert nodos["nino/calzado"].has_children
+    assert nodos["nino/calzado/zapatillas"].depth == 2
+    assert not nodos["nino/calzado/zapatillas"].has_children
+
+
+def test_el_count_es_de_productos_distintos_y_no_de_filas_del_sitemap() -> None:
+    """El sitemap repite cada URL entre sus tres ficheros (medido: 3207 filas, 1382 productos).
+
+    Contando filas el árbol publicaría el triple de catálogo del que hay, y ese número se lee al
+    lado del de la pasada.
+    """
+    nodos = {n.path: n for n in tienda_con_sitemap().category_tree("nino")}
+
+    # Las dos camisetas de niño del fixture, servidas tres veces cada una.
+    assert nodos["nino/camisetas"].count == 2
+    assert nodos["nino/calzado"].count == 1
+
+
+def test_un_producto_de_una_subcategoria_cuenta_tambien_en_su_padre() -> None:
+    """Si no, la rama saldría a 0 justo en las categorías que la tienda anida."""
+    nodos = {n.path: n for n in tienda_con_sitemap().category_tree("nino")}
+
+    assert nodos["nino/intimo/calzoncillos"].count == 1
+    assert nodos["nino/intimo"].count == 1, "el mismo producto, contado en la rama y en la hoja"
+
+
+def test_el_arbol_solo_devuelve_descendientes_de_la_raiz_pedida() -> None:
+    """La raíz no se emite a sí misma, y la otra rama de género no se cuela."""
+    rutas = {n.path for n in tienda_con_sitemap().category_tree("nina")}
+
+    assert rutas
+    assert all(r.startswith("nina/") for r in rutas)
+    assert "nina" not in rutas
+
+
+def test_las_urls_sin_taxonomia_y_los_otros_mundos_no_entran_en_el_arbol() -> None:
+    """`teen`, `mujer`, `hombre` y las ~8 URLs infantiles de 3 segmentos se ignoran sin ruido."""
+    rutas = {n.path for raiz in ("nino", "nina") for n in tienda_con_sitemap().category_tree(raiz)}
+
+    assert not any(r.startswith(("teen", "mujer", "hombre")) for r in rutas)
+    assert not any("conjunto-de-pantalon" in r for r in rutas)
+
+
+def test_mapped_leaves_habla_el_mismo_vocabulario_que_el_arbol() -> None:
+    """Si no coincidieran, la capa señalaría como hueco algo que sí ingerimos.
+
+    Se comprueba contra el árbol real del fixture y no por parecido de formato: `nino/camisetas`
+    tiene que ser literalmente la misma cadena en los dos lados.
+    """
+    mapeadas = set(tienda().mapped_leaves())
+    publicadas = {
+        n.path for raiz in ("nino", "nina") for n in tienda_con_sitemap().category_tree(raiz)
+    }
+
+    comunes = mapeadas & publicadas
+    assert comunes, "el fixture cubre ramas mapeadas; si no cruzan, los vocabularios se han ido"
+    assert "nino/camisetas" in comunes
+    assert "nina/vestidos" in comunes
+
+
+def test_mapped_leaves_son_exactamente_las_hojas_sondeadas() -> None:
+    """Las dos capas miran la misma lista: `check_leaves()` la sondea y la cobertura la cruza."""
+    assert set(tienda().mapped_leaves()) == {f"{g}/{s}" for g, s in HOJAS}
+
+
+def test_las_raices_del_barrido_son_los_dos_generos() -> None:
+    """El mundo no es un nodo del árbol, y los otros mundos quedan fuera del brief."""
+    assert set(tienda().tree_roots()) == {"nino", "nina"}
+    assert tienda().tree_separator() == "/"
+
+
+def test_un_sitemap_ilegible_no_inventa_un_arbol_vacio() -> None:
+    """Vacío se leería como «la tienda ya no publica nada», que es lo contrario de «no lo sé»."""
+    store = tienda_con_sitemap("<urlset><url><loc>sin cerrar")
+
+    with pytest.raises(ET.ParseError):
+        list(store.category_tree("nino"))
