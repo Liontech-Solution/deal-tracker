@@ -1249,11 +1249,15 @@ def test_una_hoja_caida_sin_ruta_sigue_contando_aunque_no_se_pueda_nombrar(db_co
 def test_con_muchas_hojas_caidas_se_nombran_las_primeras_y_se_cuenta_el_resto(
     db_conn: Any,
 ) -> None:
-    """`message` tiene tope, y una tienda con 30 hojas muertas no puede gastárselo entero en
-    nombres: lo que importa entonces ya no es cuál, es que se ha caído media tienda.
+    """`message` tiene tope, y una tienda con muchas hojas muertas no puede gastárselo entero en
+    nombres: se nombran `_MAX_NAMED_LEAVES` en orden estable —alfabético, no el del recorrido, para
+    que dos pasadas comparables den el mismo texto— y el resto se resume con `+N`.
 
-    Se nombran `_MAX_NAMED_LEAVES` en orden estable —alfabético, no el del recorrido, para que dos
-    pasadas comparables den el mismo texto— y el resto se resume con `+N`.
+    La proporción de este caso no es decorado. Nombrar muchas hojas solo puede pasar en una pasada
+    que **sobrevivió**, y sobrevivir es justo lo que acota el ratio: con 7 de 10 la pasada aborta
+    por `SCRAPER_SCAN_MAX_DEAD_RATIO` (0,34) y no llega a escribir `message`. O sea que el `+N` es
+    el síntoma de un catálogo GRANDE con varias hojas retiradas, no el de una tienda rota — esa
+    otra la corta el umbral mucho antes, y con una excepción, no con un mensaje.
     """
     products, sigs = _dos_ambitos()
     ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
@@ -1263,7 +1267,7 @@ def test_con_muchas_hojas_caidas_se_nombran_las_primeras_y_se_cuenta_el_resto(
         [],
         signatures={},
         report=ScanReport(
-            leaves_total=10,
+            leaves_total=25,  # 7/25 = 0,28: por debajo del umbral, la pasada sobrevive
             leaves_failed=7,
             failed_scopes={_CAMISETAS},
             failed_leaves=hojas,
@@ -1274,7 +1278,7 @@ def test_con_muchas_hojas_caidas_se_nombran_las_primeras_y_se_cuenta_el_resto(
 
     message = _scalar(db_conn, "SELECT message FROM scrape_run ORDER BY id DESC LIMIT 1")
     assert message is not None
-    assert "hojas caidas 7/10" in message
+    assert "hojas caidas 7/25" in message
     assert "[ninos/hoja-0, ninos/hoja-1, ninos/hoja-2, ninos/hoja-3, ninos/hoja-4 +2]" in message
     assert "ninos/hoja-6" not in message, "las que no caben se cuentan, no se nombran"
 
