@@ -117,6 +117,12 @@ class IngestResult:
     variants_missing: int
     scanned_scopes: int  # ámbitos recorridos en esta pasada
     skipped_scopes: int  # ámbitos con caída sospechosa: se omitieron sus bajas
+    # Cómo se llaman esos ámbitos (`niña/ropa/camisetas`, ver `_render_scope`), por el mismo motivo
+    # que `failed_leaves` de abajo (#170): mientras dure la sospecha ese ámbito no aplica bajas en
+    # NINGUNA pasada, así que sus productos retirados siguen visibles — y «1/17 ámbitos» no dice por
+    # dónde empezar a mirar. `scrape_run.message` ya los nombraba (ver `_success_message`); lo que
+    # faltaba era decirlo también en el resumen, que es lo que alguien lee.
+    skipped_scope_names: list[str]
     leaves_scanned: int  # hojas de categoría recorridas en el listado
     leaves_failed: int  # de las anteriores, las que la tienda ya no sirve (404)
     # Cómo se llaman esas hojas, en el vocabulario de cada tienda (ver `ScanReport.failed_leaves`,
@@ -964,6 +970,7 @@ def ingest(
             variants_missing=variants_missing,
             scanned_scopes=len(scanned),
             skipped_scopes=len(suspicious),
+            skipped_scope_names=sorted(_render_scope(s) for s in suspicious),
             leaves_scanned=report.leaves_total,
             leaves_failed=report.leaves_failed,
             failed_leaves=sorted(report.failed_leaves),

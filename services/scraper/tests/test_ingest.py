@@ -402,6 +402,9 @@ def test_red_seguridad_omite_bajas_en_caida_sospechosa(db_conn: Any) -> None:
     result = ingest(db_conn, store2, run_ts=T2, delist_min_baseline=3)
 
     assert result.skipped_scopes == 1
+    # Y CUÁL es (#170). El número solo dice que hay que ir a mirar; sin el nombre hay que recorrer
+    # los ámbitos a mano, y mientras tanto ese ámbito no da bajas en ninguna pasada.
+    assert result.skipped_scope_names == ["niña/zapateria/zapatos"]
     assert result.products_delisted == 0
     assert _scalar(db_conn, "SELECT count(*) FROM product WHERE delisted_at IS NULL") == 4
     # Y la pasada sospechosa tampoco gasta intentos de histéresis: el contador no se mueve.
@@ -425,6 +428,7 @@ def test_baja_normal_cuando_la_caida_es_moderada(db_conn: Any) -> None:
     result = ingest(db_conn, store2, run_ts=T2, delist_min_baseline=3, delist_min_misses=1)
 
     assert result.skipped_scopes == 0
+    assert result.skipped_scope_names == [], "sin sospecha no hay nada que nombrar (ni un () vacío)"
     assert result.products_delisted == 1
     assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='A3'") == T2
 
