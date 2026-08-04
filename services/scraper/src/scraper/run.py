@@ -64,16 +64,21 @@ def _reparto(counts: dict[str, int]) -> str:
     return ", ".join(f"{k}: {v}" for k, v in sorted(counts.items()))
 
 
-def _cuales(rutas: list[str]) -> str:
-    """` (ninos/bebe-nino/punto-y-jerseis)`, con las hojas caídas nombradas.
+def _cuales(nombres: list[str]) -> str:
+    """` (ninos/bebe-nino/punto-y-jerseis)`, con lo que se ha caído nombrado.
 
     Existe porque el aviso decía CUÁNTAS hojas se habían caído pero no cuáles, y el número solo
     sirve para asustarse (#151). Desde #155 lo pasan las nueve tiendas —`leaf` es obligatorio en
     `leaf_gone()`—, cada una en su vocabulario: la ruta en Sfera e Hipercor, el `catalogId` en
     Mango, el fichero de sitemap en Springfield. La guarda del vacío se queda porque este informe
     se construye desde datos, no desde el tipo.
+
+    Sirve igual para las dos redes de seguridad de las bajas, que sufrían el mismo mal: desde #170
+    también nombra los ámbitos con caída sospechosa (`niña/ropa/camisetas`). Aquí no hay tope de
+    nombres —lo hay en `scrape_run.message`, ver `ingest._MAX_NAMED_LEAVES`— porque el que acota
+    aquel es el ancho de la columna, y stdout no lo tiene.
     """
-    return f" ({', '.join(sorted(rutas))})" if rutas else ""
+    return f" ({', '.join(sorted(nombres))})" if nombres else ""
 
 
 def _report_dead_leaves(store: BaseStore) -> None:
@@ -303,7 +308,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     if result.skipped_scopes:
         print(
-            f"⚠ {result.skipped_scopes}/{result.scanned_scopes} ámbitos con caída sospechosa: "
+            f"⚠ {result.skipped_scopes}/{result.scanned_scopes} ámbitos con caída sospechosa"
+            f"{_cuales(result.skipped_scope_names)}: "
             f"bajas omitidas (posible fallo de scraping). Revisa el listado de la tienda."
         )
     if result.leaves_failed:
