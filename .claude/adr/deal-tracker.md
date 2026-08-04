@@ -1002,8 +1002,10 @@ Dos consecuencias que sobreviven a esta issue:
 
 - **Una hoja nueva se añade AL FINAL de `CATEGORIES`.** `list_catalog()` deduplica con «gana la
   primera», así que en Sfera los 47 de deporte que ya entraban por `sudaderas` conservaron su hoja
-  y **ningún producto vivo cambió de ámbito** — que es justo el disparador de la falsa «caída
-  sospechosa» (#174). Lo que aporta la hoja es entonces exactamente su residuo: +44 medidos con el
+  y **ningún producto vivo cambió de ámbito** — que era el disparador de la falsa «caída
+  sospechosa» hasta que #174 lo arregló (ver *La red de bajas comparaba dos vocabularios*). El
+  orden sigue importando por lo otro: es lo que hace que el reparto por hojas no dependa de cuál se
+  listó primero. Lo que aporta la hoja es entonces exactamente su residuo: +44 medidos con el
   catálogo en un solo instante (594 → 638), y no los ~80 que la faceta declaraba.
 - **Una afirmación no medida envejece como si fuera dato.** Al retirar `bebe-nino/punto-y-jerseis`
   (#151) se escribió en el código que no había sustituta porque «`ropa-deportiva` … no son
@@ -1301,6 +1303,56 @@ dejando entrar, no cuántos productos han muerto.
 Lo encontró `revisor-robustez-scraper` al auditar Mango (#80) y se confirmó leyendo
 `_advance_missing()` antes de tocar nada. Hipercor ya lo tenía resuelto y documentado en su propio
 fichero; el coste de que no estuviera aquí fue que la tienda siguiente nació sin ello.
+
+### La red de bajas comparaba dos vocabularios, y por eso reclasificar parecía una avería (#174)
+
+La red por umbral cruza dos números que hasta #174 no hablaban el mismo idioma: la población previa
+por ámbito sale de las columnas `gender, section, category` **guardadas en `product`** —el
+vocabulario que escribió la pasada anterior— y lo observado, del ámbito que el código **de ahora**
+le asigna a cada entrada del listado. Consecuencia: cualquier cambio en cómo se clasifica hace que
+los productos «se muden», el ámbito de origen parece desplomarse aunque no falte ni uno, se marca
+sospechoso y **se omiten sus bajas** — o sea que lo retirado de verdad sigue visible en el catálogo
+justo mientras dura el falso positivo.
+
+Medido en Hipercor `niña/zapateria/zapatos` en `dev`: el arreglo unisex de #98 cayó entre pasadas y
+las runs #45 y #46 avisaron de caída sospechosa con **21 productos vivos y ninguno perdido**. Avisó
+dos veces porque la #45 solo redetalló 187 variantes —el detalle es condicional por huella—, así
+que la mayoría de los géneros guardados seguían siendo los viejos al arrancar la #46.
+
+**El arreglo es contar lo mudado como visto, y lo que lo hace barato es que nadie tiene que
+reclasificar nada.** La entrada del listado ya trae la clasificación de ahora y `_load_existing()`
+ya lee la fila de `product`: cruzarlas por `retailer_product_id` dice exactamente quién se ha mudado
+y desde dónde (`_moved_out_counts()`). Descartada por eso la alternativa que parecía obligatoria
+—aplicar al `prior_active` la misma clasificación que usa el listado—, que sí habría sido cara
+porque la clasificación vive en la tienda, no en `ingest.py`.
+
+Y descartada también, con un motivo que vale para futuras redes de seguridad, la variante barata de
+**comparar totales de tienda**: si el total no cae, tratar la caída por ámbito como mudanza. Cubre
+este caso pero afloja la red donde importa — una hoja pequeña que se vacía de verdad mientras otra
+crece por temporada deja de estar protegida, porque el total aguanta. Contar la mudanza **por
+producto** no tiene ese agujero: si un ámbito se vacía de verdad, sus productos no aparecen en
+ningún otro y `moved_out` es cero. En una mudanza parcial, los que faltan de verdad siguen su camino
+normal por histéresis y sondeo.
+
+Dos detalles que no son evidentes y que sostienen la cuenta:
+
+- **Solo cuentan los que estaban activos.** `prior_active` no incluye a los dados de baja, así que
+  sumar uno de esos descontaría de una caída que sí es real — y el caso pasa: un producto se
+  descataloga, la tienda lo repesca y de paso lo publica en otra rama.
+- **Se cuenta en el ámbito de ORIGEN**, que es el que hay que rescatar de la sospecha; el de destino
+  ya los ve llegar.
+
+**El rescate se publica** (`ambitos remapeados` en `scrape_run.message`, `remapped_scopes` en el
+resumen) aunque no sea un error y no sume en `errors`, por el mismo motivo que `generos conservados`
+de #172: si fuera mudo, una regresión que dejara de detectar la mudanza se leería **exactamente
+igual** que el arreglo funcionando. Es la única señal de que una pasada ha visto un cambio de
+clasificación.
+
+Verificado contra tienda real en local (Cacles, 426 productos) moviendo la clasificación guardada
+entre dos pasadas: con el código anterior `errors = 1` y «ambitos con caida sospechosa:
+niña/zapateria/botas»; con el arreglo, `errors = 0`, «ambitos remapeados» y bajas aplicadas. Cacles
+sirve para esto porque su listado ya trae el detalle: una pasada real entera son 2-3 peticiones y 4
+segundos, frente a los ~25 min de Chromium que costaría reproducirlo en Hipercor.
 
 ### El género `unisex` es la norma del barefoot, no una excepción
 
