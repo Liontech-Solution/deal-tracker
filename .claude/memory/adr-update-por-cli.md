@@ -5,19 +5,30 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: 31501bb9-0b33-4106-9061-4e31b18a2197
-  modified: 2026-08-03T17:42:48.330Z
+  modified: 2026-08-04T22:12:33.921Z
 ---
 
 `manage_adr(mode='update')` **reemplaza el ADR completo** con lo que le pases en `content`: no
 hace merge ni parchea secciones. Llamarlo con un texto corto (o un placeholder) borra en silencio
 los ~21k del ADR real en el grafo.
 
-Publicarlo siempre desde el fichero versionado, con el CLI:
+Publicarlo siempre desde el fichero versionado, con el CLI. **Y ya no cabe en `--content`**: el
+05/08/2026, con el ADR en 128778 bytes, la forma con `$(cat …)` empezó a morir con
+`bash: … : La lista de argumentos es demasiado larga`. El ADR solo crece, así que la forma buena es
+`--args-file` con un JSON, que no pasa por argv:
 
 ```bash
-codebase-memory-mcp cli manage_adr --project home-juanjocop-Proyectos-deal-tracker \
-  --mode update --content "$(cat .claude/adr/deal-tracker.md)"
+python3 -c "
+import json
+adr = open('.claude/adr/deal-tracker.md').read()
+json.dump({'project':'home-juanjocop-Proyectos-deal-tracker','mode':'update','content':adr},
+          open('/tmp/adr_args.json','w'))
+"
+codebase-memory-mcp cli manage_adr --args-file /tmp/adr_args.json
 ```
+
+(`codebase-memory-mcp cli manage_adr --help` lista las tres entradas alternativas: `--args-file`,
+JSON por stdin y JSON crudo como argumento posicional.)
 
 **Why:** el fichero de `.claude/adr/` es la fuente de verdad y el grafo solo la copia consultable
 (ver [[adr-contexto-compartido]]); el CLI es la única forma cómoda de pasar el fichero entero sin
@@ -26,6 +37,24 @@ transcribirlo. Con la herramienta MCP directa es fácil mandar contenido parcial
 **How to apply:** editar el fichero `.claude/adr/<proyecto>.md`, y solo entonces republicar con el
 CLI. Comprobar después con `manage_adr(mode='sections')` que salen todas las secciones esperadas —
 si sale una lista corta, el ADR del grafo se ha perdido y hay que republicarlo.
+
+**Pero `sections` NO basta para saber si el grafo tiene TU versión, y `adr_present: true` tampoco.**
+`index_repository` excluye `.claude/`, así que reindexar ni lee ni restaura el fichero: deja intacto
+lo que hubiera publicado el último que llamó a `manage_adr`, que puede ser otra sesión. El 05/08/2026
+un `full` devolvió `adr_present: true` y `sections` completo, y el ADR del grafo era el de otra
+sesión, sin mis cambios — porque iban **dentro de una sección que ya existía** y ningún encabezado
+cambió. La comprobación buena es por contenido: `mode='get'` y `grep` de una frase que hayas escrito
+tú.
+
+**Con otra sesión trabajando a la vez, republicar puede perderse sin error.** El 04/08/2026 el CLI
+devolvió `{"status":"updated"}` y acto seguido `mode='get'` dio `no_adr`: entre las dos llamadas,
+otra sesión había mergeado su PR y reindexado, y su `index_repository` se llevó el ADR recién
+publicado. Peor, mi `cat` era de un `main` anterior al commit de ADR de esa sesión, así que aunque
+hubiera sobrevivido habría sido una versión vieja. Se detecta con `list_projects`, que enseña el
+`head_sha` indexado: si no es el `main` que acabas de dejar, alguien ha reindexado después. La
+salida es `git fetch && git merge --ff-only origin/main` y republicar desde el fichero ya
+actualizado (ver [[reindexar-tras-actualizar-main]]). Y `git worktree list` es el aviso barato de
+que hay compañía antes de empezar.
 
 **Y esa comprobación sirve para algo más que contar secciones: el parser trata CUALQUIER línea que
 empiece por `#` como encabezado.** En este ADR el texto va justificado a ~100 columnas y las
