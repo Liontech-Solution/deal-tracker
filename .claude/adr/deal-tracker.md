@@ -1026,6 +1026,64 @@ que en QA —que se despliega por releases semver— hay una ventana real en la 
 antes que la `0022`. Base inalcanzable, tabla que aún no existe o INSERT rechazado degradan a «sin
 historial» y el sondeo sigue igual, como ya hacía el aviso de GitHub cuando falta el token.
 
+### Una pasada muda no se puede depurar, y las dos tiendas que acumulan son ciegas por diseño
+
+Hasta el 04/08/2026 la pasada **no escribía un solo byte hasta el resumen final**: `ingest.py` no
+tenía ningún `print()` y `run.py` no configuraba handler de logging, así que ni siquiera se veían los
+`logger.info()` que mango, hm y springfield ya tenían escritos — sin handler, el *last resort* de
+Python solo emite `WARNING` y por encima. La pasada en frío de Hipercor corrió **5 horas y produjo
+0 bytes** (#146).
+
+El coste no es la incomodidad: es que **una pasada de horas y una colgada son el mismo log vacío**.
+Cuatro intentos de poblar Hipercor (3 h en dev, 3 h y 5 h en QA) devolvieron un bit cada uno —cupo o
+no cupo— y ninguno pudo decir dónde se iba el tiempo. Con el progreso publicado, la misma pregunta
+se contestó en **15 minutos**.
+
+Tres cosas que solo se ven al montarlo:
+
+- **El latido va por tiempo, no por número de fichas.** Así el volumen del log no depende del tamaño
+  del catálogo, y sale gratis el requisito de no ensuciar el modo normal: una pasada caliente de Zara
+  (1m35s) no llega al primer aviso de 5 min. Un latido «cada N fichas» habría llenado el log de las
+  nueve tiendas para resolver el problema de una.
+- **Encender INFO a secas es peor que no encenderlo.** `httpx` emite una línea por petición, o sea
+  2219 en Zara y 1224 en la fría de Hipercor: ahoga exactamente la señal que se acaba de añadir. Las
+  librerías se quedan en WARNING (`SCRAPER_LOG_LEVEL=DEBUG` las devuelve).
+- **`hipercor` y `hm` son invisibles desde `ingest.py`, y no se puede arreglar allí.** La ingesta
+  late al recibir entradas del generador, y esas dos **acumulan la pasada entera antes de emitir
+  ninguna** porque el cruce de géneros (#98) exige haber visto todas las hojas: el ámbito de una
+  entrada ya emitida no se puede corregir. Es un contrato del pipeline, no un descuido — así que el
+  latido de listado vive **dentro** de esas dos tiendas, que es el único sitio donde se sabe por qué
+  hoja va. `Latido` está en `scraper/progreso.py` y no en `ingest.py` para que `stores/` no importe
+  de la ingesta, que invertiría la capa.
+
+### El coste de una pasada en frío no está donde parecía, y el cap de CPU muerde antes de las fichas
+
+La §4 de #93 llevaba cuatro intentos leyendo el `activeDeadlineSeconds` como la enfermedad. No lo
+era: el pod estuvo pegado a su cap de 1 CPU el **98 % de 295 minutos**. Pero al instrumentar la
+pasada aparecieron dos correcciones más, y la segunda invalida un cálculo que parecía sólido:
+
+- **La fase de listado no es despreciable, y se creía que sí.** Se estimaba en ~3,5 min extrapolando
+  los 5,4 s/hoja de #111; medida de verdad, sus **tres primeras hojas cuestan 4m17s, 4m42s y 4m52s**
+  con cpu 1. El error no fue de cálculo: los 5,4 s/hoja son del **sondeo del vigía**, que hace *una*
+  petición por hoja, mientras que `list_catalog` pagina cada hoja con el navegador. Moraleja general
+  y cara: una medida de una capa no vale para otra aunque la unidad se llame igual («segundos por
+  hoja»). El total de la fase queda **sin cerrar a propósito** — 32 hojas × 4m37s darían ~2h28m, pero
+  eso asume que todas cuestan igual y las tres medidas ya producen 114, 47 y 127 entradas, así que el
+  tiempo no sigue al tamaño. Súmese que la fría entera de dev del 02/08 se cronometró en 3h27m, que
+  es *menos* que esa extrapolación más las fichas: o las hojas restantes son mucho más baratas, o
+  las dos medidas no son comparables. **Sin resolver.**
+- **Subir el cap de 1 a 2 da ×1,44 y sigue saturando.** Esto sí es comparación limpia: mismo Job,
+  mismo nodo, misma imagen, mismas env, solo cambia el límite. 3m06s / 3m13s / 3m18s (media
+  **3m12s**) contra 4m37s, y las entradas acumuladas coinciden hoja a hoja (114, 161, 288), o sea el
+  mismo trabajo. Pero el pod marca **1943m de 2000m**: dos cores también se saturan, así que ×1,44 es
+  lo que da subir a 2, no el techo de la mejora.
+
+Consecuencia práctica para dimensionar cualquier tienda de navegador: el `activeDeadlineSeconds` hay
+que repartirlo entre **dos** fases que escalan distinto —hojas × páginas por hoja, y fichas × una
+navegación cada una—, y la única forma barata de saber cuál manda es leer el progreso de una pasada
+real durante quince minutos. El límite de CPU va en `base` y no en un overlay: el cuello es
+estructural, y dev y qa tienen que rendir el mismo valor para que una medida de uno valga en el otro.
+
 ### Una ficha que no se puede leer se convierte en una baja falsa dos pasadas después
 
 Es el contrato menos evidente entre `stores/*` e `ingest.py`, y no está escrito en ninguna firma.
