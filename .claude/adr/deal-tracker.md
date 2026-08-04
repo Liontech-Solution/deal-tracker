@@ -1177,6 +1177,32 @@ Lo que conviene saber al **añadir tienda**: la comprobación es una consulta
 es) y **no la hace ningún test con fixtures**, porque el patrón solo aparece con el catálogo entero
 delante.
 
+### El aviso no se puede provocar a voluntad: hace falta una bajada real, y el tachado no sirve
+
+Ejercer el camino del aviso de punta a punta (#122) es caro por un motivo que no es técnico: **el
+único disparador es que un precio baje de verdad**, y ni la configuración del interés ni una pasada
+forzada lo sustituyen. Medido en QA el 04/08/2026, después de refrescar los dos catálogos enteros
+con `--refresh-all` (lefties 9.867 filas de precio nuevas, hm 46.659):
+
+| intento de atajo | por qué no vale |
+|---|---|
+| `--refresh-all` para fabricar el lote | `_record_price` escribe fila por cada variante cuyo detalle se pide, **sin comparar precios**, así que da `prior_points` a todo el catálogo — pero el precio es el mismo: `price < max_observado` salió **0 de 63.948** |
+| Bajar `min_discount_pct` a 0 | Con `compare_base='recent_min'` quien corta es la condición A (*precio < mínimo reciente*), no el umbral |
+| Apoyarse en el tachado de la tienda | `honestListPrice` devuelve el **máximo observado** cuando el tachado supera ese máximo en más del 3 %, así que el descuento sale 0. Los **304 tachados de Lefties de ese día estaban inflados los 304** |
+| Escribir `price_history` a mano | Probaría el envío, no que una pasada real produce el lote — que es justo lo que la issue pedía |
+
+O sea que la regla de honestidad, funcionando bien, **es también lo que impide validar el aviso con
+una tienda que finge rebajas**: rechazó 304 descuentos falsos en una tarde. El camino que sí
+funciona es una tienda con movimiento real de precios y un histórico de más de un punto — Zara, con
+3 pasadas, dio 31 candidatos → 13 ofertas → **13 avisos entregados**, el primer envío real de
+Telegram del proyecto. H&M no sirve como banco de pruebas del tachado: **0 de 46.659 filas** lo
+traen, tercera medida del mismo cero (#106).
+
+Y una precondición que no estaba escrita en ningún sitio: `findCandidates` hace
+`JOIN app_user … telegram_chat_id IS NOT NULL`, así que **sin el bot vinculado el lote sale vacío
+haga lo que haga el scraper**. Vincular exige a un humano pulsando «Start» sobre un deep-link de un
+solo uso (`POST /api/settings/telegram/link`); no hay forma de hacerlo desde el cluster.
+
 ### El vocabulario de categorías diverge entre tiendas, y es deliberado
 
 `sandalias` y `botas` existen en `cacles` y `lefties` —las dos tiendas que dan esa distinción
