@@ -12,4 +12,4 @@
 - [buscar-issue-antes-de-abrir](buscar-issue-antes-de-abrir.md) — buscar si el hallazgo ya tiene issue (aunque sea mencionado de pasada) antes de abrir una nueva
 - [gh-pr-merge-desde-worktree](gh-pr-merge-desde-worktree.md) — el error «main is already used by worktree» llega DESPUÉS de mergear: comprobar el PR y borrar la rama a mano
 - [cerrar-issue-desde-el-pr](cerrar-issue-desde-el-pr.md) — «Cierra #N» en español no autocierra nada; la keyword va en inglés o se cierra a mano
-- [reindexar-tras-actualizar-main](reindexar-tras-actualizar-main.md) — `index_repository` lee el árbol del checkout principal, que no se actualiza al mergear desde un worktree: `merge --ff-only` antes de reindexar
+- [reindexar-tras-actualizar-main](reindexar-tras-actualizar-main.md) — `index_repository` lee el árbol del checkout principal, que no se actualiza al mergear desde un worktree: `merge --ff-only` antes de reindexar, y para eso hay que **salir del worktree primero** (el sandbox veta `git -C`, y el prefijo `!` también)
