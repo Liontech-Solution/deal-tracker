@@ -191,12 +191,29 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
     # `test_cobertura_declarada_no_solapa_con_lo_mapeado`, que es exactamente lo que se quiere: la
     # lista tiene que envejecer con ruido. El porqué completo está en la cabecera de `hm.py`.
     #
-    # Tres NO son decisión firme, y conviene que se lean así (mismo formato que #187 en
-    # springfield): el uniforme escolar publica pantalón, vestido, polo, jersey y zapato, o sea
-    # prendas del brief en una rama que no ingerimos; y los monos entran por `vestidos` en Lefties y
-    # aquí no. El día que se resuelvan, esas entradas se van y la rama pasa a `CATEGORIES`.
+    # El uniforme escolar ya NO es una decisión pendiente: #189 lo midió el 05/08/2026 y se queda
+    # fuera. Sus 14 hojas del brief —pantalón, jogger, polo, camisa, jersey, vestido, falda y
+    # zapato, en las dos ramas— publican **64 modelos, y 62 ya entran** por su categoría de
+    # siempre. Los 2 exclusivos son «Pantalones de chándal holgados», cuya casa es `sportswear`, y
+    # «Pack de 2 polos escolares de manga larga», cuya casa es `multipacks`: las dos declaradas
+    # fuera aquí mismo. O sea que ingerirlas serían 14 hojas más por pasada (+21 % sobre 66) a
+    # cambio de **ninguna prenda que queramos y no tengamos**. Es el residuo que la cabecera de
+    # `hm.py` describe a cuenta de `sets-outfits`: exclusivo no significa «sin casa natural», sino
+    # «con una casa que hemos decidido no ingerir», y las dos poblaciones se confunden justo en las
+    # hojas que reagrupan.
     #
-    # `sport`/`sportswear` es distinto de los otros dos y por eso cambió de motivo en #180: ahí la
+    # **El nodo padre de las dos ramas es un ESPEJISMO**, y eso lo cazó el canario al medir:
+    # `/kids/{boys,girls}/school` devuelve el cubo de `kids_all` con 200, así que no es una página
+    # seleccionable y no se podría mapear aunque se quisiera — solo resuelven las hijas. Importa
+    # para quien vuelva: medir «cuánto hay» pidiendo el padre daría ~9700 productos y la conclusión
+    # saldría al revés. Se declaran igualmente por su raíz, como `outerwear` y `sportswear`, porque
+    # ninguna de sus hijas es del brief salvo las medidas arriba.
+    #
+    # Lo que SÍ sigue sin decidir son los monos (`jumpsuits-playsuits` y `rompers`), que entran por
+    # `vestidos` en Lefties y aquí no. Conviene que se lean así (mismo formato que #187 en
+    # springfield): el día que se resuelva, esas entradas se van y la rama pasa a `CATEGORIES`.
+    #
+    # `sport`/`sportswear` es distinto de los monos y por eso cambió de motivo en #180: ahí la
     # decisión YA está tomada —el eje `deportiva` existe y lo alimentan Sfera, Lefties y C&A— y lo
     # que falta es sumar esta tienda, que son 8 ramas con 12-15 hijas cada una y no cabían en la
     # misma sesión. O sea que aquí no queda nada que decidir, solo trabajo por hacer.
@@ -219,7 +236,7 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/boys/clothing/view-all": "«Ver todo»: la rama entera (1)",
         "/kids/boys/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
         "/kids/boys/outerwear": "abrigo: fuera del brief (9)",
-        "/kids/boys/school": "uniforme: lleva prendas del brief, sin decidir (12)",
+        "/kids/boys/school": "uniforme: medido, 43 de 45 ya entran por su categoría; #189 (12)",
         "/kids/boys/sportswear": "deportiva: el eje existe, falta esta tienda; #180 (12)",
         # --- niño 9-14 (/kids/boys-9-14y) ---
         "/kids/boys-9-14y/accessories": "complementos: ni ropa ni calzado (8)",
@@ -257,7 +274,7 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/girls/clothing/view-all": "«Ver todo»: la rama entera (1)",
         "/kids/girls/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
         "/kids/girls/outerwear": "abrigo: fuera del brief (11)",
-        "/kids/girls/school": "uniforme: lleva prendas del brief, sin decidir (15)",
+        "/kids/girls/school": "uniforme: medido, las 22 del brief ya entran; #189 (15)",
         "/kids/girls/sportswear": "deportiva: el eje existe, falta esta tienda; #180 (15)",
         # --- niña 9-14 (/kids/girls-9-14y) ---
         "/kids/girls-9-14y/accessories": "complementos: ni ropa ni calzado (8)",

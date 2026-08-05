@@ -637,6 +637,15 @@ formas distintas (recon de #70, 02/08/2026), y la consecuencia siempre es la mis
   de `/kids/boys/shoes` trae `kids_boys_outerwear_rainwear` y `..._nightwear_slippers` entre sus
   productos, y la coherencia por prefijo da 21-34 de 36 en las vivas contra 6 de 36 en el cubo —
   rangos que se solapan demasiado para un umbral honesto.
+  **Y el canario hace falta también para MEDIR, no solo para ingerir** (#189, 05/08/2026). Un nodo
+  que el menú publica no es siempre una página seleccionable, y **no se deduce del sitio que ocupa
+  en el árbol**: `/kids/girls/school` y `/kids/boys/school` son espejismo, igual que
+  `/kids/girls/clothing` y la propia `/kids/girls` —son contenedores y solo resuelven sus hijas—,
+  mientras que `/kids/girls/sportswear` (109 modelos) y `/kids/girls/outerwear` (114) sí resuelven.
+  La consecuencia es de método y muerde en la dirección cara: quien mida «cuánto hay en esta rama»
+  pidiéndosela al padre sin compararla con el canario se lleva el cubo entero —~9700 productos— y
+  concluye lo contrario de lo que dicen los datos. La medición de una rama candidata se hace hoja a
+  hoja, y la del padre solo vale si el canario la avala.
 - **Hipercor repite el espejismo de Sfera** —es el mismo firefly— pero trae el antídoto: su
   `data.paginatedDatalayer.page.hierarchy` refleja la ruta **realmente resuelta**, así que basta
   compararla con la pedida, sin cotejar ids de la primera página. Seis rutas inventadas a mano
