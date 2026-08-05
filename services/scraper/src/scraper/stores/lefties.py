@@ -36,6 +36,29 @@ Tres trampas que conviene no volver a pisar:
   el 05/08/2026 y la pasada se quedó en 0 entradas sin que nada se pusiera rojo; el porqué y cómo
   se detectó están en `_product_components()`, que es donde vive la decisión.
 
+**Hojas de campaña (#195, y el criterio que cerró #176).** Las dos `REBAJAS HASTA -70%` son la
+primera hoja que ingerimos cuya vida depende de una campaña, y la regla que salió de medirlas vale
+para cualquier tienda:
+
+    Una hoja de campaña se mapea si su id es estable y publica producto propio. Si mezcla
+    categorías, la categoría se deriva POR PRODUCTO, no por hoja. Y su apagado no es una
+    retirada: es estacional, y no puede sonar como accionable.
+
+Las tres partes están medidas aquí: el id (`1030302501`) es un hueco fijo del menú —misma forma de
+`key` que las hojas permanentes, y un id **más antiguo** que el de varias de ellas—, publica 26
+prendas que no están en ninguna otra hoja, y mezcla desde faldas hasta zapatillas. Lo que resuelve
+cada parte: `_FAMILIA_A_DOMINIO` la categoría, `CategoryConfig.estacional` el apagado, y el ORDEN
+de `CATEGORIES` que la hoja mezclada no le pise la categoría a quien ya la tiene.
+
+⚠️ **Lo que esto deja abierto, y no está medido:** estas prendas son las únicas del catálogo que no
+cuelgan de ninguna hoja permanente, así que cuando la campaña acabe dejarán de verse **del todo**.
+Ahí decide `probe_alive()`, que aquí da por vivo cualquier id que `productsArray` siga reconociendo
+aunque esté agotado —Sfera usa dos señales, esta solo una—, y a un producto confirmado vivo
+`ingest.py` le pone la racha a cero (`_rescue`). O sea que un saldo agotado que la tienda siga
+sirviendo en el detalle se quedaría en el catálogo indefinidamente. No se ha visto pasar: hay que
+mirarlo al acabar esta campaña, y si pasa la respuesta es de `probe_alive()` (tratar «existe pero
+todas las tallas HIDDEN» como no concluyente), no de esta hoja.
+
 Id estable de producto: `identifier.productParentId` (= `id` del detalle). Id estable de variante:
 `{productId}-{colorId}-{sku}`. Las funciones `parse_*` son puras y se testean con fixtures reales.
 """
@@ -116,13 +139,21 @@ class CategoryConfig:
     seguir siendo herméticos —los de red aquí son opt-in (`SFERA_LIVE=1`) para no depender de
     Chromium ni de que Akamai deje entrar al runner de CI—. Que siga siendo cierta la vigila
     `test_el_padre_declarado_es_el_que_publica_el_menu`, contra la captura del menú.
+
+    `por_familia` y `estacional` son las dos marcas que necesita una **hoja de campaña** (#195), y
+    son independientes a propósito: una rebaja de una sola categoría sería estacional sin ser
+    mezclada. Con `por_familia`, `section` y `category` van vacías porque la hoja no las decide —
+    las decide cada producto (ver `_FAMILIA_A_DOMINIO`)—, pero `gender` **sí sigue siendo de la
+    hoja**: la de niña es de niña, eso la tienda no lo mezcla.
     """
 
     category_id: int
     gender: str  # niño | niña
-    section: str  # ropa | zapateria
-    category: str  # pantalones | camisetas | sudaderas | vestidos | ropa-interior | zapatos | ...
+    section: str  # ropa | zapateria ("" si `por_familia`)
+    category: str  # pantalones | camisetas | sudaderas | ... ("" si `por_familia`)
     parent: str = ""  # cadena de ids del padre en el menú; ver `mapped_leaves()`
+    por_familia: bool = False  # sección y categoría salen del producto, no de la hoja
+    estacional: bool = False  # apagarse es fin de campaña, no retirada (ver `LeafHealth`)
 
 
 # Las seis ramas del menú de las que cuelga todo lo que ingerimos, medidas el 05/08/2026. Son el
@@ -133,6 +164,97 @@ _NINA_ZAPATOS = f"{_NINA}/1030267718"
 _NINO = f"{_RAIZ_NINOS}/1030267673"
 _NINO_ROPA = f"{_NINO}/1030269022"
 _NINO_ZAPATOS = f"{_NINO}/1030267842"
+
+
+# Qué sección y qué categoría le tocan a un producto cuando **la hoja no lo dice** (`por_familia`).
+# La familia (`classification.family.name`) es un dato de la ficha, no de la hoja, así que sirve
+# justo donde el mapeo por hoja no llega: la hoja de rebajas mezcla camisetas, faldas, pijamas y
+# hasta calzado en un solo listado.
+#
+# **La tabla no se ha inventado: es lo que las 38 hojas mapeadas ya hacen.** Medido el 05/08/2026
+# sobre sus 2207 componentes, contando en qué categoría cae cada familia. Por eso `SHORT` va a
+# `vestidos` aunque suene a pantalón: es la hoja `faldas | shorts` de niña la que trae los 64, y el
+# short de niño llega como `BERMUDAS`, que sí va a `pantalones`. Alinearse con la tienda importa
+# más que el nombre, porque el slug ES el filtro que ve el usuario.
+#
+# Se deja fuera **a propósito** lo que no se puede defender, y perder una prenda es mejor que
+# meterla en la categoría equivocada:
+#
+#   - `ENSEMBLE..SET` (conjunto) — es exactamente la pregunta abierta de #192, y decidirla aquí de
+#     tapadillo sería peor que perderla: en las hojas mapeadas cae en cuatro categorías distintas
+#     (pantalones 42, camisetas 37, vestidos 12, sudaderas 8).
+#   - `WAISTCOAT` (chaleco), `WIND-BREAK` (cortavientos), `BIB OVERALL` (peto), `ACCESSORIES` —
+#     ninguna es de las 5 del brief. Que `WIND-BREAK` aparezca 6 veces dentro de `sudaderas` no lo
+#     convierte en una sudadera; ahí lo decidió una hoja mapeada y aquí no hay hoja que lo decida.
+#
+# **`subfamily` NO sirve para esto, y está medido**: en la hoja de rebajas del 05/08/2026 mentía en
+# 4 de 26 productos (una falda con `Girls’ Chunky Knit Top`, un pantalón con `…Waistcoat`, una
+# camiseta con `Sporty Jacket`, un pijama con `…Long Sleeve Polo`), mientras que `family` acertaba
+# en los 26 contra el nombre de la prenda.
+#
+# Y `barefoot` no puede salir de aquí: en esta tienda es una RAMA del menú, no una familia. Un
+# barefoot rebajado entraría por su familia de calzado; lo que lo rescata es el respaldo por nombre
+# de `classify_barefoot()` en `parse_product_detail`.
+_FAMILIA_A_DOMINIO: dict[str, tuple[str, str]] = {
+    # --- ropa ---
+    "T-SHIRT": ("ropa", "camisetas"),
+    "SHIRT": ("ropa", "camisetas"),
+    "POLO/SHIRT": ("ropa", "camisetas"),
+    "TOPS AND OTHERS": ("ropa", "camisetas"),
+    "SWEATSHIRT": ("ropa", "sudaderas"),
+    "SWEATER": ("ropa", "sudaderas"),
+    "CARDIGAN": ("ropa", "sudaderas"),
+    "TROUSERS": ("ropa", "pantalones"),
+    "BERMUDAS": ("ropa", "pantalones"),
+    "LEGGINGS": ("ropa", "pantalones"),
+    "DRESS": ("ropa", "vestidos"),
+    "SKIRT": ("ropa", "vestidos"),
+    "SHORT": ("ropa", "vestidos"),  # ver la nota de arriba: es lo que hace `faldas | shorts`
+    "UNDERWEAR": ("ropa", "ropa-interior"),
+    "NIGHTIE/PYJAMAS": ("ropa", "ropa-interior"),
+    "SOCKS": ("ropa", "ropa-interior"),
+    "STOCKINGS-TIGHTS": ("ropa", "ropa-interior"),
+    # --- zapatería ---
+    "TRAINERS": ("zapateria", "zapatillas"),
+    "SNEAKERS": ("zapateria", "zapatillas"),
+    "HIGHTOPS": ("zapateria", "zapatillas"),
+    "BOOTS": ("zapateria", "botas"),
+    "ANKLEBOOTS": ("zapateria", "botas"),
+    "SANDALS": ("zapateria", "sandalias"),
+    "BEACHSANDALS": ("zapateria", "sandalias"),
+    "SHOES": ("zapateria", "zapatos"),
+    "BALLETPUMPS": ("zapateria", "zapatos"),
+}
+
+
+def dominio_de_familia(componente: Mapping[str, Any]) -> tuple[str, str] | None:
+    """`(sección, categoría)` de un producto por su familia, o `None` si no la sabemos mapear.
+
+    `None` significa **descartar la prenda**, no colarla en un cajón cualquiera: ver la lista de
+    exclusiones de `_FAMILIA_A_DOMINIO`.
+    """
+    familia = ((componente.get("classification") or {}).get("family") or {}).get("name")
+    return _FAMILIA_A_DOMINIO.get(str(familia or "").strip().upper())
+
+
+def dominios_emitibles(gender: str) -> list[tuple[str, str]]:
+    """Lo que una hoja mezclada puede emitir para ese género: la tabla, acotada a lo que ya
+    ingerimos por hojas de categoría.
+
+    La tabla no distingue género —una familia es una familia— y sin acotarla, el día que la tienda
+    colgara una falda de la hoja de rebajas de niño saldría un `niño/ropa/vestidos`, que es un
+    ámbito que esta tienda no tiene: `vestidos` solo existe en niña, igual que en Zara y Sfera, y
+    hay un test que lo da por cierto sobre `CATEGORIES`. Hoy no pasa (medido: el short de niño
+    llega como `BERMUDAS`), pero eso es una observación de un día, no una garantía — y la prenda
+    perdida es más barata que un ámbito inventado que ningún filtro de la web sabe enseñar.
+
+    Se deriva de `CATEGORIES` en vez de escribirse para que no haya dos verdades: si algún día
+    `vestidos` llega a niño por su hoja propia, esto se entera solo.
+    """
+    del_genero = {
+        (c.section, c.category) for c in CATEGORIES if c.gender == gender and not c.por_familia
+    }
+    return [d for d in dict.fromkeys(_FAMILIA_A_DOMINIO.values()) if d in del_genero]
 
 
 # Subconjunto curado: las 5 categorías de ropa del brief + calzado, por niño/niña. Varias hojas
@@ -159,6 +281,12 @@ _NINO_ZAPATOS = f"{_NINO}/1030267842"
 # lo barefoot cuelga también de `zapatos`, y dejándolas al final el catálogo se quedaba con 4
 # productos en `barefoot` en vez de ~30 (medido). Barefoot es la señal que interesa conservar,
 # así que gana ella.
+#
+# Y el mismo mecanismo, al revés, es lo que hace segura la hoja de rebajas: va **la última**, así
+# que solo aporta lo que ninguna hoja de categoría publica. Si algún día la tienda deja de sacar
+# la prenda rebajada de su categoría, esto no cambia nada — la categoría de verdad ya la habrá
+# fijado su hoja. Mover esas dos líneas hacia arriba sí lo rompería, y en silencio: pasarían a
+# decidir la categoría de prendas que hoy la reciben de una hoja que la sabe mejor.
 CATEGORIES: list[CategoryConfig] = [
     # --- barefoot: primero a propósito (ver nota de orden arriba) ---
     CategoryConfig(1030680692, "niña", "zapateria", "barefoot", _NINA),  # barefoot (rama propia)
@@ -203,6 +331,20 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(1030276115, "niño", "zapateria", "sandalias", _NINO_ZAPATOS),  # sandalias
     CategoryConfig(1030272329, "niño", "zapateria", "zapatillas", _NINO_ZAPATOS),  # zapatillas
     CategoryConfig(1030272327, "niño", "zapateria", "zapatillas", _NINO_ZAPATOS),  # deportivos
+    # --- rebajas: LAS ÚLTIMAS, y mezcladas (ver la nota de orden y `_FAMILIA_A_DOMINIO`) ---
+    #
+    # «REBAJAS HASTA -70%», una por género. Publican prenda que **no está en ninguna otra hoja**:
+    # medido el 05/08/2026 (25+6 modelos, 0 solapes) y otra vez el 06/08/2026 (22+4, 0 solapes),
+    # cruzando por `productParentId` contra las 38 hojas de arriba.
+    #
+    # Y ese 0 no es que la tienda saque la prenda de su categoría al rebajarla —eso está medido y
+    # es falso: 275 de los 2207 componentes de las hojas normales vienen rebajados—, es la
+    # **temporada**: las 38 hojas van enteras en `I2026` (2207 de 2207) y las de rebajas enteras en
+    # `V2026` (32 de 32). Son el saldo de la temporada que sale, que ya no cuelga de ninguna
+    # categoría. O sea: sin estas dos hojas, la ropa infantil **rebajada de verdad** de esta tienda
+    # no la ve nadie, que es justo lo que el producto existe para avisar.
+    CategoryConfig(1030302501, "niña", "", "", _NINA, por_familia=True, estacional=True),
+    CategoryConfig(1030303020, "niño", "", "", _NINO, por_familia=True, estacional=True),
 ]
 
 
@@ -345,29 +487,46 @@ def parse_listing_entries(grid: dict[str, Any], cat: CategoryConfig) -> list[Lis
 
     La huella es el precio por color, como en Zara: barata de obtener en el listado y suficiente
     para saber si merece la pena pedir el detalle.
+
+    En una hoja `por_familia` (la de rebajas) la sección y la categoría **salen de cada producto**
+    y no de la hoja, y la prenda cuya familia no sepamos mapear —o que caiga en un ámbito que esta
+    tienda no publica para ese género— se descarta en vez de colarla en un cajón cualquiera (ver
+    `_FAMILIA_A_DOMINIO` y `dominios_emitibles`). La familia es del modelo, no del color, así que
+    basta mirar el primer componente de cada uno.
     """
     por_modelo: dict[str, list[str]] = {}
+    dominio_de: dict[str, tuple[str, str]] = {}
+    emitibles = set(dominios_emitibles(cat.gender)) if cat.por_familia else set()
     for comp in _product_components(grid):
         ident = comp.get("identifier") or {}
         parent = ident.get("productParentId")
         if not parent:
             continue
+        pid = str(parent)
+        if cat.por_familia and pid not in dominio_de:
+            dominio = dominio_de_familia(comp)
+            if dominio is None or dominio not in emitibles:
+                continue  # familia que no mapea a nada del brief, o ámbito que la tienda no tiene
+            dominio_de[pid] = dominio
         color = (comp.get("color") or {}).get("id")
         precio = (((comp.get("pricing") or {}).get("price") or {}).get("current") or {}).get(
             "value"
         )
-        por_modelo.setdefault(str(parent), []).append(f"{color}:{precio}")
+        por_modelo.setdefault(pid, []).append(f"{color}:{precio}")
 
-    return [
-        ListingEntry(
-            retailer_product_id=pid,
-            signature="|".join(sorted(partes)),
-            gender=cat.gender,
-            section=cat.section,
-            category=cat.category,
+    entradas = []
+    for pid, partes in por_modelo.items():
+        section, category = dominio_de.get(pid, (cat.section, cat.category))
+        entradas.append(
+            ListingEntry(
+                retailer_product_id=pid,
+                signature="|".join(sorted(partes)),
+                gender=cat.gender,
+                section=section,
+                category=category,
+            )
         )
-        for pid, partes in por_modelo.items()
-    ]
+    return entradas
 
 
 def _product_url(product: dict[str, Any], category_id: int) -> str | None:
@@ -541,8 +700,21 @@ class LeftiesStore:
         re-mide sin base de datos ni detalle con `python -m scraper.run --retailer lefties
         --dry-run`, que publica el reparto de género del listado. Se dice aquí porque #139 nació de
         comparar ese 0 contra el `unisex` de las otras tres, que no mide lo mismo.
+
+        Una hoja `por_familia` no tiene un ámbito, tiene **todos los que su tabla puede emitir**, y
+        hay que declararlos: un ámbito sin declarar no cuenta como escaneado y sus productos no se
+        descatalogarían nunca. Es lo mismo que hace `cacles.py` —declarar lo que el parser PUEDE
+        emitir en vez de lo que dicen sus hojas— y por el mismo motivo.
         """
-        return con_unisex(ScrapeScope(c.gender, c.section, c.category) for c in self._categories)
+        ambitos = []
+        for c in self._categories:
+            if c.por_familia:
+                ambitos += [
+                    ScrapeScope(c.gender, s, cat) for s, cat in dominios_emitibles(c.gender)
+                ]
+            else:
+                ambitos.append(ScrapeScope(c.gender, c.section, c.category))
+        return con_unisex(ambitos)
 
     def list_catalog(self) -> Iterable[ListingEntry]:
         """Recorre las hojas y emite un producto por `productParentId`.
@@ -550,6 +722,10 @@ class LeftiesStore:
         **Acumula la pasada entera antes de emitir**, como H&M e Hipercor: que un producto salga en
         la rama de niña Y en la de niño —lo que lo hace `unisex`, #98— solo se sabe con todas las
         hojas vistas, y el ámbito de una entrada ya emitida no se puede corregir.
+
+        El ámbito que se apunta por producto es **el de la entrada, no el de la hoja**. En las 38
+        hojas de categoría son el mismo; en la de rebajas no, porque allí la sección y la categoría
+        las decide cada producto (`por_familia`).
         """
         self._scan = ScanReport()
         primera_entrada: dict[str, ListingEntry] = {}
@@ -565,14 +741,14 @@ class LeftiesStore:
                     # Zara. Se salta, pero su ámbito sale de las bajas — el comentario que había
                     # aquí daba por hecho que la red por ámbito lo cubría, y no es así: `scopes()`
                     # se deriva de CATEGORIES, así que el ámbito seguía contando como escaneado.
-                    self._hoja_comprometida(scope, str(cat.category_id))
+                    self._hoja_comprometida(cat, scope)
                     continue
                 try:
                     grid = session.get_json(_GRID_URL.format(grid_id=grid_id))
                 except BrowserHTTPError as exc:
                     if exc.status not in GONE_STATUS:
                         raise
-                    self._hoja_comprometida(scope, str(cat.category_id))
+                    self._hoja_comprometida(cat, scope)
                     continue
                 self._scan.leaf_ok()
                 for entry in parse_listing_entries(grid, cat):
@@ -582,10 +758,15 @@ class LeftiesStore:
                     # conjunto de hojas, no de ella sola.
                     if pid not in primera_entrada:
                         primera_entrada[pid] = entry
-                        self._cat_by_product[pid] = cat
+                        # Con `por_familia` la sección y la categoría son del producto, así que la
+                        # config que viaja al detalle es la de la hoja CON el dominio ya resuelto:
+                        # `fetch_details` construye desde ella el ámbito del `ScrapedProduct`.
+                        self._cat_by_product[pid] = replace(
+                            cat, section=entry.section or "", category=entry.category or ""
+                        )
                     hojas = hojas_por_producto.setdefault(pid, [])
-                    if scope not in hojas:
-                        hojas.append(scope)
+                    if entry.scope not in hojas:
+                        hojas.append(entry.scope)
 
         for pid, entry in primera_entrada.items():
             ambito = ambito_cruzado(hojas_por_producto[pid])
@@ -602,12 +783,21 @@ class LeftiesStore:
                 category=ambito.category,
             )
 
-    def _hoja_comprometida(self, scope: ScrapeScope, leaf: str) -> None:
+    def _hoja_comprometida(self, cat: CategoryConfig, scope: ScrapeScope) -> None:
         """Cuenta la hoja como caída y saca su ámbito —y el `unisex` equivalente— de las bajas.
 
         El porqué de lo segundo está en `ScanReport.leaf_gone()`.
+
+        **Una hoja estacional apagada no compromete nada**, y esa es la diferencia que #195 vino a
+        introducir. Contarla como caída haría dos daños, los dos al acabar cada campaña: subiría
+        `dead_ratio` hacia el tope que aborta la pasada, y sacaría de las bajas un ámbito que se ha
+        listado perfectamente por sus 38 hojas de siempre. Lo que solo vivía en la hoja de rebajas
+        tampoco se descataloga por sorpresa: al desaparecer del listado pasa por la confirmación
+        activa (`probe_alive`), que es la que decide si el producto existe todavía.
         """
-        self._scan.leaf_gone(scope, leaf, tambien_unisex=True)
+        if cat.estacional:
+            return
+        self._scan.leaf_gone(scope, str(cat.category_id), tambien_unisex=True)
 
     def scan_report(self) -> ScanReport:
         """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""
@@ -619,6 +809,10 @@ class LeftiesStore:
         Aquí sale casi gratis y sin tocar los grids: **el menú entero es UNA petición** y una hoja
         retirada es, precisamente, la que ya no aparece en él. Que el grid siga respondiendo se
         comprueba en la pasada, que es cuando hace falta.
+
+        La hoja de rebajas desaparece del menú al acabar la campaña, que aquí es exactamente lo
+        mismo que ve una hoja retirada de verdad. Se emite `estacional=True` para que el vigía lo
+        cuente como aviso y no pida cada jueves un id nuevo que volverá solo (ver `LeafHealth`).
         """
         with self._session_factory() as session:
             session.goto(BASE_URL)  # siembra las cookies de Akamai
@@ -626,11 +820,18 @@ class LeftiesStore:
         for cat in self._categories:
             scope = ScrapeScope(cat.gender, cat.section, cat.category)
             grid_id = grids.get(cat.category_id)
+            if grid_id:
+                detalle = f"grid {grid_id}"
+            elif cat.estacional:
+                detalle = "no está en el menú: campaña apagada, su id vuelve con la campaña"
+            else:
+                detalle = "ya no está en el menú"
             yield LeafHealth(
                 scope,
                 str(cat.category_id),
                 grid_id is not None,
-                f"grid {grid_id}" if grid_id else "ya no está en el menú",
+                detalle,
+                estacional=cat.estacional,
             )
 
     # --- capacidades opcionales --------------------------------------------------------------

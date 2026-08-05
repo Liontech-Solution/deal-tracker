@@ -1,0 +1,6908 @@
+{
+ "id": "ed4ca907-67f8-4b67-9e89-226ae3337b70",
+ "promotionalBanners": [],
+ "context": {
+  "isPlainImageSelectorEnabled": false,
+  "autoTemplatePattern": [],
+  "attributes": [
+   {
+    "key": "gridType",
+    "value": "SALES"
+   },
+   {
+    "key": "hideNewTag",
+    "value": "true"
+   },
+   {
+    "key": "isStoreAvailabilityFilteringEnabled",
+    "value": "false"
+   },
+   {
+    "key": "isAuxImageOver",
+    "value": "false"
+   },
+   {
+    "key": "isPlainImageSelectorEnabled",
+    "value": "false"
+   },
+   {
+    "key": "isPdpCarouselEnabled",
+    "value": "true"
+   },
+   {
+    "key": "containsIndexesCarouselBlock",
+    "value": "false"
+   },
+   {
+    "key": "containsSectionIndexBlock",
+    "value": "false"
+   },
+   {
+    "key": "showDiscountDisclaimer",
+    "value": "false"
+   },
+   {
+    "key": "hasFilters",
+    "value": "false"
+   }
+  ],
+  "autoTemplates": []
+ },
+ "style": {},
+ "defaultView": "ZOOM1",
+ "availableViews": [
+  "ZOOM1",
+  "ZOOM2",
+  "ZOOM3"
+ ],
+ "components": {
+  "730608157": {
+   "identifier": {
+    "id": "730608157",
+    "productParentId": "730607555",
+    "reference": "C01600122712-V2026",
+    "productParentReference": "01600122-V2026",
+    "displayReference": "1600/122"
+   },
+   "name": "Peplum top",
+   "description": "Sleeveless round neck top. Featuring a wavy detail on the neck and a peplum hem. Knit fabric. <br/><br/>COORDINATED GARMENTS<br/>Combine it with the matching trousers.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2498,
+     "name": "TOPS AND OTHERS"
+    },
+    "subfamily": {
+     "id": 9134,
+     "name": "Girls’ Basic Chunky Knit Waistcoat"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "712",
+    "commercialComponentId": "730608157",
+    "name": "ECRU",
+    "colorcutUrl": "https://static.lefties.com/assets/public/d56d/e991/b46a47489dd6/bc63b8e9df25/01600122712-R/01600122712-R.jpg?ts=1774277147710",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-07T18:33:21Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-25%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 999,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-70%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "9da0534525b0426dab284811692f14fb",
+      "timestamp": "1774277637277",
+      "url": "https://static.lefties.com/assets/public/9da0/5345/25b0426dab28/4811692f14fb/01600122712-A5/01600122712-A5.jpg?ts=1774277147933",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/9da0/5345/25b0426dab28/4811692f14fb/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "TRICOT",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "G-CRUDOS",
+     "name": "Ecru",
+     "values": [],
+     "properties": {}
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "peplum-top-l01600122",
+    "seoProductId": "730607555",
+    "discernProductId": 730608157
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-12-14T00:00:00Z",
+   "behaviour": {}
+  },
+  "723611354": {
+   "identifier": {
+    "id": "723611354",
+    "productParentId": "723601893",
+    "reference": "C01045106811-V2026",
+    "productParentReference": "01045106-V2026",
+    "displayReference": "1045/106"
+   },
+   "name": "Plush trousers",
+   "description": "Trousers with an elasticated waistband and adjustable drawstrings. Straight fit. Unbrushed plush fabric.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2449,
+     "name": "TROUSERS"
+    },
+    "subfamily": {
+     "id": 6179,
+     "name": "Girls’ Circular Knit Trousers"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "811",
+    "commercialComponentId": "723611354",
+    "name": "PALE GREY",
+    "colorcutUrl": "https://static.lefties.com/assets/public/5afd/a387/ec564afbbe80/3750be188dcd/01045106811-R/01045106811-R.jpg?ts=1770642922591",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-22T18:32:16Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-25%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 599,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-50%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "08bffeed5dc547ffa25880f649289b97",
+      "timestamp": "1770642961040",
+      "url": "https://static.lefties.com/assets/public/08bf/feed/5dc547ffa258/80f649289b97/01045106811-A5/01045106811-A5.jpg?ts=1770642924814",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/08bf/feed/5dc547ffa258/80f649289b97/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "XCUSTOMIZABLE",
+     "name": "CUSTOMIZABLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "CIRCULAR",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-GRISES",
+     "name": "Grey",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "true",
+    "isSizeGuideEnabled": "true",
+    "isCustomizable": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "plush-trousers-l01045106",
+    "seoProductId": "723601893",
+    "discernProductId": 723611354
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-10-21T00:00:00Z",
+   "behaviour": {}
+  },
+  "722380734": {
+   "identifier": {
+    "id": "722380734",
+    "productParentId": "722380451",
+    "reference": "C01235145052-V2026",
+    "productParentReference": "01235145-V2026",
+    "displayReference": "1235/145"
+   },
+   "name": "Printed boxers",
+   "description": "Boxer briefs with an elasticated waistband and various prints. Features decorative front buttons. Made from ribbed stretch cotton.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2460,
+     "name": "UNDERWEAR"
+    },
+    "subfamily": {
+     "id": 10668,
+     "name": "Licensed Girls’ Underwear"
+    },
+    "sizeSystem": "12560"
+   },
+   "color": {
+    "id": "052",
+    "commercialComponentId": "722380734",
+    "name": "TAN",
+    "colorcutUrl": "https://static.lefties.com/assets/public/5d09/757e/73a746acabe6/c3098a3ac668/01235145052-R/01235145052-R.jpg?ts=1774263073096",
+    "volumes": [],
+    "otherColors": [
+     {
+      "id": "122",
+      "reference": "C01235145122-V2026",
+      "commercialComponentId": "722380733",
+      "name": "WHITE TONES",
+      "colorcutUrl": "https://static.lefties.com/assets/public/4eff/f95b/5cfc4231829f/bc91a7d2720f/01235145122-R/01235145122-R.jpg?ts=1774263074598"
+     }
+    ]
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 199,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-07T18:34:49Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-33%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-50%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "586be4cbe4434ecf9b50ca86059939a1",
+      "timestamp": "1774263296898",
+      "url": "https://static.lefties.com/assets/public/586b/e4cb/e4434ecf9b50/ca86059939a1/01235145052-A3/01235145052-A3.jpg?ts=1774263071038",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/586b/e4cb/e4434ecf9b50/ca86059939a1/meta.json",
+      "styles": {},
+      "editorialName": "a3",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Valued",
+     "identifier": "COMMERCIAL_ATTRIBUTE_LEVEL_2",
+     "values": [
+      "BOXER NIÑA[6968][5059]"
+     ],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ACCESORIOS",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "UNDERWEAR",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "G-GRISES",
+     "name": "Grey",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "printed-boxer-briefs-l01235145",
+    "seoProductId": "722380451",
+    "discernProductId": 722380734
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-10-12T00:00:00Z",
+   "behaviour": {}
+  },
+  "736945235": {
+   "identifier": {
+    "id": "736945235",
+    "productParentId": "736939816",
+    "reference": "C01630107620-V2026",
+    "productParentReference": "01630107-V2026",
+    "displayReference": "1630/107"
+   },
+   "name": "Knit skirt",
+   "description": "Short skirt with an elasticated waistband and decorative bow. Straight cut. Scalloped hem with cutwork. 100% cotton ribbed knit fabric. <br/><br/>COORDINATED GARMENTS<br/>Pair it with its co-ord top.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2451,
+     "name": "SKIRT"
+    },
+    "subfamily": {
+     "id": 9138,
+     "name": "Girls’ Chunky Knit Top"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "620",
+    "commercialComponentId": "736945235",
+    "name": "PINK",
+    "colorcutUrl": "https://static.lefties.com/assets/public/2a40/0b5b/91b34548bd4f/8f925ec13dbd/01630107620-R/01630107620-R.jpg?ts=1777881794252",
+    "volumes": [],
+    "otherColors": [
+     {
+      "id": "251",
+      "reference": "C01630107251-V2026",
+      "commercialComponentId": "736945236",
+      "name": "OFF WHITE",
+      "colorcutUrl": "https://static.lefties.com/assets/public/0015/3dcc/18d0472e9b7d/c3fe74f6948f/01630107251-R/01630107251-R.jpg?ts=1777881794281"
+     }
+    ]
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 599,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-07T18:32:38Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-33%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 999,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-60%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "200e966626bf48429b72f23927bd1cab",
+      "timestamp": "1777881950554",
+      "url": "https://static.lefties.com/assets/public/200e/9666/26bf48429b72/f23927bd1cab/01630107620-A5/01630107620-A5.jpg?ts=1777881794501",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/200e/9666/26bf48429b72/f23927bd1cab/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "MULTI_VIEW",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "TRICOT",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "G-ROSAS",
+     "name": "Pink",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "knit-skirt-l01630107",
+    "seoProductId": "736939816",
+    "discernProductId": 736945235
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2026-05-05T00:00:00Z",
+   "behaviour": {}
+  },
+  "720264626": {
+   "identifier": {
+    "id": "720264626",
+    "productParentId": "720263150",
+    "reference": "C01830101711-V2026",
+    "productParentReference": "01830101-V2026",
+    "displayReference": "1830/101"
+   },
+   "name": "Diamond quilted gilet",
+   "description": "High-neck gilet with side pockets and a central zip fastening with a chin guard finish. The garment has elasticated armholes and hem, and diamond stitching detail.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2479,
+     "name": "WAISTCOAT"
+    },
+    "subfamily": {
+     "id": 9132,
+     "name": "Girls’ Outerwear Waistcoat"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "711",
+    "commercialComponentId": "720264626",
+    "name": "SAND",
+    "colorcutUrl": "https://static.lefties.com/assets/public/b2ca/8f64/c0d442cdaa96/abf26837b034/01830101711-R/01830101711-R.jpg?ts=1769067962760",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 699,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 999,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-30T11:05:02Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-30%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 1999,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-65%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "3f85fa7604684dc2b608000b46abed6c",
+      "timestamp": "1769068178131",
+      "url": "https://static.lefties.com/assets/public/3f85/fa76/04684dc2b608/000b46abed6c/01830101711-A5/01830101711-A5.jpg?ts=1769067962620",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/3f85/fa76/04684dc2b608/000b46abed6c/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [
+    {
+     "ids": [
+      760992598
+     ],
+     "type": "OTHER_COLOR"
+    }
+   ],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "PRENDA EXTERIOR",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "G-CRUDOS",
+     "name": "Ecru",
+     "values": [],
+     "properties": {}
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "diamond-quilted-gilet-l01830101",
+    "seoProductId": "720263150",
+    "discernProductId": 720264626
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-09-29T00:00:00Z",
+   "behaviour": {}
+  },
+  "720255206": {
+   "identifier": {
+    "id": "720255206",
+    "productParentId": "720252886",
+    "reference": "C01960102250-V2026",
+    "productParentReference": "01960102-V2026",
+    "displayReference": "1960/102"
+   },
+   "name": "Shiny embroidered balloon skirt",
+   "description": "Knee-length skirt with side zip fastening. Featuring shiny thread floral embroidery and an elasticated hem that gives it a puffed shape. Made from a rustic fabric with a 100% cotton inner lining.<br/><br/>COORDINATED GARMENTS<br/>Combine it with the matching blouse.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2451,
+     "name": "SKIRT"
+    },
+    "subfamily": {
+     "id": 9156,
+     "name": "Girls’ Plain Knit Skirt"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "250",
+    "commercialComponentId": "720255206",
+    "name": "WHITE",
+    "colorcutUrl": "https://static.lefties.com/assets/public/23f2/e908/0c0d42d6b10c/3547cdfd6544/01960102250-R/01960102250-R.jpg?ts=1766475943318",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 799,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-07T18:33:37Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-50%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 1599,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-75%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "336576343a9c46d09b3f68c6a58603d8",
+      "timestamp": "1766476126448",
+      "url": "https://static.lefties.com/assets/public/3365/7634/3a9c46d09b3f/68c6a58603d8/01960102250-A5/01960102250-A5.jpg?ts=1766475943365",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/3365/7634/3a9c46d09b3f/68c6a58603d8/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "PLANA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "G-BLANCOS",
+     "name": "White",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "shiny-embroidered-balloon-skirt-l01960102",
+    "seoProductId": "720252886",
+    "discernProductId": 720255206
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-09-29T00:00:00Z",
+   "behaviour": {}
+  },
+  "736945236": {
+   "identifier": {
+    "id": "736945236",
+    "productParentId": "736939816",
+    "reference": "C01630107251-V2026",
+    "productParentReference": "01630107-V2026",
+    "displayReference": "1630/107"
+   },
+   "name": "Knit skirt",
+   "description": "Short skirt with an elastic waistband and decorative bow. Straight cut. Scalloped hem and cutwork knit. 100% cotton ribbed knit fabric. <br/><br/>COORDINATED GARMENTS<br/>Pair it with its matching top.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2451,
+     "name": "SKIRT"
+    },
+    "subfamily": {
+     "id": 9138,
+     "name": "Girls’ Chunky Knit Top"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "251",
+    "commercialComponentId": "736945236",
+    "name": "OFF WHITE",
+    "colorcutUrl": "https://static.lefties.com/assets/public/0015/3dcc/18d0472e9b7d/c3fe74f6948f/01630107251-R/01630107251-R.jpg?ts=1777881794281",
+    "volumes": [],
+    "otherColors": [
+     {
+      "id": "620",
+      "reference": "C01630107620-V2026",
+      "commercialComponentId": "736945235",
+      "name": "PINK",
+      "colorcutUrl": "https://static.lefties.com/assets/public/2a40/0b5b/91b34548bd4f/8f925ec13dbd/01630107620-R/01630107620-R.jpg?ts=1777881794252"
+     }
+    ]
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 599,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-07T18:32:38Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-33%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 999,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-60%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "8af5fcbc9e644c3aa0801d7f69153970",
+      "timestamp": "1777881950070",
+      "url": "https://static.lefties.com/assets/public/8af5/fcbc/9e644c3aa080/1d7f69153970/01630107251-A5/01630107251-A5.jpg?ts=1777881794723",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/8af5/fcbc/9e644c3aa080/1d7f69153970/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "TRICOT",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-BLANCOS",
+     "name": "White",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "knit-skirt-l01630107",
+    "seoProductId": "736939816",
+    "discernProductId": 736945236
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2026-05-05T00:00:00Z",
+   "behaviour": {}
+  },
+  "730578295": {
+   "identifier": {
+    "id": "730578295",
+    "productParentId": "729949025",
+    "reference": "C01175101712-V2026",
+    "productParentReference": "01175101-V2026",
+    "displayReference": "1175/101"
+   },
+   "name": "Printed viscose T-shirt",
+   "description": "Round neck, short sleeve T-shirt. Loose fit. Raised slogan prints. Slits at the side of the hem. Fluid stretch fabric.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2459,
+     "name": "T-SHIRT"
+    },
+    "subfamily": {
+     "id": 12203,
+     "name": "Girls’ Gym T-shirt"
+    },
+    "sizeSystem": "14169"
+   },
+   "color": {
+    "id": "712",
+    "commercialComponentId": "730578295",
+    "name": "ECRU",
+    "colorcutUrl": "https://static.lefties.com/assets/public/3bf9/3d48/17ca45099097/841f91412cfe/01175101712-R/01175101712-R.jpg?ts=1774263063110",
+    "volumes": [],
+    "otherColors": [
+     {
+      "id": "630",
+      "reference": "C01175101630-V2026",
+      "commercialComponentId": "730578294",
+      "name": "FUCHSIA",
+      "colorcutUrl": "https://static.lefties.com/assets/public/5211/5518/ac014d4796d5/4bdb9bdeaca9/01175101630-R/01175101630-R.jpg?ts=1774263061151"
+     }
+    ]
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 699,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-06-24T16:05:00Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-42%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "ac4fa7a6f7bf4d498d066a06b4258e7a",
+      "timestamp": "1774263263710",
+      "url": "https://static.lefties.com/assets/public/ac4f/a7a6/f7bf4d498d06/6a06b4258e7a/01175101712-A5/01175101712-A5.jpg?ts=1774263063348",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/ac4f/a7a6/f7bf4d498d06/6a06b4258e7a/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "GYM",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-BLANCOS",
+     "name": "White",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "printed-viscose-tshirt-l01175101",
+    "seoProductId": "729949025",
+    "discernProductId": 730578295
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-12-14T00:00:00Z",
+   "behaviour": {}
+  },
+  "729034551": {
+   "identifier": {
+    "id": "729034551",
+    "productParentId": "729031734",
+    "reference": "C01175100250-V2026",
+    "productParentReference": "01175100-V2026",
+    "displayReference": "1175/100"
+   },
+   "name": "Sports T-shirt",
+   "description": "Round neck, short sleeve T-shirt. Slightly cropped fit. Front text print. Fluid stretch fabric.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2459,
+     "name": "T-SHIRT"
+    },
+    "subfamily": {
+     "id": 12203,
+     "name": "Girls’ Gym T-shirt"
+    },
+    "sizeSystem": "14169"
+   },
+   "color": {
+    "id": "250",
+    "commercialComponentId": "729034551",
+    "name": "WHITE",
+    "colorcutUrl": "https://static.lefties.com/assets/public/335d/2bfe/94154a8ca983/62e70f3c4d1e/01175100250-R/01175100250-R.jpg?ts=1774337354965",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 799,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-06-24T16:05:00Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-50%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "6a742d144a394420a7102e85bf4af746",
+      "timestamp": "1774337655135",
+      "url": "https://static.lefties.com/assets/public/6a74/2d14/4a394420a710/2e85bf4af746/01175100250-A5/01175100250-A5.jpg?ts=1774337354899",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/6a74/2d14/4a394420a710/2e85bf4af746/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "GYM",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-BLANCOS",
+     "name": "White",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "sports-tshirt-l01175100",
+    "seoProductId": "729031734",
+    "discernProductId": 729034551
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-12-01T00:00:00Z",
+   "behaviour": {}
+  },
+  "727812353": {
+   "identifier": {
+    "id": "727812353",
+    "productParentId": "726392808",
+    "reference": "C01090150818-V2026",
+    "productParentReference": "01090150-V2026",
+    "displayReference": "1090/150"
+   },
+   "name": "Faded-effect printed shorts",
+   "description": "Shorts with an elasticated drawstring waist. Loose fit. Raw-cut hem. Small text print. Faded-effect color. Made of 100% cotton plush fabric with an unbrushed interior.<br/><br/>COORDINATED GARMENTS<br/>Combine them with the matching sweatshirt.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2491,
+     "name": "SHORT"
+    },
+    "subfamily": {
+     "id": 6185,
+     "name": "Girls’ Circular Knit Shorts"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "818",
+    "commercialComponentId": "727812353",
+    "name": "LEAD",
+    "colorcutUrl": "https://static.lefties.com/assets/public/75bb/d444/4d6f40d2bc89/2ba1ab1f1b7a/01090150818-R/01090150818-R.jpg?ts=1773667989862",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 499,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-30T11:04:01Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-20%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 799,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-50%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "0bc543cf749841a2a53329a3be937f19",
+      "timestamp": "1773668143690",
+      "url": "https://static.lefties.com/assets/public/0bc5/43cf/749841a2a533/29a3be937f19/01090150818-A5/01090150818-A5.jpg?ts=1773667988532",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/0bc5/43cf/749841a2a533/29a3be937f19/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "CIRCULAR",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "G-NEGROS",
+     "name": "Black",
+     "values": [],
+     "properties": {}
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "fadedeffect-printed-shorts-l01090150",
+    "seoProductId": "726392808",
+    "discernProductId": 727812353
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-11-22T00:00:00Z",
+   "behaviour": {}
+  },
+  "735693830": {
+   "identifier": {
+    "id": "735693830",
+    "productParentId": "728940297",
+    "reference": "C01120100630-V2026",
+    "productParentReference": "01120100-V2026",
+    "displayReference": "1120/100"
+   },
+   "name": "Crinkled strappy top",
+   "description": "Round neck, strappy top. Featuring a small split at the side hem with a tie fastening. Made of stretch crinkled textured fabric.<br/><br/>COORDINATED GARMENTS<br/>Combine it with the matching skirt.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2459,
+     "name": "T-SHIRT"
+    },
+    "subfamily": {
+     "id": 6195,
+     "name": "Girls’ Vest Top"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "630",
+    "commercialComponentId": "735693830",
+    "name": "FUCHSIA",
+    "colorcutUrl": "https://static.lefties.com/assets/public/910c/7fba/87534a6f8ab2/7941bfbba49b/01120100630-R/01120100630-R.jpg?ts=1776325454904",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 199,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-22T18:31:49Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-33%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 699,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-71%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "da4493bda3374fd7af92e25fd2f4a139",
+      "timestamp": "1776325742570",
+      "url": "https://static.lefties.com/assets/public/da44/93bd/a3374fd7af92/e25fd2f4a139/01120100630-A5/01120100630-A5.jpg?ts=1776325455531",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/da44/93bd/a3374fd7af92/e25fd2f4a139/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "CIRCULAR",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-ROSAS",
+     "name": "Pink",
+     "values": [],
+     "properties": {}
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "crinkled-strappy-top-l01120100",
+    "seoProductId": "728940297",
+    "discernProductId": 735693830
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2026-01-14T00:00:00Z",
+   "behaviour": {}
+  },
+  "732634935": {
+   "identifier": {
+    "id": "732634935",
+    "productParentId": "732628773",
+    "reference": "C01990103711-V2026",
+    "productParentReference": "01990103-V2026",
+    "displayReference": "1990/103"
+   },
+   "name": "Textured shorts with embroidery",
+   "description": "Loose-fitting shorts with an elasticated waistband and adjustable drawstring. Featuring embroidered hems. Made of lightweight 100% cotton double-gauze textured fabric.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2491,
+     "name": "SHORT"
+    },
+    "subfamily": {
+     "id": 8371,
+     "name": "Girls’ Plain Knit Shorts"
+    },
+    "sizeSystem": "14169"
+   },
+   "color": {
+    "id": "711",
+    "commercialComponentId": "732634935",
+    "name": "SAND",
+    "colorcutUrl": "https://static.lefties.com/assets/public/cf21/2a38/1bea498093cf/7e6ef0040ecd/01990103711-R/01990103711-R.jpg?ts=1772728248725",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 499,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-30T11:06:41Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-20%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 1299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-69%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "9b3d7c18492f4cc483e85f9a8c021236",
+      "timestamp": "1772728410341",
+      "url": "https://static.lefties.com/assets/public/9b3d/7c18/492f4cc483e8/5f9a8c021236/01990103711-A5/01990103711-A5.jpg?ts=1772728248603",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/9b3d/7c18/492f4cc483e8/5f9a8c021236/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "PLANA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-BEIGES",
+     "name": "Beige",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "textured-shorts-with-embroidery-l01990103",
+    "seoProductId": "732628773",
+    "discernProductId": 732634935
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-12-25T00:00:00Z",
+   "behaviour": {}
+  },
+  "749936251": {
+   "identifier": {
+    "id": "749936251",
+    "productParentId": "742294315",
+    "reference": "C05167100537-V2026",
+    "productParentReference": "05167100-V2026",
+    "displayReference": "5167/100"
+   },
+   "name": "Fluid fleece sports top",
+   "description": "Cropped sports top with straps and a round neck. Rubberised slogan detail. Small side splits at the hem. Contrasting colour trim finishes. Fluid fleece fabric.<br/><br/>COORDINATED GARMENTS<br/>Combine it with its matching skort and shorts.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2498,
+     "name": "TOPS AND OTHERS"
+    },
+    "subfamily": {
+     "id": 12196,
+     "name": "Girls’ Gym Top"
+    },
+    "sizeSystem": "14169"
+   },
+   "color": {
+    "id": "537",
+    "commercialComponentId": "749936251",
+    "name": "MINT GREEN",
+    "colorcutUrl": "https://static.lefties.com/assets/public/7387/a8f4/27c14556bf0d/8112b1fa654b/05167100537-R/05167100537-R.jpg?ts=1778145693521",
+    "volumes": [],
+    "otherColors": [
+     {
+      "id": "612",
+      "reference": "C05167100612-V2026",
+      "commercialComponentId": "749936250",
+      "name": "MAUVE",
+      "colorcutUrl": "https://static.lefties.com/assets/public/ad6e/75f9/c10243e9a45c/f23fc048f912/05167100612-R/05167100612-R.jpg?ts=1778145695388"
+     }
+    ]
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 799,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-06-24T16:05:00Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-50%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "ccddd772d25541a7a0fc35a991195786",
+      "timestamp": "1778146245750",
+      "url": "https://static.lefties.com/assets/public/ccdd/d772/d25541a7a0fc/35a991195786/05167100537-A5/05167100537-A5.jpg?ts=1778145693819",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/ccdd/d772/d25541a7a0fc/35a991195786/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "GYM",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "G-VERDES",
+     "name": "Greens",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "fluid-fleece-sports-top-l05167100",
+    "seoProductId": "742294315",
+    "discernProductId": 749936251
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2026-05-12T00:00:00Z",
+   "behaviour": {}
+  },
+  "727468524": {
+   "identifier": {
+    "id": "727468524",
+    "productParentId": "724243323",
+    "reference": "C01990101251-V2026",
+    "productParentReference": "01990101-V2026",
+    "displayReference": "1990/101"
+   },
+   "name": "Rustic shorts",
+   "description": "Shorts with darts. Double-breasted closure. Rustic 23% linen fabric.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2491,
+     "name": "SHORT"
+    },
+    "subfamily": {
+     "id": 8371,
+     "name": "Girls’ Plain Knit Shorts"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "251",
+    "commercialComponentId": "727468524",
+    "name": "OFF WHITE",
+    "colorcutUrl": "https://static.lefties.com/assets/public/a269/50f7/038c423d8c07/e296ae228a9f/01990101251-R/01990101251-R.jpg?ts=1773132129401",
+    "volumes": [],
+    "otherColors": [
+     {
+      "id": "304",
+      "reference": "C01990101304-V2026",
+      "commercialComponentId": "727468523",
+      "name": "STRAW BROWN",
+      "colorcutUrl": "https://static.lefties.com/assets/public/f693/4fbc/497344a0834f/2de103f6a7ae/01990101304-R/01990101304-R.jpg?ts=1773132129564"
+     }
+    ]
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 499,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-30T11:04:37Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-20%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 1299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-69%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "3869fe9e5fef43358da26cdce8c6e7ea",
+      "timestamp": "1773139367195",
+      "url": "https://static.lefties.com/assets/public/3869/fe9e/5fef43358da2/6cdce8c6e7ea/01990101251-A5/01990101251-A5.jpg?ts=1773139243499",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/3869/fe9e/5fef43358da2/6cdce8c6e7ea/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "PLANA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "G-BLANCOS",
+     "name": "White",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "rustic-shorts-l01990101",
+    "seoProductId": "724243323",
+    "discernProductId": 727468524
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-11-20T00:00:00Z",
+   "behaviour": {}
+  },
+  "730608147": {
+   "identifier": {
+    "id": "730608147",
+    "productParentId": "730606200",
+    "reference": "C01990102428-V2026",
+    "productParentReference": "01990102-V2026",
+    "displayReference": "1990/102"
+   },
+   "name": "Textured shorts",
+   "description": "Shorts with an elasticated waistband and adjustable drawstrings. Loose fit. Made of 100% textured cotton.<br/><br/>COORDINATED GARMENTS<br/>Combine them with the matching top.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2491,
+     "name": "SHORT"
+    },
+    "subfamily": {
+     "id": 8371,
+     "name": "Girls’ Plain Knit Shorts"
+    },
+    "sizeSystem": "14169"
+   },
+   "color": {
+    "id": "428",
+    "commercialComponentId": "730608147",
+    "name": "FADED BLUE",
+    "colorcutUrl": "https://static.lefties.com/assets/public/a755/f897/02b74b078da7/6088c63deaea/01990102428-R/01990102428-R.jpg?ts=1775113574684",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 499,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-30T11:05:32Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-20%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 999,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-60%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "1186f9252bcc4f8180be62ae62ee740f",
+      "timestamp": "1775114695170",
+      "url": "https://static.lefties.com/assets/public/1186/f925/2bcc4f8180be/62ae62ee740f/01990102428-A5/01990102428-A5.jpg?ts=1775113577491",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/1186/f925/2bcc4f8180be/62ae62ee740f/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "PLANA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-GRISES",
+     "name": "Grey",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "textured-shorts-l01990102",
+    "seoProductId": "730606200",
+    "discernProductId": 730608147
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-12-14T00:00:00Z",
+   "behaviour": {}
+  },
+  "728643230": {
+   "identifier": {
+    "id": "728643230",
+    "productParentId": "726394503",
+    "reference": "C01060102800-V2026",
+    "productParentReference": "01060102-V2026",
+    "displayReference": "1060/102"
+   },
+   "name": "Printed crepe dress",
+   "description": "Square neck short sleeve dress. Featuring an elastic smocked chest. Different seams along the garment provide flounce. Made of textured crepe fabric.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2450,
+     "name": "DRESS"
+    },
+    "subfamily": {
+     "id": 6189,
+     "name": "Girls’ Circular Knit Dress"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "800",
+    "commercialComponentId": "728643230",
+    "name": "BLACK",
+    "colorcutUrl": "https://static.lefties.com/assets/public/bf3e/ed83/684b4c67ba39/62f4d6e6a432/01060102800-R/01060102800-R.jpg?ts=1772093142567",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 499,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-30T11:04:16Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-20%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 1299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-69%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "77fc0ef061fd4f71b9bd9329c7027018",
+      "timestamp": "1772126164387",
+      "url": "https://static.lefties.com/assets/public/77fc/0ef0/61fd4f71b9bd/9329c7027018/01060102800-A5/01060102800-A5.jpg?ts=1772093142369",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/77fc/0ef0/61fd4f71b9bd/9329c7027018/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [
+    {
+     "ids": [
+      755057039
+     ],
+     "type": "OTHER_COLOR"
+    }
+   ],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "CIRCULAR",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "G-NEGROS",
+     "name": "Black",
+     "values": [],
+     "properties": {}
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "printed-crepe-dress-l01060102",
+    "seoProductId": "726394503",
+    "discernProductId": 728643230
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-11-27T00:00:00Z",
+   "behaviour": {}
+  },
+  "722380733": {
+   "identifier": {
+    "id": "722380733",
+    "productParentId": "722380451",
+    "reference": "C01235145122-V2026",
+    "productParentReference": "01235145-V2026",
+    "displayReference": "1235/145"
+   },
+   "name": "Printed boxer briefs",
+   "description": "Boxer briefs with an elastic waistband. Features assorted prints and decorative front buttons. Made of stretch cotton rib-knit fabric.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2460,
+     "name": "UNDERWEAR"
+    },
+    "subfamily": {
+     "id": 10668,
+     "name": "Licensed Girls’ Underwear"
+    },
+    "sizeSystem": "12560"
+   },
+   "color": {
+    "id": "122",
+    "commercialComponentId": "722380733",
+    "name": "WHITE TONES",
+    "colorcutUrl": "https://static.lefties.com/assets/public/4eff/f95b/5cfc4231829f/bc91a7d2720f/01235145122-R/01235145122-R.jpg?ts=1774263074598",
+    "volumes": [],
+    "otherColors": [
+     {
+      "id": "052",
+      "reference": "C01235145052-V2026",
+      "commercialComponentId": "722380734",
+      "name": "TAN",
+      "colorcutUrl": "https://static.lefties.com/assets/public/5d09/757e/73a746acabe6/c3098a3ac668/01235145052-R/01235145052-R.jpg?ts=1774263073096"
+     }
+    ]
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 199,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-07T18:34:49Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-33%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-50%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "a53dd1ae2e804a7e9b05483caea58c1e",
+      "timestamp": "1774263313530",
+      "url": "https://static.lefties.com/assets/public/a53d/d1ae/2e804a7e9b05/483caea58c1e/01235145122-A3/01235145122-A3.jpg?ts=1774263074606",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/a53d/d1ae/2e804a7e9b05/483caea58c1e/meta.json",
+      "styles": {},
+      "editorialName": "a3",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "UNDERWEAR",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ACCESORIOS",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Valued",
+     "identifier": "COMMERCIAL_ATTRIBUTE_LEVEL_2",
+     "values": [
+      "BOXER NIÑA[6968][5059]"
+     ],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-GRISES",
+     "name": "Grey",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "printed-boxer-briefs-l01235145",
+    "seoProductId": "722380451",
+    "discernProductId": 722380733
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-10-12T00:00:00Z",
+   "behaviour": {}
+  },
+  "749936256": {
+   "identifier": {
+    "id": "749936256",
+    "productParentId": "749934449",
+    "reference": "C05092107251-V2026",
+    "productParentReference": "05092107-V2026",
+    "displayReference": "5092/107"
+   },
+   "name": "Contrast trim shorts",
+   "description": "Shorts with an elastic waistband and adjustable drawstring. Features contrast trim and a side stripe. Text print. Unbrushed plush fabric.<br/><br/>COORDINATED GARMENTS<br/>Pair them with the matching T-shirt.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2491,
+     "name": "SHORT"
+    },
+    "subfamily": {
+     "id": 6185,
+     "name": "Girls’ Circular Knit Shorts"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "251",
+    "commercialComponentId": "749936256",
+    "name": "OFF WHITE",
+    "colorcutUrl": "https://static.lefties.com/assets/public/aeb3/6337/49f441bc94f5/b291a6b48bfc/05092107251-R/05092107251-R.jpg?ts=1778145659491",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 599,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-06-24T16:05:00Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-33%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "e9ace0bbd40d4d88af43584de8dbfef7",
+      "timestamp": "1778146094140",
+      "url": "https://static.lefties.com/assets/public/e9ac/e0bb/d40d4d88af43/584de8dbfef7/05092107251-A5/05092107251-A5.jpg?ts=1778145659623",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/e9ac/e0bb/d40d4d88af43/584de8dbfef7/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "CIRCULAR",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-BLANCOS",
+     "name": "White",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "contrast-trim-shorts-l05092107",
+    "seoProductId": "749934449",
+    "discernProductId": 749936256
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2026-05-12T00:00:00Z",
+   "behaviour": {}
+  },
+  "727646378": {
+   "identifier": {
+    "id": "727646378",
+    "productParentId": "727643127",
+    "reference": "C01630103637-V2026",
+    "productParentReference": "01630103-V2026",
+    "displayReference": "1630/103"
+   },
+   "name": "Flared rhinestone trousers",
+   "description": "Trousers with an elasticated waistband. Featuring shiny rhinestone appliques and a wavy hem. Made of stretchy knit fabric.<br/><br/>COORDINATED GARMENTS<br/>Pair them with the matching top.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2449,
+     "name": "TROUSERS"
+    },
+    "subfamily": {
+     "id": 9158,
+     "name": "Girls’ Chunky Knit Waistcoat"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "637",
+    "commercialComponentId": "727646378",
+    "name": "PALE PINK",
+    "colorcutUrl": "https://static.lefties.com/assets/public/9239/39b9/256148cea209/9155c90fac80/01630103637-R/01630103637-R.jpg?ts=1773765203738",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-22T18:31:49Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-25%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 1299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-76%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "4155a07da43740fc802c7fb557400e38",
+      "timestamp": "1773765346301",
+      "url": "https://static.lefties.com/assets/public/4155/a07d/a43740fc802c/7fb557400e38/01630103637-A5/01630103637-A5.jpg?ts=1773765202977",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/4155/a07d/a43740fc802c/7fb557400e38/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "TRICOT",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "G-ROSAS",
+     "name": "Pink",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "bell-bottom-rhinestones-trousers-l01630103",
+    "seoProductId": "727643127",
+    "discernProductId": 727646378
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-11-21T00:00:00Z",
+   "behaviour": {}
+  },
+  "730578294": {
+   "identifier": {
+    "id": "730578294",
+    "productParentId": "729949025",
+    "reference": "C01175101630-V2026",
+    "productParentReference": "01175101-V2026",
+    "displayReference": "1175/101"
+   },
+   "name": "Printed viscose T-shirt",
+   "description": "Round neck, short sleeve T-shirt. Loose fit. Raised slogan prints. Slits at the side of the hem. Fluid stretch fabric.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2459,
+     "name": "T-SHIRT"
+    },
+    "subfamily": {
+     "id": 12203,
+     "name": "Girls’ Gym T-shirt"
+    },
+    "sizeSystem": "14169"
+   },
+   "color": {
+    "id": "630",
+    "commercialComponentId": "730578294",
+    "name": "FUCHSIA",
+    "colorcutUrl": "https://static.lefties.com/assets/public/5211/5518/ac014d4796d5/4bdb9bdeaca9/01175101630-R/01175101630-R.jpg?ts=1774263061151",
+    "volumes": [],
+    "otherColors": [
+     {
+      "id": "712",
+      "reference": "C01175101712-V2026",
+      "commercialComponentId": "730578295",
+      "name": "ECRU",
+      "colorcutUrl": "https://static.lefties.com/assets/public/3bf9/3d48/17ca45099097/841f91412cfe/01175101712-R/01175101712-R.jpg?ts=1774263063110"
+     }
+    ]
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 699,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-06-24T16:05:00Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-42%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "57bac57f744642e3912f5e41c4e5f194",
+      "timestamp": "1774263259329",
+      "url": "https://static.lefties.com/assets/public/57ba/c57f/744642e3912f/5e41c4e5f194/01175101630-A5/01175101630-A5.jpg?ts=1774263060972",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/57ba/c57f/744642e3912f/5e41c4e5f194/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "GYM",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "G-ROSAS",
+     "name": "Pink",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "printed-viscose-tshirt-l01175101",
+    "seoProductId": "729949025",
+    "discernProductId": 730578294
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-12-14T00:00:00Z",
+   "behaviour": {}
+  },
+  "726814093": {
+   "identifier": {
+    "id": "726814093",
+    "productParentId": "724209106",
+    "reference": "C01210100620-V2026",
+    "productParentReference": "01210100-V2026",
+    "displayReference": "1210/100"
+   },
+   "name": "Sports hoodie with raised text",
+   "description": "Hoodie with a loose fit. Featuring a raised slogan print on the front. Made from a stretchy, flowing sports fabric.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2803,
+     "name": "SWEATSHIRT"
+    },
+    "subfamily": {
+     "id": 12204,
+     "name": "Girls’ Gym Sweatshirt"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "620",
+    "commercialComponentId": "726814093",
+    "name": "PINK",
+    "colorcutUrl": "https://static.lefties.com/assets/public/45fd/85a7/1b8d4235bebf/ae265a37d353/01210100620-R/01210100620-R.jpg?ts=1772178321361",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 599,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-06-29T14:03:52Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-33%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 1299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-69%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "6de6ebb651724afba10fce1bce22a421",
+      "timestamp": "1772178520060",
+      "url": "https://static.lefties.com/assets/public/6de6/ebb6/51724afba10f/ce1bce22a421/01210100620-A5/01210100620-A5.jpg?ts=1772178317651",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/6de6/ebb6/51724afba10f/ce1bce22a421/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "GYM",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-ROSAS",
+     "name": "Pink",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "sports-sweatshirt-with-raised-slogan-l01210100",
+    "seoProductId": "724209106",
+    "discernProductId": 726814093
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-11-15T00:00:00Z",
+   "behaviour": {}
+  },
+  "727708512": {
+   "identifier": {
+    "id": "727708512",
+    "productParentId": "727693531",
+    "reference": "C01165102630-V2026",
+    "productParentReference": "01165102-V2026",
+    "displayReference": "1165/102"
+   },
+   "name": "Ribbed sports top",
+   "description": "Short sleeve sports crop top with a round neck. Fitted. Made of stretchy ribbed sports fabric. <br/><br/>COORDINATED GARMENTS<br/>Combine it with the matching leggings.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2498,
+     "name": "TOPS AND OTHERS"
+    },
+    "subfamily": {
+     "id": 12196,
+     "name": "Girls’ Gym Top"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "630",
+    "commercialComponentId": "727708512",
+    "name": "FUCHSIA",
+    "colorcutUrl": "https://static.lefties.com/assets/public/1a62/fd4a/c8ca43fcb4ad/abee43de56cb/01165102630-R/01165102630-R.jpg?ts=1774263048805",
+    "volumes": [],
+    "otherColors": [
+     {
+      "id": "400",
+      "reference": "C01165102400-V2026",
+      "commercialComponentId": "727708514",
+      "name": "BLUE",
+      "colorcutUrl": "https://static.lefties.com/assets/public/d5bb/e107/0b464bf7b49c/935a53fe229d/01165102400-R/01165102400-R.jpg?ts=1774263043038"
+     }
+    ]
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 599,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-06-24T16:05:00Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-33%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "aceaeba3c4f049b2b3c575c642a08837",
+      "timestamp": "1774263196670",
+      "url": "https://static.lefties.com/assets/public/acea/eba3/c4f049b2b3c5/75c642a08837/01165102630-A5/01165102630-A5.jpg?ts=1774263047333",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/acea/eba3/c4f049b2b3c5/75c642a08837/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "GYM",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-ROSAS",
+     "name": "Pink",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "ribbed-sports-top-l01165102",
+    "seoProductId": "727693531",
+    "discernProductId": 727708512
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-11-21T00:00:00Z",
+   "behaviour": {}
+  },
+  "749936250": {
+   "identifier": {
+    "id": "749936250",
+    "productParentId": "742294315",
+    "reference": "C05167100612-V2026",
+    "productParentReference": "05167100-V2026",
+    "displayReference": "5167/100"
+   },
+   "name": "Fluid fleece sports top",
+   "description": "Cropped sports top with straps and a round neck. Rubberised slogan detail. Small side splits at the hem. Contrasting colour trim finishes. Fluid fleece fabric.<br/><br/>COORDINATED GARMENTS<br/>Combine it with its matching skort and shorts.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2498,
+     "name": "TOPS AND OTHERS"
+    },
+    "subfamily": {
+     "id": 12196,
+     "name": "Girls’ Gym Top"
+    },
+    "sizeSystem": "14169"
+   },
+   "color": {
+    "id": "612",
+    "commercialComponentId": "749936250",
+    "name": "MAUVE",
+    "colorcutUrl": "https://static.lefties.com/assets/public/ad6e/75f9/c10243e9a45c/f23fc048f912/05167100612-R/05167100612-R.jpg?ts=1778145695388",
+    "volumes": [],
+    "otherColors": [
+     {
+      "id": "537",
+      "reference": "C05167100537-V2026",
+      "commercialComponentId": "749936251",
+      "name": "MINT GREEN",
+      "colorcutUrl": "https://static.lefties.com/assets/public/7387/a8f4/27c14556bf0d/8112b1fa654b/05167100537-R/05167100537-R.jpg?ts=1778145693521"
+     }
+    ]
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 799,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-06-24T16:05:00Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-50%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "83b2f7fcd73247c2b021f02f9ca697df",
+      "timestamp": "1778146233714",
+      "url": "https://static.lefties.com/assets/public/83b2/f7fc/d73247c2b021/f02f9ca697df/05167100612-A5/05167100612-A5.jpg?ts=1778145693719",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/83b2/f7fc/d73247c2b021/f02f9ca697df/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "GYM",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-ROSAS",
+     "name": "Pink",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "fluid-fleece-sports-top-l05167100",
+    "seoProductId": "742294315",
+    "discernProductId": 749936250
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2026-05-12T00:00:00Z",
+   "behaviour": {}
+  },
+  "727708514": {
+   "identifier": {
+    "id": "727708514",
+    "productParentId": "727693531",
+    "reference": "C01165102400-V2026",
+    "productParentReference": "01165102-V2026",
+    "displayReference": "1165/102"
+   },
+   "name": "Ribbed sports top",
+   "description": "Short sleeve sports crop top with a round neck. Fitted. Made of stretchy ribbed sports fabric. <br/><br/>COORDINATED GARMENTS<br/>Combine it with the matching leggings.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2498,
+     "name": "TOPS AND OTHERS"
+    },
+    "subfamily": {
+     "id": 12196,
+     "name": "Girls’ Gym Top"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "400",
+    "commercialComponentId": "727708514",
+    "name": "BLUE",
+    "colorcutUrl": "https://static.lefties.com/assets/public/d5bb/e107/0b464bf7b49c/935a53fe229d/01165102400-R/01165102400-R.jpg?ts=1774263043038",
+    "volumes": [],
+    "otherColors": [
+     {
+      "id": "630",
+      "reference": "C01165102630-V2026",
+      "commercialComponentId": "727708512",
+      "name": "FUCHSIA",
+      "colorcutUrl": "https://static.lefties.com/assets/public/1a62/fd4a/c8ca43fcb4ad/abee43de56cb/01165102630-R/01165102630-R.jpg?ts=1774263048805"
+     }
+    ]
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 599,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-06-24T16:05:00Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-33%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "1e6f4671dbb647c1a8a210c4b41b80cb",
+      "timestamp": "1774263176239",
+      "url": "https://static.lefties.com/assets/public/1e6f/4671/dbb647c1a8a2/10c4b41b80cb/01165102400-A5/01165102400-A5.jpg?ts=1774263043672",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/1e6f/4671/dbb647c1a8a2/10c4b41b80cb/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "GYM",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-AZULES",
+     "name": "Blue",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "ribbed-sports-top-l01165102",
+    "seoProductId": "727693531",
+    "discernProductId": 727708514
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-11-21T00:00:00Z",
+   "behaviour": {}
+  },
+  "720273402": {
+   "identifier": {
+    "id": "720273402",
+    "productParentId": "720267054",
+    "reference": "C13549690102-V2026",
+    "productParentReference": "13549690-V2026",
+    "displayReference": "3549/690"
+   },
+   "name": "Hello Kitty ©SANRIO ankle sneakers",
+   "description": "Ankle-style sneakers for girls. Print on the upper. Featuring rubber details on the back and sole. Lace-up fastening and an inner side zip. Metal eyelets.",
+   "type": "Product",
+   "kind": "Footwear",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 702,
+     "name": "HIGHTOPS"
+    },
+    "subfamily": {
+     "id": 8491,
+     "name": "L3A:SNEAKERS"
+    },
+    "sizeSystem": "14468"
+   },
+   "color": {
+    "id": "102",
+    "commercialComponentId": "720273402",
+    "name": "BEIGE",
+    "colorcutUrl": "https://static.lefties.com/assets/public/9cbb/606d/206346a5acd9/41272ae353be/13549690102-R/13549690102-R.jpg?ts=1759243714706",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 599,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 799,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-22T11:05:30Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-25%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 2199,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-72%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "4b231ccb70db402cae751e970124b66a",
+      "timestamp": "1759243746947",
+      "url": "https://static.lefties.com/assets/public/4b23/1ccb/70db402cae75/1e970124b66a/13549690102-A1/13549690102-A1.jpg?ts=1759243714249",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/4b23/1ccb/70db402cae75/1e970124b66a/meta.json",
+      "styles": {},
+      "editorialName": "a1",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [
+    {
+     "ids": [
+      755739416
+     ],
+     "type": "OTHER_COLOR"
+    }
+   ],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "LEFTIES",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "CALZADO",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "hello-kitty-sanrio-ankle-sneakers-l13549690",
+    "seoProductId": "720267054",
+    "discernProductId": 720273402
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-06-12T00:00:00Z",
+   "behaviour": {}
+  },
+  "723653896": {
+   "identifier": {
+    "id": "723653896",
+    "productParentId": "722224339",
+    "reference": "C01990100321-V2026",
+    "productParentReference": "01990100-V2026",
+    "displayReference": "1990/100"
+   },
+   "name": "Twill shorts",
+   "description": "Shorts with an elasticated waistband. Tonal adjustable drawstring. Front patch pockets. Made of 100% cotton fabric.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2491,
+     "name": "SHORT"
+    },
+    "subfamily": {
+     "id": 8371,
+     "name": "Girls’ Plain Knit Shorts"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "321",
+    "commercialComponentId": "723653896",
+    "name": "PASTEL YELLOW",
+    "colorcutUrl": "https://static.lefties.com/assets/public/85db/77f1/dd87412f91dd/c63e60c8107c/01990100321-R/01990100321-R.jpg?ts=1770922258927",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 499,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-30T11:03:50Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-20%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 999,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-60%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "0216ca608a7f41d8bf7ded32c3f8a6a9",
+      "timestamp": "1770922528488",
+      "url": "https://static.lefties.com/assets/public/0216/ca60/8a7f41d8bf7d/ed32c3f8a6a9/01990100321-A5/01990100321-A5.jpg?ts=1770922258957",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/0216/ca60/8a7f41d8bf7d/ed32c3f8a6a9/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "PLANA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-AMARILLOS",
+     "name": "Yellow",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "twill-shorts-l01990100",
+    "seoProductId": "722224339",
+    "discernProductId": 723653896
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-10-21T00:00:00Z",
+   "behaviour": {}
+  },
+  "730022526": {
+   "identifier": {
+    "id": "730022526",
+    "productParentId": "730018658",
+    "reference": "C05054167251-V2026",
+    "productParentReference": "05054167-V2026",
+    "displayReference": "5054/167"
+   },
+   "name": "Embroidered Mickey Mouse ©Disney sweatshirt",
+   "description": "Relaxed-fit sweatshirt with a hood and front kangaroo pocket. Features an embroidered Mickey Mouse ©Disney silhouette and a sewn-on label. Both the cuffs and the hem of the garment are finished with elastic ribbed trim. It is made of a fabric with a soft brushed interior.COORDINATED GARMENTS | COORDINATED GARMENTSPair it with its matching jogger pants.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2803,
+     "name": "SWEATSHIRT"
+    },
+    "subfamily": {
+     "id": 10665,
+     "name": "Licensed Girls’ Sweater"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "251",
+    "commercialComponentId": "730022526",
+    "name": "OFF WHITE",
+    "colorcutUrl": "https://static.lefties.com/assets/public/92e1/813b/df2d4298a03c/510f19ddb5eb/05054167251-R/05054167251-R.jpg?ts=1763020869617",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 599,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-06-29T14:04:22Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-50%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 1599,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-81%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "586e7104203a4bed835bcc00cd70a596",
+      "timestamp": "1763021193754",
+      "url": "https://static.lefties.com/assets/public/586e/7104/203a4bed835b/cc00cd70a596/05054167251-A5/05054167251-A5.jpg?ts=1763020869380",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/586e/7104/203a4bed835b/cc00cd70a596/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [
+    {
+     "ids": [
+      716531899
+     ],
+     "type": "OTHER_COLOR"
+    }
+   ],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "LICENCIAS",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-CRUDOS",
+     "name": "Ecru",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "embroidered-mickey-mouse-disney-sweatshirt-l05054167",
+    "seoProductId": "730018658",
+    "discernProductId": 730022526
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-08-29T00:00:00Z",
+   "behaviour": {}
+  },
+  "727468523": {
+   "identifier": {
+    "id": "727468523",
+    "productParentId": "724243323",
+    "reference": "C01990101304-V2026",
+    "productParentReference": "01990101-V2026",
+    "displayReference": "1990/101"
+   },
+   "name": "Rustic shorts",
+   "description": "Shorts with darts. Double-breasted closure. Rustic 23% linen fabric.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2491,
+     "name": "SHORT"
+    },
+    "subfamily": {
+     "id": 8371,
+     "name": "Girls’ Plain Knit Shorts"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "304",
+    "commercialComponentId": "727468523",
+    "name": "STRAW BROWN",
+    "colorcutUrl": "https://static.lefties.com/assets/public/f693/4fbc/497344a0834f/2de103f6a7ae/01990101304-R/01990101304-R.jpg?ts=1773132129564",
+    "volumes": [],
+    "otherColors": [
+     {
+      "id": "251",
+      "reference": "C01990101251-V2026",
+      "commercialComponentId": "727468524",
+      "name": "OFF WHITE",
+      "colorcutUrl": "https://static.lefties.com/assets/public/a269/50f7/038c423d8c07/e296ae228a9f/01990101251-R/01990101251-R.jpg?ts=1773132129401"
+     }
+    ]
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 399,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 499,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-30T11:04:37Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-20%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 1299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-69%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "de7b810bad664b4e88e0954f346daccc",
+      "timestamp": "1773132650800",
+      "url": "https://static.lefties.com/assets/public/de7b/810b/ad664b4e88e0/954f346daccc/01990101304-A5/01990101304-A5.jpg?ts=1773132129684",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/de7b/810b/ad664b4e88e0/954f346daccc/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "PLANA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-MARRONES",
+     "name": "Brown",
+     "values": [],
+     "properties": {}
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "rustic-shorts-l01990101",
+    "seoProductId": "724243323",
+    "discernProductId": 727468523
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-11-20T00:00:00Z",
+   "behaviour": {}
+  },
+  "728049822": {
+   "identifier": {
+    "id": "728049822",
+    "productParentId": "728039892",
+    "reference": "C01110107644-V2026",
+    "productParentReference": "01110107-V2026",
+    "displayReference": "1110/107"
+   },
+   "name": "Bias cut T-shirt",
+   "description": "Top-style T-shirt. Features a round neck and short drop-shoulder sleeves. Striped pattern. Made of bias cut knit fabric.",
+   "type": "Product",
+   "kind": "Clothing",
+   "state": {
+    "visibility": "visible",
+    "availability": "in_stock"
+   },
+   "classification": {
+    "brand": {
+     "id": 8,
+     "groupId": 9,
+     "groupCode": "lefties"
+    },
+    "section": {
+     "id": 3,
+     "name": "BOYS & GIRLS"
+    },
+    "family": {
+     "id": 2459,
+     "name": "T-SHIRT"
+    },
+    "subfamily": {
+     "id": 6197,
+     "name": "Girls’ Short Sleeve T-shirt"
+    },
+    "sizeSystem": "12558"
+   },
+   "color": {
+    "id": "644",
+    "commercialComponentId": "728049822",
+    "name": "PALE PINK",
+    "colorcutUrl": "https://static.lefties.com/assets/public/a3ba/220b/4d174d56bc92/9ac587cdf2d6/01110107644-R/01110107644-R.jpg?ts=1773658203175",
+    "volumes": [],
+    "otherColors": []
+   },
+   "pricing": {
+    "price": {
+     "current": {
+      "value": 199,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "previous": {
+      "value": 299,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "promotion": {
+      "name": "SALES-V2026_LeftiesES",
+      "startDate": "2026-07-22T18:31:51Z",
+      "endDate": "2026-08-31T21:59:00Z"
+     },
+     "discount": {
+      "label": "-33%",
+      "showDisclaimer": false
+     }
+    },
+    "originalPrice": {
+     "price": {
+      "value": 799,
+      "currency": {
+       "code": "EUR",
+       "exponent": -2
+      }
+     },
+     "discount": {
+      "label": "-75%",
+      "showDisclaimer": false
+     }
+    }
+   },
+   "media": [
+    {
+     "asset": {
+      "type": "image",
+      "assetId": "27626d8c380b4bb58887a87c940b3309",
+      "timestamp": "1773658328168",
+      "url": "https://static.lefties.com/assets/public/2762/6d8c/380b4bb58887/a87c940b3309/01110107644-A5/01110107644-A5.jpg?ts=1773658203787",
+      "formats": [],
+      "allowedScreens": [
+       "small",
+       "large"
+      ],
+      "metaUrl": "https://static.lefties.com/assets/public/2762/6d8c/380b4bb58887/a87c940b3309/meta.json",
+      "styles": {},
+      "editorialName": "a5",
+      "locations": [
+       "CATEGORY_PAGE",
+       "PRODUCT_PAGE"
+      ]
+     },
+     "layers": [],
+     "behavior": {
+      "location": "PDP,ZOOM1,ZOOM2,ZOOM3"
+     },
+     "regions": []
+    }
+   ],
+   "customMedias": {},
+   "sizes": [],
+   "tags": [],
+   "components": [],
+   "relations": [],
+   "attributes": [
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_1]",
+     "name": "ROPA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_2]",
+     "name": "NIÑA",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "[comp_lvl_3]",
+     "name": "CIRCULAR",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Label",
+     "identifier": "G-ROSAS",
+     "name": "Pink",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_KIDS_3_SECTION",
+     "name": "Kids",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SECTION",
+      "typeProbability": "1.0"
+     }
+    },
+    {
+     "type": "Label",
+     "identifier": "BASESTYLE",
+     "values": [],
+     "properties": {}
+    },
+    {
+     "type": "Smart_tag",
+     "identifier": "TAG_GIRL_3_SUBSECTION",
+     "name": "Girl",
+     "values": [],
+     "properties": {
+      "probability": "1.0",
+      "source": "GROUP",
+      "type": "SUBSECTION",
+      "typeProbability": "1.0"
+     }
+    }
+   ],
+   "features": {
+    "extraDetailTitle": "Composition, care & origin",
+    "highlightPrice": "false",
+    "hasPackagingInfo": "true",
+    "hasSpecialReturnConditions": "false",
+    "isSizeGuideEnabled": "true",
+    "isVirtualTryOnSupported": "false",
+    "isRecommendedCarouselEnabled": "true",
+    "isNotReturnable": "false",
+    "isSizeRecommender": "true",
+    "hasInteractiveSizeGuide": "true",
+    "isStockInStoresAvailable": "true"
+   },
+   "seo": {
+    "keyword": "bias-cut-tshirt-l01110107",
+    "seoProductId": "728039892",
+    "discernProductId": 728049822
+   },
+   "messages": {},
+   "firstAvailabilityDate": "2025-11-23T00:00:00Z",
+   "behaviour": {}
+  }
+ },
+ "views": {
+  "ZOOM1": {
+   "sections": [
+    {
+     "id": "8be3a162-5774-4cb6-86e8-311dcf0a31ff",
+     "type": "MAIN",
+     "elements": [
+      {
+       "kind": "EDITORIAL",
+       "id": "4d347c14-1aeb-4bf1-a98d-78875dac197a",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "727468523",
+         "assetId": "de7b810bad664b4e88e0954f346daccc"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Shorts sales sales | T-shirts sales sales | 60% in stock | Price From 50% | Ropa | Top 15"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "b917a715-c1ce-40ed-b7fc-d63b16d21620",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "729034551",
+         "assetId": "6a742d144a394420a7102e85bf4af746"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Shorts sales sales | T-shirts sales sales | 60% in stock | Price From 50% | Ropa | Top 15"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "eb9565ef-596b-43a8-b034-a41e6ce665e4",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "720273402",
+         "assetId": "4b231ccb70db402cae751e970124b66a"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "7f6da745-2706-4b92-9ef4-d9810d251ffd",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "749936256",
+         "assetId": "e9ace0bbd40d4d88af43584de8dbfef7"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "970e32e6-661a-483a-a5f4-f68821044fbf",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "720264626",
+         "assetId": "3f85fa7604684dc2b608000b46abed6c"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "50d5d622-7882-4c04-85d5-68824e189a76",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "749936251",
+         "assetId": "ccddd772d25541a7a0fc35a991195786"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "3bcb6e6b-e949-4653-ad88-d8eb151c8504",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "732634935",
+         "assetId": "9b3d7c18492f4cc483e85f9a8c021236"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "7a8d9fab-f0ea-42df-9802-b7de213cd396",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "730608147",
+         "assetId": "1186f9252bcc4f8180be62ae62ee740f"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "e5e256d1-ff38-4832-9ab0-8e549b739eaf",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "728643230",
+         "assetId": "77fc0ef061fd4f71b9bd9329c7027018"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "055d87c5-b067-4e5e-8968-8f4bc87cdaf7",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "727708514",
+         "assetId": "1e6f4671dbb647c1a8a210c4b41b80cb"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "0ff036e2-a00d-4ccf-86f8-44136d7fe3b9",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "727708512",
+         "assetId": "aceaeba3c4f049b2b3c575c642a08837"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "c20aa55b-4ec1-4955-9316-32f41ca2d6ba",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "727468524",
+         "assetId": "3869fe9e5fef43358da26cdce8c6e7ea"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "f6e2a65b-3296-4532-9536-e9eb6523de70",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "730608157",
+         "assetId": "9da0534525b0426dab284811692f14fb"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "8782e681-bf90-4f00-a75d-aeb2a7e54957",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "749936250",
+         "assetId": "83b2f7fcd73247c2b021f02f9ca697df"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "6f8dcfa9-4b95-4df1-b87c-53ac25052b09",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "736945236",
+         "assetId": "8af5fcbc9e644c3aa0801d7f69153970"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "2f7675c3-2bec-4747-8320-3d95980b5c44",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "736945235",
+         "assetId": "200e966626bf48429b72f23927bd1cab"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "2f3a88b1-975f-4333-b53a-07fe7ef961f0",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "735693830",
+         "assetId": "da4493bda3374fd7af92e25fd2f4a139"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "effed134-213e-493d-ae8a-fbcea5d97283",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "730578295",
+         "assetId": "ac4fa7a6f7bf4d498d066a06b4258e7a"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "12c0f1cd-b2b6-464c-9abf-4f6ad2bcc725",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "730578294",
+         "assetId": "57bac57f744642e3912f5e41c4e5f194"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "3c2719bf-81a2-44f3-8c6a-3950a323282b",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "730022526",
+         "assetId": "586e7104203a4bed835bcc00cd70a596"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "6a3add43-0572-4b74-837b-ea7deb12d5ac",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "728049822",
+         "assetId": "27626d8c380b4bb58887a87c940b3309"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "9c8e9dbb-b2d2-41a3-bcb8-2e7ceb88f251",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "727812353",
+         "assetId": "0bc543cf749841a2a53329a3be937f19"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "10b406d1-e8f2-4746-8d8a-6c3867fdd5f2",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "727646378",
+         "assetId": "4155a07da43740fc802c7fb557400e38"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "5a58bf79-7676-4deb-b369-92b073647696",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "726814093",
+         "assetId": "6de6ebb651724afba10fce1bce22a421"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "85a06ab6-98a5-4dc8-b241-5773ab938845",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "723653896",
+         "assetId": "0216ca608a7f41d8bf7ded32c3f8a6a9"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "868978aa-5f77-4979-8732-622fbd189d4e",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "723611354",
+         "assetId": "08bffeed5dc547ffa25880f649289b97"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "5e7b0888-4466-4845-a269-758006722981",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "722380734",
+         "assetId": "586be4cbe4434ecf9b50ca86059939a1"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "54443120-8ece-4561-b514-44d402db6180",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "722380733",
+         "assetId": "a53dd1ae2e804a7e9b05483caea58c1e"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "EDITORIAL",
+       "id": "f13f07d0-989d-49f5-ae1c-15ab23324b9c",
+       "name": "",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "720255206",
+         "assetId": "336576343a9c46d09b3f68c6a58603d8"
+        }
+       ],
+       "style": {},
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      }
+     ],
+     "attributes": [
+      {
+       "key": "gridSectionType",
+       "value": "REGULAR"
+      },
+      {
+       "key": "disablePersonalization",
+       "value": "false"
+      },
+      {
+       "key": "gridSectionName",
+       "value": "Shorts sales sales | T-shirts sales sales | 60% in stock | Price From 50% | Ropa | Top 15"
+      }
+     ]
+    }
+   ]
+  },
+  "ZOOM2": {
+   "sections": [
+    {
+     "id": "8be3a162-5774-4cb6-86e8-311dcf0a31ff",
+     "type": "MAIN",
+     "elements": [
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate1",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "727468523",
+         "assetId": "de7b810bad664b4e88e0954f346daccc"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "729034551",
+         "assetId": "6a742d144a394420a7102e85bf4af746"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "720273402",
+         "assetId": "4b231ccb70db402cae751e970124b66a"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "749936256",
+         "assetId": "e9ace0bbd40d4d88af43584de8dbfef7"
+        }
+       ],
+       "style": {
+        "layout": "zoom2-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Shorts sales sales | T-shirts sales sales | 60% in stock | Price From 50% | Ropa | Top 15"
+      },
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate2",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "720264626",
+         "assetId": "3f85fa7604684dc2b608000b46abed6c"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "749936251",
+         "assetId": "ccddd772d25541a7a0fc35a991195786"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "732634935",
+         "assetId": "9b3d7c18492f4cc483e85f9a8c021236"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "730608147",
+         "assetId": "1186f9252bcc4f8180be62ae62ee740f"
+        }
+       ],
+       "style": {
+        "layout": "zoom2-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate3",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "728643230",
+         "assetId": "77fc0ef061fd4f71b9bd9329c7027018"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "727708514",
+         "assetId": "1e6f4671dbb647c1a8a210c4b41b80cb"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "727708512",
+         "assetId": "aceaeba3c4f049b2b3c575c642a08837"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "727468524",
+         "assetId": "3869fe9e5fef43358da26cdce8c6e7ea"
+        }
+       ],
+       "style": {
+        "layout": "zoom2-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate4",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "730608157",
+         "assetId": "9da0534525b0426dab284811692f14fb"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "749936250",
+         "assetId": "83b2f7fcd73247c2b021f02f9ca697df"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "736945236",
+         "assetId": "8af5fcbc9e644c3aa0801d7f69153970"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "736945235",
+         "assetId": "200e966626bf48429b72f23927bd1cab"
+        }
+       ],
+       "style": {
+        "layout": "zoom2-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate5",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "735693830",
+         "assetId": "da4493bda3374fd7af92e25fd2f4a139"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "730578295",
+         "assetId": "ac4fa7a6f7bf4d498d066a06b4258e7a"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "730578294",
+         "assetId": "57bac57f744642e3912f5e41c4e5f194"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "730022526",
+         "assetId": "586e7104203a4bed835bcc00cd70a596"
+        }
+       ],
+       "style": {
+        "layout": "zoom2-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate6",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "728049822",
+         "assetId": "27626d8c380b4bb58887a87c940b3309"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "727812353",
+         "assetId": "0bc543cf749841a2a53329a3be937f19"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "727646378",
+         "assetId": "4155a07da43740fc802c7fb557400e38"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "726814093",
+         "assetId": "6de6ebb651724afba10fce1bce22a421"
+        }
+       ],
+       "style": {
+        "layout": "zoom2-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate7",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "723653896",
+         "assetId": "0216ca608a7f41d8bf7ded32c3f8a6a9"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "723611354",
+         "assetId": "08bffeed5dc547ffa25880f649289b97"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "722380734",
+         "assetId": "586be4cbe4434ecf9b50ca86059939a1"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "722380733",
+         "assetId": "a53dd1ae2e804a7e9b05483caea58c1e"
+        }
+       ],
+       "style": {
+        "layout": "zoom2-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate8",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "720255206",
+         "assetId": "336576343a9c46d09b3f68c6a58603d8"
+        }
+       ],
+       "style": {
+        "layout": "zoom2-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      }
+     ],
+     "attributes": [
+      {
+       "key": "gridSectionType",
+       "value": "REGULAR"
+      },
+      {
+       "key": "disablePersonalization",
+       "value": "false"
+      },
+      {
+       "key": "gridSectionName",
+       "value": "Shorts sales sales | T-shirts sales sales | 60% in stock | Price From 50% | Ropa | Top 15"
+      }
+     ]
+    }
+   ]
+  },
+  "ZOOM3": {
+   "sections": [
+    {
+     "id": "8be3a162-5774-4cb6-86e8-311dcf0a31ff",
+     "type": "MAIN",
+     "elements": [
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate1",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "727468523",
+         "assetId": "de7b810bad664b4e88e0954f346daccc"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "729034551",
+         "assetId": "6a742d144a394420a7102e85bf4af746"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "720273402",
+         "assetId": "4b231ccb70db402cae751e970124b66a"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "749936256",
+         "assetId": "e9ace0bbd40d4d88af43584de8dbfef7"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "720264626",
+         "assetId": "3f85fa7604684dc2b608000b46abed6c"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "749936251",
+         "assetId": "ccddd772d25541a7a0fc35a991195786"
+        }
+       ],
+       "style": {
+        "layout": "zoom3-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Shorts sales sales | T-shirts sales sales | 60% in stock | Price From 50% | Ropa | Top 15"
+      },
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate2",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "732634935",
+         "assetId": "9b3d7c18492f4cc483e85f9a8c021236"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "730608147",
+         "assetId": "1186f9252bcc4f8180be62ae62ee740f"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "728643230",
+         "assetId": "77fc0ef061fd4f71b9bd9329c7027018"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "727708514",
+         "assetId": "1e6f4671dbb647c1a8a210c4b41b80cb"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "727708512",
+         "assetId": "aceaeba3c4f049b2b3c575c642a08837"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "727468524",
+         "assetId": "3869fe9e5fef43358da26cdce8c6e7ea"
+        }
+       ],
+       "style": {
+        "layout": "zoom3-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate3",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "730608157",
+         "assetId": "9da0534525b0426dab284811692f14fb"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "749936250",
+         "assetId": "83b2f7fcd73247c2b021f02f9ca697df"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "736945236",
+         "assetId": "8af5fcbc9e644c3aa0801d7f69153970"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "736945235",
+         "assetId": "200e966626bf48429b72f23927bd1cab"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "735693830",
+         "assetId": "da4493bda3374fd7af92e25fd2f4a139"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "730578295",
+         "assetId": "ac4fa7a6f7bf4d498d066a06b4258e7a"
+        }
+       ],
+       "style": {
+        "layout": "zoom3-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate4",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "730578294",
+         "assetId": "57bac57f744642e3912f5e41c4e5f194"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "730022526",
+         "assetId": "586e7104203a4bed835bcc00cd70a596"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "728049822",
+         "assetId": "27626d8c380b4bb58887a87c940b3309"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "727812353",
+         "assetId": "0bc543cf749841a2a53329a3be937f19"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "727646378",
+         "assetId": "4155a07da43740fc802c7fb557400e38"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "726814093",
+         "assetId": "6de6ebb651724afba10fce1bce22a421"
+        }
+       ],
+       "style": {
+        "layout": "zoom3-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      },
+      {
+       "kind": "AUTOTEMPLATE",
+       "id": "defaultTemplate5",
+       "componentIds": [
+        {
+         "type": "assetRef",
+         "ccid": "723653896",
+         "assetId": "0216ca608a7f41d8bf7ded32c3f8a6a9"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "723611354",
+         "assetId": "08bffeed5dc547ffa25880f649289b97"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "722380734",
+         "assetId": "586be4cbe4434ecf9b50ca86059939a1"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "722380733",
+         "assetId": "a53dd1ae2e804a7e9b05483caea58c1e"
+        },
+        {
+         "type": "assetRef",
+         "ccid": "720255206",
+         "assetId": "336576343a9c46d09b3f68c6a58603d8"
+        }
+       ],
+       "style": {
+        "layout": "zoom3-default"
+       },
+       "linkedBlocks": [],
+       "tags": [],
+       "attributes": [],
+       "hiddenFields": [],
+       "gridSectionName": "Sales | V2026"
+      }
+     ],
+     "attributes": [
+      {
+       "key": "gridSectionType",
+       "value": "REGULAR"
+      },
+      {
+       "key": "disablePersonalization",
+       "value": "false"
+      },
+      {
+       "key": "gridSectionName",
+       "value": "Shorts sales sales | T-shirts sales sales | 60% in stock | Price From 50% | Ropa | Top 15"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "layouts": {}
+}

@@ -200,6 +200,23 @@ class CategoryConfig:
     section: str  # ropa | zapateria
     category: str  # nuestro vocabulario, no el suyo
 
+    @property
+    def estacional(self) -> bool:
+        """¿Es una hoja de campaña, o sea de las que pueden apagarse sin estar retiradas?
+
+        Sale de la colección del propio `catalog_id` en vez de escribirse hoja a hoja: son **55 de
+        las 111** y una marca a mano en cada una envejecería a la primera que se añadiera sin ella.
+        La convención está garantizada por la forma del identificador (`{coleccion}_{rama}.…`), que
+        es de la tienda y no nuestra.
+
+        Lo que esto cambia está medido en #176: `rebajas_newborn.sudaderas_newborn` dio 404 en `dev`
+        y un día después respondía otra vez con el **mismo `catalogId`**. O sea que el 404 de una
+        hoja de campaña es el espejo apagado, no una categoría retirada, y los dos son
+        indistinguibles mirando solo el status. Ver `LeafHealth.estacional` y el criterio en
+        `lefties.py`, que es donde se decidió.
+        """
+        return self.catalog_id.startswith("rebajas_")
+
 
 # Las 111 hojas, **leídas del menú que publica la tienda** (03/08/2026) y verificadas una a una
 # contra la API de listado: 111 vivas, 0 fallos. No están adivinadas — `category_tree()` las vuelve
@@ -799,6 +816,20 @@ class MangoStore:
             payload = self._get_hoja(client, cat.catalog_id)
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in GONE_STATUS:
+                if cat.estacional:
+                    # Campaña apagada, no categoría retirada (#176). No compromete el ámbito: lo
+                    # sigue listando su gemela `prendas_*`, que tiene exactamente el mismo. Y no
+                    # cuenta como hoja caída porque al acabar una campaña se apagarían muchas a la
+                    # vez, que es como `SCRAPER_SCAN_MAX_DEAD_RATIO` abortaría la pasada de una
+                    # tienda sana — el mismo razonamiento que hace `es_listado()` con la hoja vacía,
+                    # para su otra forma de apagarse.
+                    logger.info(
+                        "%s: la hoja de campaña %r devolvió %s; se ignora (apagada, no retirada)",
+                        SLUG,
+                        cat.catalog_id,
+                        exc.response.status_code,
+                    )
+                    return None
                 self._hoja_comprometida(
                     scope,
                     cat.catalog_id,
@@ -914,6 +945,12 @@ class MangoStore:
         El sondeo más simple del repo, y es mérito de la tienda: un catálogo que no existe da 404,
         así que basta el status. Sin canario (H&M), sin comparar con el padre (Sfera, Hipercor) y
         sin desambiguar una lista vacía (Cacles).
+
+        Lo único que el status **no** distingue es la hoja de campaña apagada de la categoría
+        retirada: las dos dan el mismo 404 limpio (#176). Eso lo dice `CategoryConfig.estacional`,
+        que no es una excusa para tragarse el 404 —la hoja sigue `alive=False`, y mientras esté así
+        no se ingiere lo que hubiera dentro— sino para que el vigía avise en vez de pedir cada
+        jueves un id nuevo que va a volver solo.
         """
         with self._client() as client:
             for cat in self._categories:
@@ -923,7 +960,12 @@ class MangoStore:
                 except httpx.HTTPStatusError as exc:
                     status = exc.response.status_code
                     if status in GONE_STATUS:
-                        yield LeafHealth(scope, cat.catalog_id, False, f"HTTP {status}")
+                        detalle = f"HTTP {status}"
+                        if cat.estacional:
+                            detalle += ": hoja de campaña apagada, su catalogId vuelve con ella"
+                        yield LeafHealth(
+                            scope, cat.catalog_id, False, detalle, estacional=cat.estacional
+                        )
                     else:
                         yield LeafHealth(scope, cat.catalog_id, None, f"HTTP {status}")
                 except (httpx.TransportError, ValueError) as exc:

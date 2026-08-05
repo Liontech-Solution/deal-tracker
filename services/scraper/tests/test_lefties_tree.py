@@ -177,7 +177,7 @@ def test_el_padre_declarado_es_el_que_publica_el_menu() -> None:
     publicadas = {n.path for n in parse_category_tree(_menu(), _NINOS)}
     de_nina = [c for c in CATEGORIES if c.parent.startswith(_NINA)]
 
-    assert len(de_nina) == 19, "la fixture cubre la rama de niña entera"
+    assert len(de_nina) == 20, "la fixture cubre la rama de niña entera"
     for cat in de_nina:
         assert f"{cat.parent}/{cat.category_id}" in publicadas, (
             f"la hoja {cat.category_id} dice colgar de {cat.parent}, y el menú no lo publica así"

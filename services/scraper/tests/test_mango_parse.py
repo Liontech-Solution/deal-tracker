@@ -33,6 +33,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 
 from scraper.config import Config
@@ -343,6 +344,60 @@ def test_una_respuesta_sin_forma_de_listado_si_compromete_la_hoja() -> None:
     assert store.scan_report().leaves_failed == 1
     # Nombrada por su `catalogId` (#155), el mismo que le da el menú público de la tienda y el
     # mismo que el vigía pone en `LeafHealth.leaf`.
+    assert store.scan_report().failed_leaves == [cat.catalog_id]
+
+
+# --- la hoja de campaña: apagarse no es retirarse (#176) --------------------------------------
+
+
+def test_la_coleccion_de_rebajas_es_la_estacional_y_la_permanente_no() -> None:
+    """La marca sale del `catalogId` y no de una lista a mano: son 55 de 111 y crecen."""
+    assert _hoja("niña", "ropa", "pantalones", "rebajas_nina").estacional is True
+    assert _hoja("niña", "ropa", "pantalones", "prendas_nina").estacional is False
+    assert [c.catalog_id for c in CATEGORIES if c.estacional] == [
+        c.catalog_id for c in CATEGORIES if c.catalog_id.startswith("rebajas_")
+    ]
+
+
+def test_el_404_de_una_hoja_de_campana_no_la_cuenta_como_caida() -> None:
+    """El caso medido en #176: la hoja dio 404 y al día siguiente volvió con el MISMO `catalogId`.
+
+    Contarla como caída al acabar cada campaña sacaría de las bajas un ámbito que su gemela
+    `prendas_*` está listando perfectamente, y con muchas hojas a la vez dispararía
+    `SCRAPER_SCAN_MAX_DEAD_RATIO` en una tienda sana.
+    """
+    store = MangoStore(_CFG, categories=[_hoja("niña", "ropa", "pantalones", "rebajas_nina")])
+    cat = store._categories[0]
+
+    def _404(*a: object, **k: object) -> object:
+        raise httpx.HTTPStatusError(
+            "404",
+            request=httpx.Request("GET", "https://mango.example"),
+            response=httpx.Response(404),
+        )
+
+    store._get = _404  # type: ignore[method-assign, assignment]
+    assert store._leer_hoja(None, cat) is None  # type: ignore[arg-type]
+    assert store.scan_report().leaves_failed == 0
+    assert store.scan_report().failed_scopes == set()
+    assert store.scan_report().failed_leaves == []
+
+
+def test_el_404_de_una_hoja_permanente_si_la_cuenta_como_caida() -> None:
+    """La contraprueba: esto es lo que la marca NO puede tapar."""
+    store = MangoStore(_CFG, categories=[_hoja("niña", "ropa", "pantalones", "prendas_nina")])
+    cat = store._categories[0]
+
+    def _404(*a: object, **k: object) -> object:
+        raise httpx.HTTPStatusError(
+            "404",
+            request=httpx.Request("GET", "https://mango.example"),
+            response=httpx.Response(404),
+        )
+
+    store._get = _404  # type: ignore[method-assign, assignment]
+    assert store._leer_hoja(None, cat) is None  # type: ignore[arg-type]
+    assert store.scan_report().leaves_failed == 1
     assert store.scan_report().failed_leaves == [cat.catalog_id]
 
 

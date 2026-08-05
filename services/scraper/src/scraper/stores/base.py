@@ -322,6 +322,17 @@ class LeafHealth:
     leaf: str  # el identificador de la hoja tal y como lo escribe la tienda (id, uuid, ruta)
     alive: bool | None  # True viva, False retirada, None sin veredicto (fallo nuestro)
     detail: str = ""  # qué respondió, para poder actuar sin repetir la petición a mano
+    # La hoja **depende de una campaña**, así que apagarse es su comportamiento normal y no una
+    # retirada que haya que ir a arreglar. No es un cuarto valor de `alive`: una hoja de campaña
+    # apagada está retirada de verdad (`alive=False`) —no se puede listar, y lo que solo vivía
+    # dentro deja de ingerirse—, lo que cambia es que era **esperable**, y por eso el vigía la
+    # cuenta como aviso y no como accionable (ver `vigia.revisar_hojas`).
+    #
+    # Medido en las dos tiendas que tienen hojas así (#176, #195): en Mango la hoja da 404 y vuelve
+    # con el MISMO `catalogId` un día después; en Lefties desaparece del menú al acabar la campaña.
+    # Sin esta marca, las dos abrirían una issue del vigía cada semana pidiendo un id nuevo que ya
+    # existe, que es la forma más rápida de que nadie se crea al vigía.
+    estacional: bool = False
 
 
 @runtime_checkable

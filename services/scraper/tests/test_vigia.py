@@ -160,6 +160,44 @@ def test_una_hoja_retirada_es_accionable() -> None:
     assert "muerta" in informe.render()
 
 
+def test_una_hoja_de_campana_apagada_avisa_pero_no_rompe() -> None:
+    """Está retirada de verdad, pero su id vuelve con la campaña: pedirlo cada jueves es ruido.
+
+    Es el falso positivo que #176 midió en Mango —404 un día, viva con el MISMO `catalogId` al
+    siguiente— y que Lefties tendría igual al acabar sus rebajas.
+    """
+    tienda = TiendaFalsa(
+        hojas=[
+            LeafHealth(_AMBITO, "viva", True, "HTTP 200"),
+            LeafHealth(_AMBITO, "rebajas_nina.x", False, "HTTP 404", estacional=True),
+        ]
+    )
+    informe = Informe("falsa")
+    revisar_hojas(tienda, informe)  # type: ignore[arg-type]
+
+    assert informe.esta_bien
+    assert informe.avisos and "campaña apagada" in informe.avisos[0]
+    assert "rebajas_nina.x" in informe.render()
+    assert "RETIRADA" not in informe.render()
+
+
+def test_una_hoja_retirada_de_verdad_sigue_siendo_accionable_junto_a_una_estacional() -> None:
+    """La contraprueba: la marca no puede tapar a la de al lado."""
+    tienda = TiendaFalsa(
+        hojas=[
+            LeafHealth(_AMBITO, "viva", True, "HTTP 200"),
+            LeafHealth(_AMBITO, "rebajas_nina.x", False, "HTTP 404", estacional=True),
+            LeafHealth(_AMBITO, "muerta", False, "HTTP 404"),
+        ]
+    )
+    informe = Informe("falsa")
+    revisar_hojas(tienda, informe)  # type: ignore[arg-type]
+
+    assert not informe.esta_bien
+    assert "1 hoja(s) RETIRADA(S)" in informe.render()
+    assert "muerta" in informe.render()
+
+
 def test_una_hoja_sin_veredicto_avisa_pero_no_rompe() -> None:
     """Un 403 suelto de Akamai es rutina; un vigía que canta por eso acaba silenciado."""
     tienda = TiendaFalsa(
