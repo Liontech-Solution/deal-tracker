@@ -1479,6 +1479,27 @@ rollback); si el backend sobrevive al pod, `pg_terminate_backend(<pid>)` — y c
 el pod cliente ya no existe, porque en un cluster con varias sesiones eso puede ser el trabajo de
 otro corriendo.
 
+**Desde #169 la espera está acotada y el síntoma es otro**, así que quien se lo encuentre ya no verá
+el silencio de arriba: `db.connect()` abre la sesión con `lock_timeout` (`SCRAPER_LOCK_TIMEOUT`,
+30 s; `0` devuelve la espera infinita), y al saltar, `run.py` consulta `pg_stat_activity` por una
+conexión nueva —la que falló se queda con la transacción abortada— y escribe un error que dice que
+**no es lentitud**, con el `pid`, el estado y cuánto lleva en transacción quien retiene las filas.
+Va como parámetro de la conexión y no como un `SET` posterior para que cubra lo primero que se
+ejecuta, y alcanza a toda la sesión a propósito, **migraciones incluidas**: un `ALTER TABLE`
+esperando su `ACCESS EXCLUSIVE` detrás de una pasada viva es este mismo fallo con peor cara. Dos
+consecuencias medidas: una pasada bloqueada tarda **~2× el timeout** en morir, porque
+`_record_failed_run` vuelve a chocar con el mismo lock al dejar constancia; y el vigía se beneficia
+sin tocarlo, porque `Historial` ya se degradaba ante cualquier excepción y ahora lo hace en 30 s en
+vez de colgar el job.
+
+Lo que **no** se hizo, y con un dato que lo desaconseja: `idle_in_transaction_session_timeout` en el
+rol de la CNPG, que atacaría la causa en vez del síntoma. **La fase 1 de la ingesta no ejecuta ningún
+SQL mientras lista el catálogo** —el bucle sobre `list_catalog()` corre dentro de la transacción ya
+abierta—, así que nuestras pasadas legítimas están `idle in transaction` durante todo el listado:
+36 s medidos en Zara (3957 entradas, 05/08/2026) y minutos en las tiendas lentas. Elegido corto,
+ese timeout mataría pasadas buenas; el valor tendría que salir de medir el listado más largo, no de
+la intuición.
+
 ### Una ficha que no se puede leer se convierte en una baja falsa dos pasadas después
 
 Es el contrato menos evidente entre `stores/*` e `ingest.py`, y no está escrito en ninguna firma.

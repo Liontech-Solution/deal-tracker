@@ -18,6 +18,8 @@ import logging
 import sys
 from collections import Counter
 
+import psycopg
+
 from . import db
 from .config import Config, load_dotenv
 from .ingest import CatalogScanAborted, ingest
@@ -263,6 +265,43 @@ def _configura_logging(nivel: str) -> None:
             logging.getLogger(ruidosa).setLevel(logging.WARNING)
 
 
+def _mensaje_bloqueo(config: Config) -> str:
+    """Explica un `lock_timeout` agotado y señala a quien retiene las filas (#169).
+
+    El objetivo es que el mensaje diga lo que costó 13 minutos de pod averiguar la primera vez: que
+    esto NO es lentitud. Sin la lista de sesiones el error seguiría siendo un misterio, así que se
+    pide aquí — pero si pedirla falla, el mensaje sale igual: nunca puede tapar al error original.
+    """
+    lineas = [
+        f"✖ pasada abortada: no se pudo tomar un lock en {config.lock_timeout:g}s "
+        "(SCRAPER_LOCK_TIMEOUT).",
+        "  No es lentitud: alguien sostiene las filas que esta pasada necesita.",
+    ]
+    try:
+        abiertas = db.transacciones_abiertas(config)
+    except Exception as exc:  # pragma: no cover - el diagnóstico es de apoyo
+        lineas.append(f"  (no se ha podido consultar pg_stat_activity: {exc})")
+        return "\n".join(lineas)
+    if abiertas:
+        cuantas = (
+            "1 transacción abierta"
+            if len(abiertas) == 1
+            else f"{len(abiertas)} transacciones abiertas"
+        )
+        lineas.append(f"  Hay {cuantas} sobre esta base:")
+        lineas.extend(f"    {s}" for s in abiertas)
+        lineas.append(
+            "  Una `idle in transaction` con horas encima suele ser una pasada anterior muerta "
+            "cuyo backend Postgres aún no ha soltado."
+        )
+    else:
+        lineas.append(
+            "  Ya no queda ninguna transacción abierta: la culpable ha soltado entre el fallo y "
+            "esta consulta. Reintentar debería bastar."
+        )
+    return "\n".join(lineas)
+
+
 def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     args = _parse_args(argv)
@@ -284,11 +323,11 @@ def main(argv: list[str] | None = None) -> int:
 
     store = get_store(args.retailer, config)
     with db.connect(config) as conn:
-        if args.migrate:
-            applied = apply_migrations(conn)
-            if applied:
-                print(f"migraciones aplicadas: {', '.join(applied)}")
         try:
+            if args.migrate:
+                applied = apply_migrations(conn)
+                if applied:
+                    print(f"migraciones aplicadas: {', '.join(applied)}")
             result = ingest(
                 conn,
                 store,
@@ -306,6 +345,11 @@ def main(argv: list[str] | None = None) -> int:
         except CatalogScanAborted as exc:
             # Un traceback aquí no aporta nada: el mensaje ya dice qué pasó y qué mirar.
             print(f"✖ pasada abortada: {exc}", file=sys.stderr)
+            return 1
+        except psycopg.errors.LockNotAvailable:
+            # Tampoco aquí: el traceback señalaría el INSERT que se comió la espera, que es el
+            # síntoma. Lo que hace falta saber es quién retiene las filas (#169).
+            print(_mensaje_bloqueo(config), file=sys.stderr)
             return 1
 
     print(

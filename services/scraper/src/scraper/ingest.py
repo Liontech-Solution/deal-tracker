@@ -964,7 +964,10 @@ def _record_failed_run(
     la fila, "¿desde cuándo falla esta tienda?" es una consulta.
 
     Que este registro falle no puede tapar el error original (que se está propagando), así que se
-    traga cualquier excepción: es información útil, no parte del contrato.
+    traga cualquier excepción: es información útil, no parte del contrato. Eso incluye el caso de
+    #169 — si la pasada murió por un `lock_timeout`, este `_upsert_retailer` choca con el MISMO
+    lock y agota otro timeout antes de rendirse. O sea que una pasada bloqueada tarda ~2× el
+    `lock_timeout` en morir; sigue siendo segundos frente a las cinco horas de antes.
     """
     try:
         with conn.cursor() as cur:
