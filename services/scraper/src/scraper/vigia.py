@@ -180,17 +180,18 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
     #
     # Declarar la rama basta y por eso no aparecen las subcategorías (`nina/bano/bikinis`,
     # `nino/complementos/gorras`, `nina/chaquetas/chalecos`…): se callan solas por `cubierta`.
-    # H&M enumera desde #179. Son 112 declaraciones para 393 rutas bajo las siete ramas de
+    # H&M enumera desde #179. Son 119 declaraciones para 393 rutas bajo las siete ramas de
     # `tree_roots()`, y esa proporción es la propia tienda: publica 17 vistas por rama de género
     # («Básicos», «Ver todo», «Multipacks», «Licencias»…) que reagrupan lo que ya entra por su
     # categoría. Se declaran **hoja a hoja bajo `clothing` y de rama entera fuera**: declarar
     # `/kids/boys/clothing` de una vez serían 7 líneas en lugar de 90, pero taparía una categoría
     # nueva justo donde el brief vive, que es lo único que esta capa existe para ver.
     #
-    # Eran 119 hasta #192: las siete `*/clothing/sets-outfits` se fueron de aquí a `CATEGORIES`, con
-    # categoría propia `conjuntos`. Es el ciclo que esta capa existe para producir —se ve, se mide,
-    # se decide, y la declaración desaparece—, y el que `test_cobertura_declarada_no_solapa_con_lo_
-    # mapeado` obliga a cerrar: dejarlas aquí además de en `CATEGORIES` rompe `pytest`.
+    # Las siete `sets-outfits` salieron de aquí en #192 y **volvieron en el mismo PR**, que es lo
+    # que hace que su motivo valga: ahora está medido en vez de supuesto. Se ingirieron de verdad y
+    # de los 20 productos que trajeron, 11 eran disfraces y 1 un bikini —o sea
+    # `fancy-dress-costumes` y `swimwear`, dos ramas de esta misma lista, entrando por la puerta de
+    # atrás—. El porqué completo está en la cabecera de `hm.py`.
     #
     # Tres NO son decisión firme, y conviene que se lean así (mismo formato que #187 en
     # springfield): el uniforme escolar publica pantalón, vestido, polo, jersey y zapato, o sea
@@ -210,6 +211,7 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/boys/clothing/linen": "vista transversal por material (1)",
         "/kids/boys/clothing/multipacks": "packs: varias prendas en una referencia (1)",
         "/kids/boys/clothing/party-occasion": "vista transversal por ocasión (1)",
+        "/kids/boys/clothing/sets-outfits": "conjuntos: 11 de 20 eran disfraces, #192 (1)",
         "/kids/boys/clothing/socks": "calcetines: fuera del brief (1)",
         "/kids/boys/clothing/sport": "deportiva, transversal: #180 (1)",
         "/kids/boys/clothing/swimwear": "baño: fuera del brief (1)",
@@ -229,6 +231,7 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/boys-9-14y/clothing/linen": "vista transversal por material (1)",
         "/kids/boys-9-14y/clothing/multipacks": "packs: varias prendas en una referencia (1)",
         "/kids/boys-9-14y/clothing/party-occasion": "vista transversal por ocasión (1)",
+        "/kids/boys-9-14y/clothing/sets-outfits": "conjuntos: 11 de 20 eran disfraces, #192 (1)",
         "/kids/boys-9-14y/clothing/socks": "calcetines: fuera del brief (1)",
         "/kids/boys-9-14y/clothing/sport": "deportiva, transversal: #180 (1)",
         "/kids/boys-9-14y/clothing/swimwear": "baño: fuera del brief (1)",
@@ -248,6 +251,7 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/girls/clothing/linen": "vista transversal por material (1)",
         "/kids/girls/clothing/multipacks": "packs: varias prendas en una referencia (1)",
         "/kids/girls/clothing/party-occasion": "vista transversal por ocasión (1)",
+        "/kids/girls/clothing/sets-outfits": "conjuntos: 11 de 20 eran disfraces, #192 (1)",
         "/kids/girls/clothing/socks-tights": "calcetines: fuera del brief (1)",
         "/kids/girls/clothing/sport": "deportiva, transversal: #180 (1)",
         "/kids/girls/clothing/swimwear": "baño: fuera del brief (1)",
@@ -268,6 +272,7 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/girls-9-14y/clothing/linen": "vista transversal por material (1)",
         "/kids/girls-9-14y/clothing/multipacks": "packs: varias prendas en una referencia (1)",
         "/kids/girls-9-14y/clothing/party-occasion": "vista transversal por ocasión (1)",
+        "/kids/girls-9-14y/clothing/sets-outfits": "conjuntos: 11 de 20 eran disfraces, #192 (1)",
         "/kids/girls-9-14y/clothing/socks-tights": "calcetines: fuera del brief (1)",
         "/kids/girls-9-14y/clothing/sport": "deportiva, transversal: #180 (1)",
         "/kids/girls-9-14y/clothing/swimwear": "baño: fuera del brief (1)",
@@ -285,6 +290,7 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/baby/boys/clothing/multipacks": "packs: varias prendas en una referencia (1)",
         "/baby/boys/clothing/party-occasion": "vista transversal por ocasión (1)",
         "/baby/boys/clothing/rompers": "monos: sin decidir, ver Lefties (1)",
+        "/baby/boys/clothing/sets-outfits": "conjuntos: 11 de 20 eran disfraces, #192 (1)",
         "/baby/boys/clothing/socks": "calcetines: fuera del brief (1)",
         "/baby/boys/clothing/swimwear": "baño: fuera del brief (1)",
         "/baby/boys/clothing/view-all": "«Ver todo»: la rama entera (1)",
@@ -301,6 +307,7 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/baby/girls/clothing/multipacks": "packs: varias prendas en una referencia (1)",
         "/baby/girls/clothing/party-occasion": "vista transversal por ocasión (1)",
         "/baby/girls/clothing/rompers": "monos: sin decidir, ver Lefties (1)",
+        "/baby/girls/clothing/sets-outfits": "conjuntos: 11 de 20 eran disfraces, #192 (1)",
         "/baby/girls/clothing/socks-tights": "calcetines: fuera del brief (1)",
         "/baby/girls/clothing/swimwear": "baño: fuera del brief (1)",
         "/baby/girls/clothing/view-all": "«Ver todo»: la rama entera (1)",
@@ -314,6 +321,7 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/baby/newborn/clothing/linen": "vista transversal por material (1)",
         "/baby/newborn/clothing/outerwear": "abrigo: fuera del brief (1)",
         "/baby/newborn/clothing/rompers": "monos: sin decidir, ver Lefties (1)",
+        "/baby/newborn/clothing/sets-outfits": "conjuntos: 11 de 20 eran disfraces, #192 (1)",
         "/baby/newborn/clothing/socks-tights": "calcetines: fuera del brief (1)",
         "/baby/newborn/clothing/view-all": "«Ver todo»: la rama entera (1)",
         "/baby/newborn/outerwear": "abrigo: fuera del brief (4)",
