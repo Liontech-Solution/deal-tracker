@@ -1828,6 +1828,65 @@ que el vocabulario es **una deuda declarada, no una inconsistencia accidental**.
 `barefoot` usado como slug de categoría en Zara y Lefties, que deja esos productos sin categoría
 real.
 
+**El criterio para la prenda que no es ninguna de las cinco (#187, #192): ¿tiene una de las cinco
+como casa natural?** Si la respuesta es sí, va ahí, y quien la contesta no somos nosotros sino el
+resto de tiendas: el pijama entra por `ropa-interior` en Zara, H&M, Hipercor y C&A, así que
+Springfield —la única que lo dejaba fuera— se alineó (63 prendas). Si es no, categoría propia, y
+sale barata: `product.category` es TEXT libre sin `CHECK` (`0001_init.sql:37`) y la faceta del web
+se deriva del dato (`catalog.service.ts`, `pick('category', true)`), así que una categoría nueva
+aparece sola en el filtro **sin migración y sin tocar el servicio web** — verificado contra la API
+con `conjuntos` el 05/08/2026. La lista de cinco del brief no está codificada en ningún sitio
+ejecutable; vive en un comentario.
+
+**Y una hoja nueva va SIEMPRE detrás de las del brief.** Con el «gana la primera» de
+`list_catalog()` (en H&M, `ambito_cruzado` fijando sección y categoría con la primera hoja), ir
+detrás significa que un producto que la tienda **también** publica bajo una de las cinco conserva
+esa categoría. Eso convierte la taxonomía de la tienda en el árbitro en vez de quien mapea, y es un
+invariante de verdad: se protege con un test de orden por tienda, no con un comentario.
+
+#### El residuo de una hoja que reagrupa NO es una categoría (#192)
+
+Esto costó dos reversiones en la misma sesión y es la parte que hay que leer antes de mapear una
+hoja de «conjuntos», «packs», «total look» o similares.
+
+Medir los productos **exclusivos** de una hoja —los que no entran por ninguna otra que ingerimos—
+parece decir «estos no tienen casa natural». **No dice eso.** También son exclusivos los que tienen
+una casa que hemos decidido *no* ingerir, y en una hoja que reagrupa las dos poblaciones se
+confunden. El residuo no es la categoría nueva: es todo lo que la tienda archiva ahí y nosotros
+excluimos por otra vía. Medido el 05/08/2026, ingiriendo de verdad y mirando los nombres:
+
+| tienda | hoja | ingeridos | legítimos | qué era el resto |
+|---|---|---:|---:|---|
+| c-and-a | `3-1-18`/`3-7-17` | 5 | **5** | — |
+| hipercor | `bebe-*/conjuntos` | 1 | **1** | — |
+| hm | `*/clothing/sets-outfits` ×7 | 20 | ~8 | 11 disfraces + 1 bikini, o sea `fancy-dress-costumes` y `swimwear`, dos ramas que su propia cabecera declara fuera |
+| zara | `CONJUNTOS`/`TOTAL LOOK` ×3 | 41 | 7 | gorros, capotas, cazadoras, blazers |
+
+Las dos últimas se revirtieron. El indicio estructural estaba a la vista en Zara y no se leyó: sus
+tres hojas cuelgan de `TOTAL LOOK | CHÁNDAL`, no del eje de prenda — son **lookbooks**, agrupan las
+prendas sueltas que componen un look. Springfield tenía la versión extrema: sus `total-looks` son
+páginas «Shop the look» que devuelven 200 con 273 KB de HTML y **cero** `ld+json`, `size-data` y
+`data-color-info`; no hay prenda, ni talla, ni precio.
+
+Tres consecuencias operativas:
+
+- **Esto no lo ve un test con fixtures ni un `--dry-run`.** Hace falta ingerir contra una Postgres
+  desechable y **leer los nombres** de lo que entró. Es una consulta de diez segundos
+  (`SELECT name FROM product WHERE category = '<nueva>'`) y es la única que distingue las dos
+  poblaciones.
+- **Cuando la hoja se descarta, la declaración de `COBERTURA_DECLARADA` vuelve mejor de lo que
+  estaba**: con el motivo medido en vez de supuesto. Es el ciclo que esa capa existe para producir,
+  y la vuelta cuenta tanto como la ida.
+- **El camino que sí queda abierto es filtrar por nombre dentro de la hoja.** H&M rotula «Conjunto
+  de N piezas» y C&A «conjunto - … - 2 prendas», sistemáticamente. Es maquinaria nueva y es la misma
+  que pide Sfera para sus 25 conjuntos mezclados dentro de `ropa-deportiva`.
+
+Un aviso de calibración para el que lea la tabla: un número de #192 estaba **caducado** y casi
+decide el trabajo. Decía «207 prendas nuevas en Zara»; se había medido mientras se implementaba
+#186, contra el catálogo de antes de que existieran las hojas de bebé. Con ellas dentro son 242 en
+la hoja y 212 ya entraban. **Un número medido en una issue lleva implícito el estado del catálogo
+de ese día**, y si entre medias se ha mapeado una rama entera, hay que volver a medirlo.
+
 ### Local
 
 Postgres desechable en Docker para tests e ingesta. `TEST_DATABASE_URL` decide si corren los tests
