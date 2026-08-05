@@ -22,7 +22,14 @@ from pathlib import Path
 from typing import Any
 
 from scraper.config import Config
-from scraper.stores.lefties import CATEGORIES, CategoryConfig, LeftiesStore, parse_category_tree
+from scraper.stores.lefties import (
+    CATEGORIES,
+    CategoryConfig,
+    LeftiesStore,
+    TagLeaf,
+    parse_category_tree,
+)
+from scraper.tags import TAG_DEPORTIVA
 
 FIXTURES = Path(__file__).parent / "fixtures"
 _CFG = Config(database_url="postgresql://unused", request_delay=0.0)
@@ -152,29 +159,49 @@ def test_una_raiz_que_el_menu_no_publica_da_lista_vacia() -> None:
 # --- El contrato de la tienda -----------------------------------------------------------------
 
 
+class _SesionProhibida:
+    """Sesión que revienta si alguien la usa: `mapped_leaves()` no puede tocar la red."""
+
+    def __enter__(self) -> _SesionProhibida:
+        raise AssertionError("mapped_leaves() no debe abrir el navegador")
+
+    def __exit__(self, *_exc: Any) -> None:
+        return None
+
+
 def test_mapped_leaves_sale_de_categories_y_no_pide_nada() -> None:
     """`parent` + `category_id`, sin tocar el menú.
 
     Lo comprueba con una sesión que revienta si alguien la usa, porque es la propiedad que hace
     que `test_cobertura_declarada_no_solapa_con_lo_mapeado` siga siendo hermético en CI.
     """
-
-    class _SesionProhibida:
-        def __enter__(self) -> _SesionProhibida:
-            raise AssertionError("mapped_leaves() no debe abrir el navegador")
-
-        def __exit__(self, *_exc: Any) -> None:
-            return None
-
     store = LeftiesStore(
         _CFG,
         categories=[
             CategoryConfig(1030272335, "niña", "zapateria", "zapatos", f"{_NINA}/1030267718")
         ],
         session_factory=_SesionProhibida,  # type: ignore[arg-type]
+        tag_leaves=[],
     )
 
     assert list(store.mapped_leaves()) == [_ZAPATOS_NINA]
+
+
+def test_las_hojas_de_etiqueta_cuentan_como_mapeadas() -> None:
+    """Una rama que solo etiqueta NO es un hueco de cobertura (#180).
+
+    Es la mitad de la pareja que hace que las dos ramas de `Ropa Deportiva` puedan salir de
+    `vigia.COBERTURA_DECLARADA`: si no aparecieran aquí, el vigía las cantaría cada jueves como
+    catálogo sin mirar — que es exactamente lo que decían las declaraciones que esta issue borra.
+    """
+    store = LeftiesStore(
+        _CFG,
+        categories=[],
+        session_factory=_SesionProhibida,  # type: ignore[arg-type]
+        tag_leaves=[TagLeaf(1030267709, f"{_NINA}/1030267677", TAG_DEPORTIVA, "niña")],
+    )
+
+    assert list(store.mapped_leaves()) == ["1030267671/1030267672/1030267677/1030267709"]
 
 
 def test_el_padre_declarado_es_el_que_publica_el_menu() -> None:

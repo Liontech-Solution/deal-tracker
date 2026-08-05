@@ -19,12 +19,14 @@ from scraper.ingest import CatalogScanAborted, _ExistingProduct, _moved_out_coun
 from scraper.stores.base import (
     DelistCandidate,
     ListingEntry,
+    ProductTags,
     ScanReport,
     ScrapedImage,
     ScrapedProduct,
     ScrapedVariant,
     ScrapeScope,
 )
+from scraper.tags import TAG_DEPORTIVA
 
 T1 = datetime(2026, 7, 1, 8, 0, tzinfo=UTC)
 T2 = datetime(2026, 7, 2, 8, 0, tzinfo=UTC)
@@ -111,6 +113,40 @@ class ProbingFakeStore(FakeStore):
             if verdict is not None:
                 out[candidate.retailer_product_id] = verdict
         return out
+
+
+class TaggingFakeStore(FakeStore):
+    """Como `FakeStore`, pero declara ejes transversales (implementa `SupportsProductTags`)."""
+
+    def __init__(
+        self,
+        products: list[ScrapedProduct],
+        signatures: dict[str, str],
+        tags: ProductTags,
+        scopes: list[ScrapeScope] | None = None,
+    ) -> None:
+        super().__init__(products, signatures, scopes)
+        self._tags = tags
+
+    def product_tags(self) -> ProductTags:
+        return self._tags
+
+
+def _tags(por_producto: dict[str, set[str]], fiables: set[str] | None = None) -> ProductTags:
+    """`fiables` por defecto son las etiquetas observadas: el caso normal, todo se pudo listar."""
+    if fiables is None:
+        fiables = {t for tags in por_producto.values() for t in tags}
+    return ProductTags(por_producto=por_producto, fiables=fiables)
+
+
+def _etiquetas(conn: Any) -> set[tuple[str, str]]:
+    """`(retailer_product_id, tag)` de lo que hay guardado, que es lo que el filtro leerá."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT p.retailer_product_id, t.tag "
+            "FROM product_tag t JOIN product p ON p.id = t.product_id"
+        )
+        return {(str(row[0]), str(row[1])) for row in cur.fetchall()}
 
 
 class ScanningFakeStore(FakeStore):
@@ -1828,3 +1864,105 @@ def test_la_frontera_se_anuncia_aunque_no_haya_nada_que_pedir(
     frontera = [ln for ln in _lineas(caplog) if "listado:" in ln]
     assert len(frontera) == 1
     assert "se piden 0 fichas, 2 sin cambios" in frontera[0]
+
+
+# --- ejes transversales (#180) -----------------------------------------------------------------
+
+
+def _ropa(pid: str, name: str) -> ScrapedProduct:
+    """Un producto de `ropa`, que es la única sección donde `deportiva` aplica."""
+    variants = [_variant(f"{pid}-1", "19.95")]
+    return _product(pid, name, variants, section="ropa", category="camisetas")
+
+
+def test_las_etiquetas_se_escriben_desde_el_listado_y_no_desde_el_detalle(db_conn: Any) -> None:
+    """La propiedad que decide el diseño: marcar NO depende de que se pida la ficha.
+
+    Segunda pasada sin cambios de huella, o sea 0 fichas pedidas. Si la marca colgara del
+    `ScrapedProduct` —que es lo natural, y lo que había que descartar—, aquí no se escribiría nada
+    y en régimen estacionario el eje se quedaría vacío para casi todo el catálogo.
+    """
+    productos = [_ropa("A", "Camiseta"), _ropa("B", "Jersey")]
+    sigs = {"A": "a1", "B": "b1"}
+    ingest(db_conn, FakeStore(productos, sigs), run_ts=T1)  # sin etiquetas todavía
+
+    store = TaggingFakeStore(productos, sigs, _tags({"A": {TAG_DEPORTIVA}}))
+    result = ingest(db_conn, store, run_ts=T2)
+
+    assert result.details_fetched == 0  # nadie pidió ficha…
+    assert _etiquetas(db_conn) == {("A", TAG_DEPORTIVA)}  # …y aun así quedó marcado
+    assert result.tag_counts == {TAG_DEPORTIVA: 1}
+
+
+def test_la_etiqueta_no_se_pone_en_una_seccion_donde_no_aplica(db_conn: Any) -> None:
+    """`deportiva` es solo de `ropa`: el calzado deportivo ya se encuentra por `zapatillas`.
+
+    La tienda puede declarar lo que quiera —su cajón de deporte podría traer una zapatilla—; quien
+    decide es el eje, en un solo sitio (`tags.SECCION_APLICABLE`), y no cada scraper por su cuenta.
+    """
+    productos = [_ropa("A", "Camiseta"), _product("Z", "Zapatilla", [_variant("Z-1", "29.95")])]
+    store = TaggingFakeStore(
+        productos,
+        {"A": "a1", "Z": "z1"},
+        _tags({"A": {TAG_DEPORTIVA}, "Z": {TAG_DEPORTIVA}}),
+    )
+
+    ingest(db_conn, store, run_ts=T1)
+
+    assert _etiquetas(db_conn) == {("A", TAG_DEPORTIVA)}  # la zapatilla NO
+
+
+def test_la_prenda_que_sale_del_cajon_de_deporte_deja_de_estar_marcada(db_conn: Any) -> None:
+    """Reconciliación, no acumulación: si la tienda deja de decirlo, nosotros también."""
+    productos = [_ropa("A", "Camiseta"), _ropa("B", "Jersey")]
+    sigs = {"A": "a1", "B": "b1"}
+    ingest(db_conn, TaggingFakeStore(productos, sigs, _tags({"A": {TAG_DEPORTIVA}})), run_ts=T1)
+    assert _etiquetas(db_conn) == {("A", TAG_DEPORTIVA)}
+
+    ingest(db_conn, TaggingFakeStore(productos, sigs, _tags({"B": {TAG_DEPORTIVA}})), run_ts=T2)
+
+    assert _etiquetas(db_conn) == {("B", TAG_DEPORTIVA)}
+
+
+def test_una_fuente_caida_no_borra_las_etiquetas_que_ya_habia(db_conn: Any) -> None:
+    """LA red de seguridad de este eje, y no tiene ninguna otra detrás.
+
+    Una hoja que no se pudo listar no significa «esta tienda ya no publica nada deportivo». Sin
+    este acote, la primera pasada posterior a un 404 borraría las marcas de toda la tienda de una
+    vez — sin histéresis ni sondeo que lo frenen, que es lo que sí protege a las bajas.
+    """
+    productos = [_ropa("A", "Camiseta"), _ropa("B", "Jersey")]
+    sigs = {"A": "a1", "B": "b1"}
+    ingest(db_conn, TaggingFakeStore(productos, sigs, _tags({"A": {TAG_DEPORTIVA}})), run_ts=T1)
+
+    # La hoja se cayó: no se observó nada Y el eje queda fuera de `fiables`.
+    caida = TaggingFakeStore(productos, sigs, _tags({}, fiables=set()))
+    result = ingest(db_conn, caida, run_ts=T2)
+
+    assert _etiquetas(db_conn) == {("A", TAG_DEPORTIVA)}  # intacto
+    assert result.tag_counts == {}  # y no se publica una cifra que no se ha medido
+
+
+def test_una_pasada_vacia_pero_fiable_si_borra(db_conn: Any) -> None:
+    """El contraste del anterior, que es lo que lo hace una prueba y no una tautología.
+
+    Si la hoja se listó bien y de verdad ya no trae nada, la marca tiene que irse. Sin este caso,
+    `fiables` podría estar siempre vacío y el test de arriba pasaría igual.
+    """
+    productos = [_ropa("A", "Camiseta")]
+    sigs = {"A": "a1"}
+    ingest(db_conn, TaggingFakeStore(productos, sigs, _tags({"A": {TAG_DEPORTIVA}})), run_ts=T1)
+
+    vacia = TaggingFakeStore(productos, sigs, _tags({}, fiables={TAG_DEPORTIVA}))
+    ingest(db_conn, vacia, run_ts=T2)
+
+    assert _etiquetas(db_conn) == set()
+
+
+def test_una_tienda_sin_ejes_no_toca_la_tabla(db_conn: Any) -> None:
+    """Zara, Hipercor, Springfield y Cacles no publican cajón de deporte: no implementan nada."""
+    productos = [_ropa("A", "Camiseta")]
+    result = ingest(db_conn, FakeStore(productos, {"A": "a1"}), run_ts=T1)
+
+    assert _etiquetas(db_conn) == set()
+    assert result.tag_counts == {}

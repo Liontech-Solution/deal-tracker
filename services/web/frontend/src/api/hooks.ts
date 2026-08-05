@@ -21,10 +21,14 @@ const PAGE_SIZE = 12;
  * `section` viaja al backend porque las tallas y las categorías de ropa y calzado no comparten
  * vocabulario: sin acotar, la lista de tallas es la unión de números de pie y rangos de edad.
  */
-export function useFacets(section?: string) {
+export function useFacets(section?: string, deportiva?: boolean) {
   return useQuery({
-    queryKey: ['facets', section ?? null],
-    queryFn: () => apiGet<Facets>('/catalog/facets', section ? { section } : undefined),
+    queryKey: ['facets', section ?? null, deportiva ?? false],
+    queryFn: () =>
+      apiGet<Facets>('/catalog/facets', {
+        ...(section ? { section } : {}),
+        ...(deportiva ? { deportiva: true } : {}),
+      }),
     staleTime: 5 * 60 * 1000,
   });
 }

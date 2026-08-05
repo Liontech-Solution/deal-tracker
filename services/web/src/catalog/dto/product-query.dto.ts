@@ -66,6 +66,22 @@ export class ProductQueryDto {
   barefoot: BarefootFilter = 'si';
 
   /**
+   * Solo ropa que la tienda publica en su cajón de deporte (#180).
+   *
+   * **Apagado por defecto**, al revés que `barefoot`: aquel esconde lo que contradice al producto
+   * —calzado no respetuoso—, y este solo acota una búsqueda concreta. Encenderlo por defecto
+   * escondería casi todo el catálogo.
+   *
+   * Solo aplica a `ropa`: el calzado deportivo ya se encuentra por la categoría `zapatillas`. Y
+   * solo lo alimentan Sfera, Lefties y C&A, así que enciende un filtro que **excluye enteras** a
+   * las demás tiendas; la SPA lo dice junto al interruptor.
+   */
+  @IsOptional()
+  @Transform(({ value }) => (value === undefined ? undefined : value === 'true' || value === true))
+  @IsBoolean()
+  deportiva?: boolean;
+
+  /**
    * Deja solo las **ofertas reales** (mínimo nuevo con rebaja contra el PVP creíble), no cualquier
    * rebaja que declare la tienda. Apagado por defecto: el catálogo completo es el valor para quien
    * lo usa para no ir tienda por tienda, y la oferta es secundaria para ese uso.

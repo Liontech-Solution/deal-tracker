@@ -65,6 +65,7 @@ Id estable de producto: `identifier.productParentId` (= `id` del detalle). Id es
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
@@ -73,12 +74,14 @@ from typing import Any
 
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
+from ..tags import TAG_DEPORTIVA
 from .base import (
     GONE_STATUS,
     CategoryNode,
     DelistCandidate,
     LeafHealth,
     ListingEntry,
+    ProductTags,
     ScanReport,
     ScrapedImage,
     ScrapedProduct,
@@ -88,6 +91,8 @@ from .base import (
     con_unisex,
 )
 from .browser import BrowserHTTPError, BrowserSession
+
+_LOG = logging.getLogger(__name__)
 
 SLUG = "lefties"  # a nivel de módulo porque las funciones puras de parseo también lo necesitan
 BASE_URL = "https://www.lefties.com/es/"
@@ -467,6 +472,58 @@ CATEGORIES: list[CategoryConfig] = [
 ]
 
 
+@dataclass(frozen=True)
+class TagLeaf:
+    """Hoja que **solo aporta un eje transversal** (`scraper.tags`), sin ingerir nada.
+
+    No es una `CategoryConfig` y la diferencia es deliberada, no cosmética:
+
+    - **No emite `ListingEntry`.** Sus productos entran al catálogo por su categoría de verdad o no
+      entran; esta hoja solo dice «además, esto es deportivo».
+    - **No aparece en `scopes()`.** Ese es el motivo de peso. `scopes()` alimenta las redes de bajas
+      (`safe_scopes`, `_suspicious_scopes`), así que una hoja metida en `CATEGORIES` para etiquetar
+      pasaría a poder provocar bajas — y una hoja transversal es exactamente la que más se mueve.
+    - **Su ámbito no existe.** La prenda deportiva no es una categoría (#175, #180): darle una para
+      poder listarla sería reintroducir por la puerta de atrás lo que la issue descartó.
+
+    El precio es que los productos **exclusivos** de la hoja se quedan fuera: 16 de los 146 aquí (8
+    y 8), porque su categoría real no la dice nadie. Es la cola que la propia issue admite que puede
+    no compensar, y está medida en `vigia.COBERTURA_DECLARADA`.
+    """
+
+    category_id: int
+    parent: str  # cadena de ids del padre, igual que en `CategoryConfig`; ver `mapped_leaves()`
+    tag: str
+    gender: str  # niño | niña — solo para describirla en `check_leaves()`; no crea ámbito
+
+
+# «Ropa Deportiva», una rama por género, con seis hijas cada una (#180). No se ingieren: la mayoría
+# de sus productos **ya entra** por `camisetas`, `pantalones` y `sudaderas`, que es el tercer dato
+# —tras Sfera y C&A— de que el eje deportivo es transversal y no una categoría. Medido el
+# 05/08/2026 con la pasada real: **181 productos** en la rama, **167 ya dentro** del catálogo y 14
+# exclusivos. De esos 167 se marcan **130**: los otros 37 son calzado, y el eje no lo toca porque
+# la zapatilla deportiva ya se encuentra por la categoría `zapatillas` (ver `scraper/tags.py`).
+#
+# **Se recorre la rama ENTERA, no solo su nodo**, y esto costó una medición equivocada: el grid del
+# padre NO devuelve el subárbol. Medido el 05/08/2026, pidiendo las dos cosas:
+#
+#     rama    padre   union de sus 6 hijas   en las hijas y no en el padre
+#     niña      77            93                        16
+#     niño      69            99                        30
+#
+# O sea que quedarse en el padre se deja fuera 46 prendas, casi un cuarto de la rama. El «146» que
+# circula por #180 y por las declaraciones del vigía es la cifra del padre, no la de la rama.
+#
+# Las hijas se resuelven del MENÚ en ejecución (`parse_category_tree`) en vez de escribirse aquí:
+# el menú ya se pide para traducir cada `category_id` a su uuid de grid, así que enumerarlas no
+# cuesta ninguna petición extra, y una hija nueva entra sola. Escribir sus ids sería declarar una
+# lista que caduca en silencio, que es justo lo que `check_leaves()` existe para cazar.
+HOJAS_ETIQUETA: list[TagLeaf] = [
+    TagLeaf(1030267709, _NINA_ROPA, TAG_DEPORTIVA, "niña"),  # 3_NA_T_ROPADEPORTIVA
+    TagLeaf(1030267833, _NINO_ROPA, TAG_DEPORTIVA, "niño"),  # 3_NO_T_ROPADEPORTIVA
+]
+
+
 def _cents(value: Any) -> Decimal | None:
     """Lefties da los precios en céntimos, pero como STRING ("1799" -> 17.99 €)."""
     if value is None or value == "":
@@ -796,6 +853,7 @@ class LeftiesStore:
         config: Config,
         categories: list[CategoryConfig] | None = None,
         session_factory: Callable[[], BrowserSession] | None = None,
+        tag_leaves: list[TagLeaf] | None = None,
     ) -> None:
         self._config = config
         self._categories = categories if categories is not None else CATEGORIES
@@ -805,6 +863,8 @@ class LeftiesStore:
         # pero necesita la CategoryConfig para el dominio y para construir la URL.
         self._cat_by_product: dict[str, CategoryConfig] = {}
         self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
+        self._tag_leaves = tag_leaves if tag_leaves is not None else HOJAS_ETIQUETA
+        self._tags = ProductTags()  # ídem; ver `product_tags()`
         self._menu_cache: dict[str, Any] | None = None  # árbol cacheado; ver `_menu()`
 
     def scopes(self) -> Iterable[ScrapeScope]:
@@ -850,11 +910,14 @@ class LeftiesStore:
         las decide cada producto (`por_familia`).
         """
         self._scan = ScanReport()
+        self._tags = ProductTags()
         primera_entrada: dict[str, ListingEntry] = {}
         hojas_por_producto: dict[str, list[ScrapeScope]] = {}
         with self._session_factory() as session:
             session.goto(BASE_URL)  # siembra las cookies de Akamai
-            grids = grid_ids_by_category(session.get_json(_MENU_URL))
+            menu = session.get_json(_MENU_URL)
+            grids = grid_ids_by_category(menu)
+            self._lee_hojas_etiqueta(session, grids, menu)
             for cat in self._categories:
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
                 grid_id = grids.get(cat.category_id)
@@ -905,6 +968,67 @@ class LeftiesStore:
                 category=ambito.category,
             )
 
+    def _lee_hojas_etiqueta(
+        self, session: BrowserSession, grids: dict[int, str], menu: dict[str, Any]
+    ) -> None:
+        """Recorre las ramas que solo aportan eje transversal (ver `TagLeaf`).
+
+        Va ANTES que las de categoría por una razón práctica: si Akamai va a cerrar la puerta, que
+        lo haga aquí y no a mitad del catálogo. Lo que se apunta son ids, así que el orden no
+        influye en el resultado — las marcas se aplican al final, sobre lo que sea que se ingiera.
+
+        **Recorre la rama entera**, no solo su nodo: aquí el grid del padre no devuelve el subárbol
+        (ver la cabecera de `HOJAS_ETIQUETA`, donde está medido). Las hijas salen del menú que esta
+        pasada ya se ha bajado, así que enumerarlas no cuesta una petición extra — solo la de cada
+        grid.
+
+        Un fallo retira su eje de `fiables` y no aborta nada: sin catálogo que ingerir detrás, lo
+        peor que puede pasar aquí es quedarse sin marcar, y eso no debe costar la pasada. Tampoco
+        toca `_scan`: estas ramas no tienen ámbito, así que no pueden dejar a nadie sin bajas ni
+        contar para el `dead_ratio` que aborta la pasada.
+        """
+        self._tags.fiables = {hoja.tag for hoja in self._tag_leaves}
+        for hoja in self._tag_leaves:
+            # El nodo y sus descendientes. `dict.fromkeys` en vez de `set` para que el orden sea
+            # estable entre pasadas: hace los logs comparables y el test determinista.
+            ids = list(
+                dict.fromkeys(
+                    [hoja.category_id]
+                    + [
+                        int(n.path.rsplit("/", 1)[-1])
+                        for n in parse_category_tree(menu, str(hoja.category_id))
+                    ]
+                )
+            )
+            if grids.get(hoja.category_id) is None:
+                _LOG.warning(
+                    "lefties: la rama de etiqueta %s ya no está en el menú; `%s` no se reconcilia",
+                    hoja.category_id,
+                    hoja.tag,
+                )
+                self._tags.fiables.discard(hoja.tag)
+                continue
+            for cid in ids:
+                grid_id = grids.get(cid)
+                if grid_id is None:
+                    continue  # nodo del menú sin grid propio (un divisor, o una sección espejo)
+                try:
+                    grid = session.get_json(_GRID_URL.format(grid_id=grid_id))
+                except Exception as exc:  # noqa: BLE001 — misma red ancha que en el listado (#107)
+                    _LOG.warning(
+                        "lefties: hoja de etiqueta %s ilegible (%s: %s); `%s` no se reconcilia",
+                        cid,
+                        type(exc).__name__,
+                        exc,
+                        hoja.tag,
+                    )
+                    self._tags.fiables.discard(hoja.tag)
+                    break
+                for comp in _product_components(grid):
+                    parent = (comp.get("identifier") or {}).get("productParentId")
+                    if parent:
+                        self._tags.anota(str(parent), hoja.tag)
+
     def _hoja_comprometida(self, cat: CategoryConfig, scope: ScrapeScope) -> None:
         """Cuenta la hoja como caída y saca su ámbito —y el `unisex` equivalente— de las bajas.
 
@@ -924,6 +1048,10 @@ class LeftiesStore:
     def scan_report(self) -> ScanReport:
         """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""
         return self._scan
+
+    def product_tags(self) -> ProductTags:
+        """Ver `stores.base.SupportsProductTags` (válido con `list_catalog()` ya consumido)."""
+        return self._tags
 
     def check_leaves(self) -> Iterable[LeafHealth]:
         """Sondea las hojas configuradas (ver `stores.base.SupportsLeafHealth`).
@@ -954,6 +1082,18 @@ class LeftiesStore:
                 grid_id is not None,
                 detalle,
                 estacional=cat.estacional,
+            )
+        # Las hojas que solo etiquetan se sondean igual (#180). No ingieren nada, así que su muerte
+        # no vacía ninguna categoría — pero dejaría de marcarse un eje entero **en silencio**, que
+        # es exactamente el fallo que el vigía existe para no tener. Su ámbito va sin categoría
+        # porque no la tienen: eso es lo que las hace transversales.
+        for hoja in self._tag_leaves:
+            grid_id = grids.get(hoja.category_id)
+            yield LeafHealth(
+                ScrapeScope(hoja.gender, "ropa", None),
+                str(hoja.category_id),
+                grid_id is not None,
+                f"eje `{hoja.tag}`: " + (f"grid {grid_id}" if grid_id else "ya no está en el menú"),
             )
 
     # --- capacidades opcionales --------------------------------------------------------------
@@ -996,8 +1136,14 @@ class LeftiesStore:
         `check_leaves()` —aquí una hoja retirada es, precisamente, la que desaparece del menú— con
         el veredicto que corresponde. Omitirla aquí solo conseguiría que además apareciese como
         hueco de cobertura, que es el mismo hecho contado dos veces y peor.
+
+        Las hojas de etiqueta (`TagLeaf`) cuentan como mapeadas aunque no ingieran nada. La
+        pregunta que el vigía hace aquí es «¿esta rama la estamos mirando o es un hueco?», y a esas
+        las miramos: dejarlas fuera obligaría a mantenerlas encima en `COBERTURA_DECLARADA` diciendo
+        «sin decidir» cuando ya está decidido, que es la deuda que #180 vino a quitar.
         """
-        return [f"{cat.parent}/{cat.category_id}" for cat in self._categories]
+        propias = [f"{cat.parent}/{cat.category_id}" for cat in self._categories]
+        return propias + [f"{hoja.parent}/{hoja.category_id}" for hoja in self._tag_leaves]
 
     def tree_separator(self) -> str:
         """Ver `stores.base.SupportsCategoryTree`. La cadena de ids se anida con `/`.

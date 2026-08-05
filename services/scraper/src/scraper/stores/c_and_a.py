@@ -66,11 +66,13 @@ from typing import Any
 import httpx
 
 from ..config import Config
+from ..tags import TAG_DEPORTIVA
 from .base import (
     CategoryNode,
     DelistCandidate,
     LeafHealth,
     ListingEntry,
+    ProductTags,
     ScanReport,
     ScrapedImage,
     ScrapedProduct,
@@ -178,6 +180,37 @@ CATEGORIES: list[CategoryConfig] = [
     # fuera aquí habría reconstruido el sesgo por otra puerta.
     CategoryConfig("3-1-18", "niña", "ropa", "conjuntos"),  # Conjuntos
     CategoryConfig("3-7-17", "niño", "ropa", "conjuntos"),  # Conjuntos
+]
+
+
+@dataclass(frozen=True)
+class TagLeaf:
+    """Hoja que solo aporta un eje transversal (`scraper.tags`), sin ingerir nada.
+
+    Ver el porqué completo en `stores/lefties.py::TagLeaf`, que es donde vive el razonamiento: no
+    emite entradas, no aparece en `scopes()` —y por tanto no puede provocar bajas— y sus productos
+    exclusivos se quedan fuera porque su categoría real no la dice nadie.
+    """
+
+    ipim_id: str
+    gender: str  # niño | niña — solo para describirla en `check_leaves()`; no crea ámbito
+    tag: str
+
+
+# «Ropa de deporte», una hoja por género (#175, #180). No se ingieren y ese fue precisamente el
+# hallazgo: casi todo lo que publican **ya entra** por `camisetas`, `pantalones` y `sudaderas`, o
+# sea que como categoría no aportaban casi nada. Como eje sí: es la tienda quien dice que esa
+# prenda es deportiva, y eso no estaba guardado en ninguna parte.
+#
+# Medido con la pasada real el 05/08/2026: **48 productos** entre las dos hojas y **45 marcados**
+# (camisetas 25, pantalones 17, sudaderas 3). Los 3 exclusivos se quedan fuera, igual que en
+# Lefties y por lo mismo: su categoría real no la dice nadie. En #175 eran 45 y 42 — la tienda se
+# mueve, así que lo que vale aquí es la proporción, no el número exacto.
+#
+# A diferencia de Lefties, aquí SÍ basta con la hoja: son hojas de verdad, sin subárbol debajo.
+HOJAS_ETIQUETA: list[TagLeaf] = [
+    TagLeaf("3-1-24", "niña", TAG_DEPORTIVA),  # Ropa de deporte (niña)
+    TagLeaf("3-7-23", "niño", TAG_DEPORTIVA),  # Ropa de deporte (niño)
 ]
 
 
@@ -392,12 +425,19 @@ class CAndAStore:
     name = "C&A"
     base_url = BASE_URL
 
-    def __init__(self, config: Config, categories: list[CategoryConfig] | None = None) -> None:
+    def __init__(
+        self,
+        config: Config,
+        categories: list[CategoryConfig] | None = None,
+        tag_leaves: list[TagLeaf] | None = None,
+    ) -> None:
         self._config = config
         self._categories = categories if categories is not None else CATEGORIES
         self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
         self._cache: dict[str, ScrapedProduct] = {}
         self._hash = _HASH_PINNEADO
+        self._tag_leaves = tag_leaves if tag_leaves is not None else HOJAS_ETIQUETA
+        self._tags = ProductTags()  # lo rellena list_catalog(); ver `product_tags()`
 
     # --- red ---------------------------------------------------------------------------------
 
@@ -544,10 +584,54 @@ class CAndAStore:
     def list_catalog(self) -> Iterable[ListingEntry]:
         self._scan = ScanReport()
         self._cache = {}
+        self._tags = ProductTags()
         emitted: set[str] = set()
         with self._client() as client:
+            self._lee_hojas_etiqueta(client)
             for cat in self._categories:
                 yield from self._listar_hoja(client, cat, emitted)
+
+    def _lee_hojas_etiqueta(self, client: httpx.Client) -> None:
+        """Recorre las hojas que solo aportan eje transversal (ver `TagLeaf`).
+
+        Se apoya en `_pagina()` con una `CategoryConfig` de usar y tirar: de lo que devuelve solo se
+        mira el id, así que la sección y la categoría que se le pasen dan igual — no salen de aquí.
+
+        Una hoja que falla retira su eje de `fiables` y no aborta nada, ni toca `_scan`: estas hojas
+        no tienen ámbito, así que no pueden dejar a nadie sin bajas ni contar para el `dead_ratio`.
+
+        **Y aquí una hoja retirada no lanza nada**: esta tienda devuelve 200 con la lista vacía, que
+        es lo mismo que ve la página siguiente a la última (ver `_listar_hoja`, que es donde está
+        explicado). Sin el corte de la primera página, una hoja muerta se leería como «esta tienda
+        no publica nada deportivo» y la reconciliación borraría las marcas de las 42 prendas.
+        """
+        self._tags.fiables = {hoja.tag for hoja in self._tag_leaves}
+        for hoja in self._tag_leaves:
+            cat = CategoryConfig(hoja.ipim_id, hoja.gender, "ropa", "")
+            try:
+                for page in range(_PAGINA_INICIAL, _PAGINA_INICIAL + _MAX_PAGES):
+                    productos, crudos, declarado = self._pagina(client, cat, page)
+                    if not crudos:
+                        if page == _PAGINA_INICIAL and declarado == 0:
+                            logger.warning(
+                                "c-and-a: la hoja de etiqueta %s devolvió productCount 0 "
+                                "(retirada); `%s` no se reconcilia",
+                                hoja.ipim_id,
+                                hoja.tag,
+                            )
+                            self._tags.fiables.discard(hoja.tag)
+                        break
+                    for producto in productos:
+                        self._tags.anota(producto.retailer_product_id, hoja.tag)
+            except Exception as exc:  # noqa: BLE001 — misma red ancha que en el listado
+                logger.warning(
+                    "c-and-a: hoja de etiqueta %s ilegible (%s: %s); `%s` no se reconcilia",
+                    hoja.ipim_id,
+                    type(exc).__name__,
+                    exc,
+                    hoja.tag,
+                )
+                self._tags.fiables.discard(hoja.tag)
 
     def _listar_hoja(
         self, client: httpx.Client, cat: CategoryConfig, emitted: set[str]
@@ -623,6 +707,10 @@ class CAndAStore:
         """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""
         return self._scan
 
+    def product_tags(self) -> ProductTags:
+        """Ver `stores.base.SupportsProductTags` (válido con `list_catalog()` ya consumido)."""
+        return self._tags
+
     # --- capacidades opcionales --------------------------------------------------------------
 
     def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
@@ -654,37 +742,56 @@ class CAndAStore:
 
         Una petición por hoja, la primera página. El veredicto sale de `productCount`, que es lo que
         distingue la hoja retirada (0) de la viva: aquí una hoja muerta no da 404, da 200.
+
+        Las hojas que solo etiquetan (`TagLeaf`) se sondean igual: no ingieren nada, así que su
+        muerte no vacía ninguna categoría, pero dejaría de marcarse un eje entero en silencio. Su
+        ámbito va sin categoría porque no la tienen — eso es lo que las hace transversales.
         """
+        sondas: list[tuple[ScrapeScope, str, str]] = [
+            (ScrapeScope(cat.gender, cat.section, cat.category), cat.ipim_id, "")
+            for cat in self._categories
+        ]
+        sondas += [
+            (ScrapeScope(hoja.gender, "ropa", None), hoja.ipim_id, f"eje `{hoja.tag}`: ")
+            for hoja in self._tag_leaves
+        ]
         with self._client() as client:
-            for cat in self._categories:
-                scope = ScrapeScope(cat.gender, cat.section, cat.category)
+            for scope, ipim_id, prefijo in sondas:
                 try:
-                    lista = _extraer_lista(self._post(client, cat.ipim_id, _PAGINA_INICIAL))
+                    lista = _extraer_lista(self._post(client, ipim_id, _PAGINA_INICIAL))
                 except HashCaducado:
                     yield LeafHealth(
                         scope,
-                        cat.ipim_id,
+                        ipim_id,
                         None,
-                        "el hash de la persisted query caducó y no se pudo resolver: "
+                        prefijo + "el hash de la persisted query caducó y no se pudo resolver: "
                         "C&A ha desplegado (ver _resolver_hash)",
                     )
                 except httpx.HTTPStatusError as exc:
-                    yield LeafHealth(scope, cat.ipim_id, None, f"HTTP {exc.response.status_code}")
+                    yield LeafHealth(
+                        scope, ipim_id, None, f"{prefijo}HTTP {exc.response.status_code}"
+                    )
                 except (httpx.TransportError, ValueError) as exc:
-                    yield LeafHealth(scope, cat.ipim_id, None, f"{type(exc).__name__}: {exc}")
+                    yield LeafHealth(scope, ipim_id, None, f"{prefijo}{type(exc).__name__}: {exc}")
                 else:
                     declarado = lista.get("productCount")
                     total = declarado if isinstance(declarado, int) else 0
                     yield LeafHealth(
                         scope,
-                        cat.ipim_id,
+                        ipim_id,
                         bool(total),
-                        f"productCount {total}",
+                        f"{prefijo}productCount {total}",
                     )
 
     def mapped_leaves(self) -> Iterable[str]:
-        """Ver `stores.base.SupportsCategoryTree`. Las hojas que esta tienda tiene configuradas."""
-        return [cat.ipim_id for cat in self._categories]
+        """Ver `stores.base.SupportsCategoryTree`. Las hojas que esta tienda tiene configuradas.
+
+        Incluye las de etiqueta: la pregunta del vigía aquí es «¿esta rama la miramos o es un
+        hueco?», y a esas las miramos aunque no ingieran (ver `TagLeaf`).
+        """
+        return [cat.ipim_id for cat in self._categories] + [
+            hoja.ipim_id for hoja in self._tag_leaves
+        ]
 
     def tree_roots(self) -> Iterable[str]:
         """Ver `stores.base.SupportsCoverageWatch`. Las dos ramas de ropa infantil.
