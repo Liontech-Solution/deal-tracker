@@ -82,9 +82,9 @@ class CategoryConfig:
     category: str  # zapatos | zapatillas | pantalones | ...
 
 
-# Subconjunto curado (niño/niña): calzado + ropa infantil. Zara separa el catálogo en dos
-# rangos de edad (6-14 años y "mini" 1½-6 años), cada uno con su propio id de categoría-hoja;
-# se incluyen ambos para máxima cobertura. Varias hojas mapean al mismo slug de dominio (p.ej.
+# Subconjunto curado: calzado + ropa infantil. Zara separa el catálogo en TRES rangos de edad
+# (6-14 años, "mini" 1½-6 años y bebé 0-18 meses), cada uno con su propio id de categoría-hoja;
+# se incluyen los tres para máxima cobertura. Varias hojas mapean al mismo slug de dominio (p.ej.
 # jeans/leggings/pantalones -> "pantalones") para alinear el vocabulario con el de Sfera y que
 # los filtros del web unifiquen tiendas. El dedup por id de `list_catalog()` evita duplicados
 # cuando un producto aparece en dos hojas/rangos; la talla distingue el rango a nivel variante.
@@ -100,6 +100,40 @@ class CategoryConfig:
 # quedándose con la PRIMERA que lo ve. Las hojas barefoot van delante para que esos 8 solapados
 # queden como `barefoot` y no como calzado genérico; barefoot es la señal que interesa conservar.
 # (Mismo razonamiento y misma trampa que en `lefties.py`, donde el solape era casi total.)
+#
+# Y por el mismo motivo al revés, LAS HOJAS DE BEBÉ VAN AL FINAL (#186). Su rango solapa con el
+# de las hojas mini: medido el 05/08/2026, las once hojas listan 1157 productos y 612 de ellos YA
+# entraban por una hoja con género. Yendo detrás, el dedup se queda con la versión con género
+# —`niña`/`niño`, que es la que la web puede filtrar— y solo entran como `unisex` los 545 que de
+# verdad no estaban (el catálogo pasa de 3382 a 3927). Si fuesen delante, esos 612 perderían el
+# género y además contarían como mudanza de ámbito (`ingest._moved_out_counts`, #174).
+#
+# El género es `unisex` porque la rama de bebé de Zara NO separa niño de niña, igual que ya se
+# decidió para `recien nacido` en H&M y `zapatos-infantiles/bebe` en Hipercor.
+#
+# Las once hojas son las del eje de PRENDA, que es el que habla nuestro vocabulario. Zara publica
+# además el mismo catálogo por EDAD (`RECIÉN NACIDO | 0-9 MESES` y los tramos 0-1/1-3/3-6/6-9/
+# 9-12/12-18 meses): son la misma ropa cortada por talla, así que añadirlas serían ~40 peticiones
+# por pasada para no aportar productos. Lo que queda fuera a propósito por no ser del brief:
+# `CONJUNTOS` (2428167, 207 productos nuevos y con diferencia lo más gordo que dejamos pasar),
+# `CAZADORAS | BUZOS` (2428026, abrigo, como en Sfera), `ACCESORIOS` (2428034) y `BOLSOS DE
+# MATERNIDAD` (2428129).
+#
+# Dos hojas de bebé mezclan vocabulario y la elección no es obvia; queda escrita porque el nombre
+# de la hoja no basta y hubo que mirar el contenido:
+#   - `PETOS | MONOS` (2428227) -> `vestidos`. De sus 47 productos, 22 nombran «peto» y 18 «mono».
+#     Hipercor y Sfera mandan el peto a `pantalones`, pero Zara agrupa aquí el mono, que su propia
+#     hoja `VESTIDOS | MONOS` (2427560) ya clasifica como `vestidos`, y Mango razona lo mismo con
+#     el pelele. Se prefiere ser coherente DENTRO de la tienda a serlo entre tiendas; la
+#     divergencia con Hipercor es de la misma familia que #187 y está declarada aquí, no oculta.
+#   - `BERMUDAS | BRAGUITAS` (2428071) -> `pantalones`. De sus 146 productos, 96 nombran «bermuda»
+#     contra 25 «braguita» y 11 «bloomer», y la braguita de bebé es el cubrepañal que se lleva
+#     encima, no ropa interior. Manda la bermuda, que es lo que ya hace la hoja de niño (2426543).
+# `BODIES` (2428124) -> `ropa-interior` no tiene esa duda: es la prenda base de bebé, y es
+# literalmente la decisión que ya está escrita en `hipercor.py` y en `hm.py`.
+#
+# Bebé no tiene hoja barefoot propia (las cuatro de arriba cubren 6-14 y mini), así que su calzado
+# respetuoso solo lo puede marcar el respaldo por descripción de `classify_barefoot`.
 #
 # Nota: el hub NIÑOS > ACCESORIOS | ZAPATOS > CALZADO BAREFOOT (2597610) tiene sus propias hojas
 # por género/edad (2630194, 2631201, 2630196, 2630195). Medidas: devuelven EXACTAMENTE las mismas
@@ -165,6 +199,18 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(2427842, "niño", "ropa", "ropa-interior"),  # pijamas (mini)
     CategoryConfig(2428509, "niño", "ropa", "ropa-interior"),  # ropa interior | calcetines
     CategoryConfig(2427980, "niño", "ropa", "ropa-interior"),  # ropa interior | calcetines (mini)
+    # --- bebé 0-18 meses (#186): AL FINAL a propósito, ver la nota del orden más arriba ---
+    CategoryConfig(2637249, "unisex", "ropa", "vestidos"),  # vestidos | peleles
+    CategoryConfig(2428227, "unisex", "ropa", "vestidos"),  # petos | monos
+    CategoryConfig(2428149, "unisex", "ropa", "camisetas"),  # camisetas
+    CategoryConfig(2428131, "unisex", "ropa", "camisetas"),  # camisas
+    CategoryConfig(2428796, "unisex", "ropa", "sudaderas"),  # sudaderas
+    CategoryConfig(2428244, "unisex", "ropa", "sudaderas"),  # punto
+    CategoryConfig(2428210, "unisex", "ropa", "pantalones"),  # pantalones
+    CategoryConfig(2428071, "unisex", "ropa", "pantalones"),  # bermudas | braguitas
+    CategoryConfig(2428124, "unisex", "ropa", "ropa-interior"),  # bodies
+    CategoryConfig(2428809, "unisex", "ropa", "ropa-interior"),  # ropa int. | pijamas | calcetines
+    CategoryConfig(2428823, "unisex", "zapateria", "zapatos"),  # zapatos
 ]
 
 

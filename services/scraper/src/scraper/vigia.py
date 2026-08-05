@@ -85,9 +85,10 @@ SIN_VIGILANCIA_DE_HOJAS: dict[str, str] = {}
 COBERTURA_SIN_VIGILAR: dict[str, str] = {
     "zara": (
         "su árbol es el menú de navegación, no una taxonomía, y es el caso más extremo de los "
-        "medidos. El 04/08/2026, acotando ya las raíces a las cinco ramas infantiles: 766 nodos "
-        "y 536 sin cubrir, encabezados por «VER TODO» ×81 y «COLECCIÓN» ×20, más los "
-        "DIVIDER_MENU_*, EDITORIAL, SPECIAL PRICES y LICENCIAS. Declararlos serían 536 entradas "
+        "medidos. El 05/08/2026, acotando ya las raíces a las cinco ramas infantiles: 766 nodos "
+        "y 510 sin cubrir (eran 536 antes de mapear bebé, #186), encabezados por «VER TODO» ×81 "
+        "y «COLECCIÓN» ×20, más los "
+        "DIVIDER_MENU_*, EDITORIAL, SPECIAL PRICES y LICENCIAS. Declararlos serían 510 entradas "
         "que caducan con la campaña siguiente. Conserva su `--tree`, que además es lo que la "
         "cabecera de zara.py manda usar cuando un id de hoja caduca (#179)"
     ),
