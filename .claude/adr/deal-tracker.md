@@ -1882,10 +1882,11 @@ Tres consecuencias operativas:
   que pide Sfera para sus 25 conjuntos mezclados dentro de `ropa-deportiva`.
 
 Un aviso de calibración para el que lea la tabla: un número de #192 estaba **caducado** y casi
-decide el trabajo. Decía «207 prendas nuevas en Zara»; se había medido mientras se implementaba
-#186, contra el catálogo de antes de que existieran las hojas de bebé. Con ellas dentro son 242 en
-la hoja y 212 ya entraban. **Un número medido en una issue lleva implícito el estado del catálogo
-de ese día**, y si entre medias se ha mapeado una rama entera, hay que volver a medirlo.
+decide el trabajo. Decía «207 prendas nuevas en Zara»; se había medido mientras se implementaba la
+issue #186, o sea contra el catálogo de antes de que existieran las hojas de bebé. Con ellas
+dentro son 242 en la hoja y 212 ya entraban. **Un número medido en una issue lleva implícito el
+estado del catálogo de ese día**, y si entre medias se ha mapeado una rama entera, hay que volver
+a medirlo.
 
 ### Local
 
