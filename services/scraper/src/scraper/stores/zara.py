@@ -115,9 +115,38 @@ class CategoryConfig:
 # además el mismo catálogo por EDAD (`RECIÉN NACIDO | 0-9 MESES` y los tramos 0-1/1-3/3-6/6-9/
 # 9-12/12-18 meses): son la misma ropa cortada por talla, así que añadirlas serían ~40 peticiones
 # por pasada para no aportar productos. Lo que queda fuera a propósito por no ser del brief:
-# `CONJUNTOS` (2428167, 207 productos nuevos y con diferencia lo más gordo que dejamos pasar),
 # `CAZADORAS | BUZOS` (2428026, abrigo, como en Sfera), `ACCESORIOS` (2428034) y `BOLSOS DE
 # MATERNIDAD` (2428129).
+#
+# **`CONJUNTOS` NO entra, y el motivo hay que leerlo antes de volver a intentarlo (#192).** Se probó
+# —#192 lo pedía, y la categoría `conjuntos` que estrenó esa issue sí existe: la alimentan H&M, C&A
+# e Hipercor, cuyas hojas de conjunto SÍ son paquetes— y aquí una pasada real lo desmintió. Las
+# hojas de Zara son LOOKBOOKS: agrupan las prendas sueltas que componen un look, no un producto que
+# sea varias prendas. De los 41 productos que ingirieron el 05/08/2026, solo 7 se llamaban
+# «CONJUNTO …»; los otros 34 eran gorros, capotas, cazadoras, chubasqueros, blazers, jerséis y
+# leggings — prendas sueltas, y casi todas de las que el brief deja fuera (abrigo, accesorios).
+#
+# La trampa está en cómo se mide. Contar los productos EXCLUSIVOS de la hoja (los que no entran por
+# ninguna otra) parece decir «estos no tienen casa natural», y no es eso lo que dice: también son
+# exclusivos los que tienen una casa que hemos decidido no ingerir. En una hoja-lookbook las dos
+# poblaciones se confunden, y salen 52 «conjuntos» que no lo son. El indicio estructural estaba a la
+# vista y no se leyó: las tres cuelgan de `TOTAL LOOK | CHÁNDAL`, no del eje de prenda.
+#
+# Las hojas probadas y descartadas, medidas el 05/08/2026 (total / exclusivos):
+#   2428167 CONJUNTOS  (bebé)      242 / 30   ← de los 212 que ya entran: sudaderas 84,
+#                                               pantalones 47, camisetas 44, vestidos 23, r.-int. 14
+#   2426357 CONJUNTOS  (niña 6-14)  56 /  9
+#   2428290 TOTAL LOOK (niño 6-14)  44 / 13   ← la hermana asimétrica de la anterior
+#   2426354 CHÁNDAL    (niña)       73 /  9
+#   2622124 CHANDAL    (niño)      117 / 22
+#   2558947 PACKS|CONJUNTOS (niño)  28 /  2
+#
+# Ojo también al número que citaba #192: «207 productos nuevos» **ya no es cierto**. Se midió
+# mientras se implementaba #186, contra el catálogo de antes de que existieran las hojas de bebé.
+#
+# Si algún día se quiere recuperar lo que sí hay aquí —los 7 conjuntos de verdad—, el camino NO es
+# mapear la hoja: es clasificar por nombre dentro de ella, que es trabajo de otro tipo y la misma
+# pregunta abierta que tiene Sfera con sus 25 mezclados en `ropa-deportiva`.
 #
 # Dos hojas de bebé mezclan vocabulario y la elección no es obvia; queda escrita porque el nombre
 # de la hoja no basta y hubo que mirar el contenido:

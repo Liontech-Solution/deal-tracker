@@ -1037,3 +1037,33 @@ def test_el_listado_no_late_si_el_progreso_esta_apagado(
         list(tienda.list_catalog())
 
     assert [r for r in caplog.records if "listando" in r.getMessage()] == []
+
+
+def test_conjuntos_va_detras_de_las_hojas_del_brief_de_su_genero() -> None:
+    """El invariante de orden del que depende que #192 sea correcto.
+
+    `conjuntos` es la categoría de la prenda que no tiene ninguna de las cinco del brief como casa
+    natural. Con «gana la primera» —el dedup por id de `list_catalog()`—, ir DETRÁS significa
+    que un conjunto que la tienda además
+    publica bajo una de las cinco conserva esa categoría, y solo se etiqueta `conjuntos` el que no
+    sale en ninguna otra hoja — o sea que quien decide es la taxonomía de la tienda, no quien mapea.
+
+    Si alguien reordenara `CATEGORIES`, las prendas que hoy entran bien como `pantalones` o
+    `sudaderas` pasarían a `conjuntos` **en silencio**, partiendo su histórico de precio en dos
+    categorías. Sin este test lo único que lo impedía era un comentario.
+    """
+    for genero in {c.gender for c in CATEGORIES}:
+        conjuntos = [
+            i for i, c in enumerate(CATEGORIES) if c.gender == genero and c.category == "conjuntos"
+        ]
+        if not conjuntos:
+            continue
+        del_brief = [
+            i
+            for i, c in enumerate(CATEGORIES)
+            if c.gender == genero and c.section == "ropa" and c.category != "conjuntos"
+        ]
+        assert min(conjuntos) > max(del_brief), (
+            f"en {genero!r} una hoja de `conjuntos` va por delante de una del brief: se quedaría "
+            "con prendas que la tienda publica además como pantalones/camisetas/sudaderas/..."
+        )

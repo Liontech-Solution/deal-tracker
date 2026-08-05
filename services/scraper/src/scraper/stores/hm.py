@@ -213,10 +213,13 @@ class CategoryConfig:
 # esquema ni en las facetas—, el rango se ve por la talla. `recien nacido` va como `unisex` porque
 # su rama no separa niño de niña, que es lo mismo que se decidió para `zapatos-infantiles/bebe`.
 #
-# Fuera a propósito, por no ser del brief: accesorios, baño, disfraces, ropa de deporte, conjuntos,
-# abrigos, calcetines, packs, básicos y las ramas transversales de promoción (`last-chance`,
-# `new-arrivals`, `seasonal-trending`, `shop-by-product`), que solapan con las de género y
-# duplicarían el trabajo para los mismos productos.
+# Fuera a propósito, por no ser del brief: accesorios, baño, disfraces, ropa de deporte, abrigos,
+# calcetines, packs, básicos y las ramas transversales de promoción (`last-chance`, `new-arrivals`,
+# `seasonal-trending`, `shop-by-product`), que solapan con las de género y duplicarían el trabajo
+# para los mismos productos.
+#
+# `sets-outfits` (el conjunto) SÍ entra desde #192, con categoría propia `conjuntos`. Ver
+# `_CONJUNTOS` más abajo, que es donde está el porqué del orden.
 def _hojas_de_rama(rama: str, gender: str, *, bebe: bool) -> list[CategoryConfig]:
     """Las hojas del brief dentro de una rama de género, con los nombres que usa cada rango.
 
@@ -255,6 +258,31 @@ def _hojas_de_rama(rama: str, gender: str, *, bebe: bool) -> list[CategoryConfig
     return hojas
 
 
+# El conjunto (#192), que no es ninguna de las cinco del brief y por eso estrena `conjuntos`: mezcla
+# pantalón y sudadera en una sola referencia, así que no hay categoría del brief que lo describa.
+#
+# **Van LAS ÚLTIMAS a propósito.** `_ambito()` fija sección y categoría con la PRIMERA hoja que
+# trajo el modelo (`ambito_cruzado`), así que ir detrás significa que un conjunto que la tienda
+# también publica bajo una de las cinco conserva ESA categoría, y solo se etiqueta `conjuntos` el
+# que no sale en ninguna otra hoja. Es el criterio resuelto con la taxonomía de la tienda, no una
+# preferencia nuestra. Ojo si alguien reordena `CATEGORIES`: moverlas arriba reclasificaría en
+# silencio prendas que hoy entran bien.
+#
+# Medido el 05/08/2026 sobre la PRIMERA página de cada hoja (44/39/44/38/44/43/42 productos), y
+# comparado contra la primera página de las hojas ya mapeadas: ~55 exclusivos, casi todos en `/kids`
+# —en las tres ramas de bebé el solape es casi total (1, 0 y 0)—. Las siete resuelven: ninguna
+# devuelve el cubo del canario, que ese día traía 60 productos. Es la comprobación que esta tienda
+# exige siempre y no se puede saltar: aquí una hoja muerta contesta 200 con una página plausible.
+_CONJUNTOS: list[CategoryConfig] = [
+    CategoryConfig("/kids/boys/clothing/sets-outfits", "niño", "ropa", "conjuntos"),
+    CategoryConfig("/kids/boys-9-14y/clothing/sets-outfits", "niño", "ropa", "conjuntos"),
+    CategoryConfig("/kids/girls/clothing/sets-outfits", "niña", "ropa", "conjuntos"),
+    CategoryConfig("/kids/girls-9-14y/clothing/sets-outfits", "niña", "ropa", "conjuntos"),
+    CategoryConfig("/baby/boys/clothing/sets-outfits", "niño", "ropa", "conjuntos"),
+    CategoryConfig("/baby/girls/clothing/sets-outfits", "niña", "ropa", "conjuntos"),
+    CategoryConfig("/baby/newborn/clothing/sets-outfits", "unisex", "ropa", "conjuntos"),
+]
+
 CATEGORIES: list[CategoryConfig] = [
     *_hojas_de_rama("/kids/boys", "niño", bebe=False),
     *_hojas_de_rama("/kids/boys-9-14y", "niño", bebe=False),
@@ -263,6 +291,7 @@ CATEGORIES: list[CategoryConfig] = [
     *_hojas_de_rama("/baby/boys", "niño", bebe=True),
     *_hojas_de_rama("/baby/girls", "niña", bebe=True),
     *_hojas_de_rama("/baby/newborn", "unisex", bebe=True),
+    *_CONJUNTOS,
 ]
 
 
