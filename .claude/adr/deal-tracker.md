@@ -33,9 +33,9 @@ del repo**, no en el directorio del servicio.
 través del Postgres compartido; el esquema SQL de `db/migrations` es el contrato.
 
 - El **scraper** posee las escrituras de `retailer` / `product` / `variant` / `price_history` /
-  `scrape_run`. `ingest.py` hace la pasada completa en **una transacción atómica** y detecta altas
-  y bajas. El **web** posee `app_user` (con el vínculo de Telegram), `interest`, `notification` y
-  `job_state`.
+  `scrape_run` / `product_tag`. `ingest.py` hace la pasada completa en **una transacción atómica** y
+  detecta altas y bajas. El **web** posee `app_user` (con el vínculo de Telegram), `interest`,
+  `notification` y `job_state`.
 - Las tiendas son **pluggable**: `stores/base.py` define `BaseStore`, `stores/registry.py` mapea
   slug → factoría. Hoy son **nueve**: `zara` (endpoints AJAX JSON públicos), `sfera` (Chromium,
   detrás de Akamai), `lefties` (Chromium, API `itxrest` de Inditex), `cacles` (Shopify,
@@ -1887,6 +1887,66 @@ issue #186, o sea contra el catálogo de antes de que existieran las hojas de be
 dentro son 242 en la hoja y 212 ya entraban. **Un número medido en una issue lleva implícito el
 estado del catálogo de ese día**, y si entre medias se ha mapeado una rama entera, hay que volver
 a medirlo.
+
+### Hay prendas que no piden una categoría nueva sino un EJE, y se modelan aparte (#180)
+
+La contrapartida de la sección anterior. Allí la pregunta es a qué categoría va una prenda; aquí
+la respuesta es que **la pregunta no aplica**: la ropa deportiva ya está en su categoría real y lo
+que falta es poder cruzarla. Se distinguen por una prueba barata — enumerar el cajón de la tienda y
+cruzarlo contra el catálogo. Si la mayoría **ya entra** por otra hoja, no es una categoría:
+
+| tienda | publica | ya dentro | medido |
+|---|---:|---:|---|
+| c-and-a | 48 | 45 | 05/08/2026, pasada real |
+| lefties | 181 | 167 | 05/08/2026, pasada real |
+| sfera | 91 | 47 | #175, sobre las cuatro hojas |
+
+Cuatro tiendas de cuatro dijeron lo mismo. Una categoría `ropa-deportiva` solo podría llenarse
+robándole prendas a `camisetas` o `pantalones`, y entonces el mismo pantalón caería en una u otra
+según qué hoja lo listó primero — que es exactamente lo que el «gana la primera» hace inevitable.
+
+**Tabla `product_tag` (0026), no columna.** `barefoot` (0012) es el precedente estructural —una
+marca ortogonal a la categoría, que escribe el scraper y filtra el catálogo— pero es una sola, y ya
+hay un segundo eje con la misma forma esperando (#189, el uniforme escolar de H&M). Una columna por
+eje repite migración + ingesta + espejo Drizzle + faceta + SPA cada vez. Coste aceptado: un `EXISTS`
+en el listado, la ficha y las facetas.
+
+Cinco decisiones que no son obvias y que cuestan caro al revés:
+
+- **El calzado queda fuera.** La zapatilla deportiva ya se encuentra cruzando la categoría
+  `zapatillas` con el filtro barefoot, y esa categoría la pueblan Cacles (que mapea ahí
+  `deportivas`, `de fútbol`, `de running`, `de gimnasia y baile`), Zara y Lefties. No es teoría: de
+  los 167 productos de la rama de Lefties que están en el catálogo, **37 son calzado** y el eje los
+  descarta. Marcarlos crearía dos formas de pedir lo mismo con resultados distintos por tienda. La
+  regla vive en `tags.SECCION_APLICABLE` y la aplica la INGESTA, no cada scraper.
+- **La marca es del producto, no de la hoja que ganó el listado.** En Lefties 130 de esos 167 salen
+  *también* por su categoría, y `list_catalog()` se queda con la primera hoja que ve: marcar por
+  hoja ganadora haría que la marca dependiera del orden de `CATEGORIES`. En las tiendas que emiten
+  según recorren (Sfera) hay que anotar **antes** del `continue` del dedup.
+- **Se escribe desde el LISTADO, no desde `fetch_details()`.** El detalle solo se pide para lo
+  nuevo, cambiado o rancio, así que colgar la marca del `ScrapedProduct` —que es lo natural— la
+  dejaría vacía para casi todo el catálogo en régimen estacionario. El protocolo
+  `SupportsProductTags` se consulta tras agotar el generador, igual que `scan_report()`.
+- **Una hoja que solo etiqueta no entra en `scopes()`.** Si entrara, pasaría a poder provocar bajas
+  — y una hoja transversal es justo la que más se mueve. El precio es que sus productos exclusivos
+  (14 en Lefties, 3 en C&A) se quedan fuera del catálogo: su categoría real no la dice nadie.
+- **Una fuente caída no reconcilia su eje.** La reconciliación borra lo que la tienda ya no declara,
+  así que sin este acote la pasada siguiente a un 404 se llevaría las marcas de toda la tienda de
+  una vez. Aquí no hay histéresis ni sondeo detrás como en las bajas: una pasada mala basta. En C&A
+  el caso peligroso ni siquiera lanza — una hoja retirada responde 200 con la lista vacía.
+
+**Y una trampa medida que invalida números escritos en las issues:** en Lefties el grid del nodo
+padre **no devuelve su subárbol**. Medido el 05/08/2026 pidiendo las dos cosas: la rama de niña da
+77 en el padre y 93 en la unión de sus seis hijas; la de niño, 69 y 99. O sea que quedarse en el
+padre se deja fuera 46 prendas, casi un cuarto. El «146» que circula por #180 y por las
+declaraciones del vigía es la cifra del padre, no la de la rama. Las hijas se resuelven del menú en
+ejecución, que la pasada ya se descarga, en vez de escribirse.
+
+**La limitación honesta es la cobertura**: solo cinco de las nueve tiendas publican un cajón de
+deporte identificable. Zara, Hipercor, Springfield y Cacles no lo dicen, así que filtrar por el eje
+las excluye enteras. Eso no es un hueco que se rellene solo, y por eso la SPA lo dice en el propio
+interruptor en vez de esconderlo. Vacío **no** significa «no es deportiva»: significa «su tienda no
+lo declara», y ningún consumidor debe leerlo como una negación.
 
 ### Local
 
