@@ -10,6 +10,11 @@ Cuatro endpoints, y el orden importa:
      Da el árbol de categorías. La clave está en que cada hoja trae `content.id`, un **uuid**:
      es lo que pide el listado. Los `/{category}/product` que uno supone por analogía con Zara
      dan todos 404 — el id numérico de categoría NO sirve para listar.
+     Esta misma petición es la que responde **las tres preguntas** de la tienda: qué hojas hay
+     que listar, si siguen vivas (`check_leaves()`: la retirada es la que desaparece del menú) y
+     qué publica que no ingerimos (`category_tree()`, #179). O sea que enumerarse le cuesta cero
+     peticiones nuevas. Cada nodo trae además una `key` legible (`3_NA_T_ZAPATOS_ZAPATOS`) que es
+     lo que hace el árbol comprensible cuando hay que decidir sobre un id opaco.
   2. listado:  /api/storefront/1/stores/{store}/grids/{uuid}?...
      Devuelve la categoría **entera y sin paginar** (medido: 227 productos en camisetas de niña),
      así que es UNA petición por hoja. `components` es un dict, y cada entrada es un **color**,
@@ -47,6 +52,7 @@ from ..barefoot import classify as classify_barefoot
 from ..config import Config
 from .base import (
     GONE_STATUS,
+    CategoryNode,
     DelistCandidate,
     LeafHealth,
     ListingEntry,
@@ -84,6 +90,10 @@ _DETAILS_URL = (
 # Ids por llamada al detalle. La tienda acepta varios; se trocea para no montar URLs enormes.
 _DETAIL_BATCH = 20
 
+# Departamento infantil del menú (`LEFTIES_KIDS`): la raíz del árbol de categorías y del barrido
+# de cobertura del vigía. Ver `tree_roots()`.
+_RAIZ_NINOS = 1030267671
+
 # Tope de fotos por color (mismo criterio que Zara y Sfera).
 _MAX_IMAGES_PER_COLOR = 8
 
@@ -99,12 +109,30 @@ class CategoryConfig:
     `category_id` es el id numérico del menú: estable y legible. El uuid del grid que hace falta
     para listar se resuelve en ejecución desde el menú, porque es un identificador de contenido
     y no hay garantía de que sobreviva a un rediseño de la home de categoría.
+
+    `parent` es la cadena de ids de la que cuelga la hoja, y **solo la usa la capa de cobertura**
+    (`mapped_leaves()`): la pasada no la mira. Va escrita en vez de resolverse contra el menú
+    porque resolverla obligaría a pedirlo, y `mapped_leaves()` lo llaman tests que tienen que
+    seguir siendo herméticos —los de red aquí son opt-in (`SFERA_LIVE=1`) para no depender de
+    Chromium ni de que Akamai deje entrar al runner de CI—. Que siga siendo cierta la vigila
+    `test_el_padre_declarado_es_el_que_publica_el_menu`, contra la captura del menú.
     """
 
     category_id: int
     gender: str  # niño | niña
     section: str  # ropa | zapateria
     category: str  # pantalones | camisetas | sudaderas | vestidos | ropa-interior | zapatos | ...
+    parent: str = ""  # cadena de ids del padre en el menú; ver `mapped_leaves()`
+
+
+# Las seis ramas del menú de las que cuelga todo lo que ingerimos, medidas el 05/08/2026. Son el
+# `parent` de cada `CategoryConfig` y con eso `mapped_leaves()` no necesita red.
+_NINA = f"{_RAIZ_NINOS}/1030267672"
+_NINA_ROPA = f"{_NINA}/1030267677"
+_NINA_ZAPATOS = f"{_NINA}/1030267718"
+_NINO = f"{_RAIZ_NINOS}/1030267673"
+_NINO_ROPA = f"{_NINO}/1030269022"
+_NINO_ZAPATOS = f"{_NINO}/1030267842"
 
 
 # Subconjunto curado: las 5 categorías de ropa del brief + calzado, por niño/niña. Varias hojas
@@ -133,48 +161,48 @@ class CategoryConfig:
 # así que gana ella.
 CATEGORIES: list[CategoryConfig] = [
     # --- barefoot: primero a propósito (ver nota de orden arriba) ---
-    CategoryConfig(1030680692, "niña", "zapateria", "barefoot"),  # barefoot (rama propia)
-    CategoryConfig(1030680609, "niña", "zapateria", "barefoot"),  # barefoot (dentro de zapatos)
-    CategoryConfig(1030680206, "niño", "zapateria", "barefoot"),  # barefoot (rama propia)
-    CategoryConfig(1030680610, "niño", "zapateria", "barefoot"),  # barefoot (dentro de zapatos)
+    CategoryConfig(1030680692, "niña", "zapateria", "barefoot", _NINA),  # barefoot (rama propia)
+    CategoryConfig(1030680609, "niña", "zapateria", "barefoot", _NINA_ZAPATOS),  # dentro de zapatos
+    CategoryConfig(1030680206, "niño", "zapateria", "barefoot", _NINO),  # barefoot (rama propia)
+    CategoryConfig(1030680610, "niño", "zapateria", "barefoot", _NINO_ZAPATOS),  # dentro de zapatos
     # --- niña / ropa ---
-    CategoryConfig(1030267678, "niña", "ropa", "camisetas"),  # camisetas
-    CategoryConfig(1030267686, "niña", "ropa", "camisetas"),  # tops | camisas
-    CategoryConfig(1030267695, "niña", "ropa", "sudaderas"),  # sudaderas
-    CategoryConfig(1030267697, "niña", "ropa", "sudaderas"),  # punto
-    CategoryConfig(1030267701, "niña", "ropa", "pantalones"),  # pantalones
-    CategoryConfig(1030267775, "niña", "ropa", "pantalones"),  # leggings
-    CategoryConfig(1030580828, "niña", "ropa", "pantalones"),  # jeans
-    CategoryConfig(1030267687, "niña", "ropa", "vestidos"),  # vestidos | monos
-    CategoryConfig(1030267703, "niña", "ropa", "vestidos"),  # faldas | shorts
-    CategoryConfig(1030293529, "niña", "ropa", "ropa-interior"),  # pijamas
-    CategoryConfig(1030267711, "niña", "ropa", "ropa-interior"),  # ropa interior
-    CategoryConfig(1030352572, "niña", "ropa", "ropa-interior"),  # calcetines
+    CategoryConfig(1030267678, "niña", "ropa", "camisetas", _NINA_ROPA),  # camisetas
+    CategoryConfig(1030267686, "niña", "ropa", "camisetas", _NINA_ROPA),  # tops | camisas
+    CategoryConfig(1030267695, "niña", "ropa", "sudaderas", _NINA_ROPA),  # sudaderas
+    CategoryConfig(1030267697, "niña", "ropa", "sudaderas", _NINA_ROPA),  # punto
+    CategoryConfig(1030267701, "niña", "ropa", "pantalones", _NINA_ROPA),  # pantalones
+    CategoryConfig(1030267775, "niña", "ropa", "pantalones", _NINA_ROPA),  # leggings
+    CategoryConfig(1030580828, "niña", "ropa", "pantalones", _NINA_ROPA),  # jeans
+    CategoryConfig(1030267687, "niña", "ropa", "vestidos", _NINA_ROPA),  # vestidos | monos
+    CategoryConfig(1030267703, "niña", "ropa", "vestidos", _NINA_ROPA),  # faldas | shorts
+    CategoryConfig(1030293529, "niña", "ropa", "ropa-interior", _NINA_ROPA),  # pijamas
+    CategoryConfig(1030267711, "niña", "ropa", "ropa-interior", _NINA_ROPA),  # ropa interior
+    CategoryConfig(1030352572, "niña", "ropa", "ropa-interior", _NINA_ROPA),  # calcetines
     # --- niña / zapatería ---
-    CategoryConfig(1030272335, "niña", "zapateria", "zapatos"),  # zapatos
-    CategoryConfig(1030272301, "niña", "zapateria", "botas"),  # botas y botines
-    CategoryConfig(1030276114, "niña", "zapateria", "sandalias"),  # sandalias
-    CategoryConfig(1030272304, "niña", "zapateria", "zapatillas"),  # zapatillas
-    CategoryConfig(1030476904, "niña", "zapateria", "zapatillas"),  # deportivos
+    CategoryConfig(1030272335, "niña", "zapateria", "zapatos", _NINA_ZAPATOS),  # zapatos
+    CategoryConfig(1030272301, "niña", "zapateria", "botas", _NINA_ZAPATOS),  # botas y botines
+    CategoryConfig(1030276114, "niña", "zapateria", "sandalias", _NINA_ZAPATOS),  # sandalias
+    CategoryConfig(1030272304, "niña", "zapateria", "zapatillas", _NINA_ZAPATOS),  # zapatillas
+    CategoryConfig(1030476904, "niña", "zapateria", "zapatillas", _NINA_ZAPATOS),  # deportivos
     # --- niño / ropa ---
-    CategoryConfig(1030267807, "niño", "ropa", "camisetas"),  # camisetas
-    CategoryConfig(1030267815, "niño", "ropa", "camisetas"),  # camisas
-    CategoryConfig(1030269101, "niño", "ropa", "camisetas"),  # polos
-    CategoryConfig(1030267820, "niño", "ropa", "sudaderas"),  # sudaderas
-    CategoryConfig(1030267822, "niño", "ropa", "sudaderas"),  # jerséis
-    CategoryConfig(1030702240, "niño", "ropa", "pantalones"),  # pantalones
-    CategoryConfig(1030267826, "niño", "ropa", "pantalones"),  # pantalones de chándal
-    CategoryConfig(1030566694, "niño", "ropa", "pantalones"),  # jeans
-    CategoryConfig(1030321544, "niño", "ropa", "pantalones"),  # bermudas
-    CategoryConfig(1030293530, "niño", "ropa", "ropa-interior"),  # pijamas
-    CategoryConfig(1030267835, "niño", "ropa", "ropa-interior"),  # ropa interior
-    CategoryConfig(1030352081, "niño", "ropa", "ropa-interior"),  # calcetines
+    CategoryConfig(1030267807, "niño", "ropa", "camisetas", _NINO_ROPA),  # camisetas
+    CategoryConfig(1030267815, "niño", "ropa", "camisetas", _NINO_ROPA),  # camisas
+    CategoryConfig(1030269101, "niño", "ropa", "camisetas", _NINO_ROPA),  # polos
+    CategoryConfig(1030267820, "niño", "ropa", "sudaderas", _NINO_ROPA),  # sudaderas
+    CategoryConfig(1030267822, "niño", "ropa", "sudaderas", _NINO_ROPA),  # jerséis
+    CategoryConfig(1030702240, "niño", "ropa", "pantalones", _NINO_ROPA),  # pantalones
+    CategoryConfig(1030267826, "niño", "ropa", "pantalones", _NINO_ROPA),  # pantalones de chándal
+    CategoryConfig(1030566694, "niño", "ropa", "pantalones", _NINO_ROPA),  # jeans
+    CategoryConfig(1030321544, "niño", "ropa", "pantalones", _NINO_ROPA),  # bermudas
+    CategoryConfig(1030293530, "niño", "ropa", "ropa-interior", _NINO_ROPA),  # pijamas
+    CategoryConfig(1030267835, "niño", "ropa", "ropa-interior", _NINO_ROPA),  # ropa interior
+    CategoryConfig(1030352081, "niño", "ropa", "ropa-interior", _NINO_ROPA),  # calcetines
     # --- niño / zapatería ---
-    CategoryConfig(1030272391, "niño", "zapateria", "zapatos"),  # zapatos
-    CategoryConfig(1030272326, "niño", "zapateria", "botas"),  # botas y botines
-    CategoryConfig(1030276115, "niño", "zapateria", "sandalias"),  # sandalias
-    CategoryConfig(1030272329, "niño", "zapateria", "zapatillas"),  # zapatillas
-    CategoryConfig(1030272327, "niño", "zapateria", "zapatillas"),  # deportivos
+    CategoryConfig(1030272391, "niño", "zapateria", "zapatos", _NINO_ZAPATOS),  # zapatos
+    CategoryConfig(1030272326, "niño", "zapateria", "botas", _NINO_ZAPATOS),  # botas y botines
+    CategoryConfig(1030276115, "niño", "zapateria", "sandalias", _NINO_ZAPATOS),  # sandalias
+    CategoryConfig(1030272329, "niño", "zapateria", "zapatillas", _NINO_ZAPATOS),  # zapatillas
+    CategoryConfig(1030272327, "niño", "zapateria", "zapatillas", _NINO_ZAPATOS),  # deportivos
 ]
 
 
@@ -200,6 +228,83 @@ def grid_ids_by_category(menu: dict[str, Any]) -> dict[int, str]:
     for item in menu.get("items") or []:
         walk(item)
     return out
+
+
+def _es_divisor(nodo: Mapping[str, Any]) -> bool:
+    """¿Es una raya de separación del menú y no una categoría?
+
+    La tienda intercala separadores entre bloques del menú: se llaman `-`, son de tipo
+    `marketing` y su `key` lo dice (`3_NA_T_SEPARACIÓN_ROPA`). Medido el 05/08/2026 bajo la rama
+    infantil: **28 de 301 nodos**, ninguno con hijas y ninguno mapeado en `CATEGORIES`.
+
+    No se emiten porque no son categorías: emitirlos sería inventarse 28 huecos de cobertura que
+    nadie va a ingerir jamás, o exigir 28 declaraciones que envejecen con el menú. Se mira el
+    nombre y no la `key` a propósito — si algún día una raya cambia de nombre, el vigía la cantará
+    una vez como categoría nueva, que es un aviso barato y que se corrige solo; filtrar por un
+    trozo de `key` podría, al revés, tapar una categoría de verdad.
+    """
+    return nodo.get("name") == "-"
+
+
+def parse_category_tree(menu: dict[str, Any], root: str) -> list[CategoryNode]:
+    """El árbol que publica el menú por debajo de `root`. Pura (JSON -> nodos).
+
+    **La ruta es la cadena de ids desde la raíz pedida**, como en Zara y por el mismo motivo: los
+    ids de Lefties son opacos (`1030267678`) y no se anidan solos, así que sin cadena no hay forma
+    de saber que un nodo cuelga de una hoja que ya ingerimos. Medido el 05/08/2026: de los 273
+    nodos de la rama infantil, **187 cuelgan de una hoja de `CATEGORIES`**, y a id suelto los 187
+    se señalarían como huecos.
+
+    El menú trae además una `key` legible (`3_NA_T_ZAPATOS_ZAPATOS`, `LEFTIES_BABYGIRL`) que es lo
+    que hace el árbol comprensible al leerlo. No se usa como ruta porque el vocabulario de esta
+    capa tiene que ser el mismo que el de `LeafHealth.leaf` y el de `CATEGORIES`, que es el id
+    numérico; la `key` va en el motivo de cada declaración, que es donde se lee.
+
+    El `count` es `None` en todos: el menú publica navegación, no inventario (ver `CategoryNode`).
+    """
+    raiz = _buscar_nodo(menu.get("items") or [], root.rsplit("/", 1)[-1])
+    if raiz is None:
+        return []
+
+    nodos: list[CategoryNode] = []
+
+    def walk(nodo: Mapping[str, Any], cadena: str, depth: int) -> None:
+        for hija in nodo.get("children") or []:
+            if not isinstance(hija, dict) or not isinstance(hija.get("id"), int):
+                continue
+            ruta = f"{cadena}/{hija['id']}"
+            # Los divisores no se emiten, pero se recorren igual: si alguno llegara a tener hijas,
+            # saltárselas escondería catálogo, que es justo lo contrario de para lo que existe esto.
+            if not _es_divisor(hija):
+                nodos.append(
+                    CategoryNode(
+                        path=ruta,
+                        title=str(hija.get("name") or ""),
+                        count=None,
+                        depth=depth,
+                        has_children=any(
+                            isinstance(n, dict) and not _es_divisor(n)
+                            for n in hija.get("children") or []
+                        ),
+                    )
+                )
+            walk(hija, ruta, depth + 1)
+
+    walk(raiz, root, 1)
+    return nodos
+
+
+def _buscar_nodo(nodos: Iterable[Any], category_id: str) -> Mapping[str, Any] | None:
+    """El nodo con ese id en cualquier profundidad, o `None` si el menú ya no lo publica."""
+    for nodo in nodos:
+        if not isinstance(nodo, dict):
+            continue
+        if str(nodo.get("id")) == category_id:
+            return nodo
+        encontrado = _buscar_nodo(nodo.get("children") or [], category_id)
+        if encontrado is not None:
+            return encontrado
+    return None
 
 
 def _product_components(grid: dict[str, Any]) -> list[dict[str, Any]]:
@@ -422,6 +527,7 @@ class LeftiesStore:
         # pero necesita la CategoryConfig para el dominio y para construir la URL.
         self._cat_by_product: dict[str, CategoryConfig] = {}
         self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
+        self._menu_cache: dict[str, Any] | None = None  # árbol cacheado; ver `_menu()`
 
     def scopes(self) -> Iterable[ScrapeScope]:
         """Los ámbitos de las hojas **más su equivalente `unisex`** (ver `base.con_unisex`).
@@ -526,6 +632,74 @@ class LeftiesStore:
                 grid_id is not None,
                 f"grid {grid_id}" if grid_id else "ya no está en el menú",
             )
+
+    # --- capacidades opcionales --------------------------------------------------------------
+
+    def category_tree(self, root: str) -> Iterable[CategoryNode]:
+        """Ver `stores.base.SupportsCategoryTree`. Sale del menú que la pasada ya se baja.
+
+        **Cero peticiones nuevas sobre lo que esta tienda ya pide**: `list_catalog()` y
+        `check_leaves()` bajan este mismo menú en cada ejecución para resolver los uuid de los
+        grids (ver `grid_ids_by_category`), así que enumerarse le cuesta lo mismo que sondearse.
+
+        `root` es una cadena de ids (`1030267671` para Niños, `1030267671/1030267672` para su rama
+        de niña) y basta el último para localizar el nodo: los ids son únicos en todo el menú.
+        """
+        return parse_category_tree(self._menu(), root)
+
+    def _menu(self) -> dict[str, Any]:
+        """El menú del que sale el árbol, cacheado por instancia.
+
+        `--tree` y el barrido del vigía piden el árbol varias veces y el menú es el mismo en
+        todas; sin caché serían varios Chromium y varias siembras de Akamai para el mismo JSON.
+        """
+        if self._menu_cache is None:
+            with self._session_factory() as session:
+                session.goto(BASE_URL)  # siembra las cookies de Akamai
+                self._menu_cache = session.get_json(_MENU_URL)
+        return self._menu_cache
+
+    def mapped_leaves(self) -> Iterable[str]:
+        """Ver `stores.base.SupportsCategoryTree`. Las hojas de `CATEGORIES`, en cadena de ids.
+
+        **Sin red**, al revés que en Zara: allí la cadena se resuelve pidiendo el árbol, y aquí se
+        arma con el `parent` que cada `CategoryConfig` ya declara. La diferencia importa porque a
+        esto lo llama `test_cobertura_declarada_no_solapa_con_lo_mapeado`, que corre en `just
+        check`: resolver contra el menú metería Chromium y a Akamai en el camino por defecto de CI,
+        que es justo lo que los smokes en vivo evitan siendo opt-in.
+
+        Una hoja que el menú dejara de publicar se sigue emitiendo tal cual, como en H&M y a
+        propósito: lo que hay que decir entonces es que la hoja ha muerto, y eso lo canta
+        `check_leaves()` —aquí una hoja retirada es, precisamente, la que desaparece del menú— con
+        el veredicto que corresponde. Omitirla aquí solo conseguiría que además apareciese como
+        hueco de cobertura, que es el mismo hecho contado dos veces y peor.
+        """
+        return [f"{cat.parent}/{cat.category_id}" for cat in self._categories]
+
+    def tree_separator(self) -> str:
+        """Ver `stores.base.SupportsCategoryTree`. La cadena de ids se anida con `/`.
+
+        Es nuestro, no de la tienda: sus ids son opacos y no se anidan solos (ver
+        `parse_category_tree`). Da igual cuál sea mientras no aparezca dentro de un id, y un id de
+        Lefties es siempre un número.
+        """
+        return "/"
+
+    def tree_roots(self) -> Iterable[str]:
+        """Ver `stores.base.SupportsCoverageWatch`. El departamento infantil entero, una raíz.
+
+        No se barre por rama de género —como sí hacen Sfera, Springfield y H&M— porque aquí el
+        departamento **no tapa nada**: medido el 05/08/2026, de `Niños` cuelgan exactamente las
+        cinco ramas de género (Niña, Niño, Bebé Niña, Bebé Niño, Recién Nacido) y un separador, y
+        sus 273 nodos son todos infantiles. En H&M el departamento arrastraba 258 rutas de casa y
+        juguetes, y por eso allí las raíces son las siete ramas.
+
+        Barrer desde el departamento tiene además una propiedad que las raíces por rama no dan:
+        **una rama de género nueva se ve sola**. Con las cinco declaradas a mano, el día que la
+        tienda partiera «Bebé» en dos nadie se enteraría — que es la forma exacta del hueco que
+        esta capa existe para tapar.
+        """
+        return [str(_RAIZ_NINOS)]
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
         ids = [e.retailer_product_id for e in entries]
