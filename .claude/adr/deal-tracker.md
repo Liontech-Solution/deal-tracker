@@ -565,6 +565,27 @@ sobre todo en la segunda: en Zara **78 de 86** referencias barefoot no se inger�
 este producto existe para encontrar. Y el árbol **no es simétrico** entre rangos: la mayoría de
 categorías de ropa de Sfera no existen en bebé.
 
+**Y pueden ser más de dos: en Zara son TRES** (#186, 05/08/2026). Además de 6-14 y mini 1½-6 hay un
+departamento de bebé 0-18 meses (`2428025`, `kids-baby`) con **143 nodos y ninguno mapeado**, que no
+estaba descartado sino sin mencionar. La lección no es el número —es que *«dos rangos»* era una
+generalización de dos tiendas, y la única forma de saber cuántos tiene la siguiente es enumerar su
+árbol. Al mapearlo, sus once hojas del brief listan **1157 productos de los que 545 eran nuevos**:
+el catálogo de Zara pasó de 3382 a 3927 (+16 %).
+
+**Los rangos solapan, y eso convierte el orden de `CATEGORIES` en una decisión de datos.** Los otros
+612 de esos 1157 ya entraban por una hoja con género, porque el bebé de Zara no separa niño de niña
+y su rango pisa el de mini. Como `list_catalog()` deduplica por id y **gana la primera hoja que lo
+ve**, poner bebé delante habría degradado 612 productos de `niña`/`niño` a `unisex` —sacándolos del
+filtro que el brief pide— y además los habría contado como mudanza de ámbito (#174) en la primera
+pasada. Van al final por eso, con un test que lo fija.
+
+Nótese que esto es el **mismo resultado que `ambito_cruzado()` consigue en Hipercor por otro
+camino**: allí lo declarado `unisex` se descarta antes de mirar el cruce; aquí no hay cruce que
+mirar —Zara no pasa `tambien_unisex`— y la única protección es el orden. Quien añada una rama que
+solape con otra ya mapeada tiene que elegir explícitamente cuál de las dos gana, y la respuesta por
+defecto es **la más específica**: barefoot por delante del calzado genérico, y el género por delante
+de `unisex`.
+
 **Una hoja muerta casi nunca da 404, y cada tienda miente de una forma distinta.** Ya van **cuatro**
 formas distintas (recon de #70, 02/08/2026), y la consecuencia siempre es la misma:
 

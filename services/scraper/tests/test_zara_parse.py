@@ -210,6 +210,21 @@ def test_barefoot_va_antes_que_el_resto_del_calzado() -> None:
     assert len(ids) == len(set(ids))
 
 
+def test_bebe_va_despues_de_las_hojas_con_genero() -> None:
+    """El mismo invariante de orden, en la dirección contraria (#186).
+
+    La rama de bebé (0-18 meses) no separa niño de niña, así que entra como `unisex`, y su rango
+    solapa con el de las hojas mini: medido el 05/08/2026, de los 1157 productos que listan sus
+    once hojas, 612 ya entraban por una hoja con género. Aquí gana la hoja CON género —es la que
+    la web puede filtrar—, así que bebé va detrás. Invertirlo dejaría esos 612 como `unisex` y,
+    de paso, los contaría como mudanza de ámbito en la primera pasada (#174).
+    """
+    bebe = [i for i, c in enumerate(CATEGORIES) if c.gender == "unisex"]
+    con_genero = [i for i, c in enumerate(CATEGORIES) if c.gender != "unisex"]
+    assert bebe, "debe haber hojas de bebé"
+    assert min(bebe) > max(con_genero)
+
+
 def _listado_con(*product_ids: str) -> dict[str, object]:
     """Listado mínimo con la forma que recorre `_iter_product_nodes` (seo.discernProductId)."""
     return {
