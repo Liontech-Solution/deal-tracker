@@ -12,6 +12,7 @@ from decimal import Decimal
 from typing import Any
 
 from scraper.config import Config
+from scraper.stores import lefties
 from scraper.stores.base import ScrapedImage, ScrapeScope
 from scraper.stores.browser import BrowserHTTPError
 from scraper.stores.lefties import (
@@ -447,5 +448,160 @@ def test_scopes_declara_tambien_los_ambitos_unisex_que_el_parser_puede_emitir() 
 
     assert len(scopes) == len(set(scopes)), "sin duplicados"
     for cat in CATEGORIES:
+        if cat.por_familia:
+            continue  # no tiene un ámbito propio; los suyos se comprueban en el test de abajo
         assert ScrapeScope(cat.gender, cat.section, cat.category) in scopes
         assert ScrapeScope("unisex", cat.section, cat.category) in scopes
+
+
+def test_scopes_declara_todo_lo_que_la_hoja_por_familia_puede_emitir() -> None:
+    """La hoja de rebajas no tiene UN ámbito: tiene todos los de su tabla, y hay que declararlos.
+
+    Es el mismo agujero que el de arriba visto desde la otra punta: la prenda que solo entra por la
+    hoja de rebajas vive en un ámbito que ninguna hoja de categoría declara, y sin declararlo no se
+    descatalogaría jamás.
+    """
+    scopes = set(LeftiesStore(_CFG).scopes())
+    por_familia = [c for c in CATEGORIES if c.por_familia]
+
+    assert por_familia, "esto deja de tener sentido si se quitan las hojas de rebajas"
+    for cat in por_familia:
+        for section, category in lefties.dominios_emitibles(cat.gender):
+            assert ScrapeScope(cat.gender, section, category) in scopes
+            assert ScrapeScope("unisex", section, category) in scopes
+
+
+def test_la_hoja_mezclada_no_inventa_ambitos_que_la_tienda_no_tiene() -> None:
+    """`vestidos` solo existe en niña, y la tabla de familias no distingue género.
+
+    Sin acotarla, una falda colgada algún día de la hoja de rebajas de niño produciría un
+    `niño/ropa/vestidos` que ningún filtro de la web sabe enseñar. Hoy no pasa —el short de niño
+    llega como `BERMUDAS`—, pero eso es una observación de un día.
+    """
+    assert ("ropa", "vestidos") in lefties.dominios_emitibles("niña")
+    assert ("ropa", "vestidos") not in lefties.dominios_emitibles("niño")
+
+    cat_nino = CategoryConfig(
+        1030303020, "niño", "", "", "1030267671/1030267673", por_familia=True, estacional=True
+    )
+    assert parse_listing_entries(_grid_familia("R1", "SKIRT"), cat_nino) == []
+    assert len(parse_listing_entries(_grid_familia("R1", "BERMUDAS"), cat_nino)) == 1
+
+
+# --- hoja de campaña: mezclada y estacional (#195) -------------------------------------------
+
+_CAT_REBAJAS = CategoryConfig(
+    1030302501, "niña", "", "", "1030267671/1030267672", por_familia=True, estacional=True
+)
+
+
+def _grid_rebajas() -> dict[str, Any]:
+    """Grid real de `3_NA_S_REBAJAS`, la hoja de rebajas de niña."""
+    return load_fixture("lefties_grid_rebajas_nina.json")
+
+
+def _grid_familia(pid: str, familia: str | None) -> dict[str, Any]:
+    grid = _grid(pid)
+    grid["components"]["c1"]["classification"] = {"family": {"name": familia}}
+    return grid
+
+
+def test_la_hoja_de_rebajas_reparte_cada_prenda_en_su_categoria() -> None:
+    """La hoja mezcla cuatro de las cinco categorías del brief y hasta calzado, así que una
+    `CategoryConfig` con categoría fija metería faldas en `camisetas`. La familia es de la ficha."""
+    entradas = parse_listing_entries(_grid_rebajas(), _CAT_REBAJAS)
+
+    reparto = Counter((e.section, e.category) for e in entradas)
+    assert reparto[("ropa", "vestidos")] > 0  # faldas, shorts y vestidos
+    assert reparto[("ropa", "camisetas")] > 0
+    assert reparto[("zapateria", "zapatillas")] > 0, "la hoja mezcla también secciones"
+    # El género SÍ es de la hoja: eso la tienda no lo mezcla.
+    assert {e.gender for e in entradas} == {"niña"}
+
+
+def test_la_prenda_cuya_familia_no_sabemos_mapear_se_descarta() -> None:
+    """Mejor perder una prenda que meterla en una categoría que no es la suya.
+
+    `ENSEMBLE..SET` es el caso que más importa: es el conjunto de #192, que en las hojas mapeadas
+    cae en cuatro categorías distintas. Decidirlo aquí de tapadillo sería peor que perderlo.
+    """
+    for familia in ("ENSEMBLE..SET", "WAISTCOAT", "WIND-BREAK", None, "LO QUE SEA"):
+        assert parse_listing_entries(_grid_familia("R1", familia), _CAT_REBAJAS) == []
+
+    assert len(parse_listing_entries(_grid_familia("R1", "T-SHIRT"), _CAT_REBAJAS)) == 1
+
+
+def test_la_hoja_de_rebajas_no_le_pisa_la_categoria_a_quien_ya_la_tiene() -> None:
+    """Lo que protege el ORDEN de `CATEGORIES`: la hoja mezclada va la última.
+
+    Si se moviera hacia arriba, pasaría a decidir la categoría de prendas que hoy la reciben de
+    una hoja que la sabe mejor — y en silencio, porque el producto seguiría entrando.
+    """
+    store = _scan_store(
+        _menu({1030267678: "uuid-camisetas", 1030302501: "uuid-rebajas"}),
+        # El mismo modelo en su hoja de camisetas y, rebajado, con familia de falda.
+        {"uuid-camisetas": _grid("C1"), "uuid-rebajas": _grid_familia("C1", "SKIRT")},
+        [CategoryConfig(1030267678, "niña", "ropa", "camisetas"), _CAT_REBAJAS],
+    )
+
+    entradas = list(store.list_catalog())
+
+    assert [(e.retailer_product_id, e.section, e.category) for e in entradas] == [
+        ("C1", "ropa", "camisetas")
+    ]
+    # Y el detalle tiene que ver lo mismo: construye el producto desde la config cacheada.
+    assert store._cat_by_product["C1"].category == "camisetas"
+
+
+def test_el_ambito_de_la_prenda_rebajada_llega_al_detalle() -> None:
+    """`fetch_details` arma el `ScrapedProduct` desde la `CategoryConfig` cacheada, así que si la
+    categoría derivada no viaja hasta ahí se ingiere con la de la hoja, que está vacía."""
+    store = _scan_store(
+        _menu({1030302501: "uuid-rebajas"}),
+        {"uuid-rebajas": _grid_familia("R1", "SKIRT")},
+        [_CAT_REBAJAS],
+    )
+
+    list(store.list_catalog())
+
+    cat = store._cat_by_product["R1"]
+    assert (cat.section, cat.category) == ("ropa", "vestidos")
+    assert cat.category_id == 1030302501, "el id de la hoja, que es con lo que se arma la URL"
+
+
+def test_la_hoja_de_campana_apagada_no_compromete_ni_cuenta_como_caida() -> None:
+    """Al acabar la campaña la hoja se va del menú, y eso es su comportamiento normal.
+
+    Contarla como caída haría dos daños cada temporada: subir `dead_ratio` hacia el tope que aborta
+    la pasada, y sacar de las bajas un ámbito que sus 38 hojas de siempre han listado perfectamente.
+    """
+    store = _scan_store(
+        _menu({1030267678: "uuid-camisetas"}),  # la de rebajas ya no está
+        {"uuid-camisetas": _grid("C1")},
+        [CategoryConfig(1030267678, "niña", "ropa", "camisetas"), _CAT_REBAJAS],
+    )
+
+    ids = [e.retailer_product_id for e in store.list_catalog()]
+    report = store.scan_report()
+
+    assert ids == ["C1"]
+    assert (report.leaves_total, report.leaves_failed) == (1, 0)
+    assert report.failed_scopes == set()
+    assert report.failed_leaves == []
+
+
+def test_check_leaves_marca_la_hoja_de_campana_como_estacional() -> None:
+    """Sigue retirada (no se puede listar), pero el vigía tiene que poder no gritarlo cada
+    jueves."""
+    store = _scan_store(
+        _menu({1030267678: "uuid-camisetas"}),
+        {"uuid-camisetas": _grid("C1")},
+        [CategoryConfig(1030267678, "niña", "ropa", "camisetas"), _CAT_REBAJAS],
+    )
+
+    hojas = {h.leaf: h for h in store.check_leaves()}
+
+    assert hojas["1030267678"].alive is True
+    assert hojas["1030302501"].alive is False, "apagada es apagada: no se puede listar"
+    assert hojas["1030302501"].estacional is True
+    assert hojas["1030267678"].estacional is False

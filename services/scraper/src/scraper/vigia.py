@@ -496,18 +496,11 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
             "SIN DECIDIR — «Recién Nacido» (LEFTIES_BABYGROW): rama entera sin ingerir, 86 "
             "productos y 0 que entren por otra rama"
         ),
-        # Y el espejo de rebajas, que es el caso contrario al de Mango (#176): allí la hoja de
-        # campaña se cae y deja de ingerirse; aquí publica producto que NO está en ninguna hoja
-        # mapeada. 31 exclusivos (25 + 6) y la muestra es ropa del brief —camisetas, pantalones,
-        # vestidos, sudaderas, jeans—, no complementos. Sin decidir por lo mismo que en Mango: si
-        # mapear hojas de campaña es una trampa estacional. Issue propia pendiente de abrir.
-        "1030267671/1030267672/1030302501": (
-            "SIN DECIDIR — «REBAJAS HASTA -70%» (3_NA_S_REBAJAS): 25/0/25, y la muestra de los "
-            "exclusivos es ropa del brief, no complemento"
-        ),
-        "1030267671/1030267673/1030303020": (
-            "SIN DECIDIR — «REBAJAS HASTA -70%» (3_NO_S_REBAJAS): 6/0/6, mismo caso que la de niña"
-        ),
+        # Las dos hojas `REBAJAS HASTA -70%` ya NO se declaran aquí: se ingieren desde #195, con la
+        # categoría derivada por producto (`lefties._FAMILIA_A_DOMINIO`). Lo que las sacó de esta
+        # lista es que el 0 de solape resultó ser de temporada y no de campaña: las 38 hojas
+        # mapeadas van enteras en `I2026` y las de rebajas enteras en `V2026`.
+        #
         # Y la ropa deportiva, que ya tiene issue: #180. Esta tienda añade su tercer dato y va en
         # la misma dirección que Sfera y C&A —el eje «deportivo» es transversal, no una
         # categoría—: de los 146 productos de las dos ramas, **130 ya entran** por `camisetas`,
@@ -614,6 +607,9 @@ def revisar_hojas(store: BaseStore, informe: Informe) -> None:
     dos copias de la misma regla (el repo ya paga ese precio en otro sitio, ver #39):
 
     - Una hoja **RETIRADA** es accionable: pide un id nuevo en `CATEGORIES`.
+    - Una hoja **RETIRADA Y ESTACIONAL** solo avisa: es una hoja de campaña apagada, y su id vuelve
+      cuando vuelve la campaña (`LeafHealth.estacional`). Pedir un id nuevo cada semana por algo que
+      se cura solo es la forma más rápida de que nadie se crea al vigía (#176, #195).
     - Una hoja **SIN VEREDICTO** avisa pero no rompe: medido contra Sfera, un chequeo normal ya trae
       un 403 suelto de Akamai.
     - Que **ninguna** hoja se confirme viva sí rompe: eso ya no es un blip, es un bloqueo. Es la
@@ -635,17 +631,18 @@ def revisar_hojas(store: BaseStore, informe: Informe) -> None:
     # llegaron a sondear aunque `check_leaves()` reviente a mitad.
     vivas = 0
     retiradas: list[LeafHealth] = []
+    estacionales: list[LeafHealth] = []
     sin_veredicto: list[LeafHealth] = []
 
     def sondeadas() -> int:
-        return vivas + len(retiradas) + len(sin_veredicto)
+        return vivas + len(retiradas) + len(estacionales) + len(sin_veredicto)
 
     with _cronometrar(informe, "hojas", "hoja", sondeadas):
         for hoja in store.check_leaves():
             if hoja.alive:
                 vivas += 1
             elif hoja.alive is False:
-                retiradas.append(hoja)
+                (estacionales if hoja.estacional else retiradas).append(hoja)
             else:
                 sin_veredicto.append(hoja)
 
@@ -655,6 +652,12 @@ def revisar_hojas(store: BaseStore, informe: Informe) -> None:
         informe.accionables.append(
             f"{len(retiradas)} hoja(s) RETIRADA(S) — busca sus ids nuevos y actualiza CATEGORIES:\n"
             + "\n".join(f"  - {_describe(h)}" for h in retiradas)
+        )
+    if estacionales:
+        informe.avisos.append(
+            f"{len(estacionales)} hoja(s) de campaña apagada(s) (no es una retirada: su id vuelve "
+            "con la campaña, ver `LeafHealth.estacional`):\n"
+            + "\n".join(f"  - {_describe(h)}" for h in estacionales)
         )
     if total and not vivas:
         informe.accionables.append(

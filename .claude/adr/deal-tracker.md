@@ -1291,6 +1291,61 @@ que en QA —que se despliega por releases semver— hay una ventana real en la 
 antes que la `0022`. Base inalcanzable, tabla que aún no existe o INSERT rechazado degradan a «sin
 historial» y el sondeo sigue igual, como ya hacía el aviso de GitHub cuando falta el token.
 
+### Una hoja de campaña no es una hoja retirada, y su categoría es del producto (#195, #176)
+
+Dos tiendas publican hojas cuya vida depende de una campaña, y fallaban de formas opuestas que
+resultaron ser la misma pregunta. En Mango, `rebajas_newborn.sudaderas_newborn` dio **404** y un día
+después respondía con el **mismo `catalogId`**: mientras estuvo caída no se ingirió lo que había
+dentro y `check_leaves()` la cantó como RETIRADA, que es un aviso semanal pidiendo un id nuevo que
+ya existe. En Lefties, las dos `REBAJAS HASTA -70%` publicaban 26 prendas del brief que **no estaban
+en ninguna de las 38 hojas mapeadas**, así que no mapearlas perdía catálogo que solo vive ahí.
+
+Lo que hizo decidible el caso fue medir **por qué** no estaban en su categoría, y la respuesta no
+era ninguna de las dos hipótesis de partida (06/08/2026, barrido de las 40 hojas):
+
+| | componentes | temporada | rebajados |
+|---|---:|---|---:|
+| 38 hojas de categoría | 2207 | `I2026` (2207 de 2207) | 275 |
+| 2 hojas de rebajas | 32 | `V2026` (32 de 32) | 32 |
+
+O sea que **rebajar no saca la prenda de su categoría** —275 rebajados viven dentro de las hojas
+normales—: lo que las separa es la temporada. Las hojas permanentes ya han pasado a la que entra y
+en rebajas queda el saldo de la que sale, que no cuelga de ninguna categoría. La regla que sale:
+
+> Una hoja de campaña **se mapea si su id es estable y publica producto propio**. Si mezcla
+> categorías, la categoría se deriva **por producto**, no por hoja. Y su apagado —404, o desaparecer
+> del menú— **no es una retirada**: es estacional, y no puede sonar como accionable.
+
+Tres consecuencias que van más allá de estas dos tiendas:
+
+- **`estacional` es una propiedad de la hoja, no un cuarto veredicto.** `LeafHealth.alive` sigue
+  siendo `False` cuando la hoja está apagada —no se puede listar, y no se ingiere lo que hubiera
+  dentro—; lo que añade la marca es que era *esperable*, y con eso el vigía avisa en vez de romper.
+  En la pasada tiene un segundo efecto, y ese sí protege datos: una hoja estacional caída **no
+  cuenta como caída**, porque al acabar una campaña se apagan muchas a la vez y eso dispararía
+  `SCRAPER_SCAN_MAX_DEAD_RATIO` en una tienda sana — es el mismo razonamiento que ya hacía
+  `mango.es_listado()` para la hoja *vacía*, aplicado a la hoja *ausente*.
+- **La categoría por producto sale de `classification.family`, y `subfamily` no vale.** Medido sobre
+  la hoja de rebajas de Lefties: `family` acertó en los 26 contra el nombre de la prenda y
+  `subfamily` mintió en 4 (una falda como `Girls’ Chunky Knit Top`, un pijama como `…Long Sleeve
+  Polo`). Y la tabla familia→dominio no se inventa: se construye contando en qué categoría cae cada
+  familia **en las hojas que ya se ingieren**, por eso `SHORT` va a `vestidos` —es donde lo pone la
+  hoja `faldas | shorts` de niña— y el short de niño llega como `BERMUDAS`. Lo que no se puede
+  defender se descarta: `ENSEMBLE..SET` (el conjunto, que es la pregunta abierta de #192) cae en
+  cuatro categorías distintas, así que decidirlo de tapadillo sería peor que perder la prenda.
+- **El orden de `CATEGORIES` es lo que hace segura la hoja mezclada**, y es el mismo mecanismo de la
+  sección anterior usado al revés: yendo **la última**, `list_catalog()` («gana la primera») le deja
+  la categoría a quien ya la tiene por una hoja que la sabe mejor, y la de rebajas solo aporta su
+  residuo. Moverla hacia arriba rompería la categoría de producto vivo **en silencio**, porque el
+  producto seguiría entrando.
+
+Y una deuda que esto deja abierta y **no está medida**: esas prendas son las únicas del catálogo que
+no cuelgan de ninguna hoja permanente, así que al acabar la campaña dejan de verse del todo y decide
+`probe_alive()`. El de Lefties da por vivo cualquier id que `productsArray` siga reconociendo aunque
+esté agotado —Sfera usa dos señales, esta una— y a un producto confirmado vivo `ingest.py` le pone
+la racha a cero (`_rescue`), así que un saldo agotado que la tienda siga sirviendo en el detalle se
+quedaría en el catálogo indefinidamente. Hay que mirarlo al acabar esta campaña.
+
 ### Una pasada muda no se puede depurar, y las dos tiendas que acumulan son ciegas por diseño
 
 Hasta el 04/08/2026 la pasada **no escribía un solo byte hasta el resumen final**: `ingest.py` no
