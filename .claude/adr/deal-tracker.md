@@ -542,6 +542,27 @@ la tienda no sirve pasa de costar 45 s a ~3 min, así que un bloqueo **total** t
 llegar al umbral que aborta en vez de ~25. Sale a cuenta porque el caso frecuente es el timeout
 suelto y el raro es el bloqueo entero, pero el número entra en el cálculo.
 
+**Y el caso más callado de todos: el 200 trae el dato entero y el parser lo tira porque la tienda
+ha renombrado el campo con el que se distingue un producto.** Lefties (05/08/2026) **intercambió**
+dos campos de cada componente de su rejilla: donde venía `kind="Product"` / `type="Footwear"` pasó
+a venir al revés. `_product_components()` filtraba por `kind == "Product"`, así que las **38 hojas
+parsearon 0 entradas** descartando 2207 componentes que traían su `identifier.productParentId`
+intacto — 755 productos y 9873 variantes que dejaron de ingerirse.
+
+Lo que lo hace peor que un fallo ruidoso es que **las tres señales que deberían haberlo cazado
+estaban verdes**: los tests con fixtures (el fixture guardado decía `Product`), `check_leaves()`
+—38/38 vivas, porque el menú no había cambiado— y la propia ingesta, porque la red de bajas por
+ámbito ve caer todos los ámbitos a cero y **omite** las bajas, que es lo correcto y además silencia
+el síntoma. La pasada no rompía nada: solo dejaba de traer. Lo cazó el vigía, y por la capa de
+parseo («el listado no devolvió ni una entrada»), no por el campo.
+
+La regla que se generaliza: **no se reconoce un producto por una etiqueta de familia, sino por
+llevar el identificador que el parser necesita**. Un allowlist de `kind` vuelve a romperse con la
+siguiente familia que publique la tienda —y fiarse de `type` habría sido repetir la apuesta que
+acababa de fallar, porque los dos campos existen y solo se cambiaron de sitio—. Es el mismo
+principio que las bajas conservadoras: se afirma sobre lo que la respuesta *tiene*, no sobre cómo
+lo llama.
+
 **Un caso más del mismo principio, y el que ataca al sondeo de bajas: seguir redirecciones convierte
 un 200 en una mentira.** Medido en Springfield (03/08/2026) sobre la ficha `6801308`: un id
 inventado (`9999999`) da un 404 honesto, pero el id **vecino plausible** `6801309` responde **301 a
@@ -974,7 +995,7 @@ accionable, así que degradarlo a aviso lo habría dejado en el log del pod, que
 la capa venía a tapar.
 
 Lo que hay que saber antes de tocarla es que **«no mapeado» no es «hueco», y suponerlo la
-inutiliza**. Medido sobre las tiendas que enumeran su árbol (siete desde #179; las tres primeras
+inutiliza**. Medido sobre las tiendas que enumeran su árbol (ocho desde #179; las tres primeras
 son las de #156):
 
 | tienda | rutas publicadas | «sin mapear» en crudo | huecos reales |
@@ -986,6 +1007,7 @@ son las de #156):
 | zara | 766 | 536 | no aplica (ver abajo) |
 | cacles | 161 | 160 | no aplica (ver abajo) |
 | hm | 393 (de 651 en el árbol entero) | 280 | **0** |
+| lefties | 273 (de 301, sin los divisores) | 203 | **5 sin decidir (391 prendas)** |
 
 Las 109 de C&A eran ruido por dos motivos distintos, y los dos hay que descontarlos:
 
@@ -1038,9 +1060,9 @@ vigilar sin supervisión exige además que el ruido sea acotable. Mango conserva
 declara en `COBERTURA_SIN_VIGILAR`, con la misma forma que `SIN_VIGILANCIA_DE_HOJAS`: la excepción,
 explícita y revisable.
 
-**#179 midió las otras seis tiendas y el reparto quedó 4 vigiladas, 3 declaradas y 2 que no pueden
-enumerarse, que es el dato que conviene tener antes de prometer cobertura vigilada en una tienda
-nueva.** Zara y Cacles se suman a Mango por motivos distintos entre sí: el árbol de Zara es su menú
+**#179 midió las otras seis tiendas y el reparto final quedó 5 vigiladas, 3 declaradas y 1 que no
+puede enumerarse, que es el dato que conviene tener antes de prometer cobertura vigilada en una
+tienda nueva.** Zara y Cacles se suman a Mango por motivos distintos entre sí: el árbol de Zara es su menú
 (536 sin cubrir de 766, encabezados por «VER TODO» ×81 y «COLECCIÓN» ×20, más dividers y
 editoriales) y las colecciones de Cacles son **planas** —Shopify no anida— con `infantil` haciendo
 de paraguas de todo el catálogo infantil, así que las otras 160 parecen huecos y no lo son. En
@@ -1056,8 +1078,43 @@ antepasados** de la página o del producto, el mismo dato que `page.hierarchy` d
 sirve para detectar el espejismo, no para enumerar, porque no nombra ni una hermana ni una hija. Y
 navegando **sin** bloquear `/api` tampoco aparecen: el menú que las listaría se despliega al
 interactuar y las pide entonces a la ruta vetada. O sea que no es que nos las perdamos por no
-ejecutar JS; es que ahí no están. Queda Lefties, que ya recorre su menú entero en cada pasada pero
-es un menú de Inditex, con el mismo riesgo que Zara.
+ejecutar JS; es que ahí no están.
+
+**Y Lefties, que era la que quedaba, desmiente que «menú de Inditex» implique el destino de Zara**
+(05/08/2026). Es el mismo tipo de árbol y sin embargo se vigila: 273 nodos y **42 declaraciones**,
+proporción mejor que la de H&M. La diferencia no es el vocabulario sino el **tamaño del
+departamento**: los 766 nodos de Zara traen 81 «VER TODO» y 20 «COLECCIÓN», mientras que aquí la
+rama infantil entera cabe en 273 y sus vistas transversales son ~17 por rama de género, las
+mismas cada temporada. O sea que lo que decide no es de qué grupo es la tienda, es cuántas
+declaraciones hacen falta y si caducan solas — que es lo que hay que medir antes de elegir, no
+deducir del parecido.
+
+Tres cosas suyas que se generalizan:
+
+- **Un separador de menú no es una categoría.** 28 de los 301 nodos son rayas (`-`, tipo
+  `marketing`, `key` con `SEPARACIÓN`). No se emiten desde `parse_category_tree`, porque emitirlos
+  serían 28 huecos que nadie va a ingerir jamás o 28 declaraciones que envejecen con el menú. Es la
+  misma decisión que en H&M con el `contentPath` y los `praData`: la mitad del trabajo de un parser
+  de árbol es **no** recoger lo que no es árbol.
+- **Pero filtrar por tipo sí habría roto algo, y por poco.** Las dos hojas `barefoot` que cuelgan de
+  zapatos son de tipo `redirection`, o sea que descartar las redirecciones —que era la otra
+  «limpieza obvia», 23 nodos— habría sacado del cruce dos hojas que **sí ingerimos**, y en el nicho
+  que le da sentido al producto. Lo salvó medirlo antes de escribirlo.
+- **Una sola raíz cuando el departamento no tapa nada.** Sfera, Springfield y H&M barren por rama de
+  género porque su departamento arrastra casa, juguetes y vistas; de `Niños` en Lefties cuelgan
+  exactamente las cinco ramas de género y un separador. Barrer el departamento entero cuesta lo
+  mismo y da algo que las raíces declaradas a mano no dan: **una rama de género nueva se ve sola**.
+
+**`mapped_leaves()` no puede necesitar la red, y esto es un contrato de la capa, no de una tienda.**
+Lo llama `test_cobertura_declarada_no_solapa_con_lo_mapeado`, que corre en `just check`, así que una
+tienda que resuelva sus rutas pidiendo el árbol mete Chromium y al antibot de turno en el camino
+**por defecto** de CI — donde los smokes en vivo son opt-in (`SFERA_LIVE=1`) precisamente para
+evitarlo, y donde el runner sale por una IP con otra reputación. Lefties lo resuelve escribiendo el
+`parent` de cada `CategoryConfig` (seis cadenas para 38 hojas) con un test contra la captura del
+menú que vigila que siga siendo cierto: 0,25 s frente a los 2,5 s que costaba resolverlo en vivo.
+**Zara tiene hoy el mismo diseño y se libra por casualidad**: su `mapped_leaves()` también pide el
+árbol, y no rompe CI solo porque está en `COBERTURA_SIN_VIGILAR` y ese test itera
+`COBERTURA_DECLARADA`. El día que se decida vigilarla, esto sale primero.
 
 **Springfield estrena una tercera forma de enumerar, y es la barata.** No publica endpoint de
 categorías —su rejilla de SFCC está vetada por `robots.txt`, que es de lo que iba #81— pero no le
