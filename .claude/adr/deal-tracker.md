@@ -1815,6 +1815,46 @@ Lo que conviene saber al **añadir tienda**: la comprobación es una consulta
 es) y **no la hace ningún test con fixtures**, porque el patrón solo aparece con el catálogo entero
 delante.
 
+### `image_url` es una cadena opaca de la tienda, y el consumidor no puede suponerle forma (#207)
+
+`product.image_url` lo escribe el scraper y lo consume la SPA, así que es contrato entre servicios
+como cualquier columna compartida — pero es el único donde **el valor no lo produce el proyecto**:
+es la URL que publica el CDN de la tienda, tal cual, y su forma es distinta en cada una. Cuatro de
+las nueve traen query (`?ts=`, `?v=`, `?impolicy=`) y **cinco no traen ninguna**.
+
+La SPA daba por hecho lo primero y componía el ancho con `&` siempre. Con las cuatro tiendas que
+había cuando se escribió era cierto; las cinco que llegaron después salían con un `&` sin `?` y su
+CDN rechazaba la petición. Medido el 05/08/2026 sobre `dev`: C&A 400, Hipercor y Mango 403, H&M y
+Springfield 404 — **8.560 de los 12.787 productos con foto**, dos tercios del catálogo desplegado,
+enseñando el placeholder de «SIN FOTO». Ninguna alarma: para el navegador es una imagen que no
+carga, y el componente ya tenía un respaldo bonito que lo tapaba.
+
+Y el separador correcto no era el arreglo entero, que es la parte que no se ve venir: **pedir el
+ancho tampoco es igual en dos tiendas**. Puesto el `?`, H&M devuelve 200 pero ignora `w` y sirve
+**2,5 MB por foto** sobre 3.393 productos; su parámetro es `imwidth` y la deja en 181 KB. O sea que
+el fallo de «tienda sin fotos» se habría cambiado por uno de 60 MB por rejilla, que además no da
+error en ninguna parte.
+
+De ahí la forma de la solución, en `frontend/src/lib/image.ts`:
+
+- **La tabla se indexa por host del CDN, no por slug de tienda.** La regla la tiene el CDN, no el
+  retailer, y dos tiendas del mismo grupo comparten CDN (Zara y Lefties, ambas Inditex) mientras que
+  El Corte Inglés sirve Sfera e Hipercor desde **hosts distintos con reglas distintas**. Además el
+  componente solo recibe la URL: no sabe de qué tienda es, y no debería.
+- **Un host desconocido se deja intacto**, no cae en el `w` por defecto. Es el fallo seguro: una
+  foto más pesada de la cuenta se ve, una URL rota no. Es también lo que hace que registrar una
+  tienda nueva no pueda romper el catálogo entero por omisión.
+- **«No pedir ancho» es una respuesta legítima y hay tres.** C&A no acepta ninguno (Cloudinary con
+  las transformaciones vetadas para `productimages/`), Shopify da 404 con `width`, y el `sw` de
+  Springfield **no es determinista** — la misma URL devuelve 85 KB o 383 KB según el parámetro, así
+  que añadirle cualquier query puede cuadruplicar el peso.
+
+Lo que conviene saber al **añadir tienda**: hay un paso que no está en ningún test y que nadie
+adivina, porque el fallo no se parece a un fallo — medir su CDN con `curl` (cruda, con `?w=`, y con
+el parámetro que use la familia a la que pertenezca) y añadirlo a la tabla. Sin hacerlo la tienda
+funciona, solo que sirviendo la foto entera; equivocarse en el separador, en cambio, la deja sin
+fotos y con el placeholder puesto.
+
 ### El aviso no se puede provocar a voluntad: hace falta una bajada real, y el tachado no sirve
 
 Ejercer el camino del aviso de punta a punta (#122) es caro por un motivo que no es técnico: **el
