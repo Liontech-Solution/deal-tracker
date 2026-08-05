@@ -1,0 +1,2494 @@
+{
+ "items": [
+  {
+   "id": 1030267671,
+   "key": "LEFTIES_KIDS",
+   "name": "Niños",
+   "children": [
+    {
+     "id": 1030267674,
+     "key": "LEFTIES_BABYGIRL",
+     "name": "Bebé Niña",
+     "shortDescription": {
+      "text": "3 meses - 5 años"
+     },
+     "children": [
+      {
+       "id": 1030269023,
+       "key": "3_BA_T_NEWIN",
+       "name": "NOVEDADES",
+       "shortDescription": {
+        "text": "Novedades"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        },
+        {
+         "name": "HIDE FEED - HIDE",
+         "key": "LABEL",
+         "value": "HIDE_FEED"
+        }
+       ],
+       "content": {
+        "id": "88af51c2-1b9d-47ee-b1b2-6dad862bce51",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "NEW IN"
+      },
+      {
+       "id": 1030276032,
+       "key": "3_BA_T_SEPARACIÓN",
+       "name": "-",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "3_BA_T_SEPARACIÓN",
+        "type": "marketing"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "-"
+      },
+      {
+       "id": 1030269024,
+       "key": "3_BA_T_ROPA",
+       "name": "ROPA",
+       "shortDescription": {
+        "text": "ROPA"
+       },
+       "children": [
+        {
+         "id": 1030272269,
+         "key": "3_BA_T_CONJUNTOS",
+         "name": "Conjuntos",
+         "shortDescription": {
+          "text": "Conjuntos"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "60c9ef0f-ca1f-4444-af46-975e7fc35128",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Sets"
+        },
+        {
+         "id": 1030267914,
+         "key": "3_BA_T_CAMISETAS",
+         "name": "Camisetas",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "379dc245-2679-4d23-b4a0-a06e5d74eeb2",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "T-shirts"
+        },
+        {
+         "id": 1030267927,
+         "key": "3_BA_T_SUDADERAS",
+         "name": "Sudaderas",
+         "shortDescription": {
+          "text": "Sudaderas"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "175ecc93-ed3c-4c0c-9c8b-1eb1ff13b897",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Sweatshirts"
+        },
+        {
+         "id": 1030267993,
+         "key": "3_BA_T_LEGGINGS",
+         "name": "Leggings",
+         "shortDescription": {
+          "text": "Leggings"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "9271c683-4a44-4322-9b99-1bffc62cb653",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Leggings"
+        },
+        {
+         "id": 1030267933,
+         "key": "3_BA_T_PANTALONES",
+         "name": "Pantalones",
+         "shortDescription": {
+          "text": "Pantalones"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "25e857c7-fab2-420d-9def-1a5cb072ff5c",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Trousers"
+        },
+        {
+         "id": 1030267936,
+         "key": "3_BA_T_ABRIGOS",
+         "name": "Cazadoras",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "7e2d7225-fa60-4c47-8098-2ab4e3d0af04",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Jackets"
+        },
+        {
+         "id": 1030267939,
+         "key": "3_BA_T_LICENCIAS",
+         "name": "Licencias",
+         "shortDescription": {
+          "text": "Licencias"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "a029ba54-14e6-4505-8906-5e9ef1e51507",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Licensed Merch"
+        },
+        {
+         "id": 1030716207,
+         "key": "3_BA_T_DENIM",
+         "name": "Denim",
+         "shortDescription": {
+          "text": "Denim"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "50cecd31-0b9e-4575-938b-dd1463327860",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Denim"
+        },
+        {
+         "id": 1030715207,
+         "key": "3_BA_T_CAMISAS",
+         "name": "Camisas | Tops",
+         "shortDescription": {
+          "text": "Camisas | Tops"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "973a24c1-e23d-4dff-bdaf-3da17f8a8dce",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Shirts | Tops"
+        },
+        {
+         "id": 1030323503,
+         "key": "3_BA_T_FALDASSHORTS",
+         "name": "Faldas | Shorts",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "c9a1b93b-c267-41eb-8a9a-d1471ca9f035",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Skirts | Shorts"
+        },
+        {
+         "id": 1030267923,
+         "key": "3_BA_T_VESTIDOS",
+         "name": "Vestidos | Petos",
+         "shortDescription": {
+          "text": "Vestidos | Petos"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "e0cb3c1d-dccb-4cba-9418-1181767ee8d5",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Dresses | Dungarees"
+        },
+        {
+         "id": 1030401742,
+         "key": "3_BA_T_BANO",
+         "name": "Bañadores",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "f4e95575-791a-457e-b339-3ef216b8bcc7",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Swimsuits"
+        },
+        {
+         "id": 1030267944,
+         "key": "3_BA_T_PIJAMAS",
+         "name": "Pijamas",
+         "shortDescription": {
+          "text": "Pijamas"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "82c541e4-b0b0-4f69-a4d7-d23415dc931e",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Pyjamas"
+        },
+        {
+         "id": 1030267922,
+         "key": "3_BA_T_BODIES",
+         "name": "Bodies",
+         "shortDescription": {
+          "text": "Bodies"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "b5179a27-1f21-46bd-b769-dc8840c658d9",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Bodysuits"
+        },
+        {
+         "id": 1030526545,
+         "key": "3_BA_T_ROPAINTERIOR_",
+         "name": "Ropa Interior",
+         "shortDescription": {
+          "text": "Ropa Interior"
+         },
+         "children": [
+          {
+           "id": 1030644470,
+           "key": "3_BA_T_ROPAINTERIOR_VIEWALL",
+           "name": "Ver Todo",
+           "shortDescription": {
+            "text": "Ver Todo"
+           },
+           "children": [],
+           "attributes": [
+            {
+             "key": "DISPLAY_CONTENT",
+             "value": "true"
+            }
+           ],
+           "content": {
+            "id": "1030526545",
+            "type": "redirection",
+            "metadata": {
+             "behaviour": {}
+            },
+            "breadcrumb": [
+             {
+              "name": "Niños",
+              "menuEntryId": 1030267671
+             },
+             {
+              "name": "Bebé Niña",
+              "menuEntryId": 1030267674
+             },
+             {
+              "name": "ROPA",
+              "menuEntryId": 1030269024
+             },
+             {
+              "name": "Ropa Interior",
+              "menuEntryId": 1030526545
+             },
+             {
+              "name": "Ver Todo",
+              "menuEntryId": 1030644470
+             },
+             {
+              "name": "Ropa Interior",
+              "menuEntryId": 1030526545
+             }
+            ]
+           },
+           "isHidden": false,
+           "isHighLighted": false,
+           "targetedRedirects": [],
+           "canonicalName": "View All"
+          },
+          {
+           "id": 1030544684,
+           "key": "3_BA_T_ROPAINTERIOR_BRAGUITAS_",
+           "name": "Braguitas",
+           "shortDescription": {
+            "text": "Braguitas"
+           },
+           "children": [],
+           "attributes": [
+            {
+             "key": "DISPLAY_CONTENT",
+             "value": "true"
+            }
+           ],
+           "content": {
+            "id": "46b40db4-3a69-43af-b263-63454bbd398c",
+            "type": "grid"
+           },
+           "isHidden": false,
+           "isHighLighted": false,
+           "targetedRedirects": [],
+           "canonicalName": "Briefs"
+          },
+          {
+           "id": 1030544685,
+           "key": "3_BA_T_ROPAINTERIOR_CALCETINES_",
+           "name": "Calcetines",
+           "children": [],
+           "attributes": [
+            {
+             "key": "DISPLAY_CONTENT",
+             "value": "true"
+            }
+           ],
+           "content": {
+            "id": "62d99082-3c2d-461b-8b44-6c05bae51a1b",
+            "type": "grid"
+           },
+           "isHidden": false,
+           "isHighLighted": false,
+           "targetedRedirects": [],
+           "canonicalName": "Socks"
+          },
+          {
+           "id": 1030544687,
+           "key": "3_BA_T_ROPAINTERIOR_BODIES_",
+           "name": "Bodies",
+           "shortDescription": {
+            "text": "Bodies"
+           },
+           "children": [],
+           "attributes": [
+            {
+             "key": "DISPLAY_CONTENT",
+             "value": "true"
+            }
+           ],
+           "content": {
+            "id": "b5179a27-1f21-46bd-b769-dc8840c658d9",
+            "type": "grid"
+           },
+           "isHidden": false,
+           "isHighLighted": false,
+           "targetedRedirects": [],
+           "canonicalName": "Bodysuits"
+          }
+         ],
+         "attributes": [],
+         "content": {
+          "id": "1c5745aa-de94-4a1b-9698-5012add0853a",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Underwear"
+        },
+        {
+         "id": 1030564699,
+         "key": "3_BA_T_CALCETINES",
+         "name": "Calcetines",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "62d99082-3c2d-461b-8b44-6c05bae51a1b",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Socks"
+        },
+        {
+         "id": 1030632476,
+         "key": "3_BA_T_SEPARACIÓN_ROPA",
+         "name": "-",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "3_BA_T_SEPARACIÓN_ROPA",
+          "type": "marketing"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "-"
+        }
+       ],
+       "attributes": [],
+       "content": {
+        "id": "3_BA_T_ROPA",
+        "type": "marketing"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "CLOTHING"
+      },
+      {
+       "id": 1030343604,
+       "key": "3_BA_ROPAINTERIOR_PIJAMAS",
+       "name": "ROPA INTERIOR | PIJAMAS",
+       "shortDescription": {
+        "text": "Ropa Interior"
+       },
+       "children": [
+        {
+         "id": 1030544694,
+         "key": "3_BA_ROPAINTERIOR_PIJAMAS_PIJAMAS",
+         "name": "Pijamas",
+         "shortDescription": {
+          "text": "Pijamas"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "82c541e4-b0b0-4f69-a4d7-d23415dc931e",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Pyjamas"
+        },
+        {
+         "id": 1030544681,
+         "key": "3_BA_ROPAINTERIOR_PIJAMAS_BRAGUITAS",
+         "name": "Braguitas",
+         "shortDescription": {
+          "text": "Braguitas"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "46b40db4-3a69-43af-b263-63454bbd398c",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Briefs"
+        },
+        {
+         "id": 1030544682,
+         "key": "3_BA_ROPAINTERIOR_PIJAMAS_CALCETINES",
+         "name": "Calcetines",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "62d99082-3c2d-461b-8b44-6c05bae51a1b",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Socks"
+        },
+        {
+         "id": 1030544680,
+         "key": "3_BA_ROPAINTERIOR_PIJAMAS_BODIES",
+         "name": "Bodies",
+         "shortDescription": {
+          "text": "Bodies"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "b5179a27-1f21-46bd-b769-dc8840c658d9",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Bodysuits"
+        },
+        {
+         "id": 1030632477,
+         "key": "3_BA_T_SEPARACIÓN_ROPAINTERIOR",
+         "name": "-",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "3_BA_T_SEPARACIÓN_ROPAINTERIOR",
+          "type": "marketing"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "-"
+        }
+       ],
+       "attributes": [],
+       "content": {
+        "id": "3_BA_ROPAINTERIOR_PIJAMAS",
+        "type": "marketing"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "UNDERWEAR | PYJAMAS"
+      },
+      {
+       "id": 1030267949,
+       "key": "3_BA_T_ZAPATOS",
+       "name": "ZAPATOS",
+       "children": [
+        {
+         "id": 1030272343,
+         "key": "3_BA_T_ZAPATOS_VIEWALL",
+         "name": "Ver Todo",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          },
+          {
+           "name": "prevent_redirect",
+           "key": "LABEL",
+           "value": "prevent_redirect"
+          }
+         ],
+         "content": {
+          "id": "1030267949",
+          "type": "redirection",
+          "metadata": {
+           "behaviour": {}
+          },
+          "breadcrumb": [
+           {
+            "name": "Niños",
+            "menuEntryId": 1030267671
+           },
+           {
+            "name": "Bebé Niña",
+            "menuEntryId": 1030267674
+           },
+           {
+            "name": "ZAPATOS",
+            "menuEntryId": 1030267949
+           },
+           {
+            "name": "Ver Todo",
+            "menuEntryId": 1030272343
+           },
+           {
+            "name": "ZAPATOS",
+            "menuEntryId": 1030267949
+           }
+          ]
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "View All"
+        },
+        {
+         "id": 1030272346,
+         "key": "3_BA_T_ZAPATOS_NEWIN",
+         "name": "Novedades",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "448a1295-c762-429f-a99a-c4d205ebbf68",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "New In"
+        },
+        {
+         "id": 1030272350,
+         "key": "3_BA_T_BAREFOOT",
+         "name": "Barefoot",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "5abb612d-2aec-4c08-abb3-e15a205d9369",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Barefoot"
+        },
+        {
+         "id": 1030272365,
+         "key": "3_BA_T_ZAPATOS_LICENCIAS",
+         "name": "Licencias",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "20c4357c-fdc9-4a76-b74c-e4939da7dbb8",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Licensed"
+        },
+        {
+         "id": 1030272372,
+         "key": "3_BA_T_ZAPATOS_ZAPATOS",
+         "name": "Zapatos",
+         "shortDescription": {
+          "text": "Zapatos"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "1dc596ed-7a27-4dc5-b58f-a6f6de6616c7",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Shoes"
+        },
+        {
+         "id": 1030272357,
+         "key": "3_BA_T_ZAPATOS_ZAPATILLAS",
+         "name": "Zapatillas",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "d72bc1eb-bfb1-48bf-9c1b-478161e4c5fd",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Sneakers"
+        },
+        {
+         "id": 1030681608,
+         "key": "3_BA_T_ZAPATOS_BOTAS",
+         "name": "Botas y Botines",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "6142b662-9917-4e08-b825-6128ae445f24",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Boots | Ankle Boots"
+        },
+        {
+         "id": 1030272374,
+         "key": "3_BA_T_ZAPATOS_SANDALIAS",
+         "name": "Sandalias",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "18cc7436-6da0-4c02-8b68-e583aeb668b1",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Sandals"
+        },
+        {
+         "id": 1030293056,
+         "key": "3_BA_T_ZAPATOS_REBAJAS_ES",
+         "name": "Rebajas",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          },
+          {
+           "name": "NEWBF_category - LABEL",
+           "key": "LABEL",
+           "value": "ON_COLOR_#FF0000"
+          }
+         ],
+         "content": {
+          "id": "14f1c5f4-3889-4f12-a48a-1356a0b862df",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Sales"
+        },
+        {
+         "id": 1030632968,
+         "key": "3_BA_T_SEPARACIÓN_ZAPATOS",
+         "name": "-",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "3_BA_T_SEPARACIÓN_ZAPATOS",
+          "type": "marketing"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "-"
+        }
+       ],
+       "attributes": [],
+       "content": {
+        "id": "426cd6ed-8a36-48fa-b3fa-f71d73e736b2",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "FOOTWEAR"
+      },
+      {
+       "id": 1030567191,
+       "key": "3_BA_T_BOLSOSMOCHILAS_MENU",
+       "name": "MOCHILAS | BOLSOS",
+       "shortDescription": {
+        "text": "Mochilas | Bolsos"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "51511b12-7d2b-409f-8105-86210ef853cc",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "BACKPACKS | BAGS"
+      },
+      {
+       "id": 1030413304,
+       "key": "3_BA_T_ACCESORIOS",
+       "name": "ACCESORIOS",
+       "shortDescription": {
+        "text": "Accesorios"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "7c0f7367-3e6f-4c29-a5a9-62ecc5d61bf5",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "ACCESSORIES"
+      },
+      {
+       "id": 1030327507,
+       "key": "3_BA_T_SEPARACIÓN3",
+       "name": "-",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "3_BA_T_SEPARACIÓN3",
+        "type": "marketing"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "-"
+      },
+      {
+       "id": 1030453900,
+       "key": "3_BA_P_PROMO_ES",
+       "name": "PROMOCIÓN",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        },
+        {
+         "name": "NEWBF_category - LABEL",
+         "key": "LABEL",
+         "value": "ON_COLOR_#FF0000"
+        }
+       ],
+       "content": {
+        "id": "5dd09312-5bc1-440b-bbf8-2bf5370586a3",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "PROMOTION"
+      },
+      {
+       "id": 1030680693,
+       "key": "3_BA_T_BAREFOOT_MENU",
+       "name": "BAREFOOT",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "1030272350",
+        "type": "redirection",
+        "metadata": {
+         "behaviour": {}
+        },
+        "breadcrumb": [
+         {
+          "name": "Niños",
+          "menuEntryId": 1030267671
+         },
+         {
+          "name": "Bebé Niña",
+          "menuEntryId": 1030267674
+         },
+         {
+          "name": "BAREFOOT",
+          "menuEntryId": 1030680693
+         },
+         {
+          "name": "Barefoot",
+          "menuEntryId": 1030272350
+         }
+        ]
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "BAREFOOT"
+      },
+      {
+       "id": 1030272262,
+       "key": "3_BA_T_BASICOS",
+       "name": "BÁSICOS DE TEMPORADA",
+       "shortDescription": {
+        "text": "Básicos"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "a3bf5bb4-3f02-4c8d-96b4-ce29bfdbe94e",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "SEASONAL BASICS"
+      },
+      {
+       "id": 1030302518,
+       "key": "3_BA_S_REBAJAS",
+       "name": "REBAJAS HASTA -70%",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        },
+        {
+         "name": "NEWBF_category - LABEL",
+         "key": "LABEL",
+         "value": "ON_COLOR_#FF0000"
+        }
+       ],
+       "content": {
+        "id": "c19e386d-a7e3-420a-a668-938d592e7c99",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "SALE UP TO -70%"
+      },
+      {
+       "id": 1030632969,
+       "key": "3_BA_T_SEPARACIÓN_INFO",
+       "name": "-",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "3_BA_T_SEPARACIÓN_INFO",
+        "type": "marketing"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "-"
+      }
+     ],
+     "attributes": [],
+     "content": {
+      "id": "LEFTIES_BABYGIRL",
+      "type": "marketing"
+     },
+     "isHidden": false,
+     "isHighLighted": false,
+     "targetedRedirects": [],
+     "canonicalName": "Baby Girl"
+    },
+    {
+     "id": 1030267675,
+     "key": "LEFTIES_BABYBOY",
+     "name": "Bebé Niño",
+     "shortDescription": {
+      "text": "3 meses - 5 años"
+     },
+     "children": [
+      {
+       "id": 1030269099,
+       "key": "3_BO_T_NEWIN",
+       "name": "NOVEDADES",
+       "shortDescription": {
+        "text": "Novedades"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        },
+        {
+         "name": "HIDE FEED - HIDE",
+         "key": "LABEL",
+         "value": "HIDE_FEED"
+        }
+       ],
+       "content": {
+        "id": "3b3f5b52-9f8e-4c98-9cf9-f958501e6a25",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "NEW IN"
+      },
+      {
+       "id": 1030276033,
+       "key": "3_BO_T_SEPARACIÓN",
+       "name": "-",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "3_BO_T_SEPARACIÓN",
+        "type": "marketing"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "-"
+      },
+      {
+       "id": 1030269100,
+       "key": "3_BO_T_ROPA",
+       "name": "ROPA",
+       "shortDescription": {
+        "text": "ROPA"
+       },
+       "children": [
+        {
+         "id": 1030272352,
+         "key": "3_BO_T_CONJUNTOS",
+         "name": "Conjuntos",
+         "shortDescription": {
+          "text": "Conjuntos"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "c9c8230a-07d5-4dc6-8dba-ade8301468f2",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Sets"
+        },
+        {
+         "id": 1030269025,
+         "key": "3_BO_T_CAMISETAS",
+         "name": "Camisetas",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "78cd89b1-216e-40d4-ade4-caa4e8b53ad8",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "T-shirts"
+        },
+        {
+         "id": 1030269038,
+         "key": "3_BO_T_SUDADERAS",
+         "name": "Sudaderas",
+         "shortDescription": {
+          "text": "Sudaderas"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "64f6024e-678a-4b57-ac23-e40d9ccd1d38",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Sweatshirts"
+        },
+        {
+         "id": 1030269042,
+         "key": "3_BO_T_PANTALONES",
+         "name": "Pantalones",
+         "shortDescription": {
+          "text": "Pantalones"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "34c2eeb7-5314-4779-a70a-3e19596d32c5",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Trousers"
+        },
+        {
+         "id": 1030269044,
+         "key": "3_BO_T_ABRIGOS",
+         "name": "Cazadoras",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "a30415e3-bcfe-474a-95a0-bc03968c1cf6",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Jackets"
+        },
+        {
+         "id": 1030269046,
+         "key": "3_BO_T_LICENCIAS",
+         "name": "Licencias",
+         "shortDescription": {
+          "text": "Licencias"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "a9aad8fe-ecd9-49fe-a8eb-a60e0c30355b",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Licensed Merch"
+        },
+        {
+         "id": 1030716208,
+         "key": "3_BO_T_DENIM",
+         "name": "Denim",
+         "shortDescription": {
+          "text": "Denim"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "67ea6608-4089-4c34-8cc9-fce68ddd4f44",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Denim"
+        },
+        {
+         "id": 1030570730,
+         "key": "3_BO_T_CAMISAS",
+         "name": "Camisas",
+         "shortDescription": {
+          "text": "Camisas"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "bd1caff7-8678-432b-94fb-8e4908c77565",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Shirts"
+        },
+        {
+         "id": 1030324001,
+         "key": "3_BO_T_BERMUDAS",
+         "name": "Bermudas | Petos",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "7565965c-df9f-4afa-9523-2bf363cec9e1",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Shorts | Dungarees"
+        },
+        {
+         "id": 1030402237,
+         "key": "3_BO_T_BANO",
+         "name": "Bañadores",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "9c2330cd-4393-4d05-82ce-122953f7ca30",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Swimsuits"
+        },
+        {
+         "id": 1030269047,
+         "key": "3_BO_T_PIJAMAS",
+         "name": "Pijamas",
+         "shortDescription": {
+          "text": "Pijamas"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "8e3a0d8c-fe5a-4976-9b2e-19037942d646",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Pyjamas"
+        },
+        {
+         "id": 1030269033,
+         "key": "3_BO_T_BODIES",
+         "name": "Bodies",
+         "shortDescription": {
+          "text": "Bodies"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "9e802762-5fdf-4123-bd33-8b6dd478829f",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Bodysuits"
+        },
+        {
+         "id": 1030527045,
+         "key": "3_BO_T_ROPAINTERIOR_",
+         "name": "Ropa Interior",
+         "shortDescription": {
+          "text": "Ropa Interior"
+         },
+         "children": [
+          {
+           "id": 1030644471,
+           "key": "3_BO_T_ROPAINTERIOR_VIEWALL",
+           "name": "Ver Todo",
+           "shortDescription": {
+            "text": "Ver Todo"
+           },
+           "children": [],
+           "attributes": [
+            {
+             "key": "DISPLAY_CONTENT",
+             "value": "true"
+            }
+           ],
+           "content": {
+            "id": "1030527045",
+            "type": "redirection",
+            "metadata": {
+             "behaviour": {}
+            },
+            "breadcrumb": [
+             {
+              "name": "Niños",
+              "menuEntryId": 1030267671
+             },
+             {
+              "name": "Bebé Niño",
+              "menuEntryId": 1030267675
+             },
+             {
+              "name": "ROPA",
+              "menuEntryId": 1030269100
+             },
+             {
+              "name": "Ropa Interior",
+              "menuEntryId": 1030527045
+             },
+             {
+              "name": "Ver Todo",
+              "menuEntryId": 1030644471
+             },
+             {
+              "name": "Ropa Interior",
+              "menuEntryId": 1030527045
+             }
+            ]
+           },
+           "isHidden": false,
+           "isHighLighted": false,
+           "targetedRedirects": [],
+           "canonicalName": "View All"
+          },
+          {
+           "id": 1030544688,
+           "key": "3_BO_T_ROPAINTERIOR_CALZONCILLOS_",
+           "name": "Calzoncillos",
+           "shortDescription": {
+            "text": "Calzoncillos"
+           },
+           "children": [],
+           "attributes": [
+            {
+             "key": "DISPLAY_CONTENT",
+             "value": "true"
+            }
+           ],
+           "content": {
+            "id": "143d1d4a-3fe7-4fac-9b95-ee58edd60228",
+            "type": "grid"
+           },
+           "isHidden": false,
+           "isHighLighted": false,
+           "targetedRedirects": [],
+           "canonicalName": "Boxers"
+          },
+          {
+           "id": 1030544689,
+           "key": "3_BO_T_ROPAINTERIOR_CALCETINES_",
+           "name": "Calcetines",
+           "children": [],
+           "attributes": [
+            {
+             "key": "DISPLAY_CONTENT",
+             "value": "true"
+            }
+           ],
+           "content": {
+            "id": "11965655-d383-4120-a7a5-b56601470a32",
+            "type": "grid"
+           },
+           "isHidden": false,
+           "isHighLighted": false,
+           "targetedRedirects": [],
+           "canonicalName": "Socks"
+          },
+          {
+           "id": 1030544690,
+           "key": "3_BO_T_ROPAINTERIOR_BODIES_",
+           "name": "Bodies",
+           "shortDescription": {
+            "text": "Bodies"
+           },
+           "children": [],
+           "attributes": [
+            {
+             "key": "DISPLAY_CONTENT",
+             "value": "true"
+            }
+           ],
+           "content": {
+            "id": "9e802762-5fdf-4123-bd33-8b6dd478829f",
+            "type": "grid"
+           },
+           "isHidden": false,
+           "isHighLighted": false,
+           "targetedRedirects": [],
+           "canonicalName": "Bodysuits"
+          }
+         ],
+         "attributes": [],
+         "content": {
+          "id": "e68dec52-30b8-48d4-b27b-139f572d1425",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Underwear"
+        },
+        {
+         "id": 1030564195,
+         "key": "3_BO_T_CALCETINES",
+         "name": "Calcetines",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "11965655-d383-4120-a7a5-b56601470a32",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Socks"
+        },
+        {
+         "id": 1030632971,
+         "key": "3_BO_T_SEPARACIÓN_ROPA",
+         "name": "-",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "3_BO_T_SEPARACIÓN_ROPA",
+          "type": "marketing"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "-"
+        }
+       ],
+       "attributes": [],
+       "content": {
+        "id": "3_BO_T_ROPA",
+        "type": "marketing"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "CLOTHING"
+      },
+      {
+       "id": 1030344015,
+       "key": "3_BO_ROPAINTERIOR_PIJAMAS",
+       "name": "ROPA INTERIOR | PIJAMAS",
+       "shortDescription": {
+        "text": "ROPA INTERIOR | PIJAMAS"
+       },
+       "children": [
+        {
+         "id": 1030544695,
+         "key": "3_BO_ROPAINTERIOR_PIJAMAS_PIJAMAS",
+         "name": "Pijamas",
+         "shortDescription": {
+          "text": "Pijamas"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "8e3a0d8c-fe5a-4976-9b2e-19037942d646",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Pyjamas"
+        },
+        {
+         "id": 1030544677,
+         "key": "3_BO_ROPAINTERIOR_PIJAMAS_CALZONCILLOS",
+         "name": "Calzoncillos",
+         "shortDescription": {
+          "text": "Calzoncillos"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "143d1d4a-3fe7-4fac-9b95-ee58edd60228",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Underwear"
+        },
+        {
+         "id": 1030544678,
+         "key": "3_BO_ROPAINTERIOR_PIJAMAS_CALCETINES",
+         "name": "Calcetines",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "11965655-d383-4120-a7a5-b56601470a32",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Socks"
+        },
+        {
+         "id": 1030544679,
+         "key": "3_BO_ROPAINTERIOR_PIJAMAS_BODIES",
+         "name": "Bodies",
+         "shortDescription": {
+          "text": "Bodies"
+         },
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "9e802762-5fdf-4123-bd33-8b6dd478829f",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Bodysuits"
+        },
+        {
+         "id": 1030632478,
+         "key": "3_BO_T_SEPARACIÓN_ROPAINTERIOR",
+         "name": "-",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "3_BO_T_SEPARACIÓN_ROPAINTERIOR",
+          "type": "marketing"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "-"
+        }
+       ],
+       "attributes": [],
+       "content": {
+        "id": "3_BO_ROPAINTERIOR_PIJAMAS",
+        "type": "marketing"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "UNDERWEAR | PYJAMAS"
+      },
+      {
+       "id": 1030269050,
+       "key": "3_BO_T_ZAPATOS",
+       "name": "ZAPATOS",
+       "children": [
+        {
+         "id": 1030272366,
+         "key": "3_BO_T_ZAPATOS_VIEWALL",
+         "name": "Ver Todo",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          },
+          {
+           "name": "prevent_redirect",
+           "key": "LABEL",
+           "value": "prevent_redirect"
+          }
+         ],
+         "content": {
+          "id": "1030269050",
+          "type": "redirection",
+          "metadata": {
+           "behaviour": {}
+          },
+          "breadcrumb": [
+           {
+            "name": "Niños",
+            "menuEntryId": 1030267671
+           },
+           {
+            "name": "Bebé Niño",
+            "menuEntryId": 1030267675
+           },
+           {
+            "name": "ZAPATOS",
+            "menuEntryId": 1030269050
+           },
+           {
+            "name": "Ver Todo",
+            "menuEntryId": 1030272366
+           },
+           {
+            "name": "ZAPATOS",
+            "menuEntryId": 1030269050
+           }
+          ]
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "View All"
+        },
+        {
+         "id": 1030272367,
+         "key": "3_BO_T_ZAPATOS_NOVEDADES",
+         "name": "Novedades",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "b7a13227-9264-40e9-b376-0d33a06e65a8",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "New In"
+        },
+        {
+         "id": 1030272368,
+         "key": "3_BO_BAREFOOT",
+         "name": "Barefoot",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "c87ddae7-9d96-4719-9636-797a2552c7e8",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Barefoot"
+        },
+        {
+         "id": 1030272370,
+         "key": "3_BO_T_ZAPATOS_LICENCIAS",
+         "name": "Licencias",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "86f4aa04-948a-4990-b548-957fd6552ed4",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Licensed"
+        },
+        {
+         "id": 1030272371,
+         "key": "3_BO_T_ZAPATOS_ZAPATILLAS",
+         "name": "Zapatillas",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "821cb8af-4eed-4022-b139-fcf361406847",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Sneakers"
+        },
+        {
+         "id": 1030276118,
+         "key": "3_BO_T_ZAPATOS_SANDALIAS",
+         "name": "Sandalias",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "da2feef6-8f92-46ac-a1b7-116d038821de",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Sandals"
+        },
+        {
+         "id": 1030293059,
+         "key": "3_BO_T_ZAPATOS_REBAJAS_ES",
+         "name": "Rebajas",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          },
+          {
+           "name": "NEWBF_category - LABEL",
+           "key": "LABEL",
+           "value": "ON_COLOR_#FF0000"
+          }
+         ],
+         "content": {
+          "id": "26e70bf8-8499-4a49-a207-6a6eb3605688",
+          "type": "grid"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "Sales"
+        },
+        {
+         "id": 1030632479,
+         "key": "3_BO_T_SEPARACIÓN_ZAPATOS",
+         "name": "-",
+         "children": [],
+         "attributes": [
+          {
+           "key": "DISPLAY_CONTENT",
+           "value": "true"
+          }
+         ],
+         "content": {
+          "id": "3_BO_T_SEPARACIÓN_ZAPATOS",
+          "type": "marketing"
+         },
+         "isHidden": false,
+         "isHighLighted": false,
+         "targetedRedirects": [],
+         "canonicalName": "-"
+        }
+       ],
+       "attributes": [],
+       "content": {
+        "id": "7facab97-c8b5-4ca4-9b81-543078c25427",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "FOOTWEAR"
+      },
+      {
+       "id": 1030567192,
+       "key": "3_BO_T_BOLSOSMOCHILAS_MENU",
+       "name": "MOCHILAS | BOLSOS",
+       "shortDescription": {
+        "text": "Mochilas | Bolsos"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "fe534909-76c8-4f69-8a4a-cb58c4d2f49c",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "BACKPACKS | BAGS"
+      },
+      {
+       "id": 1030269048,
+       "key": "3_BO_T_ACCESORIOS",
+       "name": "ACCESORIOS",
+       "shortDescription": {
+        "text": "Accesorios"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "959db7df-b94a-41b0-8548-ed0f6adc0beb",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "ACCESSORIES"
+      },
+      {
+       "id": 1030328008,
+       "key": "3_BO_T_SEPARACIÓN3",
+       "name": "-",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "3_BO_T_SEPARACIÓN3",
+        "type": "marketing"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "-"
+      },
+      {
+       "id": 1030454402,
+       "key": "3_BO_P_PROMO_ES",
+       "name": "PROMOCIÓN",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        },
+        {
+         "name": "NEWBF_category - LABEL",
+         "key": "LABEL",
+         "value": "ON_COLOR_#FF0000"
+        }
+       ],
+       "content": {
+        "id": "019cdbd1-d4cc-46f1-8521-b24906b94f8b",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "PROMOTION"
+      },
+      {
+       "id": 1030680207,
+       "key": "3_BO_BAREFOOT_MENU",
+       "name": "BAREFOOT",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "1030272368",
+        "type": "redirection",
+        "metadata": {
+         "behaviour": {}
+        },
+        "breadcrumb": [
+         {
+          "name": "Niños",
+          "menuEntryId": 1030267671
+         },
+         {
+          "name": "Bebé Niño",
+          "menuEntryId": 1030267675
+         },
+         {
+          "name": "BAREFOOT",
+          "menuEntryId": 1030680207
+         },
+         {
+          "name": "Barefoot",
+          "menuEntryId": 1030272368
+         }
+        ]
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "BAREFOOT"
+      },
+      {
+       "id": 1030272263,
+       "key": "3_BO_T_BASICOS",
+       "name": "BÁSICOS DE TEMPORADA",
+       "shortDescription": {
+        "text": "Básicos"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "479ba4fe-8a47-40d3-9923-8551bdf25dac",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "SEASONAL BASICS"
+      },
+      {
+       "id": 1030303021,
+       "key": "3_BO_S_REBAJAS",
+       "name": "REBAJAS HASTA -70%",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        },
+        {
+         "name": "NEWBF_category - LABEL",
+         "key": "LABEL",
+         "value": "ON_COLOR_#FF0000"
+        }
+       ],
+       "content": {
+        "id": "8519c295-f223-48d7-a293-007a35600c46",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "SALE UP TO -70%"
+      },
+      {
+       "id": 1030632970,
+       "key": "3_BO_T_SEPARACIÓN_INFO",
+       "name": "-",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "3_BO_T_SEPARACIÓN_INFO",
+        "type": "marketing"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "-"
+      }
+     ],
+     "attributes": [],
+     "content": {
+      "id": "LEFTIES_BABYBOY",
+      "type": "marketing"
+     },
+     "isHidden": false,
+     "isHighLighted": false,
+     "targetedRedirects": [],
+     "canonicalName": "Baby Boy"
+    },
+    {
+     "id": 1030513546,
+     "key": "LEFTIES_BABYGROW",
+     "name": "Recién Nacido",
+     "shortDescription": {
+      "text": "0 - 9 Meses"
+     },
+     "children": [
+      {
+       "id": 1030525065,
+       "key": "3_BG_T_VIEWALL_8",
+       "name": "Ver Todo",
+       "shortDescription": {
+        "text": "VER TODO"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        },
+        {
+         "name": "prevent_redirect",
+         "key": "LABEL",
+         "value": "prevent_redirect"
+        }
+       ],
+       "content": {
+        "id": "53df9874-34ef-4974-b26a-4417e294effa",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "View All"
+      },
+      {
+       "id": 1030524055,
+       "key": "3_BG_T_SEPARACIÓN2",
+       "name": "-",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "3_BG_T_SEPARACIÓN2",
+        "type": "marketing"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "-"
+      },
+      {
+       "id": 1030524056,
+       "key": "3_BG_T_CONJUNTOS",
+       "name": "Conjuntos",
+       "shortDescription": {
+        "text": "Conjuntos"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "fc9d6729-27a2-4cb0-a63f-0474bd41fe18",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "Sets"
+      },
+      {
+       "id": 1030718712,
+       "key": "3_BG_T_PELELES_BRAGUITAS",
+       "name": "Peleles | Braguitas",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "1f1258e9-8393-4d99-a7c3-ef9d9f03cda8",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "Rompers | Panties"
+      },
+      {
+       "id": 1030564188,
+       "key": "3_BG_T_PANTALONES",
+       "name": "Leggings | Pantalones",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "f7a1e811-f6f1-489c-8abb-a6ca28e25f01",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "Leggings | Trousers"
+      },
+      {
+       "id": 1030535546,
+       "key": "3_BG_T_PIJAMAS",
+       "name": "Pijamas",
+       "shortDescription": {
+        "text": "Pijamas"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "442ae76d-5597-4866-8a68-66090ef675a4",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "Pyjamas"
+      },
+      {
+       "id": 1030524057,
+       "key": "3_BG_T_BODIES",
+       "name": "Bodies",
+       "shortDescription": {
+        "text": "Bodies"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "2c4c6cb5-f121-447e-9296-22b86e0de141",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "Bodysuits"
+      },
+      {
+       "id": 1030719211,
+       "key": "3_BG_T_ROPAINTERIOR",
+       "name": "Ropa Interior",
+       "shortDescription": {
+        "text": "Ropa Interior"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "64770813-c23a-4f4f-9ed0-72b3ea32a0cb",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "Underwear"
+      },
+      {
+       "id": 1030525066,
+       "key": "3_BG_T_ACCESORIOS",
+       "name": "Accesorios",
+       "shortDescription": {
+        "text": "Accesorios"
+       },
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "13439255-baf8-443c-8ec6-5d61a6cd56ba",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "Accessories"
+      },
+      {
+       "id": 1030679108,
+       "key": "3_BG_T_BOLSOS",
+       "name": "Bolsos Maternidad",
+       "children": [],
+       "attributes": [
+        {
+         "key": "DISPLAY_CONTENT",
+         "value": "true"
+        }
+       ],
+       "content": {
+        "id": "b1522803-2b9a-480c-bbd4-9201a2eadd0c",
+        "type": "grid"
+       },
+       "isHidden": false,
+       "isHighLighted": false,
+       "targetedRedirects": [],
+       "canonicalName": "Maternity Bags"
+      }
+     ],
+     "attributes": [],
+     "content": {
+      "id": "LEFTIES_BABYGROW",
+      "type": "marketing"
+     },
+     "isHidden": false,
+     "isHighLighted": false,
+     "targetedRedirects": [],
+     "canonicalName": "Newborn"
+    }
+   ],
+   "attributes": [
+    {
+     "name": "HOME KIDS - HOME",
+     "key": "HOME",
+     "value": "home-kids"
+    },
+    {
+     "name": "HAS SUBSECTION - MENU OPTIONS",
+     "key": "MENU_OPTIONS",
+     "value": "HAS_SUBSECTION"
+    }
+   ],
+   "content": {
+    "id": "LEFTIES_KIDS",
+    "type": "marketing"
+   },
+   "isHidden": false,
+   "isHighLighted": false,
+   "targetedRedirects": [],
+   "canonicalName": "Kids"
+  }
+ ]
+}

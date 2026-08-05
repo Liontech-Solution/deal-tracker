@@ -477,26 +477,151 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "1030267671/1030267673/1030267842/1030293053": (
             "«Promoción» (3_NO_T_ZAPATOS_PROMO): vista transversal; 25/25/0"
         ),
-        # --- Las cinco que NO son decisión firme (mismo formato que #187 en springfield) --------
+        # --- bebé niña (3_BA_*), lo que queda fuera de la rama --------------------------------
         #
-        # Las tres ramas de bebé son catálogo del brief entero sin ingerir: **391 productos
-        # distintos, 0 de ellos ingeridos por otra rama** (Bebé Niña 220, Bebé Niño 206, Recién
-        # Nacido 86, medido el 05/08/2026 sobre las 82 hojas con producto). Es la sexta vez que
-        # mirar un árbol destapa catálogo del brief, y la misma forma que el departamento de bebé
-        # de Zara (#186). Se declaran para que el vigía no las cante cada jueves mientras se
-        # decide; el día que se resuelvan, estas entradas se van y las hojas pasan a `CATEGORIES`.
-        # Tienen issue propia pendiente de abrir: el número se escribe aquí al abrirla.
-        "1030267671/1030267674": (
-            "SIN DECIDIR — «Bebé Niña» (LEFTIES_BABYGIRL): rama entera sin ingerir, 220 "
-            "productos y 0 que entren por otra rama"
+        # Las tres ramas de bebé ya NO se declaran por su raíz: se ingieren desde #194 (292 modelos
+        # nuevos, 0 solape con el resto del catálogo). Lo que queda aquí es hoja a hoja, porque
+        # declarar la raíz tapaba el subárbol entero y con ella se iba también lo que sí hay que
+        # mirar. Cifras medidas el 06/08/2026 contra el catálogo YA con las hojas de bebé dentro.
+        "1030267671/1030267674/1030269023": (
+            "«NOVEDADES» (3_BA_T_NEWIN): vista transversal; 58/44/14, y los 14 exclusivos son "
+            "accesorios y gorros"
         ),
-        "1030267671/1030267675": (
-            "SIN DECIDIR — «Bebé Niño» (LEFTIES_BABYBOY): rama entera sin ingerir, 206 productos "
-            "y 0 que entren por otra rama"
+        "1030267671/1030267674/1030269024/1030267936": (
+            "«Cazadoras» (3_BA_T_CAZADORAS): abrigo, no es del brief; 6/2/4"
         ),
-        "1030267671/1030513546": (
-            "SIN DECIDIR — «Recién Nacido» (LEFTIES_BABYGROW): rama entera sin ingerir, 86 "
-            "productos y 0 que entren por otra rama"
+        "1030267671/1030267674/1030269024/1030267939": (
+            "«Licencias» (3_BA_T_LICENCIAS): vista transversal por personaje; 26/25/1"
+        ),
+        "1030267671/1030267674/1030269024/1030401742": (
+            "«Bañadores» (3_BA_T_BANO): baño no es del brief; 8/2/6"
+        ),
+        # Se probó a mapearla como `conjuntos` (criterio de #187/#192) y se descartó POR MEDICIÓN,
+        # ingiriendo y leyendo los nombres: sus 33 modelos entran TODOS por `Camisetas`, `Leggings`
+        # o `Faldas | Shorts`, que van por delante, así que no etiquetaba ni un conjunto. La hoja
+        # de `Recién Nacido` sí se mapea, porque allí no hay hoja de camisetas y sus 4 conjuntos no
+        # tienen casa natural.
+        "1030267671/1030267674/1030269024/1030272269": (
+            "«Conjuntos» (3_BA_T_CONJUNTOS): 33/33/0 — el conjunto ya entra por la prenda que lo "
+            "compone, así que como `conjuntos` no quedaría ninguno (#192)"
+        ),
+        # Esta es una SECCIÓN espejo, no una hoja: sus cuatro hijas (pijamas, braguitas, calcetines,
+        # bodies) son las mismas que ya entran por `ROPA`, y su propio grid ni siquiera se puede
+        # pedir — `3_BA_ROPAINTERIOR_PIJAMAS` responde 404. Declararla cubre las cuatro.
+        "1030267671/1030267674/1030343604": (
+            "«ROPA INTERIOR | PIJAMAS» (3_BA_ROPAINTERIOR_PIJAMAS): sección espejo de las hojas de "
+            "`ROPA` que ya ingerimos (13/9/10/8, mismos modelos); su grid da 404"
+        ),
+        "1030267671/1030267674/1030267949/1030272343": (
+            "«Ver Todo» (3_BA_T_ZAPATOS_VIEWALL): la unión de la sección; 54/51/3"
+        ),
+        "1030267671/1030267674/1030267949/1030272346": (
+            "«Novedades» (3_BA_T_ZAPATOS_NEWIN): vista transversal; 8/8/0"
+        ),
+        # El espejo de la hoja barefoot: publica EXACTAMENTE lo mismo que la rama propia que sí
+        # mapeamos (23/23, solape total el 06/08/2026), así que mapear las dos sería una petición
+        # por pasada a cambio de nada.
+        "1030267671/1030267674/1030267949/1030272350": (
+            "«Barefoot» (3_BA_T_ZAPATOS_BAREFOOT): espejo exacto de la rama propia ya mapeada "
+            "(1030680693); 23/23/0"
+        ),
+        "1030267671/1030267674/1030267949/1030272365": (
+            "«Licencias» (3_BA_T_ZAPATOS_LICENCIAS): vista transversal; 7/7/0"
+        ),
+        "1030267671/1030267674/1030267949/1030293056": (
+            "«Rebajas» (3_BA_T_ZAPATOS_REBAJAS): espejo de campaña, hoy vacío; 0/0/0"
+        ),
+        "1030267671/1030267674/1030567191": (
+            "«MOCHILAS | BOLSOS» (3_BA_T_MOCHILAS_BOLSOS): complemento, no es del brief; 10/0/10"
+        ),
+        "1030267671/1030267674/1030413304": (
+            "«ACCESORIOS» (3_BA_T_ACCESORIOS): no es del brief; 30/0/30"
+        ),
+        "1030267671/1030267674/1030453900": (
+            "«PROMOCIÓN» (3_BA_T_PROMO): vista transversal; 30/29/1"
+        ),
+        "1030267671/1030267674/1030272262": (
+            "«BÁSICOS DE TEMPORADA» (3_BA_T_BASICOS): vista transversal; 34/34/0"
+        ),
+        # La hoja de campaña de bebé NO se mapea como las de niño/niña (#195), y el motivo está
+        # medido: su producto llega con familias `BABY *` (BABY WIND-BREAK., BABY CARDIGAN,
+        # BABY SOCK-STOCKING…) que `_FAMILIA_A_DOMINIO` no conoce, así que `por_familia` las
+        # descartaría todas. Mapearla exige antes ampliar esa tabla al vocabulario de bebé.
+        "1030267671/1030267674/1030302518": (
+            "«REBAJAS HASTA -70%» (3_BA_S_REBAJAS): 5/0/5, hoja de campaña cuyo producto usa "
+            "familias `BABY *` que `_FAMILIA_A_DOMINIO` aún no mapea"
+        ),
+        # --- bebé niño (3_BO_*), lo que queda fuera de la rama ---------------------------------
+        "1030267671/1030267675/1030269099": (
+            "«NOVEDADES» (3_BO_T_NEWIN): vista transversal; 62/50/12"
+        ),
+        "1030267671/1030267675/1030269100/1030269044": (
+            "«Cazadoras» (3_BO_T_CAZADORAS): abrigo, no es del brief; 5/2/3"
+        ),
+        # Los 22 exclusivos de aquí son accesorios de licencia (mochilas, gorras): la familia
+        # dominante de la hoja es `ACCESSORIES` (21 de 47), no prenda.
+        "1030267671/1030267675/1030269100/1030269046": (
+            "«Licencias» (3_BO_T_LICENCIAS): vista transversal por personaje; 47/25/22, y los "
+            "exclusivos son accesorios"
+        ),
+        "1030267671/1030267675/1030269100/1030402237": (
+            "«Bañadores» (3_BO_T_BANO): baño no es del brief; 13/5/8"
+        ),
+        # Igual que su gemela de niña, y aquí la medición fue todavía más clara: mapeada, lo único
+        # que llegaba a etiquetar `conjuntos` era **un bañador** — o sea residuo de la hoja de
+        # arriba, que declaramos fuera, y no un conjunto sin casa.
+        "1030267671/1030267675/1030269100/1030272352": (
+            "«Conjuntos» (3_BO_T_CONJUNTOS): 38/38/0 — el conjunto ya entra por la prenda que lo "
+            "compone; mapeada solo capturaba un bañador (#192)"
+        ),
+        "1030267671/1030267675/1030344015": (
+            "«ROPA INTERIOR | PIJAMAS» (3_BO_ROPAINTERIOR_PIJAMAS): sección espejo de las hojas de "
+            "`ROPA` que ya ingerimos (14/6/7/7, mismos modelos); su grid da 404"
+        ),
+        "1030267671/1030267675/1030269050/1030272366": (
+            "«Ver Todo» (3_BO_T_ZAPATOS_VIEWALL): la unión de la sección; 44/39/5"
+        ),
+        "1030267671/1030267675/1030269050/1030272367": (
+            "«Novedades» (3_BO_T_ZAPATOS_NEWIN): vista transversal; 11/11/0"
+        ),
+        "1030267671/1030267675/1030269050/1030272368": (
+            "«Barefoot» (3_BO_T_ZAPATOS_BAREFOOT): espejo exacto de la rama propia ya mapeada "
+            "(1030680207); 24/24/0"
+        ),
+        "1030267671/1030267675/1030269050/1030272370": (
+            "«Licencias» (3_BO_T_ZAPATOS_LICENCIAS): vista transversal; 7/7/0"
+        ),
+        "1030267671/1030267675/1030269050/1030293059": (
+            "«Rebajas» (3_BO_T_ZAPATOS_REBAJAS): espejo de campaña; 1/0/1"
+        ),
+        "1030267671/1030267675/1030567192": (
+            "«MOCHILAS | BOLSOS» (3_BO_T_MOCHILAS_BOLSOS): complemento, no es del brief; 10/0/10"
+        ),
+        "1030267671/1030267675/1030269048": (
+            "«ACCESORIOS» (3_BO_T_ACCESORIOS): no es del brief; 43/0/43"
+        ),
+        "1030267671/1030267675/1030454402": (
+            "«PROMOCIÓN» (3_BO_T_PROMO): vista transversal; 36/34/2"
+        ),
+        "1030267671/1030267675/1030272263": (
+            "«BÁSICOS DE TEMPORADA» (3_BO_T_BASICOS): vista transversal; 30/27/3"
+        ),
+        "1030267671/1030267675/1030303021": (
+            "«REBAJAS HASTA -70%» (3_BO_S_REBAJAS): 2/0/2, mismo caso que la de bebé niña"
+        ),
+        # --- recién nacido (3_BG_*), lo que queda fuera de la rama -----------------------------
+        #
+        # Sus 21 exclusivos de «Ver Todo» son justo lo de las otras dos entradas: accesorios y
+        # bolsos de maternidad. O sea que de la rama no se queda fuera ni una prenda del brief.
+        "1030267671/1030513546/1030525065": (
+            "«Ver Todo» (3_BG_T_VIEWALL_8): la unión de la rama; 73/52/21, y los exclusivos son "
+            "los accesorios y bolsos de las dos entradas de abajo"
+        ),
+        "1030267671/1030513546/1030525066": (
+            "«Accesorios» (3_BG_T_ACCESORIOS): no es del brief; 20/4/16"
+        ),
+        "1030267671/1030513546/1030679108": (
+            "«Bolsos Maternidad» (3_BG_T_BOLSOS): ni es del brief ni es infantil; 6/0/6"
         ),
         # Las dos hojas `REBAJAS HASTA -70%` ya NO se declaran aquí: se ingieren desde #195, con la
         # categoría derivada por producto (`lefties._FAMILIA_A_DOMINIO`). Lo que las sacó de esta

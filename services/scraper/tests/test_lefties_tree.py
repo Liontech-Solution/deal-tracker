@@ -8,6 +8,11 @@ tiene hojas mapeadas, separadores, redirecciones y vistas transversales—, ente
 —una rama sin nada mapeado—, recortada `Bebé Niña`, y **una rama de adulto (Mujer)** a propósito,
 porque este menú es el del sitio entero y hay que poder comprobar que pedir la raíz infantil no la
 arrastra.
+
+Hay una **segunda** fixture, `lefties_menu_bebe.json`, con las tres ramas de bebé enteras y de una
+captura distinta (06/08/2026, #194). Va aparte en vez de injertada en la de arriba justo porque son
+dos capturas: mezclarlas dejaría un fichero que dice una fecha y contiene dos, y las cifras de
+`vigia.COBERTURA_DECLARADA` se leen contra la fecha que declaran.
 """
 
 from __future__ import annotations
@@ -29,6 +34,11 @@ _ZAPATOS_NINA = f"{_NINA}/1030267718/1030272335"  # hoja mapeada en CATEGORIES
 
 def _menu() -> dict[str, Any]:
     return json.loads((FIXTURES / "lefties_menu.json").read_text(encoding="utf-8"))
+
+
+def _menu_bebe() -> dict[str, Any]:
+    """Las tres ramas de bebé enteras (captura del 06/08/2026, #194)."""
+    return json.loads((FIXTURES / "lefties_menu_bebe.json").read_text(encoding="utf-8"))
 
 
 def _por_ruta(raiz: str) -> dict[str, Any]:
@@ -182,6 +192,37 @@ def test_el_padre_declarado_es_el_que_publica_el_menu() -> None:
         assert f"{cat.parent}/{cat.category_id}" in publicadas, (
             f"la hoja {cat.category_id} dice colgar de {cat.parent}, y el menú no lo publica así"
         )
+
+
+def test_el_padre_declarado_de_bebe_es_el_que_publica_el_menu() -> None:
+    """El mismo seguro que el de arriba, para las tres ramas de bebé (#194).
+
+    Son 36 hojas escritas a mano contra un árbol de ids opacos, y el `parent` es lo que hace que
+    `mapped_leaves()` no necesite red. Si la tienda mueve una hoja de sección, aquí se entera:
+    su cadena deja de existir en el menú, y las cifras de `vigia.COBERTURA_DECLARADA` dejan de
+    significar lo que dicen.
+    """
+    publicadas = {n.path for n in parse_category_tree(_menu_bebe(), _NINOS)}
+    ramas = (f"{_NINOS}/1030267674", f"{_NINOS}/1030267675", f"{_NINOS}/1030513546")
+    de_bebe = [c for c in CATEGORIES if c.parent.startswith(ramas)]
+
+    assert len(de_bebe) == 36, "las tres ramas de bebé mapeadas"
+    for cat in de_bebe:
+        assert f"{cat.parent}/{cat.category_id}" in publicadas, (
+            f"la hoja {cat.category_id} dice colgar de {cat.parent}, y el menú no lo publica así"
+        )
+
+
+def test_la_fixture_de_bebe_no_arrastra_las_ramas_que_ya_ingeriamos() -> None:
+    """Es una captura de las TRES ramas de bebé, no un segundo menú entero.
+
+    Si algún día se recapturara sin recortar, los dos ficheros dirían cosas distintas sobre la
+    rama de niña y el test de arriba pasaría a comprobarse contra la fecha equivocada.
+    """
+    rutas = {n.path for n in parse_category_tree(_menu_bebe(), _NINOS)}
+
+    assert rutas, "premisa: la fixture trae árbol"
+    assert not any(r.startswith(f"{_NINA}/") for r in rutas)
 
 
 def test_toda_hoja_declara_de_donde_cuelga() -> None:
