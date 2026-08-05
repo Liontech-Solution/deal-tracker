@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: ac186882-11d8-4a3c-b9db-e8b3a5090b7c
-  modified: 2026-08-04T10:21:30.017Z
+  modified: 2026-08-05T11:36:45.690Z
 ---
 
 En este repo todo se escribe en español (commits, PR, issues), así que sale solo poner **«Cierra
@@ -27,3 +27,9 @@ en el paso 5 de `cerrar-sesion`.
 Lo que no vale es dar por cerrada la issue porque el PR la mencione. Comprobarlo cuesta un comando:
 `gh issue view <n> --json state`. Y ojo con cerrarla por tu cuenta — [[buscar-issue-antes-de-abrir]]
 y la propia skill de cierre dicen que la decisión de cerrar es del usuario, no del agente.
+
+**Cuándo comprobarlo, que es lo que falla:** en el mismo momento de comentar la issue en el paso 5,
+no al final. El 05/08/2026 (PR #206, issue #180) volvió a pasar exactamente igual que con la #151:
+escribí un comentario largo diciendo «hecho», di el cierre por bueno y la issue seguía abierta —
+lo cazó el usuario, no yo. Comentar y comprobar el estado van juntos: si estás escribiendo «esto ya
+está hecho», ese es el momento de mirar si además está cerrada y de preguntar si toca cerrarla.

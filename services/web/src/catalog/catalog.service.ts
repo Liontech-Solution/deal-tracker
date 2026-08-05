@@ -39,6 +39,25 @@ export function barefootCondition(filter: BarefootFilter, alias: string): SQL {
 }
 
 /**
+ * Condición SQL de un eje transversal de `product_tag` (#180), con `alias` como alias de `product`.
+ *
+ * `EXISTS` y no un `JOIN`: la tabla tiene una fila por (producto, eje), así que unirla duplicaría
+ * las filas del listado el día que un producto lleve dos ejes — y el listado ya agrega por producto
+ * para elegir la variante representativa.
+ *
+ * Apagado devuelve `true` en vez de omitirse en quien llama, para que el filtro se componga igual
+ * que `barefootCondition` y no haya dos formas de montar el `WHERE`.
+ */
+export function tagCondition(tag: string | undefined, alias: string): SQL {
+  if (!tag) return sql`true`;
+  const id = sql.raw(`${alias}.id`);
+  return sql`EXISTS (SELECT 1 FROM product_tag pt WHERE pt.product_id = ${id} AND pt.tag = ${tag})`;
+}
+
+/** Eje que la SPA ofrece como interruptor. El vocabulario lo fija `scraper/tags.py`. */
+export const TAG_DEPORTIVA = 'deportiva';
+
+/**
  * Columnas de la variante "mejor oferta" ya agregada, contra las que se evalúa la honestidad en
  * SQL. Son exactamente las mismas que se le pasan a `classifyHonesty` más abajo (`list_from`
  * incluido): si aquí se colara otra columna, el filtro y la etiqueta hablarían de precios distintos.
@@ -183,6 +202,7 @@ export class CatalogService {
           AND (${q.activeOnly} = false OR p.delisted_at IS NULL)
           AND ${search}
           AND ${barefootCondition(q.barefoot, 'p')}
+          AND ${tagCondition(q.deportiva ? TAG_DEPORTIVA : undefined, 'p')}
       ),
       agg AS (
         SELECT id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
@@ -221,7 +241,13 @@ export class CatalogService {
                ${honestDiscountSql(DEAL_COLUMNS)} AS honest_discount
         FROM agg
       )
-      SELECT * FROM scored
+      SELECT scored.*,
+             -- Los ejes transversales van en el SELECT de fuera, después del LIMIT, para que la
+             -- subconsulta se evalúe sobre la página y no sobre el catálogo entero. Un ARRAY vacío
+             -- es lo normal: hoy solo hay un eje y solo lo alimentan tres tiendas.
+             ARRAY(SELECT pt.tag FROM product_tag pt
+                    WHERE pt.product_id = scored.id ORDER BY pt.tag) AS tags
+        FROM scored
       WHERE (${onlyDeals}::boolean IS NOT TRUE OR is_real_deal)
       ORDER BY ${orderBy}
       LIMIT ${q.limit} OFFSET ${q.offset}
@@ -238,6 +264,7 @@ export class CatalogService {
       section: (row.section as string | null) ?? null,
       category: (row.category as string | null) ?? null,
       barefoot: (row.barefoot as string | null) ?? null,
+      tags: (row.tags as string[] | null) ?? [],
       url: (row.url as string | null) ?? null,
       imageUrl: (row.image_url as string | null) ?? null,
       colorRepr: (row.color_repr as string | null) ?? null,
@@ -299,7 +326,9 @@ export class CatalogService {
     const [head] = (await this.db.execute(sql`
       SELECT p.id, p.retailer_id, r.slug AS retailer_slug, r.name AS retailer_name,
              p.retailer_product_id, p.name, p.gender, p.section, p.category, p.barefoot, p.url,
-             p.image_url
+             p.image_url,
+             ARRAY(SELECT pt.tag FROM product_tag pt
+                    WHERE pt.product_id = p.id ORDER BY pt.tag) AS tags
       FROM product p
       JOIN retailer r ON r.id = p.retailer_id
       WHERE p.id = ${id}
@@ -424,6 +453,7 @@ export class CatalogService {
       // La ficha SÍ enseña el calzado no respetuoso: el filtro de #30 acota lo que se ofrece en el
       // catálogo, no censura un enlace directo. Devolver la marca deja que la ficha lo advierta.
       barefoot: (head.barefoot as string | null) ?? null,
+      tags: (head.tags as string[] | null) ?? [],
       url: (head.url as string | null) ?? null,
       imageUrl: (head.image_url as string | null) ?? null,
       variants,
@@ -464,8 +494,17 @@ export class CatalogService {
    * números de pie con rangos de edad (medido en dev: 121 valores crudos, 60 canónicos), y ninguna
    * de las dos mitades sirve para la sección que el usuario está mirando.
    */
-  async getFacets(barefoot: BarefootFilter = 'si', section: string | null = null): Promise<Facets> {
-    const visible = barefootCondition(barefoot, 'p');
+  async getFacets(
+    barefoot: BarefootFilter = 'si',
+    section: string | null = null,
+    deportiva = false,
+  ): Promise<Facets> {
+    // El eje entra en `visible` y no en `inSection` porque acota igual que el filtro barefoot: es
+    // qué productos existen para esta vista, no qué sección se está mirando.
+    const visible = sql`(${barefootCondition(barefoot, 'p')} AND ${tagCondition(
+      deportiva ? TAG_DEPORTIVA : undefined,
+      'p',
+    )})`;
     const inSection = sql`(${section}::text IS NULL OR p.section = ${section})`;
 
     // `gender` y `section` van SIN acotar: son los ejes de navegación de la vista, y devolver solo

@@ -1,4 +1,5 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
 
 import { BAREFOOT_FILTERS, type BarefootFilter } from './product-query.dto';
 
@@ -21,4 +22,15 @@ export class FacetQueryDto {
   @IsOptional()
   @IsString()
   section?: string;
+
+  /**
+   * Mismo criterio que `barefoot` llevado al eje transversal (#180): con el interruptor encendido,
+   * las facetas describen ESA vista. Si no, el panel ofrecería categorías y tallas que la vista
+   * filtrada no devuelve — y aquí se notaría más que en ningún otro filtro, porque el eje solo lo
+   * alimentan tres tiendas y deja fuera categorías enteras.
+   */
+  @IsOptional()
+  @Transform(({ value }) => (value === undefined ? undefined : value === 'true' || value === true))
+  @IsBoolean()
+  deportiva?: boolean;
 }

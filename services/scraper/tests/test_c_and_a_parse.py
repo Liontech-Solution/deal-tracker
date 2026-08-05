@@ -38,10 +38,12 @@ from scraper.stores.c_and_a import (
     CAndAStore,
     CategoryConfig,
     HashCaducado,
+    TagLeaf,
     parse_category_tree,
     parse_products,
     product_signature,
 )
+from scraper.tags import TAG_DEPORTIVA
 
 from .conftest import load_fixture
 
@@ -277,7 +279,7 @@ def test_el_hash_caducado_se_resuelve_del_bundle_y_la_pasada_continua() -> None:
             )
         return httpx.Response(200, json=_pagina([7], 1))
 
-    store = CAndAStore(Config(database_url="x", request_delay=0.0), [_CAT_NINO])
+    store = CAndAStore(Config(database_url="x", request_delay=0.0), [_CAT_NINO], tag_leaves=[])
     store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
     assert [e.retailer_product_id for e in store.list_catalog()] == ["7"]
     assert usados[0] != nuevo and usados[1] == nuevo
@@ -297,7 +299,7 @@ def test_si_el_hash_sigue_fallando_tras_releer_el_bundle_no_se_insiste() -> None
             200, json=load_fixture(_HASH_MALO), headers={"x-release-hash": "deadbeef"}
         )
 
-    store = CAndAStore(Config(database_url="x", request_delay=0.0), [_CAT_NINO])
+    store = CAndAStore(Config(database_url="x", request_delay=0.0), [_CAT_NINO], tag_leaves=[])
     store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
     with pytest.raises(HashCaducado):
         list(store.list_catalog())
@@ -314,7 +316,7 @@ def test_check_leaves_nombra_el_hash_caducado_en_vez_de_decir_solo_que_fallo() -
             200, json=load_fixture(_HASH_MALO), headers={"x-release-hash": "deadbeef"}
         )
 
-    store = CAndAStore(Config(database_url="x", request_delay=0.0), [_CAT_NINO])
+    store = CAndAStore(Config(database_url="x", request_delay=0.0), [_CAT_NINO], tag_leaves=[])
     store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
     hojas = list(store.check_leaves())
     assert [h.alive for h in hojas] == [None]  # sin veredicto, NO "retirada"
@@ -377,7 +379,7 @@ def _store_sirviendo(paginas: dict[int, dict[str, Any]], product_count: int = 99
         page = json.loads(request.content)["variables"]["page"]
         return httpx.Response(200, json=paginas.get(page, _pagina([], product_count)))
 
-    store = CAndAStore(Config(database_url="x", request_delay=0.0), [_CAT_NINO])
+    store = CAndAStore(Config(database_url="x", request_delay=0.0), [_CAT_NINO], tag_leaves=[])
     store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
     return store
 
@@ -418,7 +420,7 @@ def test_una_pagina_incompleta_es_la_ultima_y_ahorra_la_peticion_siguiente() -> 
         pedidas.append(page)
         return httpx.Response(200, json=_pagina([1], 1) if page == 0 else _pagina([], 1))
 
-    store = CAndAStore(Config(database_url="x", request_delay=0.0), [_CAT_NINO])
+    store = CAndAStore(Config(database_url="x", request_delay=0.0), [_CAT_NINO], tag_leaves=[])
     store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
     list(store.list_catalog())
     assert pedidas == [0]  # no se preguntó "¿hay más?"
@@ -511,3 +513,76 @@ def test_conjuntos_va_detras_de_las_hojas_del_brief_de_su_genero() -> None:
             f"en {genero!r} una hoja de `conjuntos` va por delante de una del brief: se quedaría "
             "con prendas que la tienda publica además como pantalones/camisetas/sudaderas/..."
         )
+
+
+# --- eje `deportiva` (#180) --------------------------------------------------------------------
+
+
+_HOJA_DEPORTE = TagLeaf("3-1-24", "niña", TAG_DEPORTIVA)
+
+
+def _store_con_eje(por_hoja: dict[str, dict[int, dict[str, Any]]]) -> CAndAStore:
+    """Store cuyo cliente responde según `ipimId` Y página, que es lo que separa las dos hojas."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+
+        variables = json.loads(request.content)["variables"]
+        paginas = por_hoja.get(variables["ipimId"], {})
+        return httpx.Response(200, json=paginas.get(variables["page"], _pagina([], 0)))
+
+    store = CAndAStore(
+        Config(database_url="x", request_delay=0.0),
+        [_CAT_NINO],
+        tag_leaves=[_HOJA_DEPORTE],
+    )
+    store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
+    return store
+
+
+def test_la_hoja_de_etiqueta_marca_sin_ingerir_nada() -> None:
+    """Las que ya entran se marcan; las exclusivas de la hoja NO entran al catálogo.
+
+    `9` solo existe en la hoja de deporte: se anota su marca, pero no se emite entrada — su
+    categoría real no la dice nadie, y por eso `TagLeaf` no ingiere (ver su docstring).
+    """
+    store = _store_con_eje(
+        {
+            "3-7-1": {0: _pagina([1, 2], 2)},
+            "3-1-24": {0: _pagina([1, 9], 2)},
+        }
+    )
+
+    ids = [e.retailer_product_id for e in store.list_catalog()]
+    tags = store.product_tags()
+
+    assert sorted(ids) == ["1", "2"]  # la hoja de etiqueta no aporta catálogo
+    assert tags.por_producto == {"1": {TAG_DEPORTIVA}, "9": {TAG_DEPORTIVA}}
+    assert tags.fiables == {TAG_DEPORTIVA}
+
+
+def test_una_hoja_de_etiqueta_retirada_no_se_lee_como_catalogo_vacio() -> None:
+    """Aquí una hoja muerta responde 200 con la lista vacía, igual que el fin de paginación.
+
+    Sin el corte de `productCount` en la primera página, esto se leería como «C&A ya no publica
+    nada deportivo» y la reconciliación borraría de una pasada las marcas de toda la tienda.
+    """
+    store = _store_con_eje(
+        {
+            "3-7-1": {0: _pagina([1, 2], 2)},
+            "3-1-24": {0: _pagina([], 0)},
+        }
+    )
+
+    list(store.list_catalog())
+    tags = store.product_tags()
+
+    assert tags.por_producto == {}
+    assert tags.fiables == set()  # …y por eso la ingesta no reconciliará
+    assert store.scan_report().leaves_failed == 0  # no tiene ámbito: no compromete bajas
+
+
+def test_las_hojas_de_etiqueta_de_c_and_a_cuentan_como_mapeadas() -> None:
+    """Si no, el vigía las cantaría cada jueves como catálogo sin mirar."""
+    store = _store_con_eje({})
+    assert list(store.mapped_leaves()) == ["3-7-1", "3-1-24"]

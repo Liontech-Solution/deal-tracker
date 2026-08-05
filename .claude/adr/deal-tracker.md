@@ -33,9 +33,9 @@ del repo**, no en el directorio del servicio.
 través del Postgres compartido; el esquema SQL de `db/migrations` es el contrato.
 
 - El **scraper** posee las escrituras de `retailer` / `product` / `variant` / `price_history` /
-  `scrape_run`. `ingest.py` hace la pasada completa en **una transacción atómica** y detecta altas
-  y bajas. El **web** posee `app_user` (con el vínculo de Telegram), `interest`, `notification` y
-  `job_state`.
+  `scrape_run` / `product_tag`. `ingest.py` hace la pasada completa en **una transacción atómica** y
+  detecta altas y bajas. El **web** posee `app_user` (con el vínculo de Telegram), `interest`,
+  `notification` y `job_state`.
 - Las tiendas son **pluggable**: `stores/base.py` define `BaseStore`, `stores/registry.py` mapea
   slug → factoría. Hoy son **nueve**: `zara` (endpoints AJAX JSON públicos), `sfera` (Chromium,
   detrás de Akamai), `lefties` (Chromium, API `itxrest` de Inditex), `cacles` (Shopify,
@@ -1479,6 +1479,27 @@ rollback); si el backend sobrevive al pod, `pg_terminate_backend(<pid>)` — y c
 el pod cliente ya no existe, porque en un cluster con varias sesiones eso puede ser el trabajo de
 otro corriendo.
 
+**Desde #169 la espera está acotada y el síntoma es otro**, así que quien se lo encuentre ya no verá
+el silencio de arriba: `db.connect()` abre la sesión con `lock_timeout` (`SCRAPER_LOCK_TIMEOUT`,
+30 s; `0` devuelve la espera infinita), y al saltar, `run.py` consulta `pg_stat_activity` por una
+conexión nueva —la que falló se queda con la transacción abortada— y escribe un error que dice que
+**no es lentitud**, con el `pid`, el estado y cuánto lleva en transacción quien retiene las filas.
+Va como parámetro de la conexión y no como un `SET` posterior para que cubra lo primero que se
+ejecuta, y alcanza a toda la sesión a propósito, **migraciones incluidas**: un `ALTER TABLE`
+esperando su `ACCESS EXCLUSIVE` detrás de una pasada viva es este mismo fallo con peor cara. Dos
+consecuencias medidas: una pasada bloqueada tarda **~2× el timeout** en morir, porque
+`_record_failed_run` vuelve a chocar con el mismo lock al dejar constancia; y el vigía se beneficia
+sin tocarlo, porque `Historial` ya se degradaba ante cualquier excepción y ahora lo hace en 30 s en
+vez de colgar el job.
+
+Lo que **no** se hizo, y con un dato que lo desaconseja: `idle_in_transaction_session_timeout` en el
+rol de la CNPG, que atacaría la causa en vez del síntoma. **La fase 1 de la ingesta no ejecuta ningún
+SQL mientras lista el catálogo** —el bucle sobre `list_catalog()` corre dentro de la transacción ya
+abierta—, así que nuestras pasadas legítimas están `idle in transaction` durante todo el listado:
+36 s medidos en Zara (3957 entradas, 05/08/2026) y minutos en las tiendas lentas. Elegido corto,
+ese timeout mataría pasadas buenas; el valor tendría que salir de medir el listado más largo, no de
+la intuición.
+
 ### Una ficha que no se puede leer se convierte en una baja falsa dos pasadas después
 
 Es el contrato menos evidente entre `stores/*` e `ingest.py`, y no está escrito en ninguna firma.
@@ -1898,6 +1919,16 @@ Tres consecuencias operativas:
   de N piezas» y C&A «conjunto - … - 2 prendas», sistemáticamente. Era maquinaria nueva; la
   construyó #200, y es lo que cuenta el apartado siguiente.
 
+  **Pero «el nombre» no es un dato único, y en Lefties el del listado está en otro idioma.** Medido
+  el 06/08/2026 sobre los cuatro conjuntos de `Recién Nacido`: la rejilla (`grids/{uuid}`) los
+  llama `Snoopy Peanuts™ Waffle-Knit T-Shirt and Bermuda Shorts Co-ord` y la ficha
+  (`productsArray`) `Conjunto Snoopy Peanuts™ gofrado camiseta y bermuda`, **con el mismo
+  `languageId=-5` en las dos URLs**. Importa porque la categoría se fija en `list_catalog()`, o sea
+  con el nombre del listado a la vista y sin haber pedido la ficha: un predicado «empieza por
+  Conjunto» daría **cero** ahí, y en silencio — indistinguible de «esta hoja ya no trae conjuntos».
+  Antes de meter el filtro en Lefties hay que comprobar el idioma del listado; solo está medido en
+  una tienda.
+
 #### Partir una hoja en dos: `FiltroDeHoja` (#200)
 
 `CategoryConfig` mapea una hoja a UNA categoría, y la hoja mezclada necesita decir «de ésta, solo lo
@@ -1926,6 +1957,12 @@ Cuatro cosas que costó medir y que no se deducen:
   `fancy-dress-costumes`, rama declarada fuera del brief, volviendo por la puerta de atrás. Es el
   fallo de #192 un nivel más abajo: allí se colaba por la hoja y aquí por el nombre. Lo destapó la
   consulta de los nombres uno a uno, no el fixture ni los 574 tests.
+- **Y el aviso de Lefties de arriba —el listado en otro idioma— no es de una sola tienda.** H&M
+  publica parte de su catálogo sin traducir dentro de la misma hoja: 20 filas rotuladas
+  `2-piece cotton set`, `3-piece denim set`, `2-piece T-shirt and joggers set`, junto a las que sí
+  dicen «Conjunto de …». Van dos tiendas de dos en las que se ha mirado, así que **el idioma del
+  listado se comprueba antes de escribir el patrón, no después**: aquí se resolvió aceptando las dos
+  formas, y dejarlo en una habría hecho que el criterio fuese «los que la tienda haya traducido».
 
 Y el caso silencioso, que es el que importa a tres meses vista: **una hoja que responde pero cuyo
 filtro no casa con nada es indistinguible de un cambio de rotulación de la tienda**. Callarse
@@ -1952,6 +1989,66 @@ issue #186, o sea contra el catálogo de antes de que existieran las hojas de be
 dentro son 242 en la hoja y 212 ya entraban. **Un número medido en una issue lleva implícito el
 estado del catálogo de ese día**, y si entre medias se ha mapeado una rama entera, hay que volver
 a medirlo.
+
+### Hay prendas que no piden una categoría nueva sino un EJE, y se modelan aparte (#180)
+
+La contrapartida de la sección anterior. Allí la pregunta es a qué categoría va una prenda; aquí
+la respuesta es que **la pregunta no aplica**: la ropa deportiva ya está en su categoría real y lo
+que falta es poder cruzarla. Se distinguen por una prueba barata — enumerar el cajón de la tienda y
+cruzarlo contra el catálogo. Si la mayoría **ya entra** por otra hoja, no es una categoría:
+
+| tienda | publica | ya dentro | medido |
+|---|---:|---:|---|
+| c-and-a | 48 | 45 | 05/08/2026, pasada real |
+| lefties | 181 | 167 | 05/08/2026, pasada real |
+| sfera | 91 | 47 | #175, sobre las cuatro hojas |
+
+Cuatro tiendas de cuatro dijeron lo mismo. Una categoría `ropa-deportiva` solo podría llenarse
+robándole prendas a `camisetas` o `pantalones`, y entonces el mismo pantalón caería en una u otra
+según qué hoja lo listó primero — que es exactamente lo que el «gana la primera» hace inevitable.
+
+**Tabla `product_tag` (0026), no columna.** `barefoot` (0012) es el precedente estructural —una
+marca ortogonal a la categoría, que escribe el scraper y filtra el catálogo— pero es una sola, y ya
+hay un segundo eje con la misma forma esperando (#189, el uniforme escolar de H&M). Una columna por
+eje repite migración + ingesta + espejo Drizzle + faceta + SPA cada vez. Coste aceptado: un `EXISTS`
+en el listado, la ficha y las facetas.
+
+Cinco decisiones que no son obvias y que cuestan caro al revés:
+
+- **El calzado queda fuera.** La zapatilla deportiva ya se encuentra cruzando la categoría
+  `zapatillas` con el filtro barefoot, y esa categoría la pueblan Cacles (que mapea ahí
+  `deportivas`, `de fútbol`, `de running`, `de gimnasia y baile`), Zara y Lefties. No es teoría: de
+  los 167 productos de la rama de Lefties que están en el catálogo, **37 son calzado** y el eje los
+  descarta. Marcarlos crearía dos formas de pedir lo mismo con resultados distintos por tienda. La
+  regla vive en `tags.SECCION_APLICABLE` y la aplica la INGESTA, no cada scraper.
+- **La marca es del producto, no de la hoja que ganó el listado.** En Lefties 130 de esos 167 salen
+  *también* por su categoría, y `list_catalog()` se queda con la primera hoja que ve: marcar por
+  hoja ganadora haría que la marca dependiera del orden de `CATEGORIES`. En las tiendas que emiten
+  según recorren (Sfera) hay que anotar **antes** del `continue` del dedup.
+- **Se escribe desde el LISTADO, no desde `fetch_details()`.** El detalle solo se pide para lo
+  nuevo, cambiado o rancio, así que colgar la marca del `ScrapedProduct` —que es lo natural— la
+  dejaría vacía para casi todo el catálogo en régimen estacionario. El protocolo
+  `SupportsProductTags` se consulta tras agotar el generador, igual que `scan_report()`.
+- **Una hoja que solo etiqueta no entra en `scopes()`.** Si entrara, pasaría a poder provocar bajas
+  — y una hoja transversal es justo la que más se mueve. El precio es que sus productos exclusivos
+  (14 en Lefties, 3 en C&A) se quedan fuera del catálogo: su categoría real no la dice nadie.
+- **Una fuente caída no reconcilia su eje.** La reconciliación borra lo que la tienda ya no declara,
+  así que sin este acote la pasada siguiente a un 404 se llevaría las marcas de toda la tienda de
+  una vez. Aquí no hay histéresis ni sondeo detrás como en las bajas: una pasada mala basta. En C&A
+  el caso peligroso ni siquiera lanza — una hoja retirada responde 200 con la lista vacía.
+
+**Y una trampa medida que invalida números escritos en las issues:** en Lefties el grid del nodo
+padre **no devuelve su subárbol**. Medido el 05/08/2026 pidiendo las dos cosas: la rama de niña da
+77 en el padre y 93 en la unión de sus seis hijas; la de niño, 69 y 99. O sea que quedarse en el
+padre se deja fuera 46 prendas, casi un cuarto. El «146» que circula por #180 y por las
+declaraciones del vigía es la cifra del padre, no la de la rama. Las hijas se resuelven del menú en
+ejecución, que la pasada ya se descarga, en vez de escribirse.
+
+**La limitación honesta es la cobertura**: solo cinco de las nueve tiendas publican un cajón de
+deporte identificable. Zara, Hipercor, Springfield y Cacles no lo dicen, así que filtrar por el eje
+las excluye enteras. Eso no es un hueco que se rellene solo, y por eso la SPA lo dice en el propio
+interruptor en vez de esconderlo. Vacío **no** significa «no es deportiva»: significa «su tienda no
+lo declara», y ningún consumidor debe leerlo como una negación.
 
 ### Local
 

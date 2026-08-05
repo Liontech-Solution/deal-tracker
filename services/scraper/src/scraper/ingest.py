@@ -53,14 +53,17 @@ from .stores.base import (
     BaseStore,
     DelistCandidate,
     ListingEntry,
+    ProductTags,
     ScanReport,
     ScrapedImage,
     ScrapedProduct,
     ScrapedVariant,
     ScrapeScope,
     SupportsAliveProbe,
+    SupportsProductTags,
     SupportsScanReport,
 )
+from .tags import SECCION_APLICABLE, TAGS_CONOCIDOS
 
 # Umbrales por defecto de la red de seguridad de bajas (ver `_suspicious_scopes`).
 DEFAULT_DELIST_MIN_BASELINE = 5
@@ -152,6 +155,12 @@ class IngestResult:
     # barefoot tiene contenido: una zapatería que se queda en 0 productos `si` no es un detalle
     # técnico, es la mitad del producto vacía.
     barefoot_counts: dict[str, int] = field(default_factory=dict)
+    # Productos ACTIVOS marcados por cada eje transversal tras la pasada (#180). Se publica por el
+    # mismo motivo que el reparto barefoot: es la cifra que dice si la tienda está aportando algo al
+    # eje. Y es donde se ve la cola que no ingerimos — las prendas exclusivas de una hoja mixta no
+    # están en el catálogo, así que no se pueden marcar y el número sale por debajo de lo que la
+    # hoja publica. Una tienda sin cajón de deporte no aparece aquí en absoluto.
+    tag_counts: dict[str, int] = field(default_factory=dict)
     # Reparto de género de lo que ESTA pasada ha listado, por el mismo motivo que el de arriba:
     # niño/niña es el otro eje del brief y hasta #139 no se publicaba en ningún sitio. Ojo con lo
     # que significa el `unisex`, que no es lo mismo en todas las tiendas: donde hay hojas `unisex`
@@ -507,6 +516,87 @@ def _barefoot_counts(cur: psycopg.Cursor, retailer_id: int) -> dict[str, int]:
         GROUP BY 1
         """,
         (retailer_id,),
+    )
+    return {str(row[0]): int(row[1]) for row in cur.fetchall()}
+
+
+def _reconcile_tags(cur: psycopg.Cursor, retailer_id: int, tags: ProductTags) -> dict[str, int]:
+    """Deja `product_tag` igual a lo que esta pasada ha observado, y devuelve el recuento por eje.
+
+    Reconciliación y no acumulación: una prenda que la tienda saca de su cajón de deporte deja de
+    estar marcada. Sin el borrado, la marca solo podría crecer y el filtro acabaría enseñando lo que
+    la tienda dejó de decir hace meses.
+
+    **Solo se tocan las etiquetas de `tags.fiables`**, o sea aquellas cuya fuente se pudo listar
+    entera. Una hoja caída no significa «esta tienda ya no tiene nada deportivo»: sin este acote, la
+    pasada siguiente a un 404 borraría las marcas de toda la tienda en silencio. Es la misma regla
+    que `safe_scopes` aplica a las bajas, y aquí importa más porque no hay histéresis ni sondeo
+    detrás que lo amortigüen.
+
+    Y solo las de `TAGS_CONOCIDOS`: si algún día otra herramienta escribe en esta tabla, una pasada
+    del scraper no se lleva su trabajo por delante.
+    """
+    reconciliables = sorted(tags.fiables & TAGS_CONOCIDOS)
+    if not reconciliables:
+        return {}
+
+    # Tres arrays en paralelo, que es lo que permite resolver `retailer_product_id -> product.id` y
+    # la sección aplicable de cada eje en una sola sentencia. La sección va aquí y no en un `WHERE`
+    # fijo porque es propiedad del eje: `deportiva` es solo ropa, y el que venga detrás decidirá.
+    rpids: list[str] = []
+    etiquetas: list[str] = []
+    secciones: list[str | None] = []
+    for rpid, observadas in tags.por_producto.items():
+        for tag in sorted(observadas & set(reconciliables)):
+            rpids.append(rpid)
+            etiquetas.append(tag)
+            secciones.append(SECCION_APLICABLE.get(tag))
+
+    # El borrado va PRIMERO y mira el deseado sin filtrar por sección: si un producto cambió de
+    # `ropa` a `zapateria`, su marca tiene que irse, y con el filtro puesto aquí se quedaría
+    # huérfana para siempre —no estaría en el deseado válido, pero tampoco se borraría—.
+    cur.execute(
+        """
+        DELETE FROM product_tag t
+        USING product p
+        WHERE t.product_id = p.id
+          AND p.retailer_id = %s
+          AND t.tag = ANY(%s)
+          AND NOT EXISTS (
+              SELECT 1 FROM unnest(%s::text[], %s::text[]) AS d(rpid, tag)
+              WHERE d.rpid = p.retailer_product_id AND d.tag = t.tag
+          )
+        """,
+        (retailer_id, reconciliables, rpids, etiquetas),
+    )
+
+    if rpids:
+        cur.execute(
+            """
+            INSERT INTO product_tag (product_id, tag)
+            SELECT p.id, d.tag
+            FROM unnest(%s::text[], %s::text[], %s::text[]) AS d(rpid, tag, seccion)
+            JOIN product p
+              ON p.retailer_id = %s
+             AND p.retailer_product_id = d.rpid
+             AND (d.seccion IS NULL OR p.section = d.seccion)
+            ON CONFLICT DO NOTHING
+            """,
+            (rpids, etiquetas, secciones, retailer_id),
+        )
+
+    # Se cuenta contra la BASE y no sobre `rpids`: la diferencia entre las dos cifras es justo lo
+    # que se ha descartado por sección o por no estar el producto en el catálogo (los exclusivos de
+    # una hoja mixta, que no ingerimos), y es el número que dice si una tienda está aportando algo.
+    cur.execute(
+        """
+        SELECT t.tag, count(*)
+        FROM product_tag t
+        JOIN product p ON p.id = t.product_id
+        WHERE p.retailer_id = %s AND t.tag = ANY(%s) AND p.delisted_at IS NULL
+        GROUP BY t.tag
+        """,
+        (retailer_id, reconciliables),
     )
     return {str(row[0]): int(row[1]) for row in cur.fetchall()}
 
@@ -886,7 +976,10 @@ def _record_failed_run(
     la fila, "¿desde cuándo falla esta tienda?" es una consulta.
 
     Que este registro falle no puede tapar el error original (que se está propagando), así que se
-    traga cualquier excepción: es información útil, no parte del contrato.
+    traga cualquier excepción: es información útil, no parte del contrato. Eso incluye el caso de
+    #169 — si la pasada murió por un `lock_timeout`, este `_upsert_retailer` choca con el MISMO
+    lock y agota otro timeout antes de rendirse. O sea que una pasada bloqueada tarda ~2× el
+    `lock_timeout` en morir; sigue siendo segundos frente a las cinco horas de antes.
     """
     try:
         with conn.cursor() as cur:
@@ -957,6 +1050,10 @@ def ingest(
             # Hojas caídas durante el listado (#41). El informe se lee DESPUÉS de consumir el
             # generador entero, que es cuando existe.
             report = store.scan_report() if isinstance(store, SupportsScanReport) else ScanReport()
+            # Los ejes transversales (#180) se leen en el mismo punto y por la misma razón: los
+            # alimentan hojas que se recorren durante el listado. Una tienda que no publique
+            # ninguno devuelve el vacío y no se toca `product_tag`.
+            tags = store.product_tags() if isinstance(store, SupportsProductTags) else ProductTags()
             if report.dead_ratio > scan_max_dead_ratio:
                 raise CatalogScanAborted(
                     f"{report.leaves_failed} de {report.leaves_total} hojas de categoría no "
@@ -1120,6 +1217,9 @@ def ingest(
                 ),
             )
             barefoot_counts = _barefoot_counts(cur, retailer_id)
+            # Después de las bajas: así el recuento que se publica ya excluye lo retirado en esta
+            # misma pasada y es el que se puede comparar con lo que enseña el catálogo.
+            tag_counts = _reconcile_tags(cur, retailer_id, tags)
         conn.commit()
         return IngestResult(
             scrape_run_id=run_id,
@@ -1148,6 +1248,7 @@ def ingest(
             probes_dead=probe.dead,
             probes_unresolved=probe.unresolved,
             barefoot_counts=barefoot_counts,
+            tag_counts=tag_counts,
             # `sin-marcar` para el género ausente, igual que `_barefoot_counts`: una tienda que no
             # lo declare tiene que verse en el reparto, no desaparecer de él.
             gender_counts=dict(sorted(Counter(e.gender or "sin-marcar" for e in entries).items())),

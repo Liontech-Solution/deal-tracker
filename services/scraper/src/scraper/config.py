@@ -78,6 +78,15 @@ class Config:
     # código.
     progress_every_seconds: float = 300.0
     log_level: str = "INFO"
+    # Segundos que la pasada espera un lock antes de rendirse (#169). Sin esto, una transacción
+    # huérfana —el backend de una pasada anterior muerta, que Postgres tarda en enterarse de que
+    # ya no tiene cliente— bloquea a la siguiente en su primer INSERT y la deja esperando hasta
+    # agotar su `activeDeadlineSeconds`: cinco horas de pod ocupado sin hacer nada y sin decirlo,
+    # con el mismo aspecto en el log que una pasada lenta. 30 s es holgado a propósito: la
+    # contención legítima entre pasadas es casi nula (cada tienda toca las filas de su propio
+    # `retailer_id`), así que un lock que no se consigue en 30 s no es tráfico, es una huérfana.
+    # `0` lo desactiva y devuelve la espera infinita.
+    lock_timeout: float = 30.0
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
@@ -113,6 +122,7 @@ class Config:
             vigia_base_muestras=int(env.get("SCRAPER_VIGIA_BASE_MUESTRAS", "4")),
             progress_every_seconds=float(env.get("SCRAPER_PROGRESS_EVERY_SECONDS", "300")),
             log_level=env.get("SCRAPER_LOG_LEVEL", "INFO"),
+            lock_timeout=float(env.get("SCRAPER_LOCK_TIMEOUT", "30")),
         )
 
 

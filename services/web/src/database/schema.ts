@@ -16,6 +16,7 @@ import {
   integer,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -83,6 +84,29 @@ export const productImage = pgTable(
     variantUrl: text('variant_url'),
   },
   (t) => [unique().on(t.productId, t.color, t.position)],
+);
+
+/**
+ * Ejes transversales a la categoría (0026), escritos por el scraper desde la hoja de origen de
+ * cada tienda. Hoy solo `deportiva` (#180).
+ *
+ * Es una tabla y no una columna como `barefoot` porque ya hay un segundo eje con la misma forma
+ * esperando (#189, el uniforme escolar de H&M): así el siguiente es una fila con otro `tag` en vez
+ * de otra migración con su recorrido entero hasta la SPA.
+ *
+ * Ojo con la **cobertura** al leerla: solo cinco de las nueve tiendas publican un cajón de deporte
+ * identificable, así que filtrar por `deportiva` excluye enteras a Zara, Hipercor, Springfield y
+ * Cacles. No es un hueco de datos que se vaya a rellenar solo: esas tiendas no lo dicen.
+ */
+export const productTag = pgTable(
+  'product_tag',
+  {
+    productId: bigint('product_id', { mode: 'number' })
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
+    tag: text('tag').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.productId, t.tag] })],
 );
 
 export const variant = pgTable(
@@ -231,10 +255,15 @@ export const productRelations = relations(product, ({ one, many }) => ({
   retailer: one(retailer, { fields: [product.retailerId], references: [retailer.id] }),
   variants: many(variant),
   images: many(productImage),
+  tags: many(productTag),
 }));
 
 export const productImageRelations = relations(productImage, ({ one }) => ({
   product: one(product, { fields: [productImage.productId], references: [product.id] }),
+}));
+
+export const productTagRelations = relations(productTag, ({ one }) => ({
+  product: one(product, { fields: [productTag.productId], references: [product.id] }),
 }));
 
 export const variantRelations = relations(variant, ({ one, many }) => ({
@@ -250,6 +279,7 @@ export const schema = {
   retailer,
   product,
   productImage,
+  productTag,
   variant,
   priceHistory,
   appUser,
@@ -258,6 +288,7 @@ export const schema = {
   jobState,
   productRelations,
   productImageRelations,
+  productTagRelations,
   variantRelations,
   priceHistoryRelations,
 };

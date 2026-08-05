@@ -22,6 +22,13 @@ export interface ProductListItem {
    * llega `si` o `null`.
    */
   barefoot: string | null;
+  /**
+   * Ejes transversales a la categoría (#180). Hoy solo puede traer `deportiva`.
+   *
+   * Vacío **no** es «no es deportiva»: es «su tienda no lo dice». Solo lo declaran Sfera, Lefties
+   * y C&A, así que un chándal de Zara llega sin marca. No pintar nunca una negación con esto.
+   */
+  tags: string[];
   url: string | null;
   imageUrl: string | null;
   /** Color de la variante cuyo precio muestra la tarjeta: `imageUrl` ya viene resuelta a ese color. */
@@ -82,6 +89,8 @@ export interface ProductDetail {
   /** Igual que en la tarjeta, pero aquí SÍ puede llegar `no`/`desconocido`: la ficha directa no
    * se filtra, solo se filtra lo que el catálogo ofrece. */
   barefoot: string | null;
+  /** Igual que en la tarjeta: vacío es «su tienda no lo dice», no «no lo es». */
+  tags: string[];
   url: string | null;
   imageUrl: string | null;
   variants: VariantWithPrice[];
@@ -179,6 +188,8 @@ export interface ProductQuery {
   inStock?: boolean;
   /** Solo ofertas reales (mínimo nuevo con rebaja honesta), no cualquier rebaja declarada. */
   onlyDeals?: boolean;
+  /** Solo lo que la tienda publica como ropa de deporte (#180). Deja fuera a seis de las nueve. */
+  deportiva?: boolean;
   sort?: ProductSort;
   limit?: number;
   offset?: number;

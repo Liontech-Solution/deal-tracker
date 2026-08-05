@@ -14,7 +14,8 @@ la petición de detalle cuando nada ha cambiado. Los scrapers no tocan la BD: so
 Opcionalmente una tienda puede implementar `SupportsAliveProbe` (confirmación activa antes
 de dar de baja); las que no puedan lo omiten y la ingesta se queda con la histéresis. Y
 `SupportsScanReport` para contar las hojas que se cayeron durante el listado sin abortar la
-pasada (ver `ScanReport`).
+pasada (ver `ScanReport`), o `SupportsProductTags` para declarar los ejes transversales que la
+tienda publica en su árbol (ver `ProductTags` y `scraper.tags`).
 """
 
 from __future__ import annotations
@@ -569,5 +570,55 @@ class SupportsScanReport(Protocol):
         **Solo es válido con `list_catalog()` consumido entero**: es un generador, así que las
         hojas se recorren a medida que la ingesta tira de él. Quien lo consuma a medias verá un
         informe a medias.
+        """
+        ...
+
+
+@dataclass
+class ProductTags:
+    """Ejes transversales observados durante el listado, y cuáles se pudieron observar de verdad.
+
+    Las dos mitades hacen falta y la segunda es la que evita el fallo silencioso. La reconciliación
+    de la ingesta BORRA las etiquetas que la tienda ya no declara, así que sin saber qué fuentes se
+    pudieron leer, una hoja caída se leería como «esta tienda ya no tiene nada deportivo» y se
+    llevaría por delante las marcas de toda la tienda. Es el mismo fallo que `failed_scopes` evita
+    en las bajas, y aquí no hay histéresis ni sondeo que lo amortigüen: una pasada mala basta.
+    """
+
+    # retailer_product_id -> etiquetas observadas. Solo del vocabulario de `scraper.tags`.
+    por_producto: dict[str, set[str]] = field(default_factory=dict)
+    # Etiquetas cuya fuente se listó ENTERA y sin fallos: las únicas que se pueden reconciliar.
+    fiables: set[str] = field(default_factory=set)
+
+    def anota(self, retailer_product_id: str, tag: str) -> None:
+        """Marca un producto, sin importar cuántas veces lo vea el listado.
+
+        Se llama por cada aparición y no solo por la primera a propósito: en las tiendas que
+        emiten según recorren (Sfera), el producto que ya salió por otra hoja se descarta por el
+        dedup, y si la marca se anotara solo con la entrada emitida se perdería justo en el caso
+        más común — el 89 % de la rama de deporte de Lefties ya entra por su categoría.
+        """
+        self.por_producto.setdefault(retailer_product_id, set()).add(tag)
+
+
+@runtime_checkable
+class SupportsProductTags(Protocol):
+    """Capacidad OPCIONAL: declarar ejes transversales (`scraper.tags`) vistos en el listado.
+
+    La implementan las tiendas que publican un cajón identificable —hoy el de deporte, #180—. Una
+    tienda que no la implemente simplemente no marca nada, y sus productos no aparecen al filtrar
+    por ese eje: es lo que pasa con Zara, Hipercor, Springfield y Cacles, que no publican ninguno.
+
+    **Se rellena desde el LISTADO, no desde `fetch_details()`.** El detalle solo se pide para lo
+    nuevo, lo cambiado y lo rancio, así que en régimen estacionario la mayoría de los productos no
+    pasa por ahí y se quedarían sin marca; el listado se recorre entero en cada pasada.
+    """
+
+    def product_tags(self) -> ProductTags:
+        """Etiquetas del último recorrido.
+
+        Mismo contrato que `scan_report()`: **solo es válido con `list_catalog()` consumido
+        entero**, porque las hojas que las alimentan se recorren a medida que la ingesta tira del
+        generador.
         """
         ...
