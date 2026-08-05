@@ -165,6 +165,16 @@ _NINO = f"{_RAIZ_NINOS}/1030267673"
 _NINO_ROPA = f"{_NINO}/1030269022"
 _NINO_ZAPATOS = f"{_NINO}/1030267842"
 
+# Y las de las tres ramas de bebé (#194), medidas el 06/08/2026. `Recién Nacido` cuelga sus hojas
+# directamente de la rama, sin secciones intermedias.
+_BEBE_NINA = f"{_RAIZ_NINOS}/1030267674"
+_BEBE_NINA_ROPA = f"{_BEBE_NINA}/1030269024"
+_BEBE_NINA_ZAPATOS = f"{_BEBE_NINA}/1030267949"
+_BEBE_NINO = f"{_RAIZ_NINOS}/1030267675"
+_BEBE_NINO_ROPA = f"{_BEBE_NINO}/1030269100"
+_BEBE_NINO_ZAPATOS = f"{_BEBE_NINO}/1030269050"
+_NEWBORN = f"{_RAIZ_NINOS}/1030513546"
+
 
 # Qué sección y qué categoría le tocan a un producto cuando **la hoja no lo dice** (`por_familia`).
 # La familia (`classification.family.name`) es un dato de la ficha, no de la hoja, así que sirve
@@ -287,12 +297,23 @@ def dominios_emitibles(gender: str) -> list[tuple[str, str]]:
 # la prenda rebajada de su categoría, esto no cambia nada — la categoría de verdad ya la habrá
 # fijado su hoja. Mover esas dos líneas hacia arriba sí lo rompería, y en silencio: pasarían a
 # decidir la categoría de prendas que hoy la reciben de una hoja que la sabe mejor.
+#
+# Entre medias van las tres ramas de BEBÉ (#194) y, detrás de todo lo del brief, las hojas de
+# `conjuntos`: el criterio común de #187/#192 quiere que un conjunto que la tienda publica también
+# bajo una de las cinco conserve esa categoría, y aquí eso pasa mucho (ver la nota del bloque).
 CATEGORIES: list[CategoryConfig] = [
     # --- barefoot: primero a propósito (ver nota de orden arriba) ---
     CategoryConfig(1030680692, "niña", "zapateria", "barefoot", _NINA),  # barefoot (rama propia)
     CategoryConfig(1030680609, "niña", "zapateria", "barefoot", _NINA_ZAPATOS),  # dentro de zapatos
     CategoryConfig(1030680206, "niño", "zapateria", "barefoot", _NINO),  # barefoot (rama propia)
     CategoryConfig(1030680610, "niño", "zapateria", "barefoot", _NINO_ZAPATOS),  # dentro de zapatos
+    # Las dos ramas de bebé tienen su hoja `BAREFOOT` propia, que es justo el nicho del producto y
+    # hasta ahora solo se llenaba desde niño/niña. Va SOLO la de la rama, no la de dentro de
+    # `ZAPATOS`: se midió el 06/08/2026 y las dos publican EXACTAMENTE lo mismo (23 y 24 modelos,
+    # solape total), así que mapear las dos sería una petición por pasada a cambio de nada. El
+    # espejo queda declarado en `COBERTURA_DECLARADA` con esa medición.
+    CategoryConfig(1030680693, "niña", "zapateria", "barefoot", _BEBE_NINA),  # bebé (rama propia)
+    CategoryConfig(1030680207, "niño", "zapateria", "barefoot", _BEBE_NINO),  # bebé (rama propia)
     # --- niña / ropa ---
     CategoryConfig(1030267678, "niña", "ropa", "camisetas", _NINA_ROPA),  # camisetas
     CategoryConfig(1030267686, "niña", "ropa", "camisetas", _NINA_ROPA),  # tops | camisas
@@ -331,6 +352,104 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(1030276115, "niño", "zapateria", "sandalias", _NINO_ZAPATOS),  # sandalias
     CategoryConfig(1030272329, "niño", "zapateria", "zapatillas", _NINO_ZAPATOS),  # zapatillas
     CategoryConfig(1030272327, "niño", "zapateria", "zapatillas", _NINO_ZAPATOS),  # deportivos
+    # --- bebé (#194): tres ramas que el departamento infantil publica y no mirábamos -------------
+    #
+    # `Bebé Niña`, `Bebé Niño` y `Recién Nacido`. Medido el 06/08/2026 cruzando por
+    # `productParentId`: estas hojas aportan **292 modelos y NINGUNO entra por otra rama**, así que
+    # el catálogo de la tienda pasa de 785 a 1077 (pasada real, 13436 variantes, 0 bajas). Es la
+    # misma forma que el departamento de bebé de Zara (#186), y como allí el género sale de si la
+    # rama separa niño de niña:
+    #
+    #   - `Bebé Niña` -> `niña` y `Bebé Niño` -> `niño`, que es lo que ya hacen `sfera.py`
+    #     (`ninos/bebe-nina`) e `hipercor.py` (`bebe-nina-6-meses-a-3-anos`).
+    #   - `Recién Nacido` -> `unisex`, porque su rama NO separa. Es la misma decisión que
+    #     `zapatos-infantiles/bebe` en Hipercor, `/baby/newborn` en H&M, `prendas_newborn.*` en
+    #     Mango y la rama de bebé de Zara. Ojo a lo que arrastra: es la primera hoja `unisex` de
+    #     esta tienda, y por eso el docstring de `scopes()` ya no puede leer su `unisex` como «el
+    #     número de cruces de género».
+    #
+    # LO QUE EL NOMBRE DE LA HOJA NO DICE, y hubo que mirar dentro (la trampa del ADR desde #175):
+    # aquí la familia dominante de media docena de hojas es `BABY SHORT`, que NO es «short» — es la
+    # de los conjuntos y co-ords. Por eso el mismo modelo («Hello Kitty T-shirt and leggings
+    # co-ord») sale a la vez en `Camisetas`, `Leggings`, `Faldas | Shorts` y `Conjuntos`, y por eso
+    # el orden de aquí abajo decide de verdad: gana la primera y `conjuntos` va al final.
+    #
+    # Tres hojas cuya elección no es obvia, con el recuento que la decidió:
+    #   - `Peleles | Braguitas` (recién nacido) -> `vestidos`. De sus 13, cinco son peleles/rompers
+    #     puros («Swiss embroidery romper», «Double gauze playsuit») y ocho co-ords. El pelele va a
+    #     `vestidos` como en Zara (`VESTIDOS | PELELES`, 2637249) y como razona Mango; los co-ords
+    #     conservan esa categoría a propósito, que es lo que el criterio de #187/#192 pide.
+    #   - `Denim` -> `pantalones`. Es un eje de TEJIDO, no de prenda: de sus 15 (niña), diez son
+    #     vaqueros, shorts o falda-pantalón, y las dos cazadoras y los dos vestidos de denim ya
+    #     tienen su casa en las hojas que van por delante.
+    #   - `Bermudas | Petos` (bebé niño) -> `pantalones`, como la hoja `bermudas` de niño
+    #     (1030321544): de sus 26, veintitrés nombran «Bermuda shorts».
+    #
+    # Y el árbol NO es simétrico entre las dos ramas, que es donde se pierde catálogo en silencio
+    # (el agujero de #56 en Sfera y el de Hipercor): `Bebé Niño` no publica `Zapatos` ni `Botas y
+    # Botines`, y `Bebé Niña` no publica `Camisas` sino `Camisas | Tops`. Copiar la lista de una
+    # rama en la otra habría dejado fuera diez modelos con las hojas pareciendo vivas.
+    #
+    # --- bebé niña / ropa ---
+    CategoryConfig(1030267914, "niña", "ropa", "camisetas", _BEBE_NINA_ROPA),  # camisetas
+    CategoryConfig(1030715207, "niña", "ropa", "camisetas", _BEBE_NINA_ROPA),  # camisas | tops
+    CategoryConfig(1030267927, "niña", "ropa", "sudaderas", _BEBE_NINA_ROPA),  # sudaderas
+    CategoryConfig(1030267923, "niña", "ropa", "vestidos", _BEBE_NINA_ROPA),  # vestidos | petos
+    CategoryConfig(1030323503, "niña", "ropa", "vestidos", _BEBE_NINA_ROPA),  # faldas | shorts
+    CategoryConfig(1030267933, "niña", "ropa", "pantalones", _BEBE_NINA_ROPA),  # pantalones
+    CategoryConfig(1030267993, "niña", "ropa", "pantalones", _BEBE_NINA_ROPA),  # leggings
+    CategoryConfig(1030716207, "niña", "ropa", "pantalones", _BEBE_NINA_ROPA),  # denim
+    CategoryConfig(1030267944, "niña", "ropa", "ropa-interior", _BEBE_NINA_ROPA),  # pijamas
+    CategoryConfig(1030267922, "niña", "ropa", "ropa-interior", _BEBE_NINA_ROPA),  # bodies
+    # `Ropa Interior` tiene tres hijas (braguitas, calcetines, bodies) y es su unión exacta: 27 =
+    # 9+10+8, medido. Se mapea la madre y las hijas quedan cubiertas por descendencia.
+    CategoryConfig(1030526545, "niña", "ropa", "ropa-interior", _BEBE_NINA_ROPA),  # ropa interior
+    CategoryConfig(1030564699, "niña", "ropa", "ropa-interior", _BEBE_NINA_ROPA),  # calcetines
+    # --- bebé niña / zapatería ---
+    CategoryConfig(1030272372, "niña", "zapateria", "zapatos", _BEBE_NINA_ZAPATOS),  # zapatos
+    CategoryConfig(1030681608, "niña", "zapateria", "botas", _BEBE_NINA_ZAPATOS),  # botas y botines
+    CategoryConfig(1030272374, "niña", "zapateria", "sandalias", _BEBE_NINA_ZAPATOS),  # sandalias
+    CategoryConfig(1030272357, "niña", "zapateria", "zapatillas", _BEBE_NINA_ZAPATOS),  # zapatillas
+    # --- bebé niño / ropa ---
+    CategoryConfig(1030269025, "niño", "ropa", "camisetas", _BEBE_NINO_ROPA),  # camisetas
+    CategoryConfig(1030570730, "niño", "ropa", "camisetas", _BEBE_NINO_ROPA),  # camisas
+    CategoryConfig(1030269038, "niño", "ropa", "sudaderas", _BEBE_NINO_ROPA),  # sudaderas
+    CategoryConfig(1030269042, "niño", "ropa", "pantalones", _BEBE_NINO_ROPA),  # pantalones
+    CategoryConfig(1030324001, "niño", "ropa", "pantalones", _BEBE_NINO_ROPA),  # bermudas | petos
+    CategoryConfig(1030716208, "niño", "ropa", "pantalones", _BEBE_NINO_ROPA),  # denim
+    CategoryConfig(1030269047, "niño", "ropa", "ropa-interior", _BEBE_NINO_ROPA),  # pijamas
+    CategoryConfig(1030269033, "niño", "ropa", "ropa-interior", _BEBE_NINO_ROPA),  # bodies
+    CategoryConfig(1030527045, "niño", "ropa", "ropa-interior", _BEBE_NINO_ROPA),  # ropa interior
+    CategoryConfig(1030564195, "niño", "ropa", "ropa-interior", _BEBE_NINO_ROPA),  # calcetines
+    # --- bebé niño / zapatería (sin `zapatos` ni `botas`: no los publica en esta rama) ---
+    CategoryConfig(1030276118, "niño", "zapateria", "sandalias", _BEBE_NINO_ZAPATOS),  # sandalias
+    CategoryConfig(1030272371, "niño", "zapateria", "zapatillas", _BEBE_NINO_ZAPATOS),  # zapatillas
+    # --- recién nacido (unisex): sus hojas cuelgan de la rama, sin secciones intermedias ---
+    CategoryConfig(1030718712, "unisex", "ropa", "vestidos", _NEWBORN),  # peleles | braguitas
+    CategoryConfig(1030564188, "unisex", "ropa", "pantalones", _NEWBORN),  # leggings | pantalones
+    CategoryConfig(1030535546, "unisex", "ropa", "ropa-interior", _NEWBORN),  # pijamas
+    CategoryConfig(1030524057, "unisex", "ropa", "ropa-interior", _NEWBORN),  # bodies
+    CategoryConfig(1030719211, "unisex", "ropa", "ropa-interior", _NEWBORN),  # ropa interior
+    # --- conjuntos: DETRÁS de todo lo del brief (criterio común de #187 / #192) ------------------
+    #
+    # `conjuntos` es la categoría de la prenda que no tiene ninguna de las cinco del brief como
+    # casa natural. Yendo detrás, un conjunto que la tienda publica ADEMÁS bajo una de las cinco
+    # conserva esa categoría, y solo se etiqueta `conjuntos` el que no sale en ninguna otra hoja:
+    # decide la taxonomía de la tienda y no quien mapea.
+    #
+    # Va SOLO la de `Recién Nacido`, y el porqué salió de ingerir y leer los nombres, que es la
+    # única comprobación que lo distingue (lo dice el ADR, y aquí lo volvió a demostrar):
+    #
+    #   - `Recién Nacido` aporta **4 conjuntos legítimos** («Conjunto Garfield gofrado camiseta y
+    #     bermuda», «Set camiseta y bermuda heavy jersey»…). Tienen sentido justo ahí porque esta
+    #     rama NO tiene hoja de camisetas ni de sudaderas: son conjuntos sin casa natural, que es
+    #     la definición de la categoría.
+    #   - Las de **bebé niña y bebé niño NO se mapean**. Sus 33 y 38 modelos entran todos por
+    #     `Camisetas`, `Leggings` o `Bermudas | Petos`, que van por delante, así que lo único que
+    #     llegaban a etiquetar `conjuntos` era **un bañador** — residuo de `Bañadores`, una hoja
+    #     que declaramos fuera. Es la misma trampa que revirtió H&M y Zara: el exclusivo de una
+    #     hoja que reagrupa no es «sin casa natural», puede ser «con una casa que no ingerimos».
+    CategoryConfig(1030524056, "unisex", "ropa", "conjuntos", _NEWBORN),  # conjuntos
     # --- rebajas: LAS ÚLTIMAS, y mezcladas (ver la nota de orden y `_FAMILIA_A_DOMINIO`) ---
     #
     # «REBAJAS HASTA -70%», una por género. Publican prenda que **no está en ninguna otra hoja**:
@@ -695,11 +814,14 @@ class LeftiesStore:
         declarar esos ámbitos no se descatalogarían nunca. **14 de 700 (2,0 %) el 03/08/2026**, casi
         todos camisetas.
 
-        Esta tienda no declara ninguna hoja `unisex` en `CATEGORIES` —al revés que Hipercor, H&M y
-        Mango, que tienen rama de bebé o newborn—, así que ese número **es** el de cruces y se
-        re-mide sin base de datos ni detalle con `python -m scraper.run --retailer lefties
-        --dry-run`, que publica el reparto de género del listado. Se dice aquí porque #139 nació de
-        comparar ese 0 contra el `unisex` de las otras tres, que no mide lo mismo.
+        ⚠️ **Ese número dejó de ser el de cruces con #194.** Hasta entonces esta tienda no declaraba
+        ninguna hoja `unisex`, así que el `unisex` del reparto **era** exactamente el cruce de
+        géneros; desde que `Recién Nacido` entra como `unisex` —igual que Hipercor, H&M y Mango con
+        sus ramas de bebé o newborn— el reparto suma las dos cosas y ya no se pueden leer por
+        separado ahí. Sigue re-midiéndose sin base de datos ni detalle con `python -m scraper.run
+        --retailer lefties --dry-run`, pero para aislar el cruce hay que descontar los modelos que
+        vienen de las hojas de `Recién Nacido`. Se dice aquí porque #139 nació de comparar aquel 0
+        contra el `unisex` de las otras tres, que no medía lo mismo.
 
         Una hoja `por_familia` no tiene un ámbito, tiene **todos los que su tabla puede emitir**, y
         hay que declararlos: un ámbito sin declarar no cuenta como escaneado y sus productos no se

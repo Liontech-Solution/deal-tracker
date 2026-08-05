@@ -69,6 +69,39 @@ def test_barefoot_va_antes_que_el_resto_del_calzado() -> None:
     assert max(barefoot) < min(set(calzado) - set(barefoot))
 
 
+def test_conjuntos_va_detras_de_las_hojas_del_brief_de_su_genero() -> None:
+    """El invariante de orden del que depende que #192 sea correcto, aquí y en C&A e Hipercor.
+
+    `conjuntos` es la categoría de la prenda que no tiene ninguna de las cinco del brief como casa
+    natural. Con «gana la primera», ir DETRÁS significa que un conjunto que la tienda además
+    publica bajo una de las cinco conserva esa categoría, y solo se etiqueta `conjuntos` el que no
+    sale en ninguna otra hoja: decide la taxonomía de la tienda y no quien mapea.
+
+    En esta tienda no es teórico ni de lejos: la familia dominante de media docena de hojas de bebé
+    es `BABY SHORT`, que es la de los co-ords, así que el mismo modelo sale a la vez en `Camisetas`,
+    `Leggings` y `Conjuntos`. Reordenar `CATEGORIES` se llevaría esas prendas a `conjuntos` en
+    silencio, partiendo su histórico de precio en dos categorías.
+
+    Las hojas `por_familia` (rebajas) no cuentan como «del brief» porque su sección va vacía: su
+    categoría la pone el producto, no la hoja, y van detrás de todo por su propio motivo.
+    """
+    for genero in {c.gender for c in CATEGORIES}:
+        conjuntos = [
+            i for i, c in enumerate(CATEGORIES) if c.gender == genero and c.category == "conjuntos"
+        ]
+        if not conjuntos:
+            continue
+        del_brief = [
+            i
+            for i, c in enumerate(CATEGORIES)
+            if c.gender == genero and c.section == "ropa" and c.category != "conjuntos"
+        ]
+        assert min(conjuntos) > max(del_brief), (
+            f"en {genero!r} una hoja de `conjuntos` va por delante de una del brief: se quedaría "
+            "con prendas que la tienda publica además como pantalones/camisetas/sudaderas/..."
+        )
+
+
 def test_grid_ids_by_category_resuelve_las_hojas_del_menu() -> None:
     """El listado se pide por uuid de contenido, no por id de categoría."""
     menu = {
