@@ -36,6 +36,7 @@ from scraper.stores.sfera import (
     product_signature,
     products_of,
 )
+from scraper.tags import TAG_DEPORTIVA
 
 from .conftest import load_fixture
 
@@ -561,3 +562,69 @@ def test_la_siembra_del_sondeo_es_una_sola_para_todas_las_hojas() -> None:
     list(store.check_leaves())
 
     assert len(session.navegadas) == 1
+
+
+# --- eje `deportiva` (#180) --------------------------------------------------------------------
+
+
+_CATS_DEPORTE = [
+    # El mismo orden que en producción: la hoja de deporte va DETRÁS, así que sus productos ya
+    # deduplicados son justo el caso que hay que cubrir.
+    CategoryConfig("ninos/nina/camisetas", "niña", "ropa", "camisetas"),
+    CategoryConfig("ninos/nina/ropa-deportiva", "niña", "ropa", "sudaderas", (TAG_DEPORTIVA,)),
+]
+
+
+def _deporte_store(por_categoria: dict[str, Any]) -> SferaStore:
+    session = _ScanSession({**por_categoria, "ninos/nina/1/": _firefly("PADRE")})
+    return SferaStore(_CFG, categories=_CATS_DEPORTE, session_factory=lambda: session)  # type: ignore[arg-type]
+
+
+def test_la_marca_deportiva_sobrevive_al_dedup() -> None:
+    """El error que #180 avisa de no cometer, y el que rompería la mitad del eje.
+
+    `C1` sale en `camisetas` y otra vez en `ropa-deportiva`. Como el listado deduplica con «gana la
+    primera», la segunda aparición se descarta — pero la marca es del PRODUCTO, no de la hoja que
+    ganó. Si se anotara después del `continue`, en Lefties se perdería en 130 de 146 prendas.
+    """
+    store = _deporte_store(
+        {
+            "ninos/nina/camisetas": _firefly("C1"),
+            "ninos/nina/ropa-deportiva": _firefly("C1"),
+        }
+    )
+
+    ids = [e.retailer_product_id for e in store.list_catalog()]
+    tags = store.product_tags()
+
+    assert ids == ["C1"]  # una sola entrada: el dedup sigue haciendo lo suyo…
+    assert tags.por_producto == {"C1": {TAG_DEPORTIVA}}  # …y la marca no se ha perdido
+    assert tags.fiables == {TAG_DEPORTIVA}
+
+
+def test_una_hoja_de_deporte_caida_saca_el_eje_de_los_fiables() -> None:
+    """Sin esto, la reconciliación de la ingesta borraría las marcas de toda la tienda."""
+    store = _deporte_store(
+        {
+            "ninos/nina/camisetas": _firefly("C1"),
+            "ninos/nina/ropa-deportiva": BrowserHTTPError(404, "https://sfera.example/firefly"),
+        }
+    )
+
+    list(store.list_catalog())
+
+    assert store.product_tags().fiables == set()
+
+
+def test_una_hoja_sin_eje_no_marca_nada() -> None:
+    """La camiseta que solo sale por su categoría no es deportiva: también hay que probarlo."""
+    store = _deporte_store(
+        {
+            "ninos/nina/camisetas": _firefly("C1"),
+            "ninos/nina/ropa-deportiva": _firefly("D1"),
+        }
+    )
+
+    list(store.list_catalog())
+
+    assert store.product_tags().por_producto == {"D1": {TAG_DEPORTIVA}}

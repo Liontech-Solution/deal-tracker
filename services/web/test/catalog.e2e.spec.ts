@@ -980,3 +980,123 @@ describe.skipIf(!TEST_DB)('dos SKU para la misma prenda · ficha y recuento (e2e
     expect(res.body.items[0].anyInStock).toBe(true);
   });
 });
+
+describe.skipIf(!TEST_DB)('eje transversal · ropa deportiva (e2e)', () => {
+  let sql: postgres.Sql;
+  let app: INestApplication;
+
+  async function seedProduct(
+    retailerId: number,
+    name: string,
+    section: string,
+    category: string,
+    tags: string[],
+  ): Promise<number> {
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${retailerId}, ${name}, ${name}, 'niña', ${section}, ${category},
+              ${section === 'zapateria' ? 'si' : null}, 'https://x')
+      RETURNING id`;
+    for (const tag of tags) {
+      await sql`INSERT INTO product_tag (product_id, tag) VALUES (${p.id}, ${tag})`;
+    }
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p.id}, ${name + '-v'}, '24', 'rojo', ${name + '-sku'}) RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${v.id}, 19.99, 39.99, 50, true, now())`;
+    return p.id;
+  }
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    const [r] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('sfera', 'Sfera', 'https://www.sfera.com') RETURNING id`;
+
+    // El reparto que hace que el eje NO pueda ser una categoría: la prenda deportiva vive dentro
+    // de `pantalones` y de `sudaderas`, junto a las que no lo son.
+    await seedProduct(r.id, 'Jogger', 'ropa', 'pantalones', ['deportiva']);
+    await seedProduct(r.id, 'Sudadera técnica', 'ropa', 'sudaderas', ['deportiva']);
+    await seedProduct(r.id, 'Pantalón de vestir', 'ropa', 'pantalones', []);
+    await seedProduct(r.id, 'Vestido', 'ropa', 'vestidos', []);
+
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  const nombres = async (query: string): Promise<string[]> => {
+    const res = await request(app.getHttpServer()).get(query).expect(200);
+    return res.body.items.map((i: { name: string }) => i.name).sort();
+  };
+
+  it('apagado por defecto: el eje no esconde nada', async () => {
+    // La diferencia con `barefoot`, que sí filtra por defecto. Aquí encenderlo por defecto
+    // escondería casi todo el catálogo, porque solo tres tiendas alimentan el eje.
+    expect(await nombres('/api/catalog/products')).toEqual([
+      'Jogger',
+      'Pantalón de vestir',
+      'Sudadera técnica',
+      'Vestido',
+    ]);
+  });
+
+  it('encendido deja solo lo marcado, cruzando categorías', async () => {
+    // Lo que una categoría `ropa-deportiva` no podría hacer: el jogger sigue siendo `pantalones`
+    // y la sudadera `sudaderas`, y aun así salen juntos.
+    expect(await nombres('/api/catalog/products?deportiva=true')).toEqual([
+      'Jogger',
+      'Sudadera técnica',
+    ]);
+  });
+
+  it('se combina con la categoría en vez de sustituirla', async () => {
+    expect(await nombres('/api/catalog/products?deportiva=true&category=pantalones')).toEqual([
+      'Jogger',
+    ]);
+  });
+
+  it('las etiquetas viajan en la tarjeta y en la ficha', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/catalog/products?deportiva=true&category=pantalones')
+      .expect(200);
+    expect(res.body.items[0].tags).toEqual(['deportiva']);
+
+    const ficha = await request(app.getHttpServer())
+      .get(`/api/catalog/products/${res.body.items[0].id}`)
+      .expect(200);
+    expect(ficha.body.tags).toEqual(['deportiva']);
+  });
+
+  it('un producto sin marcar trae un array vacío, no null', async () => {
+    // Vacío es «su tienda no lo dice», no «no lo es». Que sea siempre un array evita que la SPA
+    // tenga que distinguir los dos casos con un `?.`.
+    const res = await request(app.getHttpServer())
+      .get('/api/catalog/products?category=vestidos')
+      .expect(200);
+    expect(res.body.items[0].tags).toEqual([]);
+  });
+
+  it('las facetas describen la vista filtrada', async () => {
+    // Sin esto el panel ofrecería `vestidos`, que con el interruptor puesto no devuelve nada.
+    const res = await request(app.getHttpServer())
+      .get('/api/catalog/facets?deportiva=true')
+      .expect(200);
+    expect(res.body.categories).toEqual(['pantalones', 'sudaderas']);
+  });
+
+  it('cualquier valor que no sea `true` se lee como apagado', async () => {
+    // Mismo trato que `inStock` y `onlyDeals`: el `@Transform` de los tres solo reconoce `true`.
+    // No es un 400 —a diferencia de `barefoot`, que sí valida contra una lista— y conviene que
+    // esté escrito: un enlace con `?deportiva=1` enseña el catálogo entero, no da error.
+    expect(await nombres('/api/catalog/products?deportiva=quizas')).toHaveLength(4);
+    expect(await nombres('/api/catalog/products?deportiva=1')).toHaveLength(4);
+  });
+});

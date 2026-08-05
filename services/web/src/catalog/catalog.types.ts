@@ -14,6 +14,14 @@ export interface ProductListItem {
   category: string | null;
   /** Calzado respetuoso: `si` | `no` | `desconocido`; `null` en ropa, donde no aplica. */
   barefoot: string | null;
+  /**
+   * Ejes transversales a la categoría (`product_tag`, #180). Hoy solo puede traer `deportiva`.
+   *
+   * Vacío NO significa «no es deportiva»: significa que su tienda no lo declara. Solo Sfera,
+   * Lefties y C&A publican un cajón de deporte identificable, así que un producto de Zara nunca
+   * llevará la marca aunque sea un chándal. Quien pinte esto no debe leerlo como una negación.
+   */
+  tags: string[];
   url: string | null;
   /** Foto del producto en el CDN de la tienda (`null` si aún no se conoce). */
   imageUrl: string | null;

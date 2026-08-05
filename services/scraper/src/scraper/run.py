@@ -317,6 +317,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     if result.barefoot_counts:
         print(f"calzado por marca barefoot: {_reparto(result.barefoot_counts)}")
+    if result.tag_counts:
+        print(f"ejes transversales: {_reparto(result.tag_counts)}")
     if result.gender_counts:
         print(f"género en el listado: {_reparto(result.gender_counts)}")
     if result.gender_frozen:

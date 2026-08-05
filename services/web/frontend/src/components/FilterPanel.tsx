@@ -11,6 +11,7 @@ export interface CatalogFilters {
   retailer: string;
   inStock: boolean;
   onlyDeals: boolean;
+  deportiva: boolean;
 }
 
 interface Props {
@@ -166,6 +167,30 @@ export function FilterPanel({ facets, value, onChange }: Props) {
           checked={value.inStock}
           onChange={(v) => onChange({ inStock: v })}
         />
+      </Group>
+
+      {/* El eje transversal (#180). La ropa deportiva vive repartida entre pantalones, camisetas y
+          sudaderas —no es una categoría—, así que es un interruptor y no un chip más de categoría.
+          El texto de abajo NO es decorativo: solo tres tiendas publican un cajón de deporte, y sin
+          decirlo el filtro parece que se ha comido medio catálogo. */}
+      <Group label="Educación física">
+        <Switch
+          label="Solo ropa deportiva"
+          checked={value.deportiva}
+          onChange={(v) => onChange({ deportiva: v })}
+        />
+        <div
+          style={{
+            fontSize: 12.5,
+            color: 'var(--text-faint)',
+            marginTop: 8,
+            lineHeight: 1.45,
+          }}
+        >
+          Lo que la tienda publica como ropa de deporte, esté donde esté su categoría. El dato solo
+          lo dan <strong>Sfera, Lefties y C&amp;A</strong>: con el filtro puesto, las demás tiendas
+          no aparecen. Para calzado deportivo, mira la categoría <em>zapatillas</em>.
+        </div>
       </Group>
     </div>
   );

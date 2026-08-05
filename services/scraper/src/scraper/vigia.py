@@ -164,14 +164,11 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "3-2-29": "«Vuelta al cole» es campaña transversal (rama 3-2, promoción)",
         "8-449": "trajes de ceremonia: no es ninguna de las 5 categorías del brief",
         "8-77": "ropa de lluvia: no es ninguna de las 5 categorías del brief",
-        # La pregunta que estas dos dejaron abierta —¿«ropa de deporte» es del brief?— se contestó
-        # midiendo, en #175, y la respuesta es distinta en cada tienda porque el mismo nombre tapa
-        # cosas distintas: en Sfera son sudaderas (van mapeadas) y aquí es una vista transversal.
-        # Medido el 04/08/2026: de los 45 productos de las dos hojas, **42 ya entran** por
-        # `camisetas` (24), `pantalones` (15) y `sudaderas` (3). Los 3 exclusivos son dos chaquetas
-        # y un chubasquero impermeable, que ya están fuera por su propia categoría.
-        "3-1-24": "vista transversal: 42 de 45 ya entran por camisetas/pantalones/sudaderas (#175)",
-        "3-7-23": "vista transversal: 42 de 45 ya entran por camisetas/pantalones/sudaderas (#175)",
+        # `3-1-24` y `3-7-23` («Ropa de deporte») ya NO se declaran: desde #180 son hojas de
+        # ETIQUETA (`c_and_a.HOJAS_ETIQUETA`), así que salen por `mapped_leaves()` y esta capa no
+        # las ve como hueco. Lo que se midió en #175 sigue siendo cierto —42 de 45 ya entran por
+        # camisetas (24), pantalones (15) y sudaderas (3)— y es justo lo que las hace transversales:
+        # ahora esas 42 se marcan con el eje `deportiva` en vez de quedarse sin decir nada.
     },
     # Lo que la cabecera de `springfield.py` ya dejaba fuera **en prosa**, hecho comprobable (#179).
     # Contado sobre el sitemap del 04/08/2026: **productos distintos**, no filas — el sitemap repite
@@ -195,9 +192,13 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
     #
     # Tres NO son decisión firme, y conviene que se lean así (mismo formato que #187 en
     # springfield): el uniforme escolar publica pantalón, vestido, polo, jersey y zapato, o sea
-    # prendas del brief en una rama que no ingerimos; `sport`/`sportswear` es la ropa deportiva
-    # cuya decisión ya tiene issue (#180); y los monos entran por `vestidos` en Lefties y aquí no.
-    # El día que se resuelvan, esas entradas se van y la rama pasa a `CATEGORIES`.
+    # prendas del brief en una rama que no ingerimos; y los monos entran por `vestidos` en Lefties y
+    # aquí no. El día que se resuelvan, esas entradas se van y la rama pasa a `CATEGORIES`.
+    #
+    # `sport`/`sportswear` es distinto de los otros dos y por eso cambió de motivo en #180: ahí la
+    # decisión YA está tomada —el eje `deportiva` existe y lo alimentan Sfera, Lefties y C&A— y lo
+    # que falta es sumar esta tienda, que son 8 ramas con 12-15 hijas cada una y no cabían en la
+    # misma sesión. O sea que aquí no queda nada que decidir, solo trabajo por hacer.
     "hm": {
         # --- niño 2-8 (/kids/boys) ---
         "/kids/boys/accessories": "complementos: ni ropa ni calzado (8)",
@@ -213,13 +214,13 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/boys/clothing/party-occasion": "vista transversal por ocasión (1)",
         "/kids/boys/clothing/sets-outfits": "conjuntos: 11 de 20 eran disfraces, #192 (1)",
         "/kids/boys/clothing/socks": "calcetines: fuera del brief (1)",
-        "/kids/boys/clothing/sport": "deportiva, transversal: #180 (1)",
+        "/kids/boys/clothing/sport": "deportiva: el eje existe, falta esta tienda; #180 (1)",
         "/kids/boys/clothing/swimwear": "baño: fuera del brief (1)",
         "/kids/boys/clothing/view-all": "«Ver todo»: la rama entera (1)",
         "/kids/boys/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
         "/kids/boys/outerwear": "abrigo: fuera del brief (9)",
         "/kids/boys/school": "uniforme: lleva prendas del brief, sin decidir (12)",
-        "/kids/boys/sportswear": "deportiva, transversal: #180 (12)",
+        "/kids/boys/sportswear": "deportiva: el eje existe, falta esta tienda; #180 (12)",
         # --- niño 9-14 (/kids/boys-9-14y) ---
         "/kids/boys-9-14y/accessories": "complementos: ni ropa ni calzado (8)",
         "/kids/boys-9-14y/clothing/basics": "«Básicos»: reagrupa lo ya ingerido (1)",
@@ -233,11 +234,11 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/boys-9-14y/clothing/party-occasion": "vista transversal por ocasión (1)",
         "/kids/boys-9-14y/clothing/sets-outfits": "conjuntos: 11 de 20 eran disfraces, #192 (1)",
         "/kids/boys-9-14y/clothing/socks": "calcetines: fuera del brief (1)",
-        "/kids/boys-9-14y/clothing/sport": "deportiva, transversal: #180 (1)",
+        "/kids/boys-9-14y/clothing/sport": "deportiva: el eje existe, falta esta tienda; #180 (1)",
         "/kids/boys-9-14y/clothing/swimwear": "baño: fuera del brief (1)",
         "/kids/boys-9-14y/clothing/view-all": "«Ver todo»: la rama entera (1)",
         "/kids/boys-9-14y/outerwear": "abrigo: fuera del brief (9)",
-        "/kids/boys-9-14y/sportswear": "deportiva, transversal: #180 (12)",
+        "/kids/boys-9-14y/sportswear": "deportiva: el eje existe, falta esta tienda; #180 (12)",
         "/kids/boys-9-14y/swimwear1": "baño: fuera del brief (1)",
         # --- niña 2-8 (/kids/girls) ---
         "/kids/girls/accessories": "complementos: ni ropa ni calzado (8)",
@@ -253,13 +254,13 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/girls/clothing/party-occasion": "vista transversal por ocasión (1)",
         "/kids/girls/clothing/sets-outfits": "conjuntos: 11 de 20 eran disfraces, #192 (1)",
         "/kids/girls/clothing/socks-tights": "calcetines: fuera del brief (1)",
-        "/kids/girls/clothing/sport": "deportiva, transversal: #180 (1)",
+        "/kids/girls/clothing/sport": "deportiva: el eje existe, falta esta tienda; #180 (1)",
         "/kids/girls/clothing/swimwear": "baño: fuera del brief (1)",
         "/kids/girls/clothing/view-all": "«Ver todo»: la rama entera (1)",
         "/kids/girls/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
         "/kids/girls/outerwear": "abrigo: fuera del brief (11)",
         "/kids/girls/school": "uniforme: lleva prendas del brief, sin decidir (15)",
-        "/kids/girls/sportswear": "deportiva, transversal: #180 (15)",
+        "/kids/girls/sportswear": "deportiva: el eje existe, falta esta tienda; #180 (15)",
         # --- niña 9-14 (/kids/girls-9-14y) ---
         "/kids/girls-9-14y/accessories": "complementos: ni ropa ni calzado (8)",
         "/kids/girls-9-14y/body-hair": "cuidado personal: no es ropa (1)",
@@ -274,11 +275,11 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/girls-9-14y/clothing/party-occasion": "vista transversal por ocasión (1)",
         "/kids/girls-9-14y/clothing/sets-outfits": "conjuntos: 11 de 20 eran disfraces, #192 (1)",
         "/kids/girls-9-14y/clothing/socks-tights": "calcetines: fuera del brief (1)",
-        "/kids/girls-9-14y/clothing/sport": "deportiva, transversal: #180 (1)",
+        "/kids/girls-9-14y/clothing/sport": "deportiva: el eje existe, falta esta tienda; #180 (1)",
         "/kids/girls-9-14y/clothing/swimwear": "baño: fuera del brief (1)",
         "/kids/girls-9-14y/clothing/view-all": "«Ver todo»: la rama entera (1)",
         "/kids/girls-9-14y/outerwear": "abrigo: fuera del brief (10)",
-        "/kids/girls-9-14y/sportswear": "deportiva, transversal: #180 (15)",
+        "/kids/girls-9-14y/sportswear": "deportiva: el eje existe, falta esta tienda; #180 (15)",
         "/kids/girls-9-14y/swimwear1": "baño: fuera del brief (1)",
         # --- bebé niño (/baby/boys) ---
         "/baby/boys/accessories": "complementos: ni ropa ni calzado (5)",
@@ -628,17 +629,14 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         # lista es que el 0 de solape resultó ser de temporada y no de campaña: las 38 hojas
         # mapeadas van enteras en `I2026` y las de rebajas enteras en `V2026`.
         #
-        # Y la ropa deportiva, que ya tiene issue: #180. Esta tienda añade su tercer dato y va en
-        # la misma dirección que Sfera y C&A —el eje «deportivo» es transversal, no una
-        # categoría—: de los 146 productos de las dos ramas, **130 ya entran** por `camisetas`,
-        # `pantalones` y `sudaderas`, y los 16 exclusivos se reparten 8 y 8.
-        "1030267671/1030267672/1030267677/1030267709": (
-            "SIN DECIDIR — «Ropa Deportiva» (3_NA_T_ROPADEPORTIVA): 77/69/8, vista transversal; "
-            "la decisión es la de #180"
-        ),
-        "1030267671/1030267673/1030269022/1030267833": (
-            "SIN DECIDIR — «Ropa Deportiva» (3_NO_T_ROPADEPORTIVA): 69/61/8, misma lectura (#180)"
-        ),
+        # Y las dos ramas de `Ropa Deportiva` tampoco: desde #180 son ramas de ETIQUETA
+        # (`lefties.HOJAS_ETIQUETA`), así que salen por `mapped_leaves()`. La medición que las tuvo
+        # aquí como `SIN DECIDIR` es la que decidió: la inmensa mayoría de lo que publican **ya
+        # entra** por `camisetas`, `pantalones` y `sudaderas`, o sea que el eje es transversal y no
+        # una categoría. Ojo con las cifras que había escritas aquí (77/69, «146»): eran las del
+        # nodo padre, y la rama entera son 181 productos — al recorrerla se vio que el grid del
+        # padre no devuelve el subárbol. Los 14 exclusivos siguen fuera del catálogo a propósito:
+        # su categoría real no la dice nadie (ver `lefties.TagLeaf`).
     },
 }
 

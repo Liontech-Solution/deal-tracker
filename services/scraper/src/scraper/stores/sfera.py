@@ -54,12 +54,14 @@ from typing import Any
 
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
+from ..tags import TAG_DEPORTIVA
 from .base import (
     GONE_STATUS,
     CategoryNode,
     DelistCandidate,
     LeafHealth,
     ListingEntry,
+    ProductTags,
     ScanReport,
     ScrapedImage,
     ScrapedProduct,
@@ -103,12 +105,18 @@ class CategoryConfig:
 
     `category_path` es el segmento de URL tras `/es/` (p.ej. "ninos/nina/pantalones"), que
     alimenta tanto la navegación de siembra como el endpoint firefly de listado.
+
+    `tags` son los ejes transversales que la hoja declara además de su categoría (#180). Aquí no
+    cuestan ni una petición: las cuatro `ropa-deportiva` ya se listan, así que marcarlas es leer lo
+    que ya pasa por delante. Una hoja puede tener categoría Y eje — de hecho es lo normal, porque
+    justamente el eje no sustituye a la categoría.
     """
 
     category_path: str
     gender: str  # niño | niña
     section: str  # ropa | zapateria
     category: str  # pantalones | camisetas | sudaderas | vestidos | ropa-interior | zapatos
+    tags: tuple[str, ...] = ()  # ejes transversales de `scraper.tags`
 
 
 # Subconjunto curado (Fase 2): niño/niña, ropa vs zapatería y las categorías del brief
@@ -225,10 +233,16 @@ CATEGORIES: list[CategoryConfig] = [
     # Lo que aportan son los **44 exclusivos**, y ahí está lo que importa:
     # 32 son de bebé, donde `bebe-nino` no tiene hoja de sudaderas desde #151 y `bebe-nina` solo
     # tiene `punto-y-jerseis` (9). Ninguna estrena ámbito.
-    CategoryConfig("ninos/nina/ropa-deportiva", "niña", "ropa", "sudaderas"),
-    CategoryConfig("ninos/nino/ropa-deportiva", "niño", "ropa", "sudaderas"),
-    CategoryConfig("ninos/bebe-nina/ropa-deportiva", "niña", "ropa", "sudaderas"),
-    CategoryConfig("ninos/bebe-nino/ropa-deportiva", "niño", "ropa", "sudaderas"),
+    #
+    # Y son la fuente del eje `deportiva` (#180): que la prenda sea una sudadera es su categoría,
+    # que la tienda la publique en su cajón de deporte es otra cosa y ahora se guarda aparte. Nótese
+    # que la marca la reciben también los 47 que entran por `sudaderas` y se descartan aquí por el
+    # dedup — `_iter_category` la anota antes de descartarlos, que es lo que hace que la marca sea
+    # del producto y no de la hoja que ganó.
+    CategoryConfig("ninos/nina/ropa-deportiva", "niña", "ropa", "sudaderas", (TAG_DEPORTIVA,)),
+    CategoryConfig("ninos/nino/ropa-deportiva", "niño", "ropa", "sudaderas", (TAG_DEPORTIVA,)),
+    CategoryConfig("ninos/bebe-nina/ropa-deportiva", "niña", "ropa", "sudaderas", (TAG_DEPORTIVA,)),
+    CategoryConfig("ninos/bebe-nino/ropa-deportiva", "niño", "ropa", "sudaderas", (TAG_DEPORTIVA,)),
 ]
 
 
@@ -581,6 +595,7 @@ class SferaStore:
         self._session_factory = session_factory or (lambda: BrowserSession(config))
         self._cache: dict[str, ScrapedProduct] = {}  # rellenado por list_catalog()
         self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
+        self._tags = ProductTags()  # ídem; ver `product_tags()`
         # 1ª página de cada ruta padre, cacheada durante la pasada: la comparten todas las hojas
         # que cuelgan de ella, así que la detección de espejismo cuesta UNA petición por padre
         # (dos con las categorías de hoy), no una por hoja.
@@ -647,6 +662,12 @@ class SferaStore:
         self._cache = {}
         self._scan = ScanReport()
         self._parent_pages = {}
+        self._tags = ProductTags()
+        # Optimista y se retira lo que falle, al revés que `_scan`: aquí lo que hay que detectar es
+        # la hoja que NO se pudo leer, y si una etiqueta se declarara fiable solo al terminar bien
+        # todas sus hojas haría falta llevar la cuenta de cuántas le tocaban. Con este apaño, una
+        # sola hoja caída basta para que su eje no se reconcilie, que es la respuesta conservadora.
+        self._tags.fiables = {t for cat in self._categories for t in cat.tags}
         with self._session_factory() as session:
             for cat in self._categories:
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
@@ -657,6 +678,14 @@ class SferaStore:
                     # seguro para dar bajas, que es lo que importa.
                     for product in self._iter_category(session, cat):
                         pid = product.retailer_product_id
+                        # ANTES del dedup: cerca de la mitad de los productos de las hojas de
+                        # deporte ya han salido por `sudaderas` y se descartan aquí (47 de 91 la
+                        # última vez que se contó el reparto; la pasada real del 05/08/2026 marcó
+                        # 97 en total). Si la marca se anotara después del `continue` se perdería
+                        # justo en el caso más común y la tienda acabaría marcando solo sus
+                        # exclusivos — que es el error del que #180 avisa.
+                        for tag in cat.tags:
+                            self._tags.anota(pid, tag)
                         if pid in self._cache:
                             continue  # dedup entre categorías dentro de la misma ejecución
                         self._cache[pid] = product
@@ -670,11 +699,11 @@ class SferaStore:
                 except BrowserHTTPError as exc:
                     if exc.status not in GONE_STATUS:
                         raise  # bloqueo de Akamai o fallo del servidor: no es una hoja retirada
-                    self._scan.leaf_gone(scope, leaf=cat.category_path)
+                    self._hoja_caida(cat, scope)
                     continue
                 except LeafMirage:
                     # El 404 que esta tienda no da: la ruta ya no existe (#54). Mismo trato.
-                    self._scan.leaf_gone(scope, leaf=cat.category_path)
+                    self._hoja_caida(cat, scope)
                     continue
                 except Exception as exc:
                     # Red ancha a propósito (#107): un timeout de navegación —el fallo transitorio
@@ -690,13 +719,29 @@ class SferaStore:
                         type(exc).__name__,
                         exc,
                     )
-                    self._scan.leaf_gone(scope, leaf=cat.category_path)
+                    self._hoja_caida(cat, scope)
                     continue
                 self._scan.leaf_ok()
+
+    def _hoja_caida(self, cat: CategoryConfig, scope: ScrapeScope) -> None:
+        """Una hoja que no se ha podido leer: fuera de las bajas, y fuera de la reconciliación.
+
+        Lo segundo es lo nuevo (#180) y es asimétrico con lo primero a propósito. Una hoja caída
+        deja su ÁMBITO sin bajas; aquí deja sin reconciliar el EJE entero de la tienda, aunque las
+        otras tres hojas de deporte se hayan leído bien. Es más bruto porque el error es peor: la
+        marca no tiene histéresis ni sondeo detrás, así que reconciliar con lo que sí se vio
+        borraría las de la hoja caída en la misma pasada, sin nada que lo frene.
+        """
+        self._scan.leaf_gone(scope, leaf=cat.category_path)
+        self._tags.fiables -= set(cat.tags)
 
     def scan_report(self) -> ScanReport:
         """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""
         return self._scan
+
+    def product_tags(self) -> ProductTags:
+        """Ver `stores.base.SupportsProductTags` (válido con `list_catalog()` ya consumido)."""
+        return self._tags
 
     def check_leaves(self) -> Iterable[LeafHealth]:
         """Sondea las hojas configuradas (ver `stores.base.SupportsLeafHealth`).

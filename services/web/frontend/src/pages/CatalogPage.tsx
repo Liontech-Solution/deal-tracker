@@ -30,13 +30,16 @@ export function CatalogPage() {
     retailer: params.get('retailer') ?? '',
     inStock: params.get('inStock') === 'true',
     onlyDeals: params.get('onlyDeals') === 'true',
+    deportiva: params.get('deportiva') === 'true',
   };
   const search = params.get('q') ?? '';
   const sort = (params.get('sort') as ProductSort) ?? 'ofertas';
 
   // Las facetas describen ESTA vista, así que se piden para la sección que se está mirando: las
   // tallas de ropa (rangos de edad) y de calzado (números de pie) no son la misma lista.
-  const facets = useFacets(filters.section || undefined);
+  // El eje va con ellas por lo mismo: con «solo deportiva» puesto, las categorías y tallas que
+  // el panel ofrece tienen que ser las que esa vista devuelve, no las del catálogo entero.
+  const facets = useFacets(filters.section || undefined, filters.deportiva || undefined);
 
   const setFilters = (patch: Partial<CatalogFilters & { sort: ProductSort; q: string }>) => {
     const next = new URLSearchParams(params);
@@ -57,6 +60,7 @@ export function CatalogPage() {
     retailer: filters.retailer || undefined,
     inStock: filters.inStock || undefined,
     onlyDeals: filters.onlyDeals || undefined,
+    deportiva: filters.deportiva || undefined,
     sort,
   };
 
@@ -77,6 +81,8 @@ export function CatalogPage() {
   if (filters.color) chips.push({ label: capitalize(filters.color), clear: () => setFilters({ color: '' }) });
   if (filters.retailer) chips.push({ label: retailerName(filters.retailer), clear: () => setFilters({ retailer: '' }) });
   if (filters.inStock) chips.push({ label: 'En stock', clear: () => setFilters({ inStock: false }) });
+  if (filters.deportiva)
+    chips.push({ label: 'Ropa deportiva', clear: () => setFilters({ deportiva: false }) });
 
   const activeCount = chips.length;
   const clearAll = () =>
@@ -90,6 +96,7 @@ export function CatalogPage() {
       retailer: '',
       inStock: false,
       onlyDeals: false,
+      deportiva: false,
     });
 
   return (
