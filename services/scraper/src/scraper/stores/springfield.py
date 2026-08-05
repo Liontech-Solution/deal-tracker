@@ -418,7 +418,13 @@ def clasificar(url: str) -> Ubicacion | None:
 
     Resuelve el ámbito **sin una sola petición**, que es lo que hace viable esta tienda. Sobre lo
     que `trocear_ruta()` acepta, añade el único filtro propio de la ingesta: que la categoría esté
-    en el mapa (`pijamas` y `complementos` no lo están, y por eso no se ingieren).
+    en el mapa (`complementos` no está, y por eso no se ingiere).
+
+    El ejemplo decía `pijamas` y `complementos` hasta #187, que metió el pijama en el mapa
+    (`ropa-interior`, como en las otras cuatro tiendas) y dejó esta frase diciendo lo contrario de
+    lo que hace `CATEGORIA_POR_SEGMENTO`. La lista de lo que se queda fuera vive **ahí arriba y en
+    `vigia.COBERTURA_DECLARADA`**, que es donde un test la comprueba; repetirla aquí solo sirve
+    para que envejezca mal, así que este ejemplo se queda con un caso y sin ánimo de ser la lista.
     """
     ruta = trocear_ruta(url)
     if ruta is None:
