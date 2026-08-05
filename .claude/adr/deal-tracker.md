@@ -1879,7 +1879,17 @@ Tres consecuencias operativas:
   y la vuelta cuenta tanto como la ida.
 - **El camino que sí queda abierto es filtrar por nombre dentro de la hoja.** H&M rotula «Conjunto
   de N piezas» y C&A «conjunto - … - 2 prendas», sistemáticamente. Es maquinaria nueva y es la misma
-  que pide Sfera para sus 25 conjuntos mezclados dentro de `ropa-deportiva`.
+  que pide Sfera para sus 25 conjuntos mezclados dentro de `ropa-deportiva`. Va en #200.
+
+  **Pero «el nombre» no es un dato único, y en Lefties el del listado está en otro idioma.** Medido
+  el 06/08/2026 sobre los cuatro conjuntos de `Recién Nacido`: la rejilla (`grids/{uuid}`) los
+  llama `Snoopy Peanuts™ Waffle-Knit T-Shirt and Bermuda Shorts Co-ord` y la ficha
+  (`productsArray`) `Conjunto Snoopy Peanuts™ gofrado camiseta y bermuda`, **con el mismo
+  `languageId=-5` en las dos URLs**. Importa porque la categoría se fija en `list_catalog()`, o sea
+  con el nombre del listado a la vista y sin haber pedido la ficha: un predicado «empieza por
+  Conjunto» daría **cero** ahí, y en silencio — indistinguible de «esta hoja ya no trae conjuntos»,
+  que es el modo de fallo que esa maquinaria tiene que resolver. Antes de decidir dónde vive el
+  filtro hay que comprobar el idioma del listado en las otras tres; solo está medido en una.
 
 Un aviso de calibración para el que lea la tabla: un número de #192 estaba **caducado** y casi
 decide el trabajo. Decía «207 prendas nuevas en Zara»; se había medido mientras se implementaba la
