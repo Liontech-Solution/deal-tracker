@@ -6,7 +6,7 @@ categoría (`grids/{uuid}`) y su respuesta de detalle (`productsArray`) reales.
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from copy import deepcopy
 from decimal import Decimal
 from typing import Any
@@ -91,15 +91,62 @@ def test_parse_listing_entries_agrupa_colores_en_modelos() -> None:
     grid = load_fixture("lefties_grid_zapatos_nina.json")
     entries = parse_listing_entries(grid, _CAT)
 
-    # 19 componentes (colores) que son 9 modelos.
-    assert len(grid["components"]) == 19
-    assert len(entries) == 9
-    assert len({e.retailer_product_id for e in entries}) == 9
+    # 27 componentes (colores) que son 14 modelos.
+    assert len(grid["components"]) == 27
+    assert len(entries) == 14
+    assert len({e.retailer_product_id for e in entries}) == 14
     assert "747860883" in {e.retailer_product_id for e in entries}
 
     for e in entries:
         assert e.gender == "niña" and e.section == "zapateria" and e.category == "zapatos"
         assert e.signature, "la huella no puede quedar vacía"
+
+
+def test_el_componente_se_reconoce_por_su_id_de_modelo_y_no_por_kind() -> None:
+    """La regresión de #179: la tienda cambia el nombre de la familia y nos quedamos a cero.
+
+    El 05/08/2026 `kind` y `type` aparecieron **intercambiados** (`kind` pasó de `Product` a
+    `Footwear`), y como el filtro exigía `kind == "Product"` las 38 hojas parsearon 0 entradas
+    descartando 2207 componentes. Nada se puso rojo: el fixture de entonces decía `Product` y el
+    menú seguía intacto, así que `check_leaves()` daba 38/38 vivas.
+
+    Por eso esto no comprueba un valor concreto, sino que **ningún valor de `kind`/`type` decide**:
+    un allowlist volvería a romperse con la siguiente familia que publique la tienda.
+    """
+    grid = load_fixture("lefties_grid_zapatos_nina.json")
+    base = {e.retailer_product_id for e in parse_listing_entries(grid, _CAT)}
+    assert base, "premisa del test: el fixture parsea algo"
+
+    inventado = deepcopy(grid)
+    for comp in inventado["components"].values():
+        comp["kind"] = "UnaFamiliaQueAunNoExiste"
+        comp["type"] = "TampocoEsta"
+
+    assert {e.retailer_product_id for e in parse_listing_entries(inventado, _CAT)} == base
+
+
+def test_un_componente_sin_id_de_modelo_no_es_un_producto() -> None:
+    """La otra mitad del criterio: sin `productParentId` no hay modelo que emitir.
+
+    Es lo que deja fuera un adorno aunque se cuele en `components`, ahora que el `kind` no decide.
+    """
+    grid = deepcopy(load_fixture("lefties_grid_zapatos_nina.json"))
+    base = {e.retailer_product_id for e in parse_listing_entries(grid, _CAT)}
+
+    # Un modelo de un solo color: al quitarle el identificador desaparece entero, sin tapar el
+    # efecto con los otros colores del mismo modelo.
+    por_modelo = Counter(
+        str((c.get("identifier") or {}).get("productParentId")) for c in grid["components"].values()
+    )
+    solo = next(pid for pid, veces in por_modelo.items() if veces == 1)
+    clave = next(
+        k
+        for k, c in grid["components"].items()
+        if str((c.get("identifier") or {}).get("productParentId")) == solo
+    )
+    grid["components"][clave]["identifier"] = {}
+
+    assert {e.retailer_product_id for e in parse_listing_entries(grid, _CAT)} == base - {solo}
 
 
 def test_la_huella_cambia_con_el_precio_y_no_con_el_orden() -> None:

@@ -342,6 +342,184 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "nina/pijamas": "incoherencia con H&M/Hipercor, que sí lo ingieren como ropa-interior (41)",
         "nino/pijamas": "incoherencia con H&M/Hipercor, que sí lo ingieren como ropa-interior (23)",
     },
+    # Lefties enumera desde #179, la última de las nueve. Son 42 declaraciones para 273 rutas bajo
+    # una sola raíz (el departamento `Niños`; el porqué de una y no cinco está en `tree_roots()`).
+    #
+    # La ruta es la **cadena de ids** desde la raíz, como en Zara: los ids de esta tienda son
+    # opacos y no se anidan solos (ver `lefties.parse_category_tree`). Para que se puedan leer, el
+    # motivo lleva el rótulo de la tienda y su `key`, que es lo que hace reconocible el nodo.
+    #
+    # Y llevan **cifras medidas, no el nombre de la hoja**: el 05/08/2026 se pidió el listado de
+    # cada una de las 42 y se cruzó contra los 755 productos que ingerimos hoy. Es la trampa que el
+    # ADR documenta desde #175 —el nombre de una hoja no dice qué hay dentro— y aquí volvió a
+    # pagar: «Licencias» suena a camisetas de personaje y sus 137 exclusivos son gorras, mochilas y
+    # collares (muestra de 20). El formato es (total / ya entran / exclusivos).
+    "lefties": {
+        # --- niña, ropa (3_NA_*) ---
+        "1030267671/1030267672/1030267676": (
+            "«NOVEDADES» (3_NA_T_NEWIN): vista transversal; 233/141/92, y sus exclusivos son "
+            "complemento y abrigo (muestra de 20)"
+        ),
+        "1030267671/1030267672/1030267677/1030267699": (
+            "«Denim» (3_NA_T_DENIM): 39/36/3, ya entra por `jeans`, que sí está mapeada"
+        ),
+        "1030267671/1030267672/1030267677/1030267705": (
+            "«Cazadoras» (3_NA_T_ABRIGOS_8): no es del brief; 17/5/12"
+        ),
+        "1030267671/1030267672/1030267677/1030267708": (
+            "«Licencias» (3_NA_T_LICENCIAS): vista transversal de personaje; 263/126/137, y sus "
+            "exclusivos son gorras, mochilas y collares (muestra de 20)"
+        ),
+        "1030267671/1030267672/1030267677/1030267715": (
+            "«Bañadores | Bikinis» (3_NA_T_BANO): baño no es del brief; 60/2/58"
+        ),
+        "1030267671/1030267672/1030267677/1030439308": (
+            "«Conjuntos» (3_NA_T_CONJUNTOS): 101/99/2 — aquí el conjunto YA entra por la prenda "
+            "que lo compone, que es una de las opciones que #192 tiene abiertas"
+        ),
+        "1030267671/1030267672/1030267677/1030555692": (
+            "«Chándal» (3_NA_T_CHANDAL): 32/32/0, entra entero por `pantalones` y `sudaderas`"
+        ),
+        "1030267671/1030267672/1030267677/1030684130": (
+            "«Jerséis | Cárdigans» (3_NA_T_JERSEY_CARDIGANS): 4/4/0, entra por `punto`"
+        ),
+        "1030267671/1030267672/1030267716": (
+            "«ACCESORIOS» (3_NA_T_ACCESORIOS): ni ropa ni calzado; 213/1/212"
+        ),
+        "1030267671/1030267672/1030272176": (
+            "«BÁSICOS DE TEMPORADA» (3_NA_T_BASICOS): vista transversal; 62/58/4"
+        ),
+        "1030267671/1030267672/1030485538": (
+            "«ROPA INTERIOR | PIJAMAS» (3_NA_T_ROPAINTERIOR_PIJAMAS): cabecera de menú sin "
+            "listado propio; sus hojas ya se ingieren"
+        ),
+        "1030267671/1030267672/1030546185": (
+            "«BOLSOS | MOCHILAS» (3_NA_T_BOLSOSMOCHILAS_MENU): ni ropa ni calzado; 63/2/61"
+        ),
+        "1030267671/1030267672/1030729353": (
+            "«K-POP DEMON HUNTERS» (3_NA_T_KPOP_8): colaboración de campaña; 19/19/0, entra "
+            "entera por su categoría"
+        ),
+        # --- niña, zapatería (3_NA_T_ZAPATOS_*) ---
+        "1030267671/1030267672/1030267718/1030272299": (
+            "«Ver Todo» (3_NA_T_ZAPATOS_VIEWALL): la vista completa de la rama; 105/96/9, y 7 de "
+            "los 9 exclusivos son mochilas y estuches que la tienda cuelga aquí"
+        ),
+        "1030267671/1030267672/1030267718/1030272300": (
+            "«Novedades» (3_NA_T_ZAPATOS_NOVEDADES): vista transversal; 31/29/2"
+        ),
+        "1030267671/1030267672/1030267718/1030272303": (
+            "«Licencias» (3_NA_T_ZAPATOS_LICENCIAS_8): vista transversal; 33/29/4"
+        ),
+        "1030267671/1030267672/1030267718/1030272306": (
+            "«Baño» (3_NA_T_ZAPATOS_BANO_8): 10/10/0, entra entera por `sandalias`"
+        ),
+        "1030267671/1030267672/1030267718/1030293050": (
+            "«Promoción» (3_NA_T_ZAPATOS_PROMO): vista transversal; 37/36/1"
+        ),
+        "1030267671/1030267672/1030267718/1030421806": (
+            "«Rebajas» (3_NA_T_ZAPATOS_REBAJAS_ES): vista transversal; 1/0/1"
+        ),
+        # --- niño, ropa (3_NO_*) ---
+        "1030267671/1030267673/1030269021": (
+            "«NOVEDADES» (3_NO_T_NEWIN): vista transversal; 208/125/83, misma composición que la "
+            "de niña"
+        ),
+        "1030267671/1030267673/1030269022/1030267824": (
+            "«Denim» (3_NO_T_DENIM): 24/23/1, ya entra por `jeans`, que sí está mapeada"
+        ),
+        "1030267671/1030267673/1030269022/1030267829": (
+            "«Cazadoras» (3_NO_T_ABRIGOS_8): no es del brief; 12/2/10"
+        ),
+        "1030267671/1030267673/1030269022/1030267832": (
+            "«Licencias» (3_NO_T_LICENCIAS): vista transversal de personaje; 185/105/80, misma "
+            "composición que la de niña"
+        ),
+        "1030267671/1030267673/1030269022/1030267839": (
+            "«Bañadores» (3_NO_T_BANO): baño no es del brief; 38/9/29"
+        ),
+        "1030267671/1030267673/1030269022/1030439309": (
+            "«Conjuntos» (3_NO_T_CONJUNTOS): 64/64/0, entra entero por la prenda que lo compone "
+            "(#192)"
+        ),
+        "1030267671/1030267673/1030269022/1030556189": (
+            "«Chándal» (3_NO_T_CHANDAL): 21/21/0, entra entero por `pantalones` y `sudaderas`"
+        ),
+        "1030267671/1030267673/1030267840": (
+            "«ACCESORIOS» (3_NO_T_ACCESORIOS): ni ropa ni calzado; 120/0/120"
+        ),
+        "1030267671/1030267673/1030272248": (
+            "«BÁSICOS DE TEMPORADA» (3_NO_T_BASICOS): vista transversal; 76/69/7"
+        ),
+        "1030267671/1030267673/1030487036": (
+            "«ROPA INTERIOR | PIJAMAS» (3_NO_T_ROPAINTERIOR_PIJAMAS): cabecera de menú sin "
+            "listado propio; sus hojas ya se ingieren"
+        ),
+        "1030267671/1030267673/1030546685": (
+            "«MOCHILAS | ESTUCHES» (3_NO_T_MOCHILAS_MENU): ni ropa ni calzado; 33/1/32"
+        ),
+        # --- niño, zapatería (3_NO_T_ZAPATOS_*) ---
+        "1030267671/1030267673/1030267842/1030272324": (
+            "«Ver Todo» (3_NO_T_ZAPATOS_VIEWALL): la vista completa de la rama; 93/82/11, con la "
+            "misma mezcla de mochilas que en niña"
+        ),
+        "1030267671/1030267673/1030267842/1030272325": (
+            "«Novedades» (3_NO_T_ZAPATOS_NOVEDADES): vista transversal; 24/24/0"
+        ),
+        "1030267671/1030267673/1030267842/1030272328": (
+            "«Licencias» (3_NO_T_ZAPATOS_LICENCIAS): vista transversal; 27/23/4"
+        ),
+        "1030267671/1030267673/1030267842/1030272331": (
+            "«Baño» (3_NO_T_ZAPATOS_BANO_8): 15/15/0, entra entera por `sandalias`"
+        ),
+        "1030267671/1030267673/1030267842/1030293053": (
+            "«Promoción» (3_NO_T_ZAPATOS_PROMO): vista transversal; 25/25/0"
+        ),
+        # --- Las cinco que NO son decisión firme (mismo formato que #187 en springfield) --------
+        #
+        # Las tres ramas de bebé son catálogo del brief entero sin ingerir: **391 productos
+        # distintos, 0 de ellos ingeridos por otra rama** (Bebé Niña 220, Bebé Niño 206, Recién
+        # Nacido 86, medido el 05/08/2026 sobre las 82 hojas con producto). Es la sexta vez que
+        # mirar un árbol destapa catálogo del brief, y la misma forma que el departamento de bebé
+        # de Zara (#186). Se declaran para que el vigía no las cante cada jueves mientras se
+        # decide; el día que se resuelvan, estas entradas se van y las hojas pasan a `CATEGORIES`.
+        # Tienen issue propia pendiente de abrir: el número se escribe aquí al abrirla.
+        "1030267671/1030267674": (
+            "SIN DECIDIR — «Bebé Niña» (LEFTIES_BABYGIRL): rama entera sin ingerir, 220 "
+            "productos y 0 que entren por otra rama"
+        ),
+        "1030267671/1030267675": (
+            "SIN DECIDIR — «Bebé Niño» (LEFTIES_BABYBOY): rama entera sin ingerir, 206 productos "
+            "y 0 que entren por otra rama"
+        ),
+        "1030267671/1030513546": (
+            "SIN DECIDIR — «Recién Nacido» (LEFTIES_BABYGROW): rama entera sin ingerir, 86 "
+            "productos y 0 que entren por otra rama"
+        ),
+        # Y el espejo de rebajas, que es el caso contrario al de Mango (#176): allí la hoja de
+        # campaña se cae y deja de ingerirse; aquí publica producto que NO está en ninguna hoja
+        # mapeada. 31 exclusivos (25 + 6) y la muestra es ropa del brief —camisetas, pantalones,
+        # vestidos, sudaderas, jeans—, no complementos. Sin decidir por lo mismo que en Mango: si
+        # mapear hojas de campaña es una trampa estacional. Issue propia pendiente de abrir.
+        "1030267671/1030267672/1030302501": (
+            "SIN DECIDIR — «REBAJAS HASTA -70%» (3_NA_S_REBAJAS): 25/0/25, y la muestra de los "
+            "exclusivos es ropa del brief, no complemento"
+        ),
+        "1030267671/1030267673/1030303020": (
+            "SIN DECIDIR — «REBAJAS HASTA -70%» (3_NO_S_REBAJAS): 6/0/6, mismo caso que la de niña"
+        ),
+        # Y la ropa deportiva, que ya tiene issue: #180. Esta tienda añade su tercer dato y va en
+        # la misma dirección que Sfera y C&A —el eje «deportivo» es transversal, no una
+        # categoría—: de los 146 productos de las dos ramas, **130 ya entran** por `camisetas`,
+        # `pantalones` y `sudaderas`, y los 16 exclusivos se reparten 8 y 8.
+        "1030267671/1030267672/1030267677/1030267709": (
+            "SIN DECIDIR — «Ropa Deportiva» (3_NA_T_ROPADEPORTIVA): 77/69/8, vista transversal; "
+            "la decisión es la de #180"
+        ),
+        "1030267671/1030267673/1030269022/1030267833": (
+            "SIN DECIDIR — «Ropa Deportiva» (3_NO_T_ROPADEPORTIVA): 69/61/8, misma lectura (#180)"
+        ),
+    },
 }
 
 # Cuántos productos se llevan hasta el final (listado -> detalle -> parseo) por tienda. Cinco basta
