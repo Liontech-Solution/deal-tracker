@@ -45,6 +45,14 @@ con el canario del **100 %** en las muertas y del **0-8 %** en las vivas (el 8 %
 que legítimamente comparte producto con el cubo), así que el umbral de 0,5 tiene holgura de sobra
 por los dos lados.
 
+**Y un nodo del menú tampoco es siempre una página seleccionable**, así que el canario hace falta
+también para MEDIR, no solo para ingerir. Medido el 05/08/2026 (#189): `/kids/girls/school` y
+`/kids/boys/school` son espejismo, igual que `/kids/girls/clothing` y la propia `/kids/girls` —
+son contenedores, y solo resuelven sus hijas—, mientras que `/kids/girls/sportswear` (109 modelos)
+y `/kids/girls/outerwear` (114) sí resuelven. O sea que no se puede deducir del sitio que ocupa en
+el árbol: hay que preguntarlo. Quien mida «cuánto hay» en una rama pidiéndole al padre sin comparar
+con el canario se llevará ~9700 productos y sacará la conclusión contraria.
+
 **2. Una fila del listado es un producto+color, no un producto.** `id` = `1343222003` son 7 dígitos
 de modelo y 3 de color, y **la misma raíz aparece en varias filas de la misma hoja** (medido: 36
 filas -> 27 raíces, con raíces repetidas hasta 3 veces). Así que aquí NO se deduplica con «gana la
