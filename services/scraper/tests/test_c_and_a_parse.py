@@ -34,6 +34,7 @@ from scraper.stores.c_and_a import (
 from scraper.stores.c_and_a import (
     _PAGE_SIZE,
     _PAGINA_INICIAL,
+    CATEGORIES,
     CAndAStore,
     CategoryConfig,
     HashCaducado,
@@ -480,3 +481,33 @@ def test_los_ambitos_declarados_son_los_de_las_hojas_configuradas() -> None:
     assert ScrapeScope("niña", "ropa", "vestidos") in scopes
     assert ScrapeScope("niño", "ropa", "vestidos") not in scopes  # correcto: no hay
     assert all(s.section == "ropa" for s in scopes)  # C&A no tiene zapatería
+
+
+def test_conjuntos_va_detras_de_las_hojas_del_brief_de_su_genero() -> None:
+    """El invariante de orden del que depende que #192 sea correcto.
+
+    `conjuntos` es la categoría de la prenda que no tiene ninguna de las cinco del brief como casa
+    natural. Con «gana la primera» —el `emitted` de `list_catalog()`—, ir DETRÁS significa
+    que un conjunto que la tienda además
+    publica bajo una de las cinco conserva esa categoría, y solo se etiqueta `conjuntos` el que no
+    sale en ninguna otra hoja — o sea que quien decide es la taxonomía de la tienda, no quien mapea.
+
+    Si alguien reordenara `CATEGORIES`, las prendas que hoy entran bien como `pantalones` o
+    `sudaderas` pasarían a `conjuntos` **en silencio**, partiendo su histórico de precio en dos
+    categorías. Sin este test lo único que lo impedía era un comentario.
+    """
+    for genero in {c.gender for c in CATEGORIES}:
+        conjuntos = [
+            i for i, c in enumerate(CATEGORIES) if c.gender == genero and c.category == "conjuntos"
+        ]
+        if not conjuntos:
+            continue
+        del_brief = [
+            i
+            for i, c in enumerate(CATEGORIES)
+            if c.gender == genero and c.section == "ropa" and c.category != "conjuntos"
+        ]
+        assert min(conjuntos) > max(del_brief), (
+            f"en {genero!r} una hoja de `conjuntos` va por delante de una del brief: se quedaría "
+            "con prendas que la tienda publica además como pantalones/camisetas/sudaderas/..."
+        )

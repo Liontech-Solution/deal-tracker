@@ -213,10 +213,28 @@ class CategoryConfig:
 # esquema ni en las facetas—, el rango se ve por la talla. `recien nacido` va como `unisex` porque
 # su rama no separa niño de niña, que es lo mismo que se decidió para `zapatos-infantiles/bebe`.
 #
-# Fuera a propósito, por no ser del brief: accesorios, baño, disfraces, ropa de deporte, conjuntos,
-# abrigos, calcetines, packs, básicos y las ramas transversales de promoción (`last-chance`,
-# `new-arrivals`, `seasonal-trending`, `shop-by-product`), que solapan con las de género y
-# duplicarían el trabajo para los mismos productos.
+# Fuera a propósito, por no ser del brief: accesorios, baño, disfraces, ropa de deporte, abrigos,
+# calcetines, packs, básicos y las ramas transversales de promoción (`last-chance`, `new-arrivals`,
+# `seasonal-trending`, `shop-by-product`), que solapan con las de género y duplicarían el trabajo
+# para los mismos productos.
+#
+# **`sets-outfits` también, y el motivo hay que leerlo antes de volver a intentarlo (#192).** Se
+# probó —la categoría `conjuntos` que estrenó esa issue sí existe, la alimentan C&A e Hipercor— y
+# una pasada real lo desmintió AQUÍ. De los 20 productos que ingirieron las siete hojas el
+# 05/08/2026, **11 eran disfraces y 1 un bikini**: o sea `fancy-dress-costumes` y `swimwear`, dos
+# ramas que esta misma lista declara fuera del brief, entrando por la puerta de atrás. Solo ~8 eran
+# conjuntos de verdad, y esos ya están en el catálogo por su prenda dominante, porque la tienda los
+# publica además en `jumpers-sweatshirts`, `trousers` y compañía.
+#
+# La trampa está en cómo se mide, y es la misma que cayó en Zara (ver su cabecera). Contar los
+# productos EXCLUSIVOS de la hoja parece decir «estos no tienen casa natural», y no dice eso:
+# también son exclusivos los que tienen una casa que hemos decidido **no ingerir**. En una hoja que
+# reagrupa —`sets-outfits` aquí, `TOTAL LOOK` allí— las dos poblaciones se confunden, y el residuo
+# no son conjuntos: es todo lo que la tienda archiva ahí y nosotros excluimos por otra vía.
+#
+# Si algún día se quiere recuperar los ~8 buenos, el camino NO es mapear la hoja: es filtrar por
+# nombre dentro de ella —esta tienda los rotula «Conjunto de N piezas», que es sistemático— y eso
+# es maquinaria nueva, la misma que pide Sfera para sus 25 mezclados en `ropa-deportiva`.
 def _hojas_de_rama(rama: str, gender: str, *, bebe: bool) -> list[CategoryConfig]:
     """Las hojas del brief dentro de una rama de género, con los nombres que usa cada rango.
 

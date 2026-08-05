@@ -141,7 +141,13 @@ class CategoryConfig:
 # Fuera del mapa a propósito, medido el 02/08/2026: `3-1-2-5` y `3-7-2-3` (Shorts) aportan **0
 # productos nuevos** porque están contenidos enteros en las hojas de Pantalones. Y lo que existe
 # pero no es del brief se queda fuera igual que en Sfera: Baño, Pijamas, Chaquetas, Accesorios,
-# Conjuntos, Básicos, Premium, Packs, Ropa de deporte, Novedades y Vuelta al cole.
+# Básicos, Premium, Packs, Ropa de deporte, Novedades y Vuelta al cole.
+#
+# Ojo a `Pijamas`: aquí NO se pierde, y por eso sigue fuera. Sus prendas ya entran por las hojas de
+# ropa interior que sí mapeamos (está declarado así en `vigia.COBERTURA_DECLARADA`), que es distinto
+# de lo que pasaba en Springfield, donde el pijama se quedaba fuera del todo (#187).
+#
+# `Conjuntos` SÍ entra desde #192, con categoría propia. Ver el bloque del final.
 CATEGORIES: list[CategoryConfig] = [
     # --- niña (rama 3-1) ---
     CategoryConfig("3-1-1", "niña", "ropa", "camisetas"),  # Camisetas y tops
@@ -161,6 +167,17 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig("3-7-3", "niño", "ropa", "ropa-interior"),  # Ropa interior
     CategoryConfig("3-7-10", "niño", "ropa", "ropa-interior"),  # Calcetines
     CategoryConfig("3-7-6", "niño", "ropa", "sudaderas"),  # Jerséis y sudaderas
+    # --- conjuntos (#192): LAS ÚLTIMAS a propósito ---
+    # `list_catalog()` deduplica con «gana la primera» (`emitted`), así que ir detrás significa que
+    # un conjunto que la tienda también publica bajo una de las cinco del brief conserva ESA
+    # categoría; solo se etiqueta `conjuntos` el que no sale en ninguna otra hoja.
+    #
+    # Medido el 05/08/2026 (total / exclusivos frente a las demás hojas): 3-1-18 → 86/3 y
+    # 3-7-17 → 29/2. Son cinco prendas, y aun así entra: lo que arregla no es el volumen sino que la
+    # misma prenda dejara de entrar o no según la tienda, que es de lo que van #187 y #192. Dejarla
+    # fuera aquí habría reconstruido el sesgo por otra puerta.
+    CategoryConfig("3-1-18", "niña", "ropa", "conjuntos"),  # Conjuntos
+    CategoryConfig("3-7-17", "niño", "ropa", "conjuntos"),  # Conjuntos
 ]
 
 

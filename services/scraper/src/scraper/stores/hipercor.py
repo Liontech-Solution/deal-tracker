@@ -229,9 +229,12 @@ _BEBE_NINO = f"{_INFANTIL}/bebe-nino-6-meses-a-3-anos"
 # `jerseis`; y `camisetas-y-polos` de niña es `camisetas` en niño. Es el mismo agujero que costó
 # 191 productos en Sfera (#56), reproducido aquí antes de ingerir nada.
 #
+# `conjuntos` SÍ entra desde #192, con categoría propia: es la prenda que no tiene ninguna de las
+# cinco como casa natural. Ver el bloque del final de `CATEGORIES`.
+#
 # Quedan FUERA a propósito, por no ser ninguna de las cinco categorías del brief: `bano`,
 # `accesorios`, `ropa-de-abrigo`, `chalecos`, `calcetines-y-leotardos`, `colegios`,
-# `recien-nacido`, `conjuntos` (1 producto) y `ranitas-peleles-y-cubrepanales` — esta última se
+# `recien-nacido` y `ranitas-peleles-y-cubrepanales` — esta última se
 # valoró para ropa interior de bebé, pero `bodies` ya cubre esa categoría en las dos ramas de
 # bebé, así que no hace falta tragarse una hoja que mezcla peleles con cubrepañales.
 CATEGORIES: list[CategoryConfig] = [
@@ -285,6 +288,18 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(f"{_BEBE_NINO}/sudaderas-y-chandal", "niño", "ropa", "sudaderas"),
     CategoryConfig(f"{_BEBE_NINO}/jerseis-y-chaquetas", "niño", "ropa", "sudaderas"),
     CategoryConfig(f"{_BEBE_NINO}/bodies", "niño", "ropa", "ropa-interior"),
+    # --- conjuntos (#192): LAS ÚLTIMAS a propósito ---
+    # `list_catalog()` deduplica con «gana la primera», así que ir detrás significa que un conjunto
+    # que la tienda también publica bajo una de las cinco del brief conserva ESA categoría; solo se
+    # etiqueta `conjuntos` el que no sale en ninguna otra hoja.
+    #
+    # **Solo existen en las dos ramas de bebé.** Sondeado el 05/08/2026 con `check_leaves()`:
+    # `nina-4-16-anos/conjuntos` y `nino-4-16-anos/conjuntos` NO existen y son **espejismo** — la
+    # tienda resuelve el padre y devuelve su catálogo con un 200 y una página perfectamente
+    # plausible. Contar productos habría dado por buenas dos hojas inventadas; esta tienda exige
+    # `es_espejismo()` para cualquier ruta nueva y no es opcional.
+    CategoryConfig(f"{_BEBE_NINA}/conjuntos", "niña", "ropa", "conjuntos"),  # 1 producto
+    CategoryConfig(f"{_BEBE_NINO}/conjuntos", "niño", "ropa", "conjuntos"),  # 1 producto
 ]
 
 

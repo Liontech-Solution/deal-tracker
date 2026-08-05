@@ -133,7 +133,7 @@ def test_las_categorias_plegadas_caen_en_el_slug_del_brief() -> None:
 
 
 def test_lo_que_no_se_ingiere_se_salta_sin_reventar() -> None:
-    """Los cuatro casos que devuelven None, y ninguno es un error."""
+    """Los tres casos que devuelven None, y ninguno es un error."""
     urls = [e.url for e in parse_sitemap_products(load_html("springfield_sitemap_products.xml"))]
 
     # Otro mundo.
@@ -142,9 +142,19 @@ def test_lo_que_no_se_ingiere_se_salta_sin_reventar() -> None:
     assert clasificar(url_de("/teen/", urls)) is None
     # Categoría infantil fuera del brief.
     assert clasificar(url_de("/nina/complementos/", urls)) is None
-    assert clasificar(url_de("/nino/pijamas/", urls)) is None
     # Ruta corta sin taxonomía: 3 segmentos, ni género ni categoría.
     assert clasificar(url_de("/conjunto-de-pantalon-zapatillas-y-polo/", urls)) is None
+
+
+def test_el_pijama_entra_por_ropa_interior_como_en_las_otras_tiendas() -> None:
+    """#187: era la única tienda que lo dejaba fuera, y eso hacía el catálogo dependiente de dónde
+    viniera la prenda. Zara, H&M, Hipercor y C&A lo mandan a `ropa-interior`; aquí también."""
+    urls = [e.url for e in parse_sitemap_products(load_html("springfield_sitemap_products.xml"))]
+
+    pijama = clasificar(url_de("/nino/pijamas/", urls))
+
+    assert pijama is not None
+    assert (pijama.gender, pijama.section, pijama.category) == ("niño", "ropa", "ropa-interior")
 
 
 def test_scopes_declara_todo_lo_que_clasificar_puede_emitir() -> None:
@@ -163,7 +173,7 @@ def test_scopes_declara_todo_lo_que_clasificar_puede_emitir() -> None:
 def test_solo_se_vigilan_las_ramas_que_la_tienda_publica() -> None:
     """`HOJAS` es más corta que el cartesiano a propósito: `nino/vestidos` y `nina/polos` no
     existen, y sondearlas sería un aviso falso del vigía todas las semanas (#67, #129)."""
-    assert len(HOJAS) == 19
+    assert len(HOJAS) == 21
     assert ("nino", "vestidos") not in HOJAS
     assert ("nina", "polos") not in HOJAS
     # Pero toda hoja vigilada tiene que ser ingerible, o estaríamos vigilando lo que no miramos.
@@ -449,16 +459,19 @@ def tienda_con_sitemap(productos: str | None = None) -> SpringfieldStore:
 
 
 def test_el_arbol_publica_categorias_que_no_ingerimos() -> None:
-    """El porqué de la capa: `pijamas` y `complementos` existen y no están en `HOJAS`.
+    """El porqué de la capa: `complementos` existe y no está en `HOJAS`.
 
     `check_leaves()` no puede verlas —sondea lo que ya está mapeado— así que sin el árbol la
     tienda podría estrenar una categoría del brief y nadie se enteraría.
-    """
-    nodos = {n.path: n for n in tienda_con_sitemap().category_tree("nino")}
 
-    assert "nino/pijamas" in nodos
-    assert "nino/pijamas" not in set(tienda().mapped_leaves())
-    assert nodos["nino/camisetas"].path in set(tienda().mapped_leaves()), "y lo mapeado sale igual"
+    El ejemplo era `pijamas` hasta #187, y que haya dejado de valer es justo lo que esta capa
+    existe para producir: se vio que la tienda lo publicaba, se decidió, y pasó a `HOJAS`.
+    """
+    nodos = {n.path: n for n in tienda_con_sitemap().category_tree("nina")}
+
+    assert "nina/complementos" in nodos
+    assert "nina/complementos" not in set(tienda().mapped_leaves())
+    assert nodos["nina/vestidos"].path in set(tienda().mapped_leaves()), "y lo mapeado sale igual"
 
 
 def test_el_arbol_baja_a_las_subcategorias_que_hojas_no_conoce() -> None:

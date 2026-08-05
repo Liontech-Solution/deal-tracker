@@ -119,9 +119,23 @@ _GENERO_POR_SEGMENTO: Mapping[str, str] = {"nino": "niño", "nina": "niña"}
 # el brief no tiene slug para falda, y dejarlas fuera perdería 37 prendas. Igual `jerseis` con
 # `sudaderas` (la categoría del brief es "sudaderas/jerseys") y `jeans` con `pantalones`.
 #
-# Fuera del mapa por no ser del brief, y por tanto sin ingerir: `complementos` (89), `pijamas` (63),
-# `bano` (40), `chaquetas` (35), `abrigos` (13), `chalecos` (2), `promociones` (14) y `total-looks`
-# (2). Añadir uno aquí es todo lo que hace falta para empezar a ingerirlo.
+# `pijamas` va a `ropa-interior` por el criterio que #187 y #192 fijaron para toda prenda que no es
+# ninguna de las cinco del brief: **¿tiene una de las cinco como casa natural?** El pijama sí, y no
+# es una opinión nuestra —lo dicen las otras CUATRO tiendas que publican hoja propia de pijama y lo
+# mandan ahí: `zara.py` (2427367 y 2422216), `hm.py` (`clothing/nightwear`), `hipercor.py`
+# (`pijamas-y-batas`) y C&A por sus hojas ya mapeadas. Springfield era la única que lo dejaba fuera,
+# o sea que la misma prenda entraba o no en el catálogo según la tienda. Son 64 prendas.
+#
+# `total-looks` NO entra, y el motivo está medido (#192). Parecía el mismo caso que el `TOTAL LOOK`
+# de Zara —que sí se ingiere, como `conjuntos`— pero no lo es: sus dos URLs son páginas **«Shop the
+# look»**, no fichas. Comprobado el 05/08/2026 sobre `02092108`: 200 con 273 KB de HTML y **cero**
+# `ld+json`, `size-data` y `data-color-info`. No hay prenda, ni talla, ni precio; es una página que
+# enlaza a las prendas sueltas, que ya entran por su propia categoría. Mapearla añade dos entradas
+# al listado que mueren en el detalle con un warning por pasada y no ingieren nada.
+#
+# Fuera del mapa por no ser del brief, y por tanto sin ingerir: `complementos` (89), `bano` (40),
+# `chaquetas` (35), `abrigos` (13), `chalecos` (2), `promociones` (14) y `total-looks` (2). Añadir
+# uno aquí es todo lo que hace falta para empezar a ingerirlo.
 CATEGORIA_POR_SEGMENTO: Mapping[str, tuple[str, str]] = {
     "calzado": ("zapateria", "zapatos"),
     "camisetas": ("ropa", "camisetas"),
@@ -135,6 +149,7 @@ CATEGORIA_POR_SEGMENTO: Mapping[str, tuple[str, str]] = {
     "vestidos": ("ropa", "vestidos"),
     "faldas": ("ropa", "vestidos"),
     "intimo": ("ropa", "ropa-interior"),
+    "pijamas": ("ropa", "ropa-interior"),
 }
 
 # Las ramas (género, categoría) que la tienda publica DE VERDAD, contadas sobre el sitemap el
@@ -158,6 +173,7 @@ HOJAS: tuple[tuple[str, str], ...] = (
     ("nina", "vestidos"),
     ("nina", "faldas"),
     ("nina", "intimo"),
+    ("nina", "pijamas"),
     ("nino", "camisetas"),
     ("nino", "camisas"),
     ("nino", "polos"),
@@ -167,6 +183,7 @@ HOJAS: tuple[tuple[str, str], ...] = (
     ("nino", "sudaderas"),
     ("nino", "jerseis"),
     ("nino", "intimo"),
+    ("nino", "pijamas"),
 )
 
 _RE_SIZE_DATA = re.compile(r'size-data="([^"]*)"')
@@ -726,7 +743,7 @@ class SpringfieldStore:
         publica (no hay `nino/vestidos` ni `nina/polos`) y avisar de ellos sería llorar al lobo cada
         semana. Ver el comentario de `HOJAS`.
 
-        Coste total: 4 peticiones para las 19 hojas.
+        Coste total: 4 peticiones para las 21 hojas.
         """
         ramas = list(HOJAS)
 
@@ -778,7 +795,7 @@ class SpringfieldStore:
         return list(por_id.values())
 
     def mapped_leaves(self) -> Iterable[str]:
-        """Ver `stores.base.SupportsCategoryTree`. Las 19 ramas de `HOJAS`.
+        """Ver `stores.base.SupportsCategoryTree`. Las 21 ramas de `HOJAS`.
 
         El mismo vocabulario que usa `check_leaves()` para su `LeafHealth.leaf`, y a propósito: dos
         idiomas para el mismo sitio es cómo se llega a que una capa diga que falta lo que la otra
