@@ -3,8 +3,10 @@
 Sfera (grupo El Corte Inglés) corre sobre Salesforce Commerce Cloud (PWA "Moonshine") y
 protege sus APIs con **Akamai Bot Manager**: el HTML de documento pasa con buenas cabeceras,
 pero el listado/paginación exige cookies que solo se obtienen ejecutando el sensor JS. Por
-eso este scraper usa un **navegador headless** (ver `stores/browser.py`): navega una vez a la
-página de categoría (siembra cookies) y luego pide la API de listado `firefly/products_list`:
+eso este scraper usa un **navegador headless** (ver `stores/browser.py`): navega **una vez por
+pasada** a la página de categoría (siembra cookies) y luego pide la API de listado
+`firefly/products_list`. Esa navegación de siembra es la **única** que hace la pasada — todo lo
+demás, listado y PDP incluidas, va por `page.request` sin ejecutar JS (#168):
 
   GET /es/api/sfera-es/firefly/products_list/{category_path}/{page}/?showDimensions=none
   -> {"success": true, "data": {"products": [...], "pagination": {"_current","_total",...}}}
@@ -715,8 +717,12 @@ class SferaStore:
     def _iter_category(
         self, session: BrowserSession, cat: CategoryConfig
     ) -> Iterable[ScrapedProduct]:
-        """Recorre todas las páginas firefly de una categoría y produce sus productos."""
-        session.goto(_SEED_URL.format(category_path=cat.category_path))  # siembra cookies
+        """Recorre todas las páginas firefly de una categoría y produce sus productos.
+
+        No siembra: las cookies vienen de la única navegación que hace `list_catalog` antes del
+        bucle. Sembrar aquí era una navegación por hoja —38 por pasada, cada una con el render
+        completo de una página de escaparate— para conseguir lo que ya estaba conseguido (#168).
+        """
         page = 1
         total = 1
         while page <= total and page <= _MAX_PAGES:
@@ -745,6 +751,12 @@ class SferaStore:
         # sola hoja caída basta para que su eje no se reconcilie, que es la respuesta conservadora.
         self._tags.fiables = {t for cat in self._categories for t in cat.tags}
         with self._session_factory() as session:
+            # Una sola siembra para toda la pasada, igual que en `check_leaves` y en `probe_alive`.
+            # Akamai contesta 403 a la PRIMERA petición de la sesión y suelta las cookies con esa
+            # misma respuesta (#129), así que la navegación sigue siendo obligatoria —sin ella se
+            # pierde la primera hoja—, pero basta una: medido el 05/08/2026 contra la tienda, 38/38
+            # hojas con payload y productos partiendo de esta única siembra (#168).
+            session.goto(self._seed_url())  # siembra las cookies de Akamai del origen
             for cat in self._categories:
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
                 filtrados = 0  # productos que ha casado el filtro de esta hoja, si lo lleva
@@ -972,8 +984,14 @@ class SferaStore:
         if not candidate.url:
             return None
         try:
-            status = session.goto(candidate.url)
-        except Exception:  # timeout / error de navegación: no es prueba de nada
+            # Se PIDE la ficha en vez de navegarla: de ella solo se lee el status, y `pedir_html`
+            # lo da igual sin ejecutar JS ni pedir subrecursos (#160). Medido el 05/08/2026 sobre
+            # 7 URLs —5 vivas y 2 canarios con el id mutado— y con la sesión sembrada y sin
+            # sembrar: 14/14 veredictos idénticos a los de `goto`, con los 404 de los canarios
+            # llegando por los dos caminos (#168). Las cookies las siembra `probe_alive`, que es
+            # la precondición que este camino no puede darse a sí mismo.
+            status, _ = session.pedir_html(candidate.url)
+        except Exception:  # timeout / error de red: no es prueba de nada
             return None
         if status in (404, 410):
             return False
