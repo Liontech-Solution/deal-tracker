@@ -54,6 +54,96 @@ def test_parse_listing_entries_extrae_id_y_huella() -> None:
     assert entry.signature == parse_listing_entries(listing, _CAT)[ids.index("545453620")].signature
 
 
+def test_el_filtro_de_conjuntos_se_queda_solo_con_la_familia_conjunto() -> None:
+    """El mecanismo de #200, sobre un listado real y **sin fixture nuevo**.
+
+    La hoja de pantalones ya trae dos productos que la tienda declara `familyName = CONJUNTO`, que
+    es exactamente la mezcla que hay dentro de las hojas de conjunto: el filtro se queda con esos
+    dos y descarta los otros 69, sin mirar el título.
+
+    Vale como prueba del filtro precisamente porque la hoja NO es de conjuntos: si el criterio
+    fuese el nombre de la hoja, o el orden, aquí no saldría nada.
+    """
+    listing = load_fixture("zara_category_2427327.json")
+    cat_conjuntos = next(c for c in CATEGORIES if c.category == "conjuntos")
+    hoja = CategoryConfig(2427327, "niña", "ropa", "conjuntos", filtro=cat_conjuntos.filtro)
+
+    sin_filtro = parse_listing_entries(listing, _CAT_ROPA)
+    filtradas = parse_listing_entries(listing, hoja)
+
+    esperados = {
+        pid
+        for pid, (fam, nom) in _senales_por_id(listing).items()
+        if fam.upper().startswith("CONJUNTO") or nom.upper().startswith("CONJUNTO")
+    }
+    assert esperados, "el fixture debería traer algún producto identificado como conjunto"
+    assert {e.retailer_product_id for e in filtradas} == esperados
+    assert len(filtradas) < len(sin_filtro), "el filtro tiene que descartar el resto de la hoja"
+    assert all(e.category == "conjuntos" for e in filtradas)
+
+
+def test_lo_que_el_filtro_descarta_puede_seguir_entrando_por_su_hoja() -> None:
+    """Descartar no es «gastar» el producto: es la condición para que el dedup no lo pierda (#200).
+
+    `list_catalog()` deduplica con «gana la primera» y las hojas de conjunto van DELANTE. Si el
+    filtro emitiera lo que no casa —aunque fuese con otra categoría— ocuparía el hueco en `emitted`
+    y el pantalón del lookbook no entraría nunca por su hoja de pantalones.
+    """
+    listing = load_fixture("zara_category_2427327.json")
+    cat_conjuntos = next(c for c in CATEGORIES if c.category == "conjuntos")
+    hoja = CategoryConfig(2427327, "niña", "ropa", "conjuntos", filtro=cat_conjuntos.filtro)
+
+    filtradas = {e.retailer_product_id for e in parse_listing_entries(listing, hoja)}
+    completas = {e.retailer_product_id for e in parse_listing_entries(listing, _CAT_ROPA)}
+
+    assert completas - filtradas, "el resto de la hoja tiene que quedar libre para su categoría"
+
+
+def test_el_conjunto_se_reconoce_por_la_familia_o_por_el_titulo() -> None:
+    """Las dos señales, y por qué ninguna vale sola. Medido en vivo el 06/08/2026 (#200).
+
+    Los cuatro casos son reales, sacados de las hojas que se mapean:
+
+      - la familia sin el título: la tienda titula «PACK BODY …» o «SET PRIMERA PUESTA …» productos
+        que archiva como `CONJUNTO`, y hasta escribe «CONJUTO» con una errata suya.
+      - el título sin la familia: 40 conjuntos viven en la familia `CHANDAL BEBE`, que no vale como
+        señal porque esa misma familia lleva pantalones y camisetas sueltos.
+    """
+    filtro = next(c for c in CATEGORIES if c.category == "conjuntos").filtro
+    assert filtro is not None
+
+    assert filtro.acepta("CONJUNTO BEBE", "PACK BODY CRUZADO Y LEGGING POINTELLE LAZO")
+    assert filtro.acepta("CONJUNTO", "CONJUTO CAMISETA Y BERMUDA CUADRO DAMERO")
+    assert filtro.acepta("CHANDAL BEBE", "CONJUNTO SUDADERA RAYAS Y LEGGING FLARE")
+    # Y lo que NO es conjunto aunque salga en la misma hoja: ni la familia ni el título lo dicen.
+    assert not filtro.acepta("CHANDAL BEBE", "PANTALÓN JOGGER FELPA")
+    assert not filtro.acepta("PANTALON", "PANTALÓN WIDE LEG EFECTO ARRUGADO")
+    # El ancla: la palabra tiene que abrir la etiqueta, no aparecer dentro.
+    assert not filtro.acepta("VESTIDO", "VESTIDO CON CONJUNTO DE CHAQUETA")
+
+
+def _senales_por_id(listing: dict) -> dict[str, tuple[str, str]]:
+    """`(familyName, name)` por id, leyendo el listado igual que lo lee el parser."""
+    senales: dict[str, tuple[str, str]] = {}
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            seo = node.get("seo")
+            if isinstance(seo, dict) and seo.get("discernProductId"):
+                senales[str(seo["discernProductId"])] = (
+                    str(node.get("familyName") or ""),
+                    str(node.get("name") or ""),
+                )
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    walk(listing)
+    return senales
+
+
 def test_parse_listing_entries_ropa_extrae_seccion_y_categoria() -> None:
     """El mismo parser sirve para ropa: una hoja de ropa produce entradas con su sección/slug."""
     listing = load_fixture("zara_category_2427327.json")  # niña / ropa / pantalones

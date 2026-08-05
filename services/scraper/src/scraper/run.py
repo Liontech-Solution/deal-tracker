@@ -105,6 +105,13 @@ def _report_dead_leaves(store: BaseStore) -> None:
             f"{_cuales(report.failed_leaves)}: "
             f"busca sus ids nuevos en el árbol de categorías de la tienda"
         )
+    if report.empty_filter_leaves:
+        cuantas = len(report.empty_filter_leaves)
+        print(
+            f"⚠ {cuantas} hoja{'' if cuantas == 1 else 's'} "
+            f"{'respondió' if cuantas == 1 else 'respondieron'} pero su filtro no casó con nada"
+            f"{_cuales(report.empty_filter_leaves)}: mira cómo se llaman hoy sus productos"
+        )
 
 
 def _check_categories(config: Config, slug: str) -> int:
@@ -427,6 +434,16 @@ def main(argv: list[str] | None = None) -> int:
             f"{ambitos} ámbito{'' if ambitos == 1 else 's'} se "
             f"{'queda' if ambitos == 1 else 'quedan'} sin detección de bajas. "
             f"Busca sus ids nuevos en el árbol de la tienda."
+        )
+    if result.empty_filter_leaves:
+        cuantas = len(result.empty_filter_leaves)
+        print(
+            f"⚠ {cuantas} hoja{'' if cuantas == 1 else 's'} "
+            f"{'respondió' if cuantas == 1 else 'respondieron'} pero su filtro no casó con nada"
+            f"{_cuales(result.empty_filter_leaves)}: o la tienda ha cambiado cómo rotula esos "
+            f"productos o ya no le quedan. Su{'' if cuantas == 1 else 's'} ámbito"
+            f"{'' if cuantas == 1 else 's'} se queda{'' if cuantas == 1 else 'n'} sin detección de "
+            "bajas hasta saber cuál de las dos. Compruébalo pidiendo la hoja y mirando los nombres."
         )
     return 0
 

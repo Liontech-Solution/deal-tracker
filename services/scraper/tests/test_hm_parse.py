@@ -20,6 +20,10 @@ detecta por status:
   llama «barefoot».
 - `hm_list_bebe_bodies.json` — bebé: tallas en meses, que es donde el remodelado de `_talla()` se
   juega la alineación con Hipercor y Zara.
+- `hm_list_nina_sets_outfits.json` — capturada el 06/08/2026 de `/kids/girls/clothing/sets-outfits`,
+  la hoja mezclada de #200, recortada a los tres casos que decide el filtro: un conjunto rotulado en
+  español, un `Disfraz` (lo que la hoja cuela y no es del brief) y un `2-piece cotton plumeti set`,
+  que es un conjunto **sin traducir** — la tienda publica parte del catálogo en inglés.
 
 Las categorías se seleccionan **por atributos, no por índice**, para que reordenar `CATEGORIES` no
 rompa los tests.
@@ -62,6 +66,7 @@ _MUERTA = "hm_list_hoja_muerta.json"
 _FIN = "hm_list_fin_paginacion.json"
 _ZAPATOS = "hm_list_nina_zapatos.json"
 _BEBE = "hm_list_bebe_bodies.json"
+_CONJUNTOS = "hm_list_nina_sets_outfits.json"
 # Un solo modelo (1168042) recortado de /kids/boys/clothing/jeans, capturado el 03/08/2026: seis
 # artículos y DOS nombres de color repetidos dos veces cada uno ('Azul denim claro' y 'Azul denim
 # oscuro'). Es el caso de la #123, y en vaqueros es de lo más corriente.
@@ -594,6 +599,62 @@ def test_hay_zapateria_en_los_tres_generos() -> None:
 def test_las_hojas_no_se_repiten() -> None:
     rutas = [c.page_id for c in CATEGORIES]
     assert len(rutas) == len(set(rutas))
+
+
+def test_el_filtro_de_conjuntos_acepta_los_dos_idiomas_y_descarta_el_disfraz() -> None:
+    """El mecanismo de #200 sobre la hoja mezclada real, con sus tres casos.
+
+    Los tres son de la misma página: la tienda publica parte del catálogo sin traducir, así que un
+    conjunto puede llegar como «Conjunto de fútbol de 3 piezas» o como «2-piece cotton plumeti
+    set», y el `Disfraz` es lo que #192 destapó entrando por la puerta de atrás — su rama
+    (`fancy-dress-costumes`) está declarada fuera del brief y volvería por aquí.
+    """
+    cat = next(c for c in CATEGORIES if c.category == "conjuntos")
+    assert cat.filtro is not None
+    filas = parse_filas(load_fixture(_CONJUNTOS))
+    aceptados = {f.name for f in filas if cat.filtro.acepta(f.name)}
+    descartados = {f.name for f in filas if not cat.filtro.acepta(f.name)}
+
+    assert aceptados == {"Conjunto de fútbol de 3 piezas", "2-piece cotton plumeti set"}
+    assert descartados == {"Disfraz"}
+
+
+def test_el_disfraz_no_entra_ni_llamandose_conjunto() -> None:
+    """El agujero que la pasada real destapó, y que el fixture por sí solo no ve (#200).
+
+    La tienda publica «Conjunto de disfraz», que el patrón acepta encantado porque empieza por
+    «Conjunto». Medido contra Postgres el 06/08/2026: de los 7 conjuntos que llegaron a ingerirse,
+    **3 eran disfraces** — o sea `fancy-dress-costumes`, una rama declarada fuera del brief en esta
+    misma lista, volviendo por la puerta de atrás. Es el fallo de #192 un nivel más abajo: allí se
+    colaba por la hoja y aquí por el nombre.
+    """
+    cat = next(c for c in CATEGORIES if c.category == "conjuntos")
+    assert cat.filtro is not None
+
+    assert not cat.filtro.acepta("Conjunto de disfraz")
+    assert not cat.filtro.acepta("Conjunto de disfraz de 3 piezas")
+    assert not cat.filtro.acepta("2-piece fancy dress costume set")
+    # Y lo que sí es conjunto sigue entrando: la excepción no puede comerse el caso normal.
+    assert cat.filtro.acepta("Conjunto de 2 piezas con bordado inglés")
+    assert cat.filtro.acepta("Conjunto estampado de 2 piezas en tejido rizado")
+
+
+def test_las_hojas_de_conjuntos_van_las_ultimas_y_solo_atrapan_lo_exclusivo() -> None:
+    """Lo contrario que en Zara y Sfera, y por una razón medida (#200).
+
+    `_ambito()` fija la categoría con la PRIMERA hoja que trae el modelo, así que ir detrás es lo
+    que hace que un conjunto que la tienda publica además en `trousers` conserve `pantalones`.
+    Medido el 06/08/2026: adelantarlas se llevaba 483 modelos de `pantalones` (de 1418 a 936),
+    porque aquí `sets-outfits` no es un residuo sino un catálogo paralelo de 495 modelos.
+
+    Si alguien las sube en la lista, eso se rompe en silencio: la pasada sigue verde y un tercio de
+    `pantalones` cambia de categoría.
+    """
+    rutas = [c.page_id for c in CATEGORIES]
+    conjuntos = [c for c in CATEGORIES if c.category == "conjuntos"]
+    assert len(conjuntos) == 7, "una por rama; si cambian las ramas, cambia esto"
+    primera = min(rutas.index(c.page_id) for c in conjuntos)
+    assert primera == len(CATEGORIES) - len(conjuntos), "tienen que ser el último bloque"
 
 
 def test_bebe_y_recien_nacido_van_a_las_mismas_categorias_que_el_resto() -> None:

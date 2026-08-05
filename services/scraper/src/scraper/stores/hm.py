@@ -122,6 +122,7 @@ from ..config import Config
 from ..progreso import Latido
 from .base import (
     CategoryNode,
+    FiltroDeHoja,
     LeafHealth,
     ListingEntry,
     ScanReport,
@@ -191,6 +192,49 @@ class CategoryConfig:
     gender: str  # niño | niña | unisex
     section: str  # ropa | zapateria
     category: str  # nuestro vocabulario, no el suyo
+    # Solo en las hojas que mezclan vocabulario (#200). Ver `FiltroDeHoja` y `_SOLO_CONJUNTOS`.
+    #
+    # **Aquí el filtro solo sabe DESCARTAR**, no repartir en dos categorías como en Sfera: en esta
+    # tienda la categoría no la lleva la fila sino la hoja (`_ambito()` la resuelve a partir de las
+    # hojas en las que sale el modelo), así que un `resto` no tendría dónde vivir. Se rechaza al
+    # importar en vez de dejar que mienta en silencio.
+    filtro: FiltroDeHoja | None = None
+
+    def __post_init__(self) -> None:
+        if self.filtro is not None and self.filtro.resto is not None:
+            raise ValueError(
+                f"{SLUG}: {self.page_id!r} declara un filtro con `resto`, y aquí la categoría la "
+                "fija la hoja y no la fila: usa dos hojas o cambia `_ambito()`"
+            )
+
+
+# Aquí la señal es el NOMBRE, porque el listado de esta tienda no publica ninguna taxonomía de tipo
+# de prenda (Zara sí, con `familyName`, y Sfera tiene una faceta): las 30 facetas de la respuesta
+# vienen con `values: []`. A cambio el rótulo es sistemático — «Conjunto de 2 piezas», «Conjunto de
+# sudadera y joggers», «Conjunto de 3 bodies y 3 pantalones»— y viene en `Fila.name`, o sea en el
+# listado, así que decidir no cuesta ninguna petición de ficha.
+#
+# La segunda alternativa no es un adorno: **parte del catálogo viene sin traducir** y esos productos
+# se rotulan «2-piece cotton set», «3-piece denim set», «2-piece T-shirt and joggers set». Medido el
+# 06/08/2026 sobre las siete hojas: 20 filas así, y son conjuntos igual que los otros. Dejarlas
+# fuera haría que el criterio fuese «los que la tienda haya traducido», que es un accidente y no una
+# decisión.
+#
+# Lo que se queda fuera, y sí está decidido: `Disfraz` (38 filas) y `Traje` (12), porque
+# `fancy-dress-costumes` y `blazers-suits` ya están declaradas fuera del brief en esta misma lista y
+# entrarían por la puerta de atrás — que es exactamente lo que #192 destapó.
+#
+# **Y por eso hace falta `excepto`.** El disfraz no se cuela solo con ese nombre: la tienda publica
+# también «Conjunto de disfraz» y «Conjunto de disfraz de 3 piezas», que el patrón de arriba acepta
+# encantado. Medido en la pasada real del 06/08/2026 contra Postgres: de los 7 conjuntos que
+# llegaron a ingerirse, **3 eran disfraces**. Se vio leyendo los nombres uno a uno —`SELECT name
+# FROM product WHERE category = 'conjuntos'`—, la comprobación que #192 dejó como obligatoria.
+#
+# Anclado al principio a propósito: «Vestido con conjunto de …» no es un conjunto, es un vestido.
+_SOLO_CONJUNTOS = FiltroDeHoja(
+    re.compile(r"\A(Conjunto\b|\d+-piece\b.*\bset\b)", re.IGNORECASE),
+    excepto=re.compile(r"disfraz|fancy.dress|costume", re.IGNORECASE),
+)
 
 
 # Las 59 hojas, **preguntadas a la tienda y verificadas una a una con el canario** (02/08/2026), no
@@ -218,13 +262,21 @@ class CategoryConfig:
 # `seasonal-trending`, `shop-by-product`), que solapan con las de género y duplicarían el trabajo
 # para los mismos productos.
 #
-# **`sets-outfits` también, y el motivo hay que leerlo antes de volver a intentarlo (#192).** Se
-# probó —la categoría `conjuntos` que estrenó esa issue sí existe, la alimentan C&A e Hipercor— y
-# una pasada real lo desmintió AQUÍ. De los 20 productos que ingirieron las siete hojas el
-# 05/08/2026, **11 eran disfraces y 1 un bikini**: o sea `fancy-dress-costumes` y `swimwear`, dos
-# ramas que esta misma lista declara fuera del brief, entrando por la puerta de atrás. Solo ~8 eran
-# conjuntos de verdad, y esos ya están en el catálogo por su prenda dominante, porque la tienda los
-# publica además en `jumpers-sweatshirts`, `trousers` y compañía.
+# **`sets-outfits` entra FILTRADA desde #200, y antes de tocarla hay que leer por qué (#192).**
+# Mapear la hoja entera se probó en #192 y una pasada real lo desmintió AQUÍ: de los 20 productos
+# que ingirieron las siete hojas el 05/08/2026, **11 eran disfraces y 1 un bikini** —o sea
+# `fancy-dress-costumes` y `swimwear`, dos ramas que esta misma lista declara fuera del brief,
+# entrando por la puerta de atrás—. Solo ~8 eran conjuntos de verdad. Así que se revirtió.
+#
+# Lo que cambia en #200 es que ya no hay que elegir entre la hoja entera y nada: `FiltroDeHoja` se
+# queda con lo que la tienda rotula «Conjunto de …» (ver `_SOLO_CONJUNTOS`) y el disfraz se cae.
+#
+# Y el «~8» de arriba era el número de EXCLUSIVOS, no de conjuntos: medido el 06/08/2026, las siete
+# hojas traen **495 modelos** que son conjuntos de verdad, y todos menos un puñado ya están en el
+# catálogo bajo su prenda dominante. Con las hojas detrás acaban etiquetados `conjuntos` los **7**
+# que no entran por ninguna otra, que es lo que esta issue venía a rescatar aquí. De ahí que vayan
+# **las últimas** y no las primeras como en Zara y Sfera: las cifras están junto a ellas, al final
+# de `CATEGORIES`.
 #
 # La trampa está en cómo se mide, y es la misma que cayó en Zara (ver su cabecera). Contar los
 # productos EXCLUSIVOS de la hoja parece decir «estos no tienen casa natural», y no dice eso:
@@ -232,9 +284,6 @@ class CategoryConfig:
 # reagrupa —`sets-outfits` aquí, `TOTAL LOOK` allí— las dos poblaciones se confunden, y el residuo
 # no son conjuntos: es todo lo que la tienda archiva ahí y nosotros excluimos por otra vía.
 #
-# Si algún día se quiere recuperar los ~8 buenos, el camino NO es mapear la hoja: es filtrar por
-# nombre dentro de ella —esta tienda los rotula «Conjunto de N piezas», que es sistemático— y eso
-# es maquinaria nueva, la misma que pide Sfera para sus 25 mezclados en `ropa-deportiva`.
 def _hojas_de_rama(rama: str, gender: str, *, bebe: bool) -> list[CategoryConfig]:
     """Las hojas del brief dentro de una rama de género, con los nombres que usa cada rango.
 
@@ -273,14 +322,49 @@ def _hojas_de_rama(rama: str, gender: str, *, bebe: bool) -> list[CategoryConfig
     return hojas
 
 
+# Las siete ramas del catálogo infantil, con su género y si son de bebé (que cambia varios slugs,
+# ver `_hojas_de_rama`). Se escriben una vez porque desde #200 hay DOS listas que las recorren, y
+# dos listas de ramas que hay que mantener a la vez es la forma habitual de que una se quede corta.
+_RAMAS: list[tuple[str, str, bool]] = [
+    ("/kids/boys", "niño", False),
+    ("/kids/boys-9-14y", "niño", False),
+    ("/kids/girls", "niña", False),
+    ("/kids/girls-9-14y", "niña", False),
+    ("/baby/boys", "niño", True),
+    ("/baby/girls", "niña", True),
+    ("/baby/newborn", "unisex", True),
+]
+
 CATEGORIES: list[CategoryConfig] = [
-    *_hojas_de_rama("/kids/boys", "niño", bebe=False),
-    *_hojas_de_rama("/kids/boys-9-14y", "niño", bebe=False),
-    *_hojas_de_rama("/kids/girls", "niña", bebe=False),
-    *_hojas_de_rama("/kids/girls-9-14y", "niña", bebe=False),
-    *_hojas_de_rama("/baby/boys", "niño", bebe=True),
-    *_hojas_de_rama("/baby/girls", "niña", bebe=True),
-    *_hojas_de_rama("/baby/newborn", "unisex", bebe=True),
+    *(hoja for rama, gender, bebe in _RAMAS for hoja in _hojas_de_rama(rama, gender, bebe=bebe)),
+    # --- conjuntos (#200): LAS ÚLTIMAS, y el porqué está MEDIDO ---
+    # `_ambito()` resuelve sección y categoría con `hojas[0]` (ver `base.ambito_cruzado`), o sea que
+    # ir detrás significa que un conjunto que la tienda publica además bajo una de las cinco del
+    # conserva ESA categoría; solo se etiqueta `conjuntos` el que no sale en ninguna otra hoja.
+    #
+    # Es el mismo criterio que C&A e Hipercor, y lo contrario de lo que hacen Zara y Sfera. La
+    # diferencia no es de gusto, es de tamaño, y se midió el 06/08/2026 antes de elegir:
+    #
+    #   | tienda | hojas delante → conjuntos | cambian de categoría |
+    #   | zara   |            84             |          72          |
+    #   | sfera  |            28             |           9          |
+    #   | hm     |           560             |         555          |
+    #
+    # En Zara y Sfera la hoja de conjunto es un residuo y adelantarla mueve decenas de prendas. Aquí
+    # NO es un residuo: `sets-outfits` es un catálogo paralelo de 495 modelos que la tienda publica
+    # además bajo su prenda, así que adelantarla se llevaba **483 modelos de `pantalones`** —de 1418
+    # a 936, un tercio de la categoría— y 50 de `camisetas`. Eso ya no es etiquetar mejor un
+    # residuo, es vaciar una categoría del brief: quien busque «pantalones de niño» en H&M perdería
+    # un tercio de lo que hay. Detrás, la misma pasada deja 7 conjuntos y UN cambio de categoría.
+    #
+    # El género NO depende del orden en ninguno de los dos casos: sale del conjunto de hojas y no de
+    # la primera, así que esto no toca nada de lo que decidió #98.
+    *(
+        CategoryConfig(
+            f"{rama}/clothing/sets-outfits", gender, "ropa", "conjuntos", _SOLO_CONJUNTOS
+        )
+        for rama, gender, _ in _RAMAS
+    ),
 ]
 
 
@@ -834,6 +918,16 @@ class HMStore:
             )
             return None
         self._scan.leaf_ok()
+        if cat.filtro is not None:
+            # Se filtra AQUÍ y no antes a propósito: el final de la paginación y el canario se
+            # deciden con los productos crudos de cada página (`ids_de_pagina`), y colarles un
+            # conteo ya filtrado convertiría «esta hoja trae pocos conjuntos» en «esta hoja se ha
+            # acabado». El filtro solo decide qué se ingiere, nunca cuánto se pide.
+            acumuladas = [f for f in acumuladas if cat.filtro.acepta(f.name)]
+            if not acumuladas:
+                # La hoja respondió y no ha casado ni una: o la tienda ha cambiado la rotulación o
+                # ya no le quedan, y no se distingue. Ver `ScanReport.filtro_vacio()`.
+                self._scan.filtro_vacio(scope, cat.page_id)
         return acumuladas
 
     def _hoja_comprometida(self, scope: ScrapeScope, leaf: str, motivo: str) -> None:

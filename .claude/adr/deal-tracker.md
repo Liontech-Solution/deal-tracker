@@ -1859,11 +1859,28 @@ aparece sola en el filtro **sin migración y sin tocar el servicio web** — ver
 con `conjuntos` el 05/08/2026. La lista de cinco del brief no está codificada en ningún sitio
 ejecutable; vive en un comentario.
 
-**Y una hoja nueva va SIEMPRE detrás de las del brief.** Con el «gana la primera» de
-`list_catalog()` (en H&M, `ambito_cruzado` fijando sección y categoría con la primera hoja), ir
+**Y el ORDEN de una hoja nueva decide qué gana, así que no es cosmético.** Con el «gana la primera»
+de `list_catalog()` (en H&M, `ambito_cruzado` fijando sección y categoría con la primera hoja), ir
 detrás significa que un producto que la tienda **también** publica bajo una de las cinco conserva
-esa categoría. Eso convierte la taxonomía de la tienda en el árbitro en vez de quien mapea, y es un
-invariante de verdad: se protege con un test de orden por tienda, no con un comentario.
+esa categoría — la taxonomía de la tienda arbitra en vez de quien mapea. Sea cual sea la elección,
+se protege con un test de orden por tienda, no con un comentario.
+
+Hasta #200 la regla era «SIEMPRE detrás». Ya no, y el criterio que la sustituye es **el tamaño de
+la hoja**, medido antes de elegir (06/08/2026, contando modelos sobre pasadas de listado reales):
+
+| tienda | hoja delante → categoría nueva | modelos que cambian de categoría |
+|---|---:|---:|
+| zara | 84 | 72 |
+| sfera | 28 | 9 |
+| hm | 560 | **555** (483 saldrían de `pantalones`, de 1418 a 936) |
+
+Donde la hoja es un **residuo** (Zara, Sfera) va delante: mueve decenas de prendas y lo que se gana
+es la etiqueta correcta, que es de lo que van #187 y #192. Donde es un **catálogo paralelo** —H&M
+publica 495 modelos en `sets-outfits`, casi todos también bajo su prenda— va detrás: adelantarla
+vaciaría un tercio de una categoría del brief, y quien busque «pantalones de niño» perdería un
+tercio de lo que hay. Eso ya no es etiquetar mejor un residuo, es vaciar una categoría. C&A e
+Hipercor van detrás desde #192 por el motivo original: allí la hoja es limpia y solo se buscaba lo
+exclusivo.
 
 #### El residuo de una hoja que reagrupa NO es una categoría (#192)
 
@@ -1899,8 +1916,8 @@ Tres consecuencias operativas:
   estaba**: con el motivo medido en vez de supuesto. Es el ciclo que esa capa existe para producir,
   y la vuelta cuenta tanto como la ida.
 - **El camino que sí queda abierto es filtrar por nombre dentro de la hoja.** H&M rotula «Conjunto
-  de N piezas» y C&A «conjunto - … - 2 prendas», sistemáticamente. Es maquinaria nueva y es la misma
-  que pide Sfera para sus 25 conjuntos mezclados dentro de `ropa-deportiva`. Va en #200.
+  de N piezas» y C&A «conjunto - … - 2 prendas», sistemáticamente. Era maquinaria nueva; la
+  construyó #200, y es lo que cuenta el apartado siguiente.
 
   **Pero «el nombre» no es un dato único, y en Lefties el del listado está en otro idioma.** Medido
   el 06/08/2026 sobre los cuatro conjuntos de `Recién Nacido`: la rejilla (`grids/{uuid}`) los
@@ -1908,9 +1925,63 @@ Tres consecuencias operativas:
   (`productsArray`) `Conjunto Snoopy Peanuts™ gofrado camiseta y bermuda`, **con el mismo
   `languageId=-5` en las dos URLs**. Importa porque la categoría se fija en `list_catalog()`, o sea
   con el nombre del listado a la vista y sin haber pedido la ficha: un predicado «empieza por
-  Conjunto» daría **cero** ahí, y en silencio — indistinguible de «esta hoja ya no trae conjuntos»,
-  que es el modo de fallo que esa maquinaria tiene que resolver. Antes de decidir dónde vive el
-  filtro hay que comprobar el idioma del listado en las otras tres; solo está medido en una.
+  Conjunto» daría **cero** ahí, y en silencio — indistinguible de «esta hoja ya no trae conjuntos».
+  Antes de meter el filtro en Lefties hay que comprobar el idioma del listado; solo está medido en
+  una tienda.
+
+#### Partir una hoja en dos: `FiltroDeHoja` (#200)
+
+`CategoryConfig` mapea una hoja a UNA categoría, y la hoja mezclada necesita decir «de ésta, solo lo
+que cumpla X». Eso es `stores.base.FiltroDeHoja`: un patrón, un `resto` para lo que no casa
+(descartarlo, o mandarlo a otra categoría) y un `excepto` para lo que casa y no queremos. El tipo se
+comparte; el **campo** no puede compartirse, porque `CategoryConfig` no es una clase sino **nueve
+dataclasses independientes**, una por tienda. Solo lo llevan las tres que lo necesitan.
+
+Cuatro cosas que costó medir y que no se deducen:
+
+- **Se filtra con el texto que la tienda ya sirve en el LISTADO**, nunca pidiendo la ficha. Sfera
+  publica la faceta `attr.fashion_level3` con el recuento exacto, que es el dato más limpio, y aun
+  así se usa el título: el listado firefly no trae `attr` por producto, así que la faceta costaría
+  una petición más **por hoja**. El título da lo mismo gratis (66 «Sudadera» y 25 «Conjunto», y la
+  faceta dice 66/25).
+- **Puede hacer falta más de una señal, y en Zara ninguna basta sola.** Su `familyName` es taxonomía
+  de la tienda y coge 13 que el título pierde (`PACK BODY Y LEGGING`, `SET PRIMERA PUESTA`, y un
+  `CONJUTO` con la errata de la tienda); el título coge 40 que la familia pierde, archivados bajo
+  `CHANDAL BEBE` — familia que no vale como señal porque también lleva prendas sueltas.
+- **El nombre de la hoja no predice si tiene lo que busca, ni siquiera cuando se llama igual.** Las
+  dos hojas de Zara rotuladas `CONJUNTOS` para 6-14 publican **cero** conjuntos; los tienen tres que
+  #192 había descartado (`CHÁNDAL` niña 13, `CHANDAL` niño 20, `PACKS|CONJUNTOS` 18). Mapear las que
+  se llaman bien habría dejado el ámbito permanentemente vacío.
+- **El filtro también tiene que saber decir que NO.** H&M publica «Conjunto de disfraz», que el
+  patrón acepta encantado: de los 7 conjuntos que llegaron a ingerirse, **3 eran disfraces** — o sea
+  `fancy-dress-costumes`, rama declarada fuera del brief, volviendo por la puerta de atrás. Es el
+  fallo de #192 un nivel más abajo: allí se colaba por la hoja y aquí por el nombre. Lo destapó la
+  consulta de los nombres uno a uno, no el fixture ni los 574 tests.
+- **Y el aviso de Lefties de arriba —el listado en otro idioma— no es de una sola tienda.** H&M
+  publica parte de su catálogo sin traducir dentro de la misma hoja: 20 filas rotuladas
+  `2-piece cotton set`, `3-piece denim set`, `2-piece T-shirt and joggers set`, junto a las que sí
+  dicen «Conjunto de …». Van dos tiendas de dos en las que se ha mirado, así que **el idioma del
+  listado se comprueba antes de escribir el patrón, no después**: aquí se resolvió aceptando las dos
+  formas, y dejarlo en una habría hecho que el criterio fuese «los que la tienda haya traducido».
+
+Y el caso silencioso, que es el que importa a tres meses vista: **una hoja que responde pero cuyo
+filtro no casa con nada es indistinguible de un cambio de rotulación de la tienda**. Callarse
+descatalogaría de golpe todo lo que la hoja etiquetaba. `ScanReport.filtro_vacio()` saca ese ámbito
+de las bajas y nombra la hoja en `scrape_run.message`, **sin contarla como hoja caída**: la hoja se
+listó, y sumarla a `leaves_failed` inflaría `dead_ratio` disparando `SCRAPER_SCAN_MAX_DEAD_RATIO`
+por algo que no es un bloqueo. Es el mismo razonamiento que el ámbito extra de `tambien_unisex`.
+
+#### Reclasificar no se ve el día del despliegue: llega por goteo
+
+Consecuencia de #200 que descoloca si no se sabe, y vale para **cualquier** cambio de categoría, no
+solo para éste. Sobre una base que ya tiene catálogo, el re-etiquetado **no llega en la primera
+pasada**: `category` solo la escribe `ingest._upsert_product()`, o sea solo al pedir la ficha, y a
+un producto cuya huella no ha cambiado no se le pide — `_touch_seen()` solo marca que se le ha
+visto. Medido el 06/08/2026 devolviendo a mano los 84 conjuntos de Zara a `pantalones`: una pasada
+normal los dejó donde estaban, y una con `--refresh-all` (tope 400) recuperó 33.
+
+Es exactamente el mismo comportamiento que #172 documenta para el género, y la misma cura. Importa
+para validar QA tras una release: ver la categoría casi vacía no prueba que el filtro falle.
 
 Un aviso de calibración para el que lea la tabla: un número de #192 estaba **caducado** y casi
 decide el trabajo. Decía «207 prendas nuevas en Zara»; se había medido mientras se implementaba la

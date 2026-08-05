@@ -47,6 +47,7 @@ se testean con fixtures capturados de la API real.
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from decimal import Decimal
@@ -59,6 +60,7 @@ from .base import (
     GONE_STATUS,
     CategoryNode,
     DelistCandidate,
+    FiltroDeHoja,
     LeafHealth,
     ListingEntry,
     ProductTags,
@@ -117,12 +119,100 @@ class CategoryConfig:
     section: str  # ropa | zapateria
     category: str  # pantalones | camisetas | sudaderas | vestidos | ropa-interior | zapatos
     tags: tuple[str, ...] = ()  # ejes transversales de `scraper.tags`
+    # Solo en las hojas que mezclan vocabulario (#200). Ver `FiltroDeHoja` y `_CONJUNTO_O_SUDADERA`.
+    #
+    # Ojo a la pareja que forma con `tags`, porque las dos las estrenó `ropa-deportiva` con una
+    # semana de diferencia y dicen cosas distintas: el eje (#180) vale para TODA la hoja y no
+    # sustituye a la categoría; el filtro parte la hoja en dos categorías. Un conjunto de esa hoja
+    # es `conjuntos` **y** `deportiva`.
+    filtro: FiltroDeHoja | None = None
+
+
+# La única hoja de esta tienda que trae dos cosas: `ropa-deportiva` son 66 sudaderas y 25 conjuntos,
+# y la propia tienda lo publica en su faceta `attr.fashion_level3` («Sudaderas sin capucha 56 ·
+# Conjuntos 25 · Sudaderas con capucha 10», medido el 04/08/2026).
+#
+# **Se usa el nombre y no la faceta**, aunque la faceta sea el dato más limpio: el listado firefly
+# no trae `attr` por producto (comprobado sobre el fixture, está en el ADR), así que filtrar por
+# faceta costaría **una petición más por hoja** — cuatro por pasada para mover 25 prendas. Los
+# títulos dicen exactamente lo mismo que la faceta: 66 empiezan por «Sudadera» y 25 por «Conjunto».
+#
+# Aquí el filtro sí lleva `resto`: lo que no case sigue entrando como `sudaderas`, que es lo que
+# ya hacía la hoja entera desde #175. Esta hoja no rescata prendas, las re-etiqueta.
+_CONJUNTO_O_SUDADERA = FiltroDeHoja(re.compile(r"\AConjunto\b", re.IGNORECASE), resto="sudaderas")
 
 
 # Subconjunto curado (Fase 2): niño/niña, ropa vs zapatería y las categorías del brief
 # (pantalones, camisetas, sudaderas/jerseys, vestidos, ropa interior) + calzado. Ampliable
 # añadiendo entradas (el resto del código no cambia). Slugs de Sfera verificados en la API.
 CATEGORIES: list[CategoryConfig] = [
+    # --- «ropa deportiva»: 66 SUDADERAS y 25 CONJUNTOS, repartidos por el filtro (#175, #200) ---
+    # El nombre de la hoja engaña y por eso llevaba fuera desde el principio: aquí no hay ni una
+    # malla ni una camiseta técnica. Medido el 04/08/2026 sobre las cuatro hojas, 91 productos, con
+    # la faceta `attr.fashion_level3` («Tipo de producto») que la propia tienda publica:
+    #
+    #     Sudaderas sin capucha 56 · Conjuntos 25 · Sudaderas con capucha 10
+    #
+    # y los títulos dicen lo mismo: 66 empiezan por «Sudadera» y 25 por «Conjunto». Hasta #200 la
+    # hoja entraba entera como `sudaderas` y los 25 conjuntos entraban con ellas, porque separarlos
+    # exigía pedir la hoja filtrada por la faceta —una petición más por hoja—. El nombre da lo mismo
+    # gratis, así que ahora `_CONJUNTO_O_SUDADERA` reparte la hoja en dos.
+    #
+    # **Ya no van al final, y el porqué del cambio importa.** Estaban las últimas para que los 47
+    # productos que también entran por `ninos/{nina,nino}/sudaderas` conservaran aquella hoja y
+    # ningún producto vivo cambiara de ámbito. Con el filtro eso deja de ser un motivo: el `resto`
+    # de esta hoja ES `sudaderas`, así que esos 47 siguen igual venga por donde venga. Delante,
+    # cambian de categoría solo los conjuntos, que es lo que #200 pide, y ni uno más — medido el
+    # 06/08/2026 sobre la pasada entera: **28 conjuntos, de los que solo 9 estaban en `sudaderas`**,
+    # y 50 modelos que no entraban por ninguna otra hoja.
+    #
+    # Ojo si algún día esta hoja engorda: el criterio de delante/detrás es el TAMAÑO, y en H&M las
+    # suyas van detrás justo por eso (ver el final de su `CATEGORIES`).
+    #
+    # Lo que aportan además son los **44 exclusivos**: 32 de bebé, donde `bebe-nino` no tiene hoja
+    # de sudaderas desde #151 y `bebe-nina` solo tiene `punto-y-jerseis` (9).
+    #
+    # Y son también la fuente del eje `deportiva` (#180), que convive con el filtro sin estorbarlo
+    # porque dicen cosas distintas: el eje es de la hoja entera —lo que la tienda publica en su
+    # cajón de deporte— y el filtro reparte esa hoja en dos categorías. Un chándal de aquí sale
+    # `conjuntos` **y** `deportiva`; una sudadera, `sudaderas` y `deportiva`.
+    #
+    # `tags` y `filtro` van con NOMBRE y no por posición a propósito: los dos son el quinto y sexto
+    # campo de `CategoryConfig`, los estrenaron estas mismas cuatro hojas con una semana de
+    # diferencia (#180 y #200), y pasarlos por posición es exactamente cómo se cuela un filtro
+    # dentro de `tags` sin que nada proteste.
+    CategoryConfig(
+        "ninos/nina/ropa-deportiva",
+        "niña",
+        "ropa",
+        "conjuntos",
+        tags=(TAG_DEPORTIVA,),
+        filtro=_CONJUNTO_O_SUDADERA,
+    ),
+    CategoryConfig(
+        "ninos/nino/ropa-deportiva",
+        "niño",
+        "ropa",
+        "conjuntos",
+        tags=(TAG_DEPORTIVA,),
+        filtro=_CONJUNTO_O_SUDADERA,
+    ),
+    CategoryConfig(
+        "ninos/bebe-nina/ropa-deportiva",
+        "niña",
+        "ropa",
+        "conjuntos",
+        tags=(TAG_DEPORTIVA,),
+        filtro=_CONJUNTO_O_SUDADERA,
+    ),
+    CategoryConfig(
+        "ninos/bebe-nino/ropa-deportiva",
+        "niño",
+        "ropa",
+        "conjuntos",
+        tags=(TAG_DEPORTIVA,),
+        filtro=_CONJUNTO_O_SUDADERA,
+    ),
     # --- niña ---
     CategoryConfig("ninos/nina/pantalones", "niña", "ropa", "pantalones"),
     # Las tres siguientes salieron de enumerar el árbol con `--tree` (#72), no de adivinar. Son
@@ -212,37 +302,6 @@ CATEGORIES: list[CategoryConfig] = [
     # Se quedan FUERA a propósito, por no ser ninguna de las cinco del brief y porque su equivalente
     # de 6-14 tampoco se mapea: `bano` / `banadores-bebe` y `abrigos-y-cazadoras`.
     #
-    # --- «ropa deportiva», que en esta tienda son SUDADERAS (#175) ---
-    # El nombre de la hoja engaña y por eso llevaba fuera desde el principio: aquí no hay ni una
-    # malla ni una camiseta técnica. Medido el 04/08/2026 sobre las cuatro hojas, 91 productos, con
-    # la faceta `attr.fashion_level3` («Tipo de producto») que la propia tienda publica:
-    #
-    #     Sudaderas sin capucha 56 · Conjuntos 25 · Sudaderas con capucha 10
-    #
-    # y los títulos dicen lo mismo: 66 empiezan por «Sudadera» y 25 por «Conjunto». Así que van a
-    # `sudaderas`, que es lo que son. Los conjuntos (chándal de sudadera + pantalón) entran con
-    # ellas, por el mismo criterio con el que `accesorios-y-pijamas` entra sucia: son 25 y
-    # separarlos exigiría pedir la hoja filtrada por la faceta, una petición más por hoja para
-    # mover una prenda que ya está en la categoría adyacente.
-    #
-    # Van AL FINAL a propósito. `list_catalog()` deduplica con «gana la primera», así que los 47 que
-    # ya entran por `ninos/{nina,nino}/sudaderas` conservan su hoja y ningún producto vivo cambia de
-    # ámbito. Desde #174 una mudanza ya no se lee como caída sospechosa —la red descuenta lo que se
-    # ha mudado—, así que el orden ya no es lo que evita perder las bajas de un ámbito durante una
-    # pasada; sigue siendo lo que hace que el reparto por hojas no dependa de cuál se listó primero.
-    # Lo que aportan son los **44 exclusivos**, y ahí está lo que importa:
-    # 32 son de bebé, donde `bebe-nino` no tiene hoja de sudaderas desde #151 y `bebe-nina` solo
-    # tiene `punto-y-jerseis` (9). Ninguna estrena ámbito.
-    #
-    # Y son la fuente del eje `deportiva` (#180): que la prenda sea una sudadera es su categoría,
-    # que la tienda la publique en su cajón de deporte es otra cosa y ahora se guarda aparte. Nótese
-    # que la marca la reciben también los 47 que entran por `sudaderas` y se descartan aquí por el
-    # dedup — `_iter_category` la anota antes de descartarlos, que es lo que hace que la marca sea
-    # del producto y no de la hoja que ganó.
-    CategoryConfig("ninos/nina/ropa-deportiva", "niña", "ropa", "sudaderas", (TAG_DEPORTIVA,)),
-    CategoryConfig("ninos/nino/ropa-deportiva", "niño", "ropa", "sudaderas", (TAG_DEPORTIVA,)),
-    CategoryConfig("ninos/bebe-nina/ropa-deportiva", "niña", "ropa", "sudaderas", (TAG_DEPORTIVA,)),
-    CategoryConfig("ninos/bebe-nino/ropa-deportiva", "niño", "ropa", "sudaderas", (TAG_DEPORTIVA,)),
 ]
 
 
@@ -522,13 +581,20 @@ def parse_products(products: list[dict[str, Any]], cat: CategoryConfig) -> list[
         if not variants:
             continue
         nombre = product.get("title", "")
+        # La hoja puede traer dos cosas y el nombre dice cuál es cada una (#200). Sin filtro,
+        # `categoria` es la de la hoja y esto no cambia nada.
+        categoria = (
+            cat.filtro.categoria(nombre, propia=cat.category) if cat.filtro else cat.category
+        )
+        if categoria is None:
+            continue
         out.append(
             ScrapedProduct(
                 retailer_product_id=str(pid),
                 name=nombre,
                 gender=cat.gender,
                 section=cat.section,
-                category=cat.category,
+                category=categoria,
                 url=url,
                 variants=variants,
                 # Sfera no etiqueta el barefoot en su árbol de categorías —a diferencia de Zara y
@@ -546,7 +612,7 @@ def parse_products(products: list[dict[str, Any]], cat: CategoryConfig) -> list[
                     retailer=SLUG,
                     retailer_product_id=str(pid),
                     section=cat.section,
-                    category=cat.category,
+                    category=categoria,
                     texts=nombre,
                 ),
                 # Se prefiere la galería para que la foto de tarjeta sea de un color conocido; si
@@ -602,11 +668,21 @@ class SferaStore:
         self._parent_pages: dict[str, dict[str, Any]] = {}
 
     def scopes(self) -> Iterable[ScrapeScope]:
+        """Los ámbitos que esta tienda recorre, **incluido el `resto` de las hojas con filtro**.
+
+        Lo segundo no es redundante aunque hoy lo parezca: `ropa-deportiva` declara `conjuntos` y
+        manda su resto a `sudaderas`, que da la casualidad de que otras hojas ya declaran. Si algún
+        día no fuera así, ese ámbito no contaría como escaneado y sus productos **no se
+        descatalogarían nunca** — el mismo agujero que `con_unisex()` tapa en H&M y Cacles.
+        """
         seen: list[ScrapeScope] = []
         for cat in self._categories:
-            scope = ScrapeScope(cat.gender, cat.section, cat.category)
-            if scope not in seen:
-                seen.append(scope)
+            candidatos = [ScrapeScope(cat.gender, cat.section, cat.category)]
+            if cat.filtro is not None and cat.filtro.resto is not None:
+                candidatos.append(ScrapeScope(cat.gender, cat.section, cat.filtro.resto))
+            for scope in candidatos:
+                if scope not in seen:
+                    seen.append(scope)
         return seen
 
     def _parent_page(self, session: BrowserSession, category_path: str) -> dict[str, Any] | None:
@@ -671,19 +747,28 @@ class SferaStore:
         with self._session_factory() as session:
             for cat in self._categories:
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
+                filtrados = 0  # productos que ha casado el filtro de esta hoja, si lo lleva
                 try:
                     # El `try` envuelve el bucle entero porque `_iter_category` es un generador:
                     # el fallo de una página se ve al tirar de él, no al crearlo. Lo que ya haya
                     # emitido se queda (el dedup por id lo cubre), pero su ámbito deja de ser
                     # seguro para dar bajas, que es lo que importa.
                     for product in self._iter_category(session, cat):
+                        if product.category == cat.category:
+                            # Se cuenta ANTES del dedup: que un conjunto ya lo hubiera traído otra
+                            # hoja no significa que esta haya dejado de rotularlos, que es lo único
+                            # que `filtro_vacio` quiere saber.
+                            filtrados += 1
                         pid = product.retailer_product_id
-                        # ANTES del dedup: cerca de la mitad de los productos de las hojas de
-                        # deporte ya han salido por `sudaderas` y se descartan aquí (47 de 91 la
-                        # última vez que se contó el reparto; la pasada real del 05/08/2026 marcó
-                        # 97 en total). Si la marca se anotara después del `continue` se perdería
-                        # justo en el caso más común y la tienda acabaría marcando solo sus
-                        # exclusivos — que es el error del que #180 avisa.
+                        # ANTES del dedup, y sigue siendo obligatorio aunque #200 haya cambiado
+                        # QUIÉN se descarta. Cerca de la mitad de los productos de las hojas de
+                        # deporte salen también por `sudaderas` (47 de 91 la última vez que se contó
+                        # el reparto; la pasada real del 05/08/2026 marcó 97 en total): antes esas
+                        # hojas iban al final y los duplicados se descartaban aquí, y ahora van
+                        # delante y los descartados son los de `sudaderas`. En los dos casos la
+                        # marca se anota por CADA hoja que ve el producto, así que anotarla antes
+                        # del `continue` es lo que la hace del producto y no de la hoja que ganó el
+                        # dedup — que es el error del que #180 avisa, y que el orden no arregla.
                         for tag in cat.tags:
                             self._tags.anota(pid, tag)
                         if pid in self._cache:
@@ -722,6 +807,11 @@ class SferaStore:
                     self._hoja_caida(cat, scope)
                     continue
                 self._scan.leaf_ok()
+                # La hoja se ha listado entera y su `resto` ha entrado con normalidad, pero no ha
+                # salido ni un conjunto: o la tienda ha cambiado la rotulación o ya no le quedan.
+                # Ver `ScanReport.filtro_vacio()`; solo se afirma sobre el ámbito filtrado.
+                if cat.filtro is not None and not filtrados:
+                    self._scan.filtro_vacio(scope, cat.category_path)
 
     def _hoja_caida(self, cat: CategoryConfig, scope: ScrapeScope) -> None:
         """Una hoja que no se ha podido leer: fuera de las bajas, y fuera de la reconciliación.
