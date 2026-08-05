@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: 533daaf3-5b39-4898-8312-8a143daa1ed0
-  modified: 2026-08-05T11:30:04.112Z
+  modified: 2026-08-05T17:49:57.213Z
 ---
 
 Al cerrar sesión desde un worktree, `index_repository` sobre
@@ -29,6 +29,19 @@ la limpieza del worktree se adelanta al reindexado, al revés de lo que dice la 
 porque su comprobación (`git status` vacío + `merge-base --is-ancestor HEAD origin/main`) ya se
 puede hacer en cuanto el PR está mergeado. Ojo al aviso de `ExitWorktree` sobre commits «a
 descartar»: es el falso positivo de [[exitworktree-falso-positivo]].
+
+**Salir no basta: hay que BORRAR el worktree.** Si mergeaste con `gh pr merge --delete-branch`
+desde dentro, al desaparecer su rama el worktree se queda en **`main`** — y entonces el checkout
+canónico no puede ir a main: `fatal: 'main' is already used by worktree at …`. O sea que la
+eliminación del worktree deja de ser el último paso opcional y pasa a ser **requisito del
+reindexado**. Medido el 05/08/2026 cerrando #207.
+
+Dos cosas más de ese mismo cierre: el checkout canónico puede estar aparcado en una rama vieja ya
+mergeada (estaba en `docs/springfield-pijamas-187`), así que lo que hace falta es `git checkout
+main` y no un `merge --ff-only`; y ese checkout lo bloquean los ficheros de `.claude/memory/`
+—modificados o sin seguimiento— aunque sean **idénticos** a los de main. Compruébalo antes de
+tocarlos (`git show main:<ruta>` y `git diff main -- <ruta>`) y resuélvelo con
+`git checkout main -- <ruta>`, nunca a ciegas: ahí vive la memoria de [[memoria-en-repo]].
 
 Y ojo con lo contrario al terminar: si otra sesión mergea *después* de tu reindexado, el grafo
 vuelve a quedarse corto — comparar `git log --oneline -1` contra lo indexado y repetir si hace
