@@ -21,12 +21,15 @@ Cuatro endpoints, y el orden importa:
   4. bajas:    el mismo `productsArray` con un id que ya no existe responde 200 con
      `_ERR_PRODUCT_NOT_FOUND` — veredicto limpio para la confirmación activa.
 
-Dos trampas que costaron el recon y conviene no volver a pisar:
+Tres trampas que conviene no volver a pisar:
 
 - **El stock NO es `isBuyable`**, que viene `true` siempre. Es `visibilityValue`: `SHOW` =
   disponible, `HIDDEN` = agotada. Y con `allowWithoutStock=false` el endpoint **omite** las tallas
   agotadas, así que se pide `true`: si no, un producto agotado del todo parecería una baja.
 - **`price` llega como string** de céntimos ("1799"), no como int, al revés que Zara.
+- **Los componentes del grid no se reconocen por `kind`.** La tienda intercambió `kind` y `type`
+  el 05/08/2026 y la pasada se quedó en 0 entradas sin que nada se pusiera rojo; el porqué y cómo
+  se detectó están en `_product_components()`, que es donde vive la decisión.
 
 Id estable de producto: `identifier.productParentId` (= `id` del detalle). Id estable de variante:
 `{productId}-{colorId}-{sku}`. Las funciones `parse_*` son puras y se testean con fixtures reales.
@@ -200,11 +203,36 @@ def grid_ids_by_category(menu: dict[str, Any]) -> dict[int, str]:
 
 
 def _product_components(grid: dict[str, Any]) -> list[dict[str, Any]]:
-    """Componentes de tipo producto del grid. `components` es un DICT (no una lista)."""
+    """Componentes de producto del grid. `components` es un DICT (no una lista).
+
+    **No se filtra por `kind`, y es una cicatriz.** Hasta el 05/08/2026 esto exigía
+    `kind == "Product"`; ese día se midió que la tienda había pasado a nombrar el `kind` por
+    familia —`Clothing` y `Footwear`—, así que **las 38 hojas parseaban 0 entradas** y se
+    descartaban 2207 componentes que traían su `identifier.productParentId` intacto.
+
+    Lo que lo hace peligroso es lo callado que es: los tests con fixtures seguían verdes (el
+    fixture decía `Product`) y `check_leaves()` daba 38/38 vivas, porque el menú no había
+    cambiado. Lo cazó el vigía, y por el listado vacío, no por el `kind` (#179).
+
+    Y no fue un renombrado, fue un **intercambio**: el componente sigue trayendo los dos campos,
+    con los valores cambiados de sitio. Medido sobre la misma hoja (zapatos de niña):
+
+        antes:  kind="Product"   type="Footwear"
+        hoy:    kind="Footwear"  type="Product"
+
+    O sea que fiarse de `type` sería repetir la apuesta que acaba de salir mal. El criterio es el
+    que de verdad distingue un producto de un adorno: que traiga el identificador del modelo, que
+    es además lo único que este parser necesita de él. Los banners de campaña viajan aparte, en
+    `promotionalBanners`.
+    """
     components = grid.get("components")
     if not isinstance(components, dict):
         return []
-    return [c for c in components.values() if isinstance(c, dict) and c.get("kind") == "Product"]
+    return [
+        c
+        for c in components.values()
+        if isinstance(c, dict) and (c.get("identifier") or {}).get("productParentId")
+    ]
 
 
 def parse_listing_entries(grid: dict[str, Any], cat: CategoryConfig) -> list[ListingEntry]:
