@@ -15,7 +15,13 @@ from typing import Any
 import pytest
 
 from scraper import progreso as progreso_mod
-from scraper.ingest import CatalogScanAborted, _ExistingProduct, _moved_out_counts, ingest
+from scraper.ingest import (
+    CatalogScanAborted,
+    _ExistingProduct,
+    _moved_out_counts,
+    _success_message,
+    ingest,
+)
 from scraper.stores.base import (
     DelistCandidate,
     ListingEntry,
@@ -1427,6 +1433,46 @@ def test_una_hoja_unisex_caida_no_deja_ninguna_rama_bajo_sospecha() -> None:
 
     assert report.cross_gender_suspect == set()
     assert report.failed_scopes == {ScrapeScope("unisex", "ropa", "sudaderas")}
+
+
+def test_filtro_vacio_saca_el_ambito_de_las_bajas_sin_contarlo_como_hoja_caida() -> None:
+    """Una hoja que responde pero cuyo filtro no casa con nada (#200).
+
+    Las dos mitades importan y son opuestas: el ámbito TIENE que salir de las bajas —si no, un
+    cambio de rotulación descatalogaría de golpe todos los conjuntos ya ingeridos— y NO puede
+    contar como hoja caída, porque la hoja se ha listado y en Sfera además ha emitido su `resto`.
+    Si contara, `dead_ratio` subiría y `SCRAPER_SCAN_MAX_DEAD_RATIO` abortaría pasadas buenas.
+    """
+    report = ScanReport()
+    for _ in range(4):
+        report.leaf_ok()
+    report.filtro_vacio(ScrapeScope("niña", "ropa", "conjuntos"), "ninos/nina/ropa-deportiva")
+
+    assert report.failed_scopes == {ScrapeScope("niña", "ropa", "conjuntos")}
+    assert report.empty_filter_leaves == ["ninos/nina/ropa-deportiva"]
+    # Ni una hoja caída ni un nombre en la lista de caídas: son cosas distintas.
+    assert (report.leaves_total, report.leaves_failed) == (4, 0)
+    assert report.failed_leaves == []
+    assert report.dead_ratio == 0.0
+
+
+def test_el_mensaje_de_la_pasada_nombra_la_hoja_con_el_filtro_vacio() -> None:
+    """Sin esto el caso sería mudo, que es justo el fallo que `filtro_vacio` viene a quitar (#200).
+
+    El mensaje solo nombraba ámbitos cuando había hojas caídas, y aquí no hay ninguna: la pasada se
+    ve perfecta y hay una categoría entera sin detección de bajas.
+    """
+    report = ScanReport()
+    report.leaf_ok()
+    report.filtro_vacio(
+        ScrapeScope("niño", "ropa", "conjuntos"), "/kids/boys/clothing/sets-outfits"
+    )
+
+    mensaje = _success_message(report, suspicious=set())
+
+    assert mensaje is not None
+    assert "/kids/boys/clothing/sets-outfits" in mensaje
+    assert "niño/ropa/conjuntos" in mensaje
 
 
 def test_una_tienda_que_no_colapsa_generos_no_marca_nada() -> None:

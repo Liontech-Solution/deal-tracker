@@ -138,7 +138,11 @@ class IngestResult:
     # #151 y #155). El resumen las nombra: «1/35 hojas no responden» no dice cuál hay que ir a
     # buscar al árbol.
     failed_leaves: list[str]
-    unscanned_scopes: int  # ámbitos excluidos de las bajas por tener alguna hoja caída
+    # Hojas que respondieron pero cuyo filtro no casó con nada (#200). No suman en `leaves_failed`
+    # —la hoja se listó— pero sacan su ámbito de las bajas igual que una caída, así que cuentan en
+    # `unscanned_scopes` de abajo y hay que poder nombrarlas por el mismo motivo que a las caídas.
+    empty_filter_leaves: list[str]
+    unscanned_scopes: int  # ámbitos excluidos de las bajas por una hoja caída o un filtro vacío
     probes_sent: int  # candidatos a baja sondeados (confirmación activa)
     probes_alive: int  # el sondeo los encontró vivos: rescatados, no se dan de baja
     probes_dead: int  # el sondeo confirmó la retirada
@@ -849,9 +853,17 @@ def _success_message(
             cola = f" +{de_mas}" if de_mas > 0 else ""
             detalle += f" [{', '.join(nombradas)}{cola}]"
         partes.append(detalle)
-        if report.failed_scopes:
-            ambitos = sorted(_render_scope(s) for s in report.failed_scopes)
-            partes.append(f"ambitos sin bajas: {', '.join(ambitos)}")
+    # Fuera del `if` de arriba a propósito (#200): desde que existe `filtro_vacio()` un ámbito puede
+    # quedarse sin bajas SIN que se haya caído ninguna hoja, y ése es justo el caso que hay que
+    # poder leer — la pasada se ve perfecta y hay una categoría entera sin detección de bajas.
+    if report.empty_filter_leaves:
+        nombradas = sorted(report.empty_filter_leaves)[:_MAX_NAMED_LEAVES]
+        de_mas = len(report.empty_filter_leaves) - len(nombradas)
+        cola = f" +{de_mas}" if de_mas > 0 else ""
+        partes.append(f"hojas sin nada que casara el filtro [{', '.join(nombradas)}{cola}]")
+    if report.failed_scopes:
+        ambitos = sorted(_render_scope(s) for s in report.failed_scopes)
+        partes.append(f"ambitos sin bajas: {', '.join(ambitos)}")
     if suspicious:
         ambitos = sorted(_render_scope(s) for s in suspicious)
         partes.append(f"ambitos con caida sospechosa: {', '.join(ambitos)}")
@@ -1129,6 +1141,7 @@ def ingest(
             leaves_scanned=report.leaves_total,
             leaves_failed=report.leaves_failed,
             failed_leaves=sorted(report.failed_leaves),
+            empty_filter_leaves=sorted(report.empty_filter_leaves),
             unscanned_scopes=len(declared) - len(scanned),
             probes_sent=probe.sent,
             probes_alive=probe.alive,

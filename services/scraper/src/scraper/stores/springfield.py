@@ -127,10 +127,11 @@ _GENERO_POR_SEGMENTO: Mapping[str, str] = {"nino": "niño", "nina": "niña"}
 # o sea que la misma prenda entraba o no en el catálogo según la tienda. Son 64 prendas.
 #
 # `total-looks` NO entra, y el motivo está medido (#192). Parecía el mismo caso que el `TOTAL LOOK`
-# de Zara —que sí se ingiere, como `conjuntos`— pero no lo es: sus dos URLs son páginas **«Shop the
-# look»**, no fichas. Comprobado el 05/08/2026 sobre `02092108`: 200 con 273 KB de HTML y **cero**
-# `ld+json`, `size-data` y `data-color-info`. No hay prenda, ni talla, ni precio; es una página que
-# enlaza a las prendas sueltas, que ya entran por su propia categoría. Mapearla añade dos entradas
+# de Zara —que desde #200 sí se ingiere, filtrado, como `conjuntos`— pero no lo es, y el filtro de
+# #200 tampoco lo arreglaría porque aquí no hay ninguna ficha que filtrar: sus dos URLs son páginas
+# **«Shop the look»**, no fichas. Comprobado el 05/08/2026 sobre `02092108`: 200 con 273 KB y
+# **cero** `ld+json`, `size-data` ni `data-color-info`. No hay prenda, ni talla, ni precio: es una
+# página que enlaza a las prendas sueltas, que ya entran por su propia categoría. Mapearla añade dos
 # al listado que mueren en el detalle con un warning por pasada y no ingieren nada.
 #
 # Fuera del mapa por no ser del brief, y por tanto sin ingerir: `complementos` (89), `bano` (40),

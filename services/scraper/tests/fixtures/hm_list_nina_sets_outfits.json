@@ -1,0 +1,2373 @@
+{
+ "requestDateTime": "2026-08-05T10:35:01.391Z",
+ "responseSource": "Elevate",
+ "pagination": {
+  "currentPage": 1,
+  "nextPageNum": 2,
+  "totalPages": 3
+ },
+ "plpList": {
+  "productList": [
+   {
+    "id": "1339954001",
+    "trackingId": "OzY7IzsxMzM5OTU0MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9naXJscy9jbG90aGluZy9zZXRzLW91dGZpdHM7Izs_e4",
+    "productName": "Conjunto de fútbol de 3 piezas",
+    "modelImage": "https://image.hm.com/assets/hm/c7/22/c722f27793a5a4689d4405393732fa30d5ff7171.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/c7/22/c722f27793a5a4689d4405393732fa30d5ff7171.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/c7/22/c722f27793a5a4689d4405393732fa30d5ff7171.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/c7/22/c722f27793a5a4689d4405393732fa30d5ff7171.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1339954001.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 27.99,
+      "minPrice": 27.99,
+      "maxPrice": 27.99,
+      "formattedPrice": "27,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1339954001",
+      "url": "/es_es/productpage.1339954001.html",
+      "colorName": "Azul marino/Championship",
+      "colorCode": "393A45",
+      "trackingId": "OzY7IzsxMzM5OTU0MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9naXJscy9jbG90aGluZy9zZXRzLW91dGZpdHM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/c7/22/c722f27793a5a4689d4405393732fa30d5ff7171.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/7d/50/7d508569a6f252b0b4ee1f02be3f9cfa4e6316e1.jpg",
+      "assetType": "DescriptiveStillLife"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/2f/8b/2f8b1f7d06965e968305cb6d6579088921fd45bf.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul marino/Championship",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "393A45",
+    "colourShades": "Azul marino",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "007",
+      "label": "98/104 (2-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "122/128 (6-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "110/116 (4-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "134/140 (8-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "158/164 (12-14Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "146/152 (10-12Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "azul_0000ff|multi_000000",
+    "mainCatCode": "kids_olderkids_clothing_tops_tshirts_tshirt"
+   },
+   {
+    "id": "1032753050",
+    "trackingId": "OzY7IzsxMDMyNzUzMDUwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9naXJscy9jbG90aGluZy9zZXRzLW91dGZpdHM7Izs_e4",
+    "productName": "Disfraz",
+    "modelImage": "https://image.hm.com/assets/hm/94/f6/94f6a3bfc8eec7a889f9e7ecd83b36a428865c32.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/94/f6/94f6a3bfc8eec7a889f9e7ecd83b36a428865c32.jpg",
+     "assetType": "Lookbook"
+    },
+    "productImage": "https://image.hm.com/assets/hm/a1/b1/a1b1b5aad99c241d8c28c81b1c3f9647631d568e.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/a1/b1/a1b1b5aad99c241d8c28c81b1c3f9647631d568e.jpg",
+     "altText": "Un disfraz de gala presenta un mono de cuerpo entero y una máscara separada, ambos mostrando un esquema de colores rojo y azul con patrones negros semejantes a una telaraña. El mono, mirando al FRENTE, presenta una parte superior del cuerpo roja con un emblema de araña negra en el pecho y una parte inferior del cuerpo, brazos y piernas azules, todos con definición muscular impresa, mientras que la máscara roja muestra cubiertas de ojos de malla blanca.",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1032753050.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 29.99,
+      "minPrice": 29.99,
+      "maxPrice": 29.99,
+      "formattedPrice": "29,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1032753050",
+      "url": "/es_es/productpage.1032753050.html",
+      "colorName": "Rojo/Spiderman",
+      "colorCode": "3C4372",
+      "trackingId": "OzY7IzsxMDMyNzUzMDUwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9naXJscy9jbG90aGluZy9zZXRzLW91dGZpdHM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/a1/b1/a1b1b5aad99c241d8c28c81b1c3f9647631d568e.jpg"
+     },
+     {
+      "articleId": "1032753061",
+      "url": "/es_es/productpage.1032753061.html",
+      "colorName": "Rojo/Iron Man",
+      "colorCode": "B32B34",
+      "trackingId": "OzY7IzsxMDMyNzUzMDYxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9naXJscy9jbG90aGluZy9zZXRzLW91dGZpdHM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/b6/0b/b60ba2b54fa6ee15767f06f09842c9cfb1a4a97d.jpg"
+     },
+     {
+      "articleId": "1032753023",
+      "url": "/es_es/productpage.1032753023.html",
+      "colorName": "Negro/Batman",
+      "colorCode": "272628",
+      "trackingId": "OzY7IzsxMDMyNzUzMDIzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9naXJscy9jbG90aGluZy9zZXRzLW91dGZpdHM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/5b/e4/5be4b82498dd4d6525e22016c199c256b329eb96.jpg"
+     },
+     {
+      "articleId": "1032753048",
+      "url": "/es_es/productpage.1032753048.html",
+      "colorName": "Verde/Minecraft",
+      "colorCode": "91CB5B",
+      "trackingId": "OzY7IzsxMDMyNzUzMDQ4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9naXJscy9jbG90aGluZy9zZXRzLW91dGZpdHM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/91/9f/919fef0041b78f76b34a900ddd1e20b206285ffd.jpg"
+     },
+     {
+      "articleId": "1032753055",
+      "url": "/es_es/productpage.1032753055.html",
+      "colorName": "Rojo/Los Increíbles",
+      "colorCode": "B32B34",
+      "trackingId": "OzY7IzsxMDMyNzUzMDU1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9naXJscy9jbG90aGluZy9zZXRzLW91dGZpdHM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/ed/fa/edfa573cb80d247556076e030e62d6bf21f7d6a1.jpg"
+     },
+     {
+      "articleId": "1032753008",
+      "url": "/es_es/productpage.1032753008.html",
+      "colorName": "Verde/Hulk",
+      "colorCode": "5C6F44",
+      "trackingId": "OzY7IzsxMDMyNzUzMDA4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9naXJscy9jbG90aGluZy9zZXRzLW91dGZpdHM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/35/cc/35cc872b07330eb739aab2d87846b340241602f1.jpg"
+     },
+     {
+      "articleId": "1032753045",
+      "url": "/es_es/productpage.1032753045.html",
+      "colorName": "Rojo/Spidey",
+      "colorCode": "B32B34",
+      "trackingId": "OzY7IzsxMDMyNzUzMDQ1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9naXJscy9jbG90aGluZy9zZXRzLW91dGZpdHM7Izs_e4",
+      "productImage": "https://image.hm.com/assets/hm/79/d4/79d4b7007360233a6f025ff7c0f860829c257612.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/d2/7c/d27c812b9a00a16aa037568dda8d46164946abbe.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/31/b5/31b5e3d971ebf2582454f329fa0621e71eafdee5.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/5c/38/5c38803914bc8c3629e88a69d0a25dcbb419a011.jpg",
+      "altText": "Disfraz de gala. La parte frontal de un disfraz rojo y azul muestra un patrón de telaraña negra, un gran emblema de araña negra en su pecho acolchado y un collar azul con una etiqueta \"MARVEL\", mientras que una máscara roja a juego con ojos de malla blanca y una correa elástica con una etiqueta \"MARVEL\" descansa encima.",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Rojo/Spiderman",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "3C4372",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "010",
+      "label": "134/140 (8-10Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "122/128 (6-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "110/116 (4-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "025",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "rojo_ff0000|azul_0000ff|multi_000000",
+    "mainCatCode": "kids_boys_costumesfancydresses"
+   },
+   {
+    "id": "1354546001",
+    "trackingId": "OzY7IzsxMzU0NTQ2MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMTs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvc2V0cy1vdXRmaXRzOyM7_e4",
+    "productName": "2-piece cotton plumeti set",
+    "modelImage": "https://image.hm.com/assets/hm/7b/3f/7b3fe771582fe8810ac72391c3b7b5395c2fdca1.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/7b/3f/7b3fe771582fe8810ac72391c3b7b5395c2fdca1.jpg",
+     "assetType": "Lookbook"
+    },
+    "productImage": "https://image.hm.com/assets/hm/aa/48/aa48519f94b43cfe880f631fb49f10029756f30e.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/aa/48/aa48519f94b43cfe880f631fb49f10029756f30e.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1354546001.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "whitePrice",
+      "price": 22.99,
+      "minPrice": 22.99,
+      "maxPrice": 22.99,
+      "formattedPrice": "22,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1354546001",
+      "url": "/es_es/productpage.1354546001.html",
+      "colorName": "Azul empolvado claro",
+      "colorCode": "B1BED7",
+      "trackingId": "OzY7IzsxMzU0NTQ2MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMTs0NzsjOyM7L2tpZHMvZ2lybHMvY2xvdGhpbmcvc2V0cy1vdXRmaXRzOyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/aa/48/aa48519f94b43cfe880f631fb49f10029756f30e.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/f1/fb/f1fb56efeeb4474ccb86a40535c2845b5ee394a1.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/e6/43/e6435172b2d7a54791bc78afc703f831fdabc13d.jpg",
+      "assetType": "Lookbook"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/46/ea/46ea4ddc5c77dd1be46ad40a0889e66a4bc35a58.jpg",
+      "assetType": "DescriptiveDetail"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/d5/fb/d5fb04d8664f624730b9514d3fce72e6694a6e7d.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul empolvado claro",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "B1BED7",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "009",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "016",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     },
+     {
+      "id": "017",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "azul_0000ff",
+    "mainCatCode": "kids_girls_clothing_topstshirts"
+   }
+  ],
+  "sortOptions": {
+   "selected": "RELEVANCE",
+   "options": [
+    {
+     "id": "RELEVANCE",
+     "label": "Relevancia"
+    },
+    {
+     "id": "NEWEST_FIRST",
+     "label": "Nuevo"
+    },
+    {
+     "id": "PRICE_ASCENDING",
+     "label": "Precio más bajo"
+    },
+    {
+     "id": "PRICE_DESCENDING",
+     "label": "Precio más alto"
+    }
+   ]
+  },
+  "numberOfHits": 3,
+  "sliceRanges": [],
+  "facets": [
+   {
+    "name": "Precio",
+    "id": "priceRange",
+    "selectedCount": 0,
+    "type": "RANGE",
+    "min": 12.99,
+    "max": 59.99
+   },
+   {
+    "name": "ColorWithNames",
+    "id": "colorWithNames",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "amarillo_ffff00",
+      "name": "amarillo_ffff00",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "azul_0000ff",
+      "name": "azul_0000ff",
+      "count": 34,
+      "selected": false
+     },
+     {
+      "id": "beige_f5f5dc",
+      "name": "beige_f5f5dc",
+      "count": 34,
+      "selected": false
+     },
+     {
+      "id": "blanco_ffffff",
+      "name": "blanco_ffffff",
+      "count": 55,
+      "selected": false
+     },
+     {
+      "id": "gris_808080",
+      "name": "gris_808080",
+      "count": 11,
+      "selected": false
+     },
+     {
+      "id": "lila_800080",
+      "name": "lila_800080",
+      "count": 12,
+      "selected": false
+     },
+     {
+      "id": "marrón_a52a2a",
+      "name": "marrón_a52a2a",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "multi_000000",
+      "name": "multi_000000",
+      "count": 119,
+      "selected": false
+     },
+     {
+      "id": "naranja_ffa500",
+      "name": "naranja_ffa500",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "negro_000000",
+      "name": "negro_000000",
+      "count": 29,
+      "selected": false
+     },
+     {
+      "id": "plateado_c0c0c0",
+      "name": "plateado_c0c0c0",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "rojo_ff0000",
+      "name": "rojo_ff0000",
+      "count": 15,
+      "selected": false
+     },
+     {
+      "id": "rosa_ffc0cb",
+      "name": "rosa_ffc0cb",
+      "count": 45,
+      "selected": false
+     },
+     {
+      "id": "turquesa_40e0d0",
+      "name": "turquesa_40e0d0",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "verde_008000",
+      "name": "verde_008000",
+      "count": 9,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Talla",
+    "id": "sizes",
+    "selectedCount": 0,
+    "type": "SIZE",
+    "groups": [
+     {
+      "name": "kidswear",
+      "facetValues": [
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];92",
+        "name": "92",
+        "count": 71,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];98",
+        "name": "98",
+        "count": 68,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];104",
+        "name": "104",
+        "count": 91,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];110",
+        "name": "110",
+        "count": 67,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];116",
+        "name": "116",
+        "count": 69,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];122",
+        "name": "122",
+        "count": 70,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];128",
+        "name": "128",
+        "count": 75,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];134",
+        "name": "134",
+        "count": 84,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];140",
+        "name": "140",
+        "count": 90,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];170",
+        "name": "170",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];1½-2Y",
+        "name": "1½-2Y",
+        "count": 71,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];2-3Y",
+        "name": "2-3Y",
+        "count": 68,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];2-4Y",
+        "name": "2-4Y",
+        "count": 19,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];3-4Y",
+        "name": "3-4Y",
+        "count": 91,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];3-10Y",
+        "name": "3-10Y",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];4-5Y",
+        "name": "4-5Y",
+        "count": 67,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];4-6Y",
+        "name": "4-6Y",
+        "count": 36,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];5-6Y",
+        "name": "5-6Y",
+        "count": 69,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];6-7Y",
+        "name": "6-7Y",
+        "count": 70,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];6-8Y",
+        "name": "6-8Y",
+        "count": 42,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];7-8Y",
+        "name": "7-8Y",
+        "count": 75,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];8-9Y",
+        "name": "8-9Y",
+        "count": 84,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];8-10Y",
+        "name": "8-10Y",
+        "count": 38,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];9-10Y",
+        "name": "9-10Y",
+        "count": 90,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];10-12Y",
+        "name": "10-12Y",
+        "count": 7,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];12-14Y",
+        "name": "12-14Y",
+        "count": 9,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];14Y+",
+        "name": "14Y+",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];98/104",
+        "name": "98/104",
+        "count": 19,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];104/140",
+        "name": "104/140",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];110/116",
+        "name": "110/116",
+        "count": 36,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];122/128",
+        "name": "122/128",
+        "count": 42,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];134/140",
+        "name": "134/140",
+        "count": 38,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];146/152",
+        "name": "146/152",
+        "count": 7,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];158/164",
+        "name": "158/164",
+        "count": 9,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[unknown];104 (3-4Y)",
+        "name": "104 (3-4Y)",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[unknown];122/128 (6-8Y)",
+        "name": "122/128 (6-8Y)",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[unknown];134/140 (8-10Y)",
+        "name": "134/140 (8-10Y)",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "GarmentLengths",
+    "id": "garmentLengths",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Corto",
+      "name": "Corto",
+      "count": 86,
+      "selected": false
+     },
+     {
+      "id": "Largo",
+      "name": "Largo",
+      "count": 106,
+      "selected": false
+     },
+     {
+      "id": "Largo hasta la rodilla",
+      "name": "Largo hasta la rodilla",
+      "count": 23,
+      "selected": false
+     },
+     {
+      "id": "Largo normal",
+      "name": "Largo normal",
+      "count": 156,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "ClothingStyles",
+    "id": "clothingStyles",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Abertura",
+      "name": "Abertura",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Acampanado",
+      "name": "Acampanado",
+      "count": 63,
+      "selected": false
+     },
+     {
+      "id": "Camiseta de tirantes",
+      "name": "Camiseta de tirantes",
+      "count": 19,
+      "selected": false
+     },
+     {
+      "id": "Camiseta sin mangas",
+      "name": "Camiseta sin mangas",
+      "count": 12,
+      "selected": false
+     },
+     {
+      "id": "Chaqueta con capucha",
+      "name": "Chaqueta con capucha",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Circular",
+      "name": "Circular",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Corte cuadrado",
+      "name": "Corte cuadrado",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Corte evasé",
+      "name": "Corte evasé",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Cruzado",
+      "name": "Cruzado",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Escalonado",
+      "name": "Escalonado",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Espalda con escote pronunciado",
+      "name": "Espalda con escote pronunciado",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Espalda olímpica",
+      "name": "Espalda olímpica",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Falda globo",
+      "name": "Falda globo",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Fruncido",
+      "name": "Fruncido",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Jersey con capucha",
+      "name": "Jersey con capucha",
+      "count": 8,
+      "selected": false
+     },
+     {
+      "id": "Joggers",
+      "name": "Joggers",
+      "count": 11,
+      "selected": false
+     },
+     {
+      "id": "Lazada delante",
+      "name": "Lazada delante",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Mallas cortas",
+      "name": "Mallas cortas",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Pantalón corto con cintura elástica",
+      "name": "Pantalón corto con cintura elástica",
+      "count": 10,
+      "selected": false
+     },
+     {
+      "id": "Pantalón corto de chándal",
+      "name": "Pantalón corto de chándal",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Pantalón corto de vestir",
+      "name": "Pantalón corto de vestir",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Pantalón de chándal",
+      "name": "Pantalón de chándal",
+      "count": 18,
+      "selected": false
+     },
+     {
+      "id": "Pantalón de ciclismo",
+      "name": "Pantalón de ciclismo",
+      "count": 10,
+      "selected": false
+     },
+     {
+      "id": "Pantalón de jazz",
+      "name": "Pantalón de jazz",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Pantalón sin cierre",
+      "name": "Pantalón sin cierre",
+      "count": 17,
+      "selected": false
+     },
+     {
+      "id": "Peplo",
+      "name": "Peplo",
+      "count": 11,
+      "selected": false
+     },
+     {
+      "id": "Perneras rectas",
+      "name": "Perneras rectas",
+      "count": 11,
+      "selected": false
+     },
+     {
+      "id": "Pichi",
+      "name": "Pichi",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Polo",
+      "name": "Polo",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Sudadera",
+      "name": "Sudadera",
+      "count": 31,
+      "selected": false
+     },
+     {
+      "id": "Tutú",
+      "name": "Tutú",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Vestido con tirantes espagueti",
+      "name": "Vestido con tirantes espagueti",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Vestido peto",
+      "name": "Vestido peto",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Wide",
+      "name": "Wide",
+      "count": 7,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Materials",
+    "id": "materials",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Algodón",
+      "name": "Algodón",
+      "count": 77,
+      "selected": false
+     },
+     {
+      "id": "Bouclé",
+      "name": "Bouclé",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Denim",
+      "name": "Denim",
+      "count": 9,
+      "selected": false
+     },
+     {
+      "id": "Felpa de rizo",
+      "name": "Felpa de rizo",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Lana",
+      "name": "Lana",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Lino",
+      "name": "Lino",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Malla",
+      "name": "Malla",
+      "count": 17,
+      "selected": false
+     },
+     {
+      "id": "Merino",
+      "name": "Merino",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Muselina",
+      "name": "Muselina",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Plumeti",
+      "name": "Plumeti",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Polar",
+      "name": "Polar",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Popelina",
+      "name": "Popelina",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Punto",
+      "name": "Punto",
+      "count": 66,
+      "selected": false
+     },
+     {
+      "id": "Sarga",
+      "name": "Sarga",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Sirsaca",
+      "name": "Sirsaca",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Tejido de rizo",
+      "name": "Tejido de rizo",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Tul",
+      "name": "Tul",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Velour",
+      "name": "Velour",
+      "count": 6,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Patterns",
+    "id": "patterns",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Bloques de color",
+      "name": "Bloques de color",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Cuadros",
+      "name": "Cuadros",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Cuadros vichy",
+      "name": "Cuadros vichy",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "De lunares",
+      "name": "De lunares",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Estampado",
+      "name": "Estampado",
+      "count": 31,
+      "selected": false
+     },
+     {
+      "id": "Estampado arcoíris",
+      "name": "Estampado arcoíris",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Estampado de leopardo",
+      "name": "Estampado de leopardo",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Estampado en zig-zag",
+      "name": "Estampado en zig-zag",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Floral",
+      "name": "Floral",
+      "count": 20,
+      "selected": false
+     },
+     {
+      "id": "Liso",
+      "name": "Liso",
+      "count": 82,
+      "selected": false
+     },
+     {
+      "id": "Lunares",
+      "name": "Lunares",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Rayas",
+      "name": "Rayas",
+      "count": 16,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "NecklineStyles",
+    "id": "necklineStyles",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Cuello redondo",
+      "name": "Cuello redondo",
+      "count": 122,
+      "selected": false
+     },
+     {
+      "id": "Escote cuadrado",
+      "name": "Escote cuadrado",
+      "count": 30,
+      "selected": false
+     },
+     {
+      "id": "Escote de pico",
+      "name": "Escote de pico",
+      "count": 15,
+      "selected": false
+     },
+     {
+      "id": "Escote pronunciado",
+      "name": "Escote pronunciado",
+      "count": 6,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Marca",
+    "id": "brandNames",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "H&M",
+      "name": "H&M",
+      "count": 216,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Fits",
+    "id": "fits",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Corte ajustado",
+      "name": "Corte ajustado",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Corte estándar",
+      "name": "Corte estándar",
+      "count": 42,
+      "selected": false
+     },
+     {
+      "id": "Corte relajado",
+      "name": "Corte relajado",
+      "count": 1,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "WaistRises",
+    "id": "waistRises",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Cintura estándar",
+      "name": "Cintura estándar",
+      "count": 83,
+      "selected": false
+     },
+     {
+      "id": "Talle alto",
+      "name": "Talle alto",
+      "count": 2,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "ProductTypes",
+    "id": "productTypes",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Blusa",
+      "name": "Blusa",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Body",
+      "name": "Body",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Camisa",
+      "name": "Camisa",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Camiseta",
+      "name": "Camiseta",
+      "count": 37,
+      "selected": false
+     },
+     {
+      "id": "Cárdigan",
+      "name": "Cárdigan",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Chaleco de traje",
+      "name": "Chaleco de traje",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Conjunto interior",
+      "name": "Conjunto interior",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Disfraz",
+      "name": "Disfraz",
+      "count": 17,
+      "selected": false
+     },
+     {
+      "id": "Disfraz de Papá Noel",
+      "name": "Disfraz de Papá Noel",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Falda",
+      "name": "Falda",
+      "count": 30,
+      "selected": false
+     },
+     {
+      "id": "Jersey",
+      "name": "Jersey",
+      "count": 58,
+      "selected": false
+     },
+     {
+      "id": "Leggings",
+      "name": "Leggings",
+      "count": 29,
+      "selected": false
+     },
+     {
+      "id": "Pantalón",
+      "name": "Pantalón",
+      "count": 57,
+      "selected": false
+     },
+     {
+      "id": "Pantalón corto",
+      "name": "Pantalón corto",
+      "count": 65,
+      "selected": false
+     },
+     {
+      "id": "Top",
+      "name": "Top",
+      "count": 89,
+      "selected": false
+     },
+     {
+      "id": "Vestido",
+      "name": "Vestido",
+      "count": 9,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "CustomerGroups",
+    "id": "customerGroups",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Niña",
+      "name": "Niña",
+      "count": 216,
+      "selected": false
+     },
+     {
+      "id": "Niño",
+      "name": "Niño",
+      "count": 36,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Qualities",
+    "id": "qualities",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "H&M Premium Selection",
+      "name": "H&M Premium Selection",
+      "count": 7,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Occasions",
+    "id": "occasions",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Carnaval",
+      "name": "Carnaval",
+      "count": 13,
+      "selected": false
+     },
+     {
+      "id": "Halloween",
+      "name": "Halloween",
+      "count": 9,
+      "selected": false
+     },
+     {
+      "id": "Navidad",
+      "name": "Navidad",
+      "count": 5,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "AssortmentTypes",
+    "id": "assortmentTypes",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Ropa",
+      "name": "Ropa",
+      "count": 216,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "AgeGroups",
+    "id": "ageGroups",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Niños mayores",
+      "name": "Niños mayores",
+      "count": 19,
+      "selected": false
+     },
+     {
+      "id": "Niños pequeños",
+      "name": "Niños pequeños",
+      "count": 216,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Concepts",
+    "id": "concepts",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "BASICS",
+      "name": "BASICS",
+      "count": 14,
+      "selected": false
+     },
+     {
+      "id": "H&M Adorables",
+      "name": "H&M Adorables",
+      "count": 23,
+      "selected": false
+     },
+     {
+      "id": "H&M Move",
+      "name": "H&M Move",
+      "count": 14,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Trendings",
+    "id": "trendings",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Bordado",
+      "name": "Bordado",
+      "count": 10,
+      "selected": false
+     },
+     {
+      "id": "Brillo",
+      "name": "Brillo",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Colores pastel",
+      "name": "Colores pastel",
+      "count": 9,
+      "selected": false
+     },
+     {
+      "id": "De ganchillo",
+      "name": "De ganchillo",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Encaje",
+      "name": "Encaje",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Estampado",
+      "name": "Estampado",
+      "count": 79,
+      "selected": false
+     },
+     {
+      "id": "Estampado animal",
+      "name": "Estampado animal",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Estampado de fruta",
+      "name": "Estampado de fruta",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Floral",
+      "name": "Floral",
+      "count": 15,
+      "selected": false
+     },
+     {
+      "id": "Lazos",
+      "name": "Lazos",
+      "count": 17,
+      "selected": false
+     },
+     {
+      "id": "Lentejuelas",
+      "name": "Lentejuelas",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Náutico",
+      "name": "Náutico",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Ombre",
+      "name": "Ombre",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Parches",
+      "name": "Parches",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Ribete festoneado",
+      "name": "Ribete festoneado",
+      "count": 10,
+      "selected": false
+     },
+     {
+      "id": "Strass",
+      "name": "Strass",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Terciopelo",
+      "name": "Terciopelo",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Transparente",
+      "name": "Transparente",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Volante",
+      "name": "Volante",
+      "count": 41,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "SleeveLengths",
+    "id": "sleeveLengths",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Manga corta",
+      "name": "Manga corta",
+      "count": 51,
+      "selected": false
+     },
+     {
+      "id": "Manga extralarga",
+      "name": "Manga extralarga",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Manga larga",
+      "name": "Manga larga",
+      "count": 100,
+      "selected": false
+     },
+     {
+      "id": "Mangas tres cuartos",
+      "name": "Mangas tres cuartos",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Sin mangas",
+      "name": "Sin mangas",
+      "count": 49,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "SleeveStyles",
+    "id": "sleeveStyles",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Manga de volante",
+      "name": "Manga de volante",
+      "count": 8,
+      "selected": false
+     },
+     {
+      "id": "Mangas abullonadas",
+      "name": "Mangas abullonadas",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Mangas globo",
+      "name": "Mangas globo",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Mangas japonesas",
+      "name": "Mangas japonesas",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Mangas raglán",
+      "name": "Mangas raglán",
+      "count": 8,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "ProductGroups",
+    "id": "productGroups",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Ropa de deporte",
+      "name": "Ropa de deporte",
+      "count": 25,
+      "selected": false
+     },
+     {
+      "id": "Ropa funcional",
+      "name": "Ropa funcional",
+      "count": 16,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "LicenseCompanies",
+    "id": "licenseCompanies",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Disney",
+      "name": "Disney",
+      "count": 15,
+      "selected": false
+     },
+     {
+      "id": "Disney/Marvel",
+      "name": "Disney/Marvel",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Disney/Pixar",
+      "name": "Disney/Pixar",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Disney/Star Wars",
+      "name": "Disney/Star Wars",
+      "count": 1,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "LicenseItems",
+    "id": "licenseItems",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Barbie",
+      "name": "Barbie",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Batman",
+      "name": "Batman",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "CapyFun",
+      "name": "CapyFun",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Frozen",
+      "name": "Frozen",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Harry Potter",
+      "name": "Harry Potter",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Hello Kitty",
+      "name": "Hello Kitty",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Hulk",
+      "name": "Hulk",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Iron Man: el hombre de hierro",
+      "name": "Iron Man: el hombre de hierro",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "La casa de muñecas de Gabby",
+      "name": "La casa de muñecas de Gabby",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "La Cenicienta",
+      "name": "La Cenicienta",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Las guerreras K-pop",
+      "name": "Las guerreras K-pop",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Lilo y Stitch",
+      "name": "Lilo y Stitch",
+      "count": 8,
+      "selected": false
+     },
+     {
+      "id": "Los increíbles",
+      "name": "Los increíbles",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Miffy",
+      "name": "Miffy",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Minecraft",
+      "name": "Minecraft",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Minions",
+      "name": "Minions",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Minnie Mouse",
+      "name": "Minnie Mouse",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "My Melody",
+      "name": "My Melody",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Peppa Pig",
+      "name": "Peppa Pig",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Pokémon",
+      "name": "Pokémon",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Polly Pocket",
+      "name": "Polly Pocket",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Princesas de Disney",
+      "name": "Princesas de Disney",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "SmileyWorld®",
+      "name": "SmileyWorld®",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Spiderman",
+      "name": "Spiderman",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Spidey y sus sorprendentes amigos",
+      "name": "Spidey y sus sorprendentes amigos",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Star Wars",
+      "name": "Star Wars",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Super Mario Galaxy: La película",
+      "name": "Super Mario Galaxy: La película",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Thor",
+      "name": "Thor",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Vaiana",
+      "name": "Vaiana",
+      "count": 1,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Features",
+    "id": "features",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Cintura ajustable",
+      "name": "Cintura ajustable",
+      "count": 17,
+      "selected": false
+     },
+     {
+      "id": "Con bolsillo",
+      "name": "Con bolsillo",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Sin costuras",
+      "name": "Sin costuras",
+      "count": 6,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Seasonality",
+    "id": "seasonality",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Invierno",
+      "name": "Invierno",
+      "count": 1,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "ColourShades",
+    "id": "colourShades",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Aceituna",
+      "name": "Aceituna",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Amarillo claro",
+      "name": "Amarillo claro",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Amarillo limón",
+      "name": "Amarillo limón",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Amarillo pastel",
+      "name": "Amarillo pastel",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Amarillo vivo",
+      "name": "Amarillo vivo",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Azul bebé",
+      "name": "Azul bebé",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Azul claro",
+      "name": "Azul claro",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Azul cobalto",
+      "name": "Azul cobalto",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Azul marino",
+      "name": "Azul marino",
+      "count": 8,
+      "selected": false
+     },
+     {
+      "id": "Azul oscuro",
+      "name": "Azul oscuro",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Azul palo",
+      "name": "Azul palo",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Azul pastel",
+      "name": "Azul pastel",
+      "count": 9,
+      "selected": false
+     },
+     {
+      "id": "Azul real",
+      "name": "Azul real",
+      "count": 9,
+      "selected": false
+     },
+     {
+      "id": "Azul vivo",
+      "name": "Azul vivo",
+      "count": 9,
+      "selected": false
+     },
+     {
+      "id": "Beige grisáceo",
+      "name": "Beige grisáceo",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Bermellón oscuro",
+      "name": "Bermellón oscuro",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Blanco grisáceo",
+      "name": "Blanco grisáceo",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Burdeos",
+      "name": "Burdeos",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Caoba",
+      "name": "Caoba",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Carbón",
+      "name": "Carbón",
+      "count": 11,
+      "selected": false
+     },
+     {
+      "id": "Ciruela",
+      "name": "Ciruela",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Coral",
+      "name": "Coral",
+      "count": 10,
+      "selected": false
+     },
+     {
+      "id": "Crema",
+      "name": "Crema",
+      "count": 8,
+      "selected": false
+     },
+     {
+      "id": "Crudo",
+      "name": "Crudo",
+      "count": 10,
+      "selected": false
+     },
+     {
+      "id": "Gris azulado",
+      "name": "Gris azulado",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Gris blanquecino",
+      "name": "Gris blanquecino",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Gris oscuro",
+      "name": "Gris oscuro",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Gris topo",
+      "name": "Gris topo",
+      "count": 8,
+      "selected": false
+     },
+     {
+      "id": "Índigo",
+      "name": "Índigo",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Lila",
+      "name": "Lila",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Lila claro",
+      "name": "Lila claro",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Lila pastel",
+      "name": "Lila pastel",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Malva",
+      "name": "Malva",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Marfil",
+      "name": "Marfil",
+      "count": 13,
+      "selected": false
+     },
+     {
+      "id": "Melocotón",
+      "name": "Melocotón",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Morado",
+      "name": "Morado",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Rojo cereza",
+      "name": "Rojo cereza",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Rojo claro",
+      "name": "Rojo claro",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Rojo oscuro",
+      "name": "Rojo oscuro",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Rojo rubí",
+      "name": "Rojo rubí",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Rojo vivo",
+      "name": "Rojo vivo",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Rosa bebé",
+      "name": "Rosa bebé",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Rosa claro",
+      "name": "Rosa claro",
+      "count": 9,
+      "selected": false
+     },
+     {
+      "id": "Rosa empolvado",
+      "name": "Rosa empolvado",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Rosa neón",
+      "name": "Rosa neón",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Rosa palo",
+      "name": "Rosa palo",
+      "count": 11,
+      "selected": false
+     },
+     {
+      "id": "Rosa pastel",
+      "name": "Rosa pastel",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Rosa salmón",
+      "name": "Rosa salmón",
+      "count": 12,
+      "selected": false
+     },
+     {
+      "id": "Rosa vivo",
+      "name": "Rosa vivo",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Rosado",
+      "name": "Rosado",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Teja",
+      "name": "Teja",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Trigo",
+      "name": "Trigo",
+      "count": 8,
+      "selected": false
+     },
+     {
+      "id": "Verde caqui",
+      "name": "Verde caqui",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Verde lima",
+      "name": "Verde lima",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Verde vivo",
+      "name": "Verde vivo",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Violeta",
+      "name": "Violeta",
+      "count": 1,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Sale",
+    "id": "sale",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "false",
+      "name": "false",
+      "count": 216,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Contexts",
+    "id": "contexts",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Boda",
+      "name": "Boda",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Deporte",
+      "name": "Deporte",
+      "count": 26,
+      "selected": false
+     },
+     {
+      "id": "Disfraz",
+      "name": "Disfraz",
+      "count": 19,
+      "selected": false
+     },
+     {
+      "id": "Fiesta",
+      "name": "Fiesta",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Formal",
+      "name": "Formal",
+      "count": 1,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Departamento",
+    "id": "department",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "kids",
+      "name": "kids",
+      "count": 216,
+      "selected": false
+     }
+    ]
+   }
+  ]
+ }
+}

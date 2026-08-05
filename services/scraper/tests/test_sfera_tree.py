@@ -510,15 +510,15 @@ def test_las_hojas_fuera_del_brief_siguen_fuera() -> None:
         assert fuera not in configuradas
 
 
-def test_la_ropa_deportiva_de_sfera_se_mapea_a_sudaderas() -> None:
-    """En esta tienda «ropa deportiva» son sudaderas y conjuntos, no ropa técnica (#175).
+def test_la_ropa_deportiva_de_sfera_se_reparte_en_conjuntos_y_sudaderas() -> None:
+    """En esta tienda «ropa deportiva» son sudaderas y conjuntos, no ropa técnica (#175, #200).
 
     Medido sobre las cuatro hojas el 04/08/2026, con la faceta `attr.fashion_level3` que la propia
     tienda publica: 91 productos, `Sudaderas sin capucha` 56, `Conjuntos` 25, `Sudaderas con
     capucha` 10. Ni una malla ni una camiseta técnica.
 
-    El test fija el mapeo porque el nombre de la hoja invita a lo contrario: quien la lea sin haber
-    medido pensará que va a una categoría deportiva, y lo que hay dentro dice `sudaderas`.
+    El test fija las dos mitades porque el nombre de la hoja invita a otra cosa: quien la lea sin
+    haber medido pensará que va a una categoría deportiva, y lo que hay dentro son estas dos.
     """
     por_ruta = {c.category_path: c for c in CATEGORIES}
     for rama, genero in (
@@ -528,20 +528,46 @@ def test_la_ropa_deportiva_de_sfera_se_mapea_a_sudaderas() -> None:
         ("bebe-nino", "niño"),
     ):
         cat = por_ruta[f"ninos/{rama}/ropa-deportiva"]
-        assert (cat.gender, cat.section, cat.category) == (genero, "ropa", "sudaderas")
+        assert (cat.gender, cat.section, cat.category) == (genero, "ropa", "conjuntos")
+        assert cat.filtro is not None
+        assert cat.filtro.resto == "sudaderas"
 
 
-def test_la_ropa_deportiva_va_despues_de_las_hojas_que_solapan() -> None:
+def test_el_filtro_de_ropa_deportiva_reparte_por_el_titulo() -> None:
+    """Los dos lados del reparto, con títulos reales de la hoja (#200).
+
+    Es el test que sujeta la decisión de usar el NOMBRE y no la faceta: si la tienda cambiara de
+    rótulo, esto sigue verde y lo que avisa es `ScanReport.filtro_vacio()` en la pasada. Aquí lo
+    que se fija es que el criterio sea el que se midió, no que la tienda no cambie.
+    """
+    cat = next(c for c in CATEGORIES if c.category_path == "ninos/nina/ropa-deportiva")
+    assert cat.filtro is not None
+    conjuntos = ["Conjunto felpa capucha", "CONJUNTO punto tricot", "Conjunto 2 piezas rayas"]
+    sudaderas = ["Sudadera capucha estampada", "Sudadera básica felpa", "Sudadera cremallera"]
+    for titulo in conjuntos:
+        assert cat.filtro.categoria(titulo, propia=cat.category) == "conjuntos"
+    for titulo in sudaderas:
+        assert cat.filtro.categoria(titulo, propia=cat.category) == "sudaderas"
+
+
+def test_la_ropa_deportiva_va_delante_y_eso_solo_mueve_los_conjuntos() -> None:
     """«Gana la primera» en `list_catalog()`, así que el orden decide y no es cosmético.
 
-    47 de los 91 productos de deporte ya entran por `ninos/{nina,nino}/sudaderas`. Con las hojas de
-    deporte al final, esos 47 conservan su hoja y **ningún producto vivo cambia de ámbito** — una
-    mudanza de ámbito se lee como caída sospechosa y omite las bajas de ese ámbito durante la
-    pasada (#174). Si alguien las sube en la lista, eso se rompe en silencio.
+    Hasta #200 estas hojas iban las ÚLTIMAS: 47 de sus 91 productos ya entran por
+    `ninos/{nina,nino}/sudaderas`, y detrás conservaban aquella hoja sin que ningún producto vivo
+    cambiara de ámbito. Ahora van delante, y lo que hace que eso siga siendo seguro es el `resto`
+    del filtro: esos 47 salen igualmente como `sudaderas` venga por la hoja que venga, así que lo
+    único que cambia de categoría son los 25 conjuntos, que es lo que #200 pide.
+
+    Por eso el test no comprueba el orden sin más: comprueba **las dos cosas juntas**. Adelantar la
+    hoja sin `resto`, o quitarle el `resto` dejándola delante, mudaría 47 productos de ámbito en
+    silencio — y una mudanza se lee como caída sospechosa (#174).
     """
     rutas = [c.category_path for c in CATEGORIES]
+    por_ruta = {c.category_path: c for c in CATEGORIES}
     for rama in ("nina", "nino"):
-        assert rutas.index(f"ninos/{rama}/sudaderas") < rutas.index(f"ninos/{rama}/ropa-deportiva")
-        assert rutas.index(f"ninos/{rama}/punto-y-jerseis") < rutas.index(
-            f"ninos/{rama}/ropa-deportiva"
-        )
+        deportiva = f"ninos/{rama}/ropa-deportiva"
+        assert rutas.index(deportiva) < rutas.index(f"ninos/{rama}/sudaderas")
+        assert rutas.index(deportiva) < rutas.index(f"ninos/{rama}/punto-y-jerseis")
+        filtro = por_ruta[deportiva].filtro
+        assert filtro is not None and filtro.resto == "sudaderas"

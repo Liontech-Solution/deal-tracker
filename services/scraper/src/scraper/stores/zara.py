@@ -29,6 +29,7 @@ Las funciones `parse_*` son puras (JSON -> dataclasses) y se testean con fixture
 from __future__ import annotations
 
 import random
+import re
 import time
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -43,6 +44,7 @@ from .base import (
     GONE_STATUS,
     CategoryNode,
     DelistCandidate,
+    FiltroDeHoja,
     LeafHealth,
     ListingEntry,
     ScanReport,
@@ -80,6 +82,24 @@ class CategoryConfig:
     gender: str  # niño | niña | unisex
     section: str  # ropa | zapateria
     category: str  # zapatos | zapatillas | pantalones | ...
+    # Solo en las hojas que mezclan vocabulario (#200). Ver `FiltroDeHoja` y `_SOLO_CONJUNTOS`.
+    filtro: FiltroDeHoja | None = None
+
+
+# El conjunto de Zara se reconoce por DOS señales y basta con una, porque medido el 06/08/2026
+# ninguna basta sola:
+#
+#   - `familyName` es **taxonomía de la tienda** (`CONJUNTO`, junto a `PANTALON`, `ZAPATO`,
+#     `BAMBAS`…) y viene en cada nodo del listado. Coge 13 que el título pierde: los que la tienda
+#     titula `PACK BODY CRUZADO Y LEGGING` o `SET PRIMERA PUESTA Y BOLSITA` —que son conjuntos, solo
+#     que llamados de otra forma— y un `CONJUTO CAMISETA Y BERMUDA` con la errata de la tienda.
+#   - el **título**, que coge 40 que la familia pierde: `CONJUNTO SUDADERA RAYAS Y LEGGING FLARE` y
+#     compañía están archivados en la familia `CHANDAL BEBE`, que NO vale como señal por sí sola —
+#     esa familia también contiene pantalones y camisetas sueltos (ver la hoja 2426354 arriba).
+#
+# Las dos se anclan al principio (`\A`) porque las dos son etiquetas, no frases: sin ancla, un
+# `VESTIDO CON CONJUNTO DE …` entraría como conjunto sin que nadie lo mirara.
+_SOLO_CONJUNTOS = FiltroDeHoja(re.compile(r"\ACONJUNTO", re.IGNORECASE))
 
 
 # Subconjunto curado: calzado + ropa infantil. Zara separa el catálogo en TRES rangos de edad
@@ -118,35 +138,42 @@ class CategoryConfig:
 # `CAZADORAS | BUZOS` (2428026, abrigo, como en Sfera), `ACCESORIOS` (2428034) y `BOLSOS DE
 # MATERNIDAD` (2428129).
 #
-# **`CONJUNTOS` NO entra, y el motivo hay que leerlo antes de volver a intentarlo (#192).** Se probó
-# —#192 lo pedía, y la categoría `conjuntos` que estrenó esa issue sí existe: la alimentan H&M, C&A
-# e Hipercor, cuyas hojas de conjunto SÍ son paquetes— y aquí una pasada real lo desmintió. Las
-# hojas de Zara son LOOKBOOKS: agrupan las prendas sueltas que componen un look, no un producto que
-# sea varias prendas. De los 41 productos que ingirieron el 05/08/2026, solo 7 se llamaban
-# «CONJUNTO …»; los otros 34 eran gorros, capotas, cazadoras, chubasqueros, blazers, jerséis y
-# leggings — prendas sueltas, y casi todas de las que el brief deja fuera (abrigo, accesorios).
+# **`CONJUNTOS` entra FILTRADA, y el motivo hay que leerlo antes de tocarla (#192, #200).** Mapear
+# la hoja entera se probó en #192 y una pasada real lo desmintió: las hojas de conjunto de Zara son
+# LOOKBOOKS, agrupan las prendas sueltas que componen un look y no un producto que sea varias
+# prendas. De los 41 productos que ingirieron el 05/08/2026, solo 7 se llamaban «CONJUNTO …»; los
+# otros 34 eran gorros, capotas, cazadoras, chubasqueros, blazers, jerséis y leggings — prendas
+# sueltas, y casi todas de las que el brief deja fuera (abrigo, accesorios). Así que se revirtió.
 #
-# La trampa está en cómo se mide. Contar los productos EXCLUSIVOS de la hoja (los que no entran por
-# ninguna otra) parece decir «estos no tienen casa natural», y no es eso lo que dice: también son
-# exclusivos los que tienen una casa que hemos decidido no ingerir. En una hoja-lookbook las dos
-# poblaciones se confunden, y salen 52 «conjuntos» que no lo son. El indicio estructural estaba a la
-# vista y no se leyó: las tres cuelgan de `TOTAL LOOK | CHÁNDAL`, no del eje de prenda.
+# La trampa está en cómo se mide, y sigue en pie. Contar los productos EXCLUSIVOS de la hoja (los
+# que no entran por ninguna otra) parece decir «estos no tienen casa natural», y no dice eso:
+# también son exclusivos los que tienen una casa que hemos decidido no ingerir. En una hoja-lookbook
+# las dos poblaciones se confunden, y salen 52 «conjuntos» que no lo son. El indicio estructural
+# estaba a la vista y no se leyó: las tres cuelgan de `TOTAL LOOK | CHÁNDAL`, no del eje de prenda.
 #
-# Las hojas probadas y descartadas, medidas el 05/08/2026 (total / exclusivos):
-#   2428167 CONJUNTOS  (bebé)      242 / 30   ← de los 212 que ya entran: sudaderas 84,
-#                                               pantalones 47, camisetas 44, vestidos 23, r.-int. 14
-#   2426357 CONJUNTOS  (niña 6-14)  56 /  9
-#   2428290 TOTAL LOOK (niño 6-14)  44 / 13   ← la hermana asimétrica de la anterior
-#   2426354 CHÁNDAL    (niña)       73 /  9
-#   2622124 CHANDAL    (niño)      117 / 22
-#   2558947 PACKS|CONJUNTOS (niño)  28 /  2
+# Lo que cambia en #200 es que ya no hay que elegir entre la hoja entera y nada: `FiltroDeHoja` deja
+# quedarse solo con lo que la tienda identifica como conjunto (ver `_SOLO_CONJUNTOS`), y el residuo
+# del lookbook se descarta como antes.
+#
+# **Y cuáles se mapean lo dice la medida, no el nombre de la hoja.** Contadas las seis candidatas el
+# 06/08/2026, «conjuntos» = familia CONJUNTO ∪ título «CONJUNTO …»:
+#   ✓ 2428167 CONJUNTOS  (bebé)      245 productos → 78 conjuntos
+#     2426357 CONJUNTOS  (niña 6-14)  56          →  0   ← la hoja se llama así y no trae ninguno
+#     2428290 TOTAL LOOK (niño 6-14)  44          →  0
+#   ✓ 2426354 CHÁNDAL    (niña)       81          → 13   ← la ÚNICA fuente de conjuntos de niña 6-14
+#   ✓ 2622124 CHANDAL    (niño)      117          → 20
+#   ✓ 2558947 PACKS|CONJUNTOS (niño)  26          → 18
+#
+# O sea que las dos hojas que llevan «CONJUNTOS» en el rótulo no publican ni uno, y tres de las que
+# #192 descartó son las que los tienen. Es la misma lección que aquella issue, por el otro lado: en
+# esta tienda el nombre de la hoja no dice lo que hay dentro, ni para bien ni para mal.
+#
+# Las dos de 0 se quedan **fuera a propósito**: mapearlas costaría dos peticiones por pasada para no
+# traer nada y dejaría su ámbito permanentemente fuera de las bajas por `filtro_vacio()`, que es una
+# señal que solo vale si significa algo. Si algún día vuelven a publicar conjuntos, se añaden.
 #
 # Ojo también al número que citaba #192: «207 productos nuevos» **ya no es cierto**. Se midió
 # mientras se implementaba #186, contra el catálogo de antes de que existieran las hojas de bebé.
-#
-# Si algún día se quiere recuperar lo que sí hay aquí —los 7 conjuntos de verdad—, el camino NO es
-# mapear la hoja: es clasificar por nombre dentro de ella, que es trabajo de otro tipo y la misma
-# pregunta abierta que tiene Sfera con sus 25 mezclados en `ropa-deportiva`.
 #
 # Dos hojas de bebé mezclan vocabulario y la elección no es obvia; queda escrita porque el nombre
 # de la hoja no basta y hubo que mirar el contenido:
@@ -187,6 +214,22 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(2427608, "niña", "zapateria", "zapatillas"),
     CategoryConfig(2428560, "niño", "zapateria", "zapatos"),
     CategoryConfig(2428558, "niño", "zapateria", "zapatillas"),
+    # --- conjuntos (#200): DELANTE de la ropa, y con filtro ---
+    # Van delante para que un conjunto que la tienda publica además bajo una de las cinco del brief
+    # se quede como `conjuntos` y no como `sudaderas`.
+    #
+    # **El orden no es el mismo en las cinco tiendas, y el criterio es el tamaño de la hoja**,
+    # medido el 06/08/2026: DELANTE donde la hoja es un residuo (aquí 84 conjuntos, 72 de ellos
+    # re-etiquetados; en Sfera 28 y 9) y DETRÁS donde es un catálogo paralelo (en H&M eran 560 y
+    # adelantarlas vaciaba un tercio de `pantalones`; las cifras están al final de su `CATEGORIES`).
+    # C&A e Hipercor van detrás por lo mismo por lo que fueron las primeras en tener la categoría:
+    # allí la hoja es limpia y solo se buscaba lo exclusivo.
+    #
+    # Pero NO delante del calzado: un producto de las hojas barefoot conserva su precedencia, que es
+    # lo que decidió la nota de orden de arriba y no tiene nada que ver con esto.
+    CategoryConfig(2426354, "niña", "ropa", "conjuntos", filtro=_SOLO_CONJUNTOS),  # CHÁNDAL, 13
+    CategoryConfig(2622124, "niño", "ropa", "conjuntos", filtro=_SOLO_CONJUNTOS),  # CHANDAL, 20
+    CategoryConfig(2558947, "niño", "ropa", "conjuntos", filtro=_SOLO_CONJUNTOS),  # PACKS, 18
     # --- ropa niña (6-14 años + mini 1½-6) ---
     CategoryConfig(2427327, "niña", "ropa", "pantalones"),  # pantalones
     CategoryConfig(2422199, "niña", "ropa", "pantalones"),  # pantalones (mini)
@@ -229,6 +272,11 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(2428509, "niño", "ropa", "ropa-interior"),  # ropa interior | calcetines
     CategoryConfig(2427980, "niño", "ropa", "ropa-interior"),  # ropa interior | calcetines (mini)
     # --- bebé 0-18 meses (#186): AL FINAL a propósito, ver la nota del orden más arriba ---
+    # Su hoja de conjuntos va PRIMERA dentro de este bloque, no del fichero: así gana a las demás
+    # de bebé (un conjunto de bebé se etiqueta `conjuntos` y no `sudaderas`) y sigue perdiendo con
+    # todas las de género, que es exactamente lo que #186 midió y quiso — 612 productos de bebé ya
+    # entraban con género, y adelantarla se lo quitaría para ponerles `unisex`.
+    CategoryConfig(2428167, "unisex", "ropa", "conjuntos", filtro=_SOLO_CONJUNTOS),
     CategoryConfig(2637249, "unisex", "ropa", "vestidos"),  # vestidos | peleles
     CategoryConfig(2428227, "unisex", "ropa", "vestidos"),  # petos | monos
     CategoryConfig(2428149, "unisex", "ropa", "camisetas"),  # camisetas
@@ -297,7 +345,13 @@ def _color_image_urls(color: dict[str, Any]) -> list[str]:
 
 
 def parse_listing_entries(listing: dict[str, Any], cat: CategoryConfig) -> list[ListingEntry]:
-    """Extrae una `ListingEntry` (id estable + huella) por producto, en orden y sin duplicar."""
+    """Extrae una `ListingEntry` (id estable + huella) por producto, en orden y sin duplicar.
+
+    Si la hoja lleva `filtro` (#200), lo que no case **no se emite**: la hoja es un lookbook y sus
+    otros productos son prendas sueltas que ya entran por su propia hoja o que el brief deja fuera.
+    Descartarlos aquí y no más adelante importa por el dedup de `list_catalog()`: un producto no
+    emitido no ocupa su hueco en `emitted`, así que sigue pudiendo entrar por la hoja que le toca.
+    """
     entries: list[ListingEntry] = []
     seen: set[str] = set()
     for node in _iter_product_nodes(listing):
@@ -305,13 +359,24 @@ def parse_listing_entries(listing: dict[str, Any], cat: CategoryConfig) -> list[
         if pid in seen:
             continue
         seen.add(pid)
+        categoria = cat.category
+        if cat.filtro is not None:
+            # Las DOS señales, porque ninguna basta sola (ver `_SOLO_CONJUNTOS`).
+            resuelta = cat.filtro.categoria(
+                str(node.get("familyName") or ""),
+                str(node.get("name") or ""),
+                propia=cat.category,
+            )
+            if resuelta is None:
+                continue
+            categoria = resuelta
         entries.append(
             ListingEntry(
                 retailer_product_id=pid,
                 signature=_listing_signature(node),
                 gender=cat.gender,
                 section=cat.section,
-                category=cat.category,
+                category=categoria,
             )
         )
     return entries
@@ -524,7 +589,13 @@ class ZaraStore:
                     self._scan.leaf_gone(scope, str(cat.category_id))
                     continue
                 self._scan.leaf_ok()
-                for entry in parse_listing_entries(listing, cat):
+                entradas = parse_listing_entries(listing, cat)
+                # La hoja respondió pero su filtro no casó con nada: puede ser que la tienda haya
+                # cambiado la rotulación, y entonces callarse descatalogaría todo lo que había.
+                # Ver `ScanReport.filtro_vacio()`.
+                if cat.filtro is not None and not entradas:
+                    self._scan.filtro_vacio(scope, str(cat.category_id))
+                for entry in entradas:
                     if entry.retailer_product_id not in emitted:
                         emitted.add(entry.retailer_product_id)
                         yield entry

@@ -19,6 +19,7 @@ pasada (ver `ScanReport`).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -162,6 +163,70 @@ def con_unisex(scopes: Iterable[ScrapeScope]) -> list[ScrapeScope]:
 
 
 @dataclass(frozen=True)
+class FiltroDeHoja:
+    """«De esta hoja, solo lo que case»: parte en dos una hoja que mezcla vocabulario (#200).
+
+    Existe porque una `CategoryConfig` mapea una hoja a UNA categoría, y hay hojas que traen dos
+    cosas distintas. Mapear la hoja entera ya se probó en #192 y se revirtió dos veces: el residuo
+    de una hoja que reagrupa no es una categoría (el porqué está en las cabeceras de `zara.py` y
+    `hm.py`). Lo que hace falta no es otro mapeo, es poder decir cuál de los dos es cada producto.
+
+    `patron` se aplica a los textos que la tienda ya sirve **en el listado**, así que no cuesta
+    ninguna petición extra ni obliga a pedir la ficha para decidir. Cada tienda elige cuáles le da,
+    y **basta con que case uno**: en Zara son su taxonomía (`familyName`) y el título, porque
+    medido el 06/08/2026 ninguno de los dos basta solo —la familia rescata `PACK BODY Y LEGGING` y
+    un `CONJUTO` mal escrito que el título pierde, y el título rescata 40 que la tienda archiva
+    como `CHANDAL BEBE`—; en H&M y Sfera es el título, que rotulan «Conjunto de …» de forma
+    sistemática y que es lo único que publican.
+
+    `resto` es lo que se hace con lo que NO casa, y son los dos casos que hay:
+
+      - `None` — se descarta. La hoja no está mapeada por nada más y lo que no casa no es del brief:
+        `sets-outfits` de H&M cuela disfraces y trajes, que son dos ramas que esa tienda ya declara
+        fuera y volverían por la puerta de atrás (#192).
+      - una categoría — la hoja sigue aportando su otra mitad. Es `ropa-deportiva` de Sfera, que son
+        66 sudaderas y 25 conjuntos y **ya se ingería entera** como `sudaderas` desde #175.
+
+    Cuidado con el caso a cero, que es la parte silenciosa: ver `ScanReport.filtro_vacio()`.
+
+    **Y cuidado con lo que se ve el día del despliegue**, que es lo que más despista: sobre una base
+    que ya tiene catálogo, el re-etiquetado NO llega en la primera pasada. La categoría solo la
+    escribe `ingest._upsert_product()`, o sea solo cuando se pide la ficha, y a un producto cuya
+    huella no ha cambiado no se le pide (`_touch_seen` solo marca que se le ha visto). Así que las
+    prendas que este filtro reclasifica se van moviendo **por goteo**, según cambie su precio o le
+    toque el refresco forzado por `SCRAPER_DETAIL_MAX_AGE_DAYS`.
+
+    Medido el 06/08/2026 contra Postgres, devolviendo a mano los 84 conjuntos de Zara a
+    `pantalones`: una pasada normal los dejó donde estaban, y una con `--refresh-all` (tope 400)
+    recuperó 33. Es el mismo comportamiento que #172 documenta para el género, y la misma cura. Si
+    alguien mira la base recién desplegada y ve la categoría casi vacía, esto es lo que está viendo
+    — no un filtro que no funciona.
+    """
+
+    patron: re.Pattern[str]
+    resto: str | None = None
+    # Lo que casa `patron` pero **no** queremos, y manda sobre él. No es simetría gratuita: la hoja
+    # mezclada de H&M publica «Conjunto de disfraz», que es un conjunto de verdad por el título y un
+    # DISFRAZ por lo que es — o sea `fancy-dress-costumes`, una rama que esa tienda ya declara fuera
+    # del brief, volviendo por la puerta de atrás. Es el mismo fallo que #192, un nivel más abajo:
+    # allí se colaba por la hoja y aquí por el nombre.
+    #
+    # Se descubrió leyendo los nombres ingeridos uno a uno (3 de 7 lo eran), que es la comprobación
+    # que aquella issue dejó escrita como obligatoria y la única que lo habría visto.
+    excepto: re.Pattern[str] | None = None
+
+    def acepta(self, *textos: str) -> bool:
+        """Si alguno de los textos que la tienda publica identifica al producto."""
+        if self.excepto is not None and any(self.excepto.search(t) for t in textos):
+            return False
+        return any(self.patron.search(t) for t in textos)
+
+    def categoria(self, *textos: str, propia: str) -> str | None:
+        """La categoría que le toca a este producto, o `None` si hay que descartarlo."""
+        return propia if self.acepta(*textos) else self.resto
+
+
+@dataclass(frozen=True)
 class ListingEntry:
     """Producto tal y como aparece en el listado, con una huella para detectar cambios."""
 
@@ -221,6 +286,11 @@ class ScanReport:
     # colapsan géneros con `ambito_cruzado()`. Una hoja ya `unisex` que se cae no lo toca: ahí no
     # hay ninguna rama superviviente que pueda mentir.
     cross_gender_suspect: set[ScrapeScope] = field(default_factory=set)
+    # Hojas que se listaron bien pero cuyo `FiltroDeHoja` no casó con nada (#200). Van en una lista
+    # aparte de `failed_leaves` porque **no son hojas caídas** y no deben contarse como tales: la
+    # hoja respondió. Lo que comparten es la consecuencia, que su ámbito sale de las bajas — ver
+    # `filtro_vacio()`.
+    empty_filter_leaves: list[str] = field(default_factory=list)
 
     def leaf_ok(self) -> None:
         """Registra una hoja listada con éxito."""
@@ -259,6 +329,27 @@ class ScanReport:
             contraria = genero_contrario(scope.gender)
             if contraria is not None:
                 self.cross_gender_suspect.add(ScrapeScope(contraria, scope.section, scope.category))
+
+    def filtro_vacio(self, scope: ScrapeScope, leaf: str) -> None:
+        """Una hoja que SÍ se listó pero cuyo `FiltroDeHoja` no casó con nada (#200).
+
+        Es un fallo silencioso de la misma familia que la hoja caída, pero por el otro extremo: la
+        hoja responde, la pasada parece perfecta, y lo que ha cambiado es la **rotulación** de la
+        tienda. Y es indistinguible de que hoy no queden conjuntos, que también es posible.
+
+        Sin esto, un cambio de rótulo descatalogaría de golpe todo lo que la hoja etiquetaba —los
+        conjuntos ingeridos dejarían de verse y nadie los estaría reclamando desde ningún otro
+        ámbito—. Con esto, el ámbito queda fuera de las bajas de esta pasada y el nombre de la hoja
+        llega a `scrape_run.message`, que es donde se lee sin depender del log del pod.
+
+        **No cuenta como una hoja caída**, y esa es la diferencia importante con `leaf_gone()`: la
+        hoja se ha listado, y en Sfera además sigue emitiendo su `resto`. Sumarla a `leaves_failed`
+        inflaría `dead_ratio` y dispararía `SCRAPER_SCAN_MAX_DEAD_RATIO` por algo que no es un
+        bloqueo ni un cambio de API — es el mismo razonamiento que ya hace el ámbito extra de
+        `tambien_unisex`, que tampoco cuenta como hoja.
+        """
+        self.failed_scopes.add(scope)
+        self.empty_filter_leaves.append(leaf)
 
     @property
     def dead_ratio(self) -> float:
