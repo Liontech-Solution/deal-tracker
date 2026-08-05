@@ -13,3 +13,4 @@
 - [gh-pr-merge-desde-worktree](gh-pr-merge-desde-worktree.md) — el error «main is already used by worktree» llega DESPUÉS de mergear: comprobar el PR y borrar la rama a mano
 - [cerrar-issue-desde-el-pr](cerrar-issue-desde-el-pr.md) — «Cierra #N» en español no autocierra nada; la keyword va en inglés o se cierra a mano
 - [reindexar-tras-actualizar-main](reindexar-tras-actualizar-main.md) — `index_repository` lee el árbol del checkout principal, que no se actualiza al mergear desde un worktree: `merge --ff-only` antes de reindexar, y para eso hay que **salir del worktree primero** (el sandbox veta `git -C`, y el prefijo `!` también)
+- [commit-en-fish-se-come-backticks](commit-en-fish-se-come-backticks.md) — `git commit -m` con backticks en fish sustituye el identificador por vacío y commitea igual: mensajes y cuerpos por heredoc `<<'EOF'`
