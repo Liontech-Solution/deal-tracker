@@ -19,12 +19,20 @@ _CATS = [CategoryConfig("ninos/nina/zapatos", "niña", "zapateria", "zapatos")]
 
 
 class FakeSession:
-    """Sustituye a `BrowserSession`: respuestas de stock y status de navegación por URL."""
+    """Sustituye a `BrowserSession`: respuestas de stock y status de la PDP por URL.
+
+    Distingue **pedir** de **navegar** (`pedidas` / `navegadas`), que es lo único que separa las
+    dos rutas de `BrowserSession`: las dos devuelven el mismo status. Sin esa distinción el doble
+    no puede notar que la ficha se renderiza cuando no hace falta (#168, y el mismo apaño que
+    #160 le hizo al doble de Hipercor).
+    """
 
     def __init__(self, stock: dict[str, Any], statuses: dict[str, int]) -> None:
         self._stock = stock
         self._statuses = statuses
         self.visited: list[str] = []
+        self.navegadas: list[str] = []
+        self.pedidas: list[str] = []
 
     def __enter__(self) -> FakeSession:
         return self
@@ -39,7 +47,13 @@ class FakeSession:
 
     def goto(self, url: str) -> int:
         self.visited.append(url)
+        self.navegadas.append(url)
         return self._statuses.get(url, 200)
+
+    def pedir_html(self, url: str) -> tuple[int, str]:
+        self.visited.append(url)
+        self.pedidas.append(url)
+        return self._statuses.get(url, 200), ""
 
     def get_json(self, url: str) -> Any:
         self.visited.append(url)
@@ -101,6 +115,22 @@ def test_sin_url_no_hay_veredicto_posible() -> None:
     store = _store(session)
 
     assert store.probe_alive([DelistCandidate("A1", None)]) == {}
+
+
+def test_la_ficha_se_pide_y_no_se_navega() -> None:
+    """De la PDP solo se lee el status, y `pedir_html` lo da sin ejecutar el JS de la página.
+
+    Lo único que sigue navegándose es la siembra de cookies, que es la precondición que este
+    camino no puede darse a sí mismo (#168).
+    """
+    url = "https://www.sfera.com/es/ninos/A1-x/"
+    session = FakeSession(stock={"A1": _stock([])}, statuses={url: 404})
+    store = _store(session)
+
+    assert store.probe_alive([_candidate("A1")]) == {"A1": False}
+    assert session.pedidas == [url]
+    assert url not in session.navegadas
+    assert len(session.navegadas) == 1, "la única navegación es la siembra"
 
 
 def test_sin_candidatos_no_abre_navegador() -> None:

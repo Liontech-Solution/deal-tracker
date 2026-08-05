@@ -539,7 +539,7 @@ def test_check_leaves_siembra_las_cookies_antes_de_sondear() -> None:
     """El 403 de Akamai se lo comía la PRIMERA hoja del sondeo, fuera cual fuera (#129).
 
     No era una hoja enferma: `check_leaves()` entraba directo a firefly sin la navegación que sí
-    hacen `_iter_category()` y `probe_alive()`, y Akamai contesta 403 a la primera petición de la
+    hacen `list_catalog()` y `probe_alive()`, y Akamai contesta 403 a la primera petición de la
     sesión. El vigía semanal (#67) informaba 34/35 vivas todos los jueves.
     """
     store, _ = _scan_store(
@@ -561,6 +561,23 @@ def test_la_siembra_del_sondeo_es_una_sola_para_todas_las_hojas() -> None:
 
     list(store.check_leaves())
 
+    assert len(session.navegadas) == 1
+
+
+def test_la_siembra_de_la_pasada_es_una_sola_para_todas_las_hojas() -> None:
+    """Lo mismo que el sondeo, pero en la pasada — que es donde NO se cumplía (#168).
+
+    `_iter_category()` sembraba por hoja: 38 navegaciones por pasada, cada una con el render
+    completo de una página de escaparate, para conseguir lo que la primera ya había conseguido.
+    Medido contra la tienda el 05/08/2026: 38/38 hojas con payload partiendo de una sola siembra.
+    """
+    store, session = _scan_store(
+        {"ninos/nina/zapatos": _firefly("Z1"), "ninos/nina/camisetas": _firefly("C1")}
+    )
+
+    ids = [e.retailer_product_id for e in store.list_catalog()]
+
+    assert ids == ["Z1", "C1"], "la siembra única no puede costar ni un producto"
     assert len(session.navegadas) == 1
 
 
