@@ -1450,10 +1450,52 @@ sin una siembra explícita la pasada muere a la sexta ficha con cara de bloqueo 
 asimetría entre los dos tipos de página es lo que lo hace difícil de leer: la mitad del scraper
 funciona.
 
-Generalizable a las otras dos tiendas de navegador (`sfera`, `lefties`), que hoy siguen navegando: la
-pregunta a hacerse antes de optimizar un scraper de navegador no es cuánto recorta bloquear
+La pregunta a hacerse antes de optimizar un scraper de navegador no es cuánto recorta bloquear
 recursos, sino **si esa página concreta necesita navegador en absoluto**. Se contesta comparando
 `pedir_html()` contra `get_html()` sobre las mismas URLs y parseando las dos, que es media hora.
+
+#### Pero esa pregunta solo aplica a una tienda que parsea HTML, y las otras dos no lo hacen (#168)
+
+Aquí decía que esto era «generalizable a las otras dos tiendas de navegador (`sfera`, `lefties`),
+que hoy siguen navegando». **Es falso**, y conviene saber por qué antes de repetir el análisis:
+medido el 05/08/2026, ni Sfera ni Lefties parsean HTML. Las dos van por `BrowserSession.get_json()`,
+que ya usa `page.request` — el mismo camino sin render que `pedir_html()`. No hay una sola llamada a
+`get_html()` en `sfera.py` ni en `lefties.py`.
+
+En una tienda así el navegador **no está para leer la página, está para el apretón de manos de
+Akamai**: la primera petición de la sesión se lleva un 403 y las cookies llegan con esa misma
+respuesta, así que hace falta una navegación real y no se puede quitar. El techo del ahorro es por
+tanto muchísimo más bajo que el de Hipercor, y la pregunta útil es otra: **cuántas navegaciones hace
+la pasada, y si todas hacen falta**.
+
+Contestada, había una de más por hoja. `sfera._iter_category()` sembraba dentro del bucle de
+`list_catalog()` — 38 navegaciones por pasada, cada una con el render completo de una página de
+escaparate— cuando `check_leaves()` sembraba **una sola vez** desde #129 y hasta tenía un test
+defendiéndolo. La misma clase se contradecía consigo misma:
+
+| | antes | después |
+|---|---|---|
+| navegaciones de la pasada de listado | 38 | **1** |
+| peticiones de API | 80 | 80 (igual) |
+| entradas de listado | 663 | 663 (igual) |
+| fase de listado | ~2m | **53s** |
+
+Catálogo idéntico: mismos 663 ids y **0 variantes perdidas**. Y `probe_alive` pasó a **pedir** la
+PDP en vez de navegarla —de ella solo se lee el status— con 14/14 veredictos idénticos sobre 5 URLs
+vivas y 2 canarios, sembrado y sin sembrar. Lefties se queda como estaba, y eso también es
+resultado: sus `goto` son uno por fase, no uno por página, y sus 76 rejillas se sirven con una sola
+navegación.
+
+Dos cosas de método que costaron tiempo y se repiten cada vez que se mide una tienda:
+
+- **Un canario mal fabricado miente en la dirección peligrosa.** El id de Sfera va en la **ruta**
+  (`/ninos/A200976492-...`); mutar el último número de la URL toca el `parentCategoryId` de la query
+  y devuelve el mismo producto con un 200. Leído tal cual, ese 200 dice «esta tienda no da 404
+  nunca», que es exactamente el hallazgo alarmante que no era.
+- **Un subconjunto estricto entre dos pasadas no prueba que el cambio pierda datos.** La primera
+  comparación dio 662 contra 663; repitiendo se vio que la diferencia seguía al reloj y no al código
+  (la tienda da altas entre pasada y pasada). Contra una tienda viva, el A/B hay que cerrarlo
+  repitiendo, no razonando sobre la dirección de la diferencia.
 
 ### Un pod muerto deja su transacción abierta, y la siguiente pasada se queda muda esperándola
 
