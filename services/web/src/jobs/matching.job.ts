@@ -13,29 +13,13 @@
  * `--dry-run` registra qué avisos habría mandado y **no cambia nada**: ni `notification` ni marca
  * de agua. Es lo que corre en `dev`, donde el bot está apagado.
  */
-import { Logger, Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
-import { validateJobEnv } from '../config/configuration';
 import type { EnvConfig } from '../config/configuration';
-import { DatabaseModule } from '../database/database.module';
-import { MatchingModule } from '../matching/matching.module';
 import { MatchingService } from '../matching/matching.service';
-
-/**
- * Contexto mínimo: reutiliza la DI (cliente de Telegram, Drizzle) sin levantar HTTP, auth ni
- * estáticos. `TelegramPollingService` viaja en `TelegramModule` pero queda inerte: sin
- * `TELEGRAM_POLLING_ENABLED` no arranca ningún bucle.
- */
-@Module({
-  imports: [
-    ConfigModule.forRoot({ isGlobal: true, cache: true, validate: validateJobEnv }),
-    DatabaseModule,
-    MatchingModule,
-  ],
-})
-class MatchingJobModule {}
+import { MatchingJobModule } from './matching-job.module';
 
 async function main(): Promise<void> {
   const logger = new Logger('MatchingJob');

@@ -41,9 +41,12 @@ export class MatchingService {
   private readonly logger = new Logger(MatchingService.name);
 
   /**
-   * Espera entre trozos, en ms. Propiedad y no parámetro del constructor a propósito: nada monta
-   * `MatchingModule` en los tests —solo lo hace el job—, así que un parámetro más que Nest tuviera
-   * que resolver rompería en el cluster sin que nadie se enterase aquí. Los tests la bajan a 0.
+   * Espera entre trozos, en ms. Propiedad y no parámetro del constructor: cuando se escribió,
+   * nada montaba `MatchingModule` en los tests —solo lo hacía el job—, así que un parámetro más
+   * que Nest tuviera que resolver habría roto en el cluster sin que nadie se enterase aquí. Desde
+   * #239 eso ya no es cierto (`test/jobs-di.spec.ts` levanta el contexto del job y pide este
+   * servicio al contenedor), pero la propiedad se queda: el doble de Telegram de los e2e sigue
+   * necesitando bajarla a 0 sin pasar por la DI.
    */
   chunkDelayMs = CHUNK_DELAY_MS;
 
