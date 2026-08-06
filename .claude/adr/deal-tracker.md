@@ -175,6 +175,24 @@ SPA (Authorization Code + PKCE, mismo client, mismo redirect URI) y funciona, as
 API de `/validar-qa` puede pasar sus 51 casos autenticados en verde con el login roto para todo el
 mundo. Es justo el punto ciego que obliga a que el frente de UI se ejerza en un navegador de verdad.
 
+**Y ese Keycloak no lo gobierna ninguno de los dos repos de este proyecto.** Vive en un tercero —
+`open-liontechsolution/toolsuite-platform-gitops`, path `apps/security/keycloak`, chart `keycloakx`,
+desplegado en `security-dev/keycloak-dev-0`—, así que el contrato de dos repos que describe este ADR
+tiene un tercer vértice del que depende todo el login. Y ahí el realm y sus clients **no están
+declarados en ninguna parte**: el StatefulSet arranca con `start --hostname-strict=false
+--proxy-headers=xforwarded`, sin `--import-realm`, y el README de ese chart deja escrito que la
+configuración de realms es trabajo futuro. Existe solo en la Postgres de Keycloak.
+
+De ahí salen dos consecuencias que **invierten el reflejo que vale para deal-tracker**. La primera:
+aquí ArgoCD no revierte nada — la Application `keycloak-local-dev` no tiene bloque `automated`, así
+que un cambio por `kcadm.sh` persiste y sobrevive al reinicio del pod, al contrario que en
+deal-tracker, donde `selfHeal: true` deshace cualquier `kubectl patch`. Conviene saberlo antes de
+buscar el fichero que no existe. La segunda, peor: **nada en git delata una regresión de esa
+config**. El Web Origins roto se arregló con un solo `kcadm.sh update` el 06/08/2026, pero puede
+volver mañana sin aparecer en ningún diff, y lo único que lo cazaría es el frente de UI de
+`/validar-qa` en un navegador. Declararlo en git es
+`open-liontechsolution/toolsuite-platform-gitops#49`.
+
 **El arm64 solo se compila en `main`, y eso es deliberado.** El cluster son Raspberry Pi, así que
 la variante arm64 es obligatoria para desplegar; pero emularla con QEMU en cada PR costaba ~9 min
 por servicio *y se tiraba* (los PR construyen con `push: false`). Medido: el job `image` de un PR
