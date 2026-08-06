@@ -300,6 +300,28 @@ forma es ya el patrón para cualquier campo de texto que venga de las tiendas:
    un `translate()` explícito (0021) y **nunca con `lower()` a secas**. Detalle en el apartado de
    abajo, que es donde está lo transportable.
 
+**«Solo a la comparación» no significa «solo a la comparación»: lo que el usuario LEE también va
+canónico** (#223). El punto 2 protege la *columna*, y se leyó como si autorizara devolver el texto
+crudo a cualquier consumidor. No: la canónica es el vocabulario del producto, así que todo lo que
+nombre una variante delante del usuario tiene que hablarlo. Lo crudo se conserva en la columna
+—para el join de las fotos y para la ficha de la tienda—, no para rotular.
+
+Importa porque los sitios que nombran una variante son **dos**: la lista de seguimientos
+(`GET /interests`) y el aviso de Telegram, que comparten `variantLabel()` precisamente para no
+divergir. Los dos devolvían la talla de la tienda mientras la faceta, el filtro y el propio
+`interest.size` guardado decían otra cosa: el usuario seguía una «Talla 24» y el bot le hablaba de
+una «Talla 24 (14,9 cm)». La canónica ya venía calculada por la base en los dos casos —en el
+`SELECT` de `findCandidates` viaja como `sizeCanon`, al lado de la cruda—, así que el arreglo no
+costó ni una consulta: costó darse cuenta.
+
+Esto **invierte una decisión anterior** que solo estaba escrita en un test («el mensaje enseña la
+talla de la tienda, es lo que el usuario verá al abrir el enlace»), y conviene saber por qué se
+cambió de opinión: la ficha del retailer enseña sus propias tallas de todas formas al otro lado del
+enlace, mientras que la coherencia entre lo que el usuario sigue y lo que el bot le dice es lo
+único que sostiene que sean la misma prenda. El color, en cambio, sigue crudo **a propósito**:
+`color_canon` niega devolviendo `NULL` (0016), así que canonizar la etiqueta no normalizaría el
+color — lo borraría.
+
 **Un mismo texto puede significar cosas distintas, y la sección NO es lo que lo decide.** `size_canon`
 leía `25-34` o `20 /21` como rango de EDAD cuando en Cacles son números de pie: plantillas vendidas
 por rango y calzado de primeros pasos con talla doble. El catálogo llegaba a ofrecer un chip de talla

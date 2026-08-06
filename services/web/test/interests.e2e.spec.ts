@@ -78,6 +78,34 @@ describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
     }
   });
 
+  it('la etiqueta de la variante lleva la talla CANÓNICA, no la de la tienda (#223)', async () => {
+    // El seed usa la talla '24', que es su propia canónica: con ella este defecto es invisible.
+    // Hace falta una talla con el sufijo de unidad que publican Zara y compañía, que es donde
+    // `size_canon` sí cambia el texto — y donde `/interests` devolvía el crudo mientras las
+    // facetas, los filtros y el chip guardado decían otra cosa.
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${ids.productId}, 'ZARA-1-2anios-rosa', '2 años (92 cm)', 'Rosa / Blanco', 'SKU2A')
+      RETURNING id`;
+
+    const user = await seedUser(sql, 'kc-sub-label-canon');
+    const app = await makeApp(user);
+    try {
+      await request(app.getHttpServer()).post('/api/interests').send({ variantId: v.id }).expect(201);
+
+      const listed = await request(app.getHttpServer()).get('/api/interests').expect(200);
+      expect(listed.body).toHaveLength(1);
+      const view = listed.body[0];
+      // `Number(...)`: los ids de `bigint` los devuelve postgres.js como string.
+      expect(view.variantId).toBe(Number(v.id));
+      // El color va CRUDO a propósito: `color_canon` devuelve NULL para lo que no reconoce (#51),
+      // así que canonizarlo aquí borraría el color en vez de normalizarlo.
+      expect(view.variantLabel).toBe('Talla 2 años · Rosa / Blanco');
+    } finally {
+      await app.close();
+    }
+  });
+
   it('un interés por filtros (sin objetivo) trae los nombres a null', async () => {
     const user = await seedUser(sql, 'kc-sub-filter');
     const app = await makeApp(user);

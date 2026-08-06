@@ -282,9 +282,14 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     const summary = await makeService(client).run(false);
 
     expect(summary.notified).toBe(1);
-    // Y el mensaje enseña la talla de la tienda, no la canónica: es lo que el usuario verá al abrir
-    // el enlace.
-    expect(sent[0].text).toContain('24 (14,9 cm)');
+    // Y el mensaje enseña la talla CANÓNICA (#223). Esto invierte lo que afirmaba este test hasta
+    // ahora —«la de la tienda, es lo que el usuario verá al abrir el enlace»—, y conviene dejar
+    // escrito por qué se cambió de opinión: el aviso y la web tienen que nombrar la variante igual.
+    // El usuario sigue un seguimiento que su lista rotula «Talla 24»; que el bot le hablara de una
+    // «Talla 24 (14,9 cm)» le obliga a deducir que son la misma. La ficha de la tienda, al otro
+    // lado del enlace, enseña sus propias tallas de todas formas.
+    expect(sent[0].text).toContain('Talla 24 · rojo');
+    expect(sent[0].text).not.toContain('14,9 cm');
   });
 
   it('no confunde tallas distintas al normalizar', async () => {

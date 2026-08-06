@@ -35,7 +35,22 @@ Tres cosas que ahorran tiempo:
 - Puerto **no** 5432: con varias sesiones a la vez conviene uno propio (55432 y siguientes).
 
 El contenedor es de la sesión y se borra al cerrar (`docker rm -f dt<issue>-pg`), que se lleva las
-dos bases de dentro. Ojo con `dt-pg`, que es de otra sesión.
+dos bases de dentro.
+
+**Crea el tuyo aunque veas un `dt-pg` parado y reaprovecharlo parezca gratis** — no lo es. Medido
+el 06/08/2026: un `docker start` sobre un contenedor que salió con `Exited (128)` (un reinicio de la
+máquina) lo deja corriendo **sin ninguna red**. `HostConfig.PortBindings` sigue diciendo `5432`,
+pero `NetworkSettings.Ports` y `.Networks` vienen **vacíos**, `docker port` no imprime nada y no hay
+nadie escuchando en el host. `docker exec ... psql` funciona —y engaña, porque va por el socket de
+dentro—; todo lo que conecte por TCP muere.
+
+El síntoma no se parece a la causa: los specs de integración fallan en bloque (33 de 349) con
+`Hook timed out in 10000ms` sobre el `resetSchema` del `beforeEach`, así que parece cosa de las
+migraciones o del esquema, y aplicarlas a mano no cambia nada. Lo que lo distingue en un comando es
+`ss -ltnp | grep 5432` (nada) o `docker inspect <c> --format '{{json .NetworkSettings.Networks}}'`
+(`{}`). Se arregla sin recrear nada con `docker network connect bridge <c>`, y luego se conecta por
+la **IP del bridge** (`docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'`,
+típicamente `172.17.0.2`), no por `localhost`: el puerto publicado sigue sin existir.
 
 Relacionado: [[scraper-sin-just-ni-env]] (el mismo problema del lado Python),
 [[verificar-en-cluster-dev]] (por qué son **dos** bases y no una).
