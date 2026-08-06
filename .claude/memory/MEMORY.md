@@ -16,3 +16,4 @@
 - [commit-en-fish-se-come-backticks](commit-en-fish-se-come-backticks.md) — `git commit -m` con backticks en fish sustituye el identificador por vacío y commitea igual: mensajes y cuerpos por heredoc `<<'EOF'`
 - [gh-issue-view-comments-solo-comenta](gh-issue-view-comments-solo-comenta.md) — `--comments` imprime SOLO los comentarios (y nada si no hay): el cuerpo pide una segunda llamada
 - [keycloak-cors-preflight-enganya](keycloak-cors-preflight-enganya.md) — el preflight OPTIONS refleja cualquier origen y no prueba nada; el claim `allowed-origins` del token sí, y sin navegador no hay CORS
+- [keycloak-admin-desde-el-pod](keycloak-admin-desde-el-pod.md) — no saques el secret de admin: `kcadm.sh` se autentica dentro del pod con las env que ya trae por `envFrom`, y ahí ArgoCD no revierte
