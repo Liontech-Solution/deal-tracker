@@ -7,11 +7,18 @@ import { notification } from '../database/schema';
 import { TelegramApiClient } from '../telegram/telegram-api.client';
 import { evaluateDeal } from './deal-rule';
 import { collapseSameGarment } from './dedupe';
-import { buildDigest } from './message';
+import { buildDigestChunks } from './message';
 import type { CandidateRow, Deal, MatchingSummary } from './matching.types';
 
 /** Identificador del job en `job_state`. */
 const JOB = 'matching';
+
+/**
+ * Espera entre los trozos de un mismo resumen. La Bot API admite ~1 mensaje por segundo y chat, y
+ * un resumen troceado los manda seguidos: sin pausa, un lote grande se gana un 429 y con él el
+ * mismo atasco que #220 viene a quitar.
+ */
+const CHUNK_DELAY_MS = 1_100;
 
 /**
  * Evalúa los precios recién scrapeados contra los intereses de los usuarios y avisa por Telegram.
@@ -25,6 +32,13 @@ const JOB = 'matching';
 export class MatchingService {
   private readonly logger = new Logger(MatchingService.name);
 
+  /**
+   * Espera entre trozos, en ms. Propiedad y no parámetro del constructor a propósito: nada monta
+   * `MatchingModule` en los tests —solo lo hace el job—, así que un parámetro más que Nest tuviera
+   * que resolver rompería en el cluster sin que nadie se enterase aquí. Los tests la bajan a 0.
+   */
+  chunkDelayMs = CHUNK_DELAY_MS;
+
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly telegram: TelegramApiClient,
@@ -36,12 +50,11 @@ export class MatchingService {
    */
   async run(dryRun: boolean): Promise<MatchingSummary> {
     const watermark = await this.readWatermark();
+    const maxRunId = await this.readScanned(watermark);
     const rows = await this.findCandidates(watermark);
 
     const evaluadas: Deal[] = [];
-    let maxRunId = watermark;
     for (const row of rows) {
-      maxRunId = Math.max(maxRunId, row.scrapeRunId);
       const verdict = evaluateDeal(row);
       if (verdict.notify) {
         evaluadas.push({ row, verdict, priceEventKey: `${row.scrapeRunId}:${row.price}` });
@@ -69,7 +82,11 @@ export class MatchingService {
 
     for (const [userId, userDeals] of groupByUser(deals)) {
       if (dryRun) {
-        this.logger.log(`[dry-run] usuario ${userId}: ${userDeals.length} aviso(s)\n${buildDigest(userDeals)}`);
+        const chunks = buildDigestChunks(userDeals);
+        this.logger.log(
+          `[dry-run] usuario ${userId}: ${userDeals.length} aviso(s) en ${chunks.length} mensaje(s)\n` +
+            chunks.map((c) => c.text).join('\n---\n'),
+        );
         summary.notified += userDeals.length;
         summary.usersNotified += 1;
         continue;
@@ -80,20 +97,10 @@ export class MatchingService {
       const fresh = await this.reserve(userDeals);
       if (fresh.length === 0) continue;
 
-      const sent = await this.telegram.sendMessage(fresh[0].row.telegramChatId, buildDigest(fresh));
-      if (sent) {
-        summary.notified += fresh.length;
-        summary.usersNotified += 1;
-        continue;
-      }
-
-      // Envío fallido: soltar la reserva para que el siguiente intento vuelva a evaluarlo. Si no,
-      // la fila quedaría marcada como avisada y el usuario **nunca** se enteraría de esta bajada.
-      // Puede duplicar un aviso solo si Telegram lo entregó pero no llegamos a ver su respuesta;
-      // un duplicado ocasional es preferible a un silencio permanente.
-      await this.release(fresh);
-      summary.failedSends += 1;
-      this.logger.error(`No se pudo entregar el aviso al usuario ${userId}; se reintentará`);
+      const entregados = await this.sendDigest(userId, fresh);
+      summary.notified += entregados.length;
+      if (entregados.length > 0) summary.usersNotified += 1;
+      if (entregados.length < fresh.length) summary.failedSends += 1;
     }
 
     // La marca de agua solo avanza si todo se entregó: si no, el próximo intento (o el reintento
@@ -107,6 +114,69 @@ export class MatchingService {
         `${summary.usersNotified} usuario(s), marca de agua ${summary.watermark}`,
     );
     return summary;
+  }
+
+  /**
+   * Manda el resumen de un usuario, troceado (#220). Devuelve las ofertas realmente entregadas.
+   *
+   * Corta al primer trozo que Telegram rechaza: si es un 429 por ritmo, insistir solo lo empeora.
+   * Suelta la reserva de lo que no salió para que la pasada siguiente vuelva a evaluarlo — si no,
+   * esas filas quedarían marcadas como avisadas y el usuario **nunca** se enteraría de la bajada.
+   * Lo ya entregado, en cambio, conserva su fila, y es eso lo que impide que el reintento lo
+   * repita: la marca de agua no avanza mientras haya un envío fallido, así que el lote entero se
+   * reprocesa y lo entregado choca contra el UNIQUE.
+   *
+   * Queda un duplicado posible, el de siempre: que Telegram entregase el trozo y no llegásemos a
+   * ver su respuesta. Un duplicado ocasional es preferible a un silencio permanente.
+   */
+  private async sendDigest(userId: number, fresh: Deal[]): Promise<Deal[]> {
+    const chatId = fresh[0].row.telegramChatId;
+    const chunks = buildDigestChunks(fresh);
+    const entregados: Deal[] = [];
+
+    for (let i = 0; i < chunks.length; i += 1) {
+      // Pausa entre trozos, no antes del primero: un aviso normal es un solo mensaje y no espera.
+      if (i > 0) await sleep(this.chunkDelayMs);
+
+      if (await this.telegram.sendMessage(chatId, chunks[i].text)) {
+        entregados.push(...chunks[i].deals);
+        continue;
+      }
+
+      const pendientes = chunks.slice(i).flatMap((c) => c.deals);
+      await this.release(pendientes);
+      this.logger.error(
+        `No se pudo entregar el mensaje ${i + 1}/${chunks.length} del aviso al usuario ${userId}; ` +
+          `${pendientes.length} oferta(s) se reintentarán`,
+      );
+      break;
+    }
+
+    return entregados;
+  }
+
+  /**
+   * Mayor `scrape_run` **escaneado** en este lote, que es hasta donde puede avanzar la marca de
+   * agua (#221).
+   *
+   * Se mide sobre `price_history` a pelo, sin cruzar con `interest` ni filtrar por stock ni por el
+   * foco barefoot: lo que decide que una pasada está vista es haberla mirado, no que produjera
+   * aviso. Derivarlo de las filas candidatas —como se hacía— dejaba la marca clavada en la última
+   * pasada con candidato: en QA se quedó en 34 con pasadas correctas hasta la 38, porque mango,
+   * sfera, zara y springfield no tenían a nadie que las siguiera. Cada ejecución volvía a
+   * escanearlas, el coste crecía con el histórico, y la marca dejaba de servir para saber si el
+   * matching iba al día. Se agrava cuantos menos intereses haya, o sea al arrancar.
+   *
+   * Lo que esto NO arregla, porque ya pasaba igual: si dos pasadas se solapan y la de id mayor
+   * commitea primero, la marca puede adelantar a la menor y sus filas quedarían por debajo para
+   * siempre. En el cluster los scrapers van escalonados y no se da.
+   */
+  private async readScanned(watermark: number): Promise<number> {
+    const rows = await this.db.execute(sql`
+      SELECT max(scrape_run_id) AS max_run FROM price_history WHERE scrape_run_id > ${watermark}
+    `);
+    const row = (rows as unknown as { max_run: string | number | null }[])[0];
+    return row?.max_run == null ? watermark : Number(row.max_run);
   }
 
   /**
@@ -265,6 +335,10 @@ export class MatchingService {
       ON CONFLICT (job) DO UPDATE SET last_scrape_run_id = ${runId}, updated_at = now()
     `);
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** Agrupa por usuario para mandar un único resumen por pasada. */

@@ -1936,6 +1936,67 @@ Y una precondición que no estaba escrita en ningún sitio: `findCandidates` hac
 haga lo que haga el scraper**. Vincular exige a un humano pulsando «Start» sobre un deep-link de un
 solo uso (`POST /api/settings/telegram/link`); no hay forma de hacerlo desde el cluster.
 
+### El aviso no falla, se atasca: el resumen tiene un límite duro y el fallo se realimenta (#220)
+
+`sendMessage` de la Bot API admite **4096 caracteres** y el job mandaba **un único resumen por
+usuario y pasada**, sin trocear. Medido en QA el 06/08/2026 sobre el lote real: **87 prendas =
+17 717 caracteres**, cuatro veces el límite. Lo que convierte eso en algo peor que un mensaje
+perdido es la realimentación, y es la parte que no se ve venir leyendo el código de arriba abajo:
+
+> Telegram devuelve 400 → `sendMessage` da `false` → `failedSends++` → **la marca de agua no se
+> guarda** (solo avanza con `failedSends === 0`) → la pasada siguiente reprocesa el lote entero,
+> ahora más grande → vuelve a pasarse de 4096.
+
+O sea que **cuanto más tarda, más imposible se vuelve**, y el único síntoma es un Job en rojo. Es la
+explicación más probable de por qué #122 llevaba semanas diciendo que el aviso duplicado «nunca se
+ha visto llegar»: no es que no se generase, es que ninguno salía. El camino de entrega estaba bien
+—acotando los intereses a 4 variantes el mensaje llegó y lo confirmó el operador—; lo único roto era
+la longitud.
+
+Cuatro decisiones del troceo que conviene no volver a discutir:
+
+- **Se parte por oferta entera, nunca por línea.** Una oferta son 2-3 líneas y viajan juntas, así no
+  se puede cortar dentro de una etiqueta HTML ni de una entidad escapada — que con `parse_mode:
+  'HTML'` no es un error cosmético, es un mensaje que Telegram rechaza.
+- **Hay tope de mensajes (10, ~200 prendas) y lo que sobra se resume en «y N prendas más», pero esas
+  N conservan su fila en `notification`.** Soltarlas parece lo honesto y es lo contrario: con la
+  marca de agua ya avanzada, su evento de precio queda por debajo y no se vuelve a evaluar nunca. Se
+  perderían en silencio.
+- **La entrega parcial se contabiliza por trozo.** El comportamiento anterior —soltar todas las
+  reservas ante un fallo y aceptar un duplicado ocasional— era correcto con un solo mensaje y
+  duplicaría de verdad con cinco. Lo que hace seguro el corte al primer rechazo es justamente la
+  condición de arriba: como la marca no avanza, la pasada siguiente reprocesa el lote entero y lo ya
+  entregado choca contra el `UNIQUE`. Sin duplicados y sin silencios.
+- **La pausa entre trozos (~1 mensaje/segundo y chat) vive en una propiedad, no en el constructor.**
+  Y el motivo es estructural, no de estilo: **nada monta `MatchingModule` en los tests** —solo lo
+  hace `jobs/matching.job.ts`—, así que una dependencia más que Nest tuviera que resolver pasaría
+  CI en verde y rompería en el cluster. Vale para cualquier cosa que se le añada a `MatchingService`.
+
+### La marca de agua mide lo ESCANEADO, no lo que produjo aviso (#221)
+
+`job_state.last_scrape_run_id` se derivaba de las filas candidatas, o sea de lo que sobrevive al
+JOIN con `interest`. Medido en QA el 06/08/2026: la marca quedó en **34** habiendo pasadas correctas
+hasta la **38**. Las cuatro que faltaban (mango, sfera, zara, springfield) se escanearon enteras,
+pero los intereses activos eran de Lefties y H&M, así que no aportaron ni una fila y no movieron la
+marca — y volverían a escanearse en cada ejecución, con un coste que crece con el histórico en vez
+de estabilizarse.
+
+Lo caro no es el trabajo repetido: es que **la marca deja de ser un indicador**. Un observador
+externo —el caso D11 de `/validar-qa`— no puede distinguir «el matching está atascado» de «esas
+tiendas no le interesan a nadie», y por eso dio P0 a lo que no lo era. Se agrava cuantos menos
+intereses haya, o sea en un sistema recién arrancado: el caso normal, no el raro.
+
+Se mide sobre `price_history` a pelo (`max(scrape_run_id) WHERE scrape_run_id > marca`), sin cruzar
+con `interest` ni filtrar por stock ni por el foco barefoot: lo que decide que una pasada está vista
+es haberla mirado, no que produjera aviso. Así cubre también una pasada cuyas filas fueran todas de
+agotado.
+
+Queda un riesgo **preexistente** que esto no cambia y conviene tener escrito: si dos pasadas se
+solapan y la de id mayor commitea primero, la marca puede adelantar a la menor y sus filas quedarían
+por debajo para siempre. Ya pasaba igual antes —la marca sale de filas ya commiteadas—, y en el
+cluster no se da porque los scrapers van escalonados; dejarían de estarlo si alguien apretara los
+`schedule` de los CronJobs.
+
 ### Un interés se identifica por su ALCANCE, y por eso la baja es lógica
 
 La protección contra el aviso repetido no vive solo en el `UNIQUE (interest_id, variant_id,
