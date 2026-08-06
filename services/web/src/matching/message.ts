@@ -147,7 +147,10 @@ function dealLine(deal: Deal, enlazar: boolean): string {
   const url = row.productUrl;
   const title =
     enlazar && url && url.length <= URL_MAX ? `<a href="${escapeHtml(url)}">${name}</a>` : name;
-  const label = variantLabel(row.size, row.color);
+  // La talla CANÓNICA (#223): el aviso tiene que nombrar la variante igual que la web, y la web
+  // la nombra por `size_canon`. La canónica ya viene en la fila —la calcula la base en el mismo
+  // SELECT de `findCandidates`, con la misma función—, así que esto no cuesta ninguna consulta.
+  const label = variantLabel(row.sizeCanon, row.color);
 
   const parts = [`• ${title} — ${escapeHtml(recorta(row.retailerName, RETAILER_MAX))}`];
   if (label) parts.push(`  ${escapeHtml(recorta(label, LABEL_MAX))}`);

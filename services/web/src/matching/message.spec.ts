@@ -3,13 +3,21 @@ import { describe, expect, it } from 'vitest';
 import { buildDigestChunks, MAX_DIGEST_MESSAGES, TELEGRAM_MAX_CHARS } from './message';
 import type { CandidateRow, Deal } from './matching.types';
 
-/** Oferta mínima: solo las piezas que mira el resumen. */
+/**
+ * Oferta mínima: solo las piezas que mira el resumen.
+ *
+ * La talla va en las DOS formas y distintas a propósito (#223): `size` es el texto de la tienda y
+ * `sizeCanon` la que calcula `size_canon` en la base. El resumen tiene que usar la segunda —es la
+ * que ve el usuario en la web—, así que con una fixture donde coincidieran, ninguna de las
+ * afirmaciones de este fichero podría distinguir cuál de las dos se está imprimiendo.
+ */
 function deal(over: Partial<CandidateRow> = {}): Deal {
   const row = {
     productName: 'PANTALÓN CULOTTE CUADRO DAMERO',
     productUrl: 'https://www.zara.com/es/pantalon-culotte-p123456.html',
     retailerName: 'Zara',
-    size: '2 años',
+    size: '2 años (92 cm)',
+    sizeCanon: '2 años',
     color: 'Rosa / Blanco',
     price: '6.38',
     ...over,
@@ -47,6 +55,16 @@ describe('buildDigestChunks (#220)', () => {
         '  Talla 2 años · Rosa / Blanco\n' +
         '  <b>6,38 €</b> (antes 15,95 €) · <b>-60%</b>',
     );
+  });
+
+  it('nombra la variante con la talla CANÓNICA, no con la de la tienda (#223)', () => {
+    // El aviso y la web tienen que decir la misma talla: la web la pinta por `size_canon`, así que
+    // el sufijo de unidad que publica la tienda no puede llegar al mensaje. Es la mitad de #223 que
+    // no se ve por la API, porque solo aparece en el Telegram de un usuario real.
+    const [chunk] = buildDigestChunks([deal({ size: '5-6 años (116 cm)', sizeCanon: '5-6 años' })]);
+
+    expect(chunk.text).toContain('  Talla 5-6 años · Rosa / Blanco\n');
+    expect(chunk.text).not.toContain('116 cm');
   });
 
   it('un lote pequeño sigue siendo un único mensaje sin numerar', () => {
@@ -120,7 +138,8 @@ describe('buildDigestChunks (#220)', () => {
       deal({
         productName: `PRENDA ${i} `.padEnd(120, 'X'),
         productUrl: `https://tienda.example.com/${i}/`.padEnd(300, 'q'),
-        size: 'talla '.padEnd(60, 'y'),
+        // La CANÓNICA, que es la que se imprime y por tanto la que ocupa sitio en el mensaje.
+        sizeCanon: 'talla '.padEnd(60, 'y'),
         color: 'color '.padEnd(50, 'z'),
       }),
     );
@@ -160,7 +179,7 @@ describe('buildDigestChunks (#220)', () => {
   });
 
   it('una oferta sin talla ni color se resume igual, con una línea menos', () => {
-    const [chunk] = buildDigestChunks([deal({ size: null, color: null })]);
+    const [chunk] = buildDigestChunks([deal({ size: null, sizeCanon: null, color: null })]);
 
     expect(chunk.text.split('\n')).toHaveLength(4);
     expect(chunk.text).not.toContain('Talla');

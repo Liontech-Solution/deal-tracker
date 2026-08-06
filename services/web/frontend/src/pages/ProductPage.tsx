@@ -15,13 +15,11 @@ import { ProductGridSkeleton, ErrorState } from '../components/States';
 import { useToast } from '../components/Toast';
 import { colorHex } from '../lib/colors';
 import { capitalize } from '../lib/format';
+import { available, countAvailableSizes, distinctSizes, sizeAvailable } from '../lib/variants';
 
 function stockOf(v: VariantWithPrice): Stock {
   if (v.delisted) return 'descatalogado';
   return v.inStock ? 'stock' : 'agotado';
-}
-function available(v: VariantWithPrice): boolean {
-  return !v.delisted;
 }
 
 /**
@@ -90,7 +88,9 @@ export function ProductPage() {
   const [followOpen, setFollowOpen] = useState(false);
 
   const variants = useMemo(() => product?.variants ?? [], [product]);
-  const sizes = useMemo(() => [...new Set(variants.map((v) => v.size).filter((s): s is string => !!s))], [variants]);
+  const sizes = useMemo(() => distinctSizes(variants), [variants]);
+  // Cuántas de esas tallas se pueden comprar de verdad, que es lo que rotula el selector (#224).
+  const sizesDisponibles = useMemo(() => countAvailableSizes(variants), [variants]);
   const refs = useMemo(() => colorRefs(variants), [variants]);
 
   // Selección inicial: primera variante disponible (o la primera).
@@ -169,7 +169,7 @@ export function ProductPage() {
 
   const refForSize = (r: ColorRef) =>
     variants.some((v) => v.color === r.color && v.url === r.url && v.size === size && available(v));
-  const sizeAvailable = (s: string) => variants.some((v) => v.size === s && available(v));
+  const tallaDisponible = (s: string) => sizeAvailable(variants, s);
 
   const onFollow = () => {
     // Hasta que `/api/config` no resuelve, `enabled` no es concluyente (ver AuthProvider).
@@ -248,12 +248,19 @@ export function ProductPage() {
             <div style={{ marginBottom: 18 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 9 }}>
                 <span style={{ fontWeight: 800, fontSize: 14 }}>Talla</span>
-                <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>{sizes.length} disponibles</span>
+                {/* Cuando alguna talla está agotada se dicen las dos cifras: «11 de 13» explica los
+                    dos botones tachados de al lado, y decir solo «11» dejaría al usuario contando
+                    (#224). Si están todas disponibles se rotula como siempre, sin ruido. */}
+                <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>
+                  {sizesDisponibles === sizes.length
+                    ? `${sizes.length} disponibles`
+                    : `${sizesDisponibles} de ${sizes.length} disponibles`}
+                </span>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {sizes.map((s) => {
                   const sel = s === size;
-                  const dis = !sizeAvailable(s);
+                  const dis = !tallaDisponible(s);
                   return (
                     <button
                       key={s}

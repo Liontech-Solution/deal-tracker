@@ -25,7 +25,15 @@ export class InterestsService {
         interest,
         directProductName: product.name,
         variantProductName: variantProduct.name,
-        variantSize: variant.size,
+        // La talla CANÓNICA, no la de la tienda (#223). `variant.size` guarda el texto crudo
+        // ('2 años (92 cm)'), y esta etiqueta la lee el usuario en dos sitios: su lista de
+        // seguimientos y —vía `variantLabel`, ver abajo— el aviso de Telegram. Devolverla cruda
+        // aquí la enfrentaba con la que dan las facetas y los filtros, que ya van por `size_canon`
+        // (`catalog.service.ts`), y con la que el propio `create()` guarda en `interest.size`.
+        //
+        // El color se queda CRUDO a propósito: `color_canon` devuelve NULL para lo que no
+        // reconoce (#51), así que canonizarlo aquí no lo normalizaría — lo borraría de la etiqueta.
+        variantSize: sql<string | null>`size_canon(${variant.size})`,
         variantColor: variant.color,
         retailerName: retailer.name,
       })
@@ -179,6 +187,11 @@ export class InterestsService {
 /**
  * Etiqueta legible de una variante apuntada. `null` si no hay talla ni color (sin objetivo).
  * Exportada para que los avisos de Telegram nombren la variante igual que la web.
+ *
+ * **La talla se le pasa ya canónica**, y eso es contrato del llamante, no de aquí: esta función
+ * solo concatena. Los dos llamantes la traen de la base con `size_canon` —el SELECT de `list()` y
+ * el de `findCandidates` (`matching.service.ts`)— porque canonizar en TypeScript sería una segunda
+ * definición de «misma talla». Pasarle la cruda es lo que causó #223.
  */
 export function variantLabel(size: string | null, color: string | null): string | null {
   const parts = [size ? `Talla ${size}` : null, color].filter((p): p is string => !!p);
