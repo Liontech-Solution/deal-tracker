@@ -89,6 +89,19 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
   redondeada» suelta se quedan en `desconocido`, correctamente). Consecuencia de producto: **una
   cadena de moda convencional puede aportar cero a la zapatería y eso es lo correcto**; lo que no
   puede es pasar inadvertido, y quien lo detecta es el caso D8 de `/validar-qa`, no el scraper.
+- **Y el techo no se levanta dándole más texto**, que es el reflejo evidente ante un cero. Segunda
+  medida, Hipercor el 06/08/2026 (#222): 286 zapatos, los 286 en `desconocido`, y ahí el scraper
+  **sí** se estaba dejando texto sin leer —la ficha publica un bloque `attribute_groups` que
+  `parse_pdp` ignora—. Se pidieron las 286 fichas y pasárselo al clasificador **no cambia ni un
+  producto**: son 34 valores de una taxonomía cerrada (material exterior/interior, suela, puntera,
+  cierre) que dicen **de qué está hecho** el zapato, no cómo está construido, que es lo único que
+  la heurística puede usar. O sea que el límite no es cuánto texto se lee, es qué publican estas
+  cadenas. Con dos tiendas medidas la conclusión operativa es: **ante un cero, medir el texto
+  disponible antes de tocar `barefoot.py`, y esperar que la respuesta sea que no hay nada que
+  hacer.** La trampa de vocabulario se repite idéntica —«Puntera Redonda» en 128 de 286 (45 %),
+  que no casa con «puntera redondeada» de `_DEBILES` y que aflojarla marcaría `si` a 4 lonas de
+  bebé—, y tampoco existe la vía preferente: Hipercor no declara el concepto en ninguna hoja ni
+  faceta, igual que Mango.
 - El **web** expone `/api/catalog/*`, `/api/interests`, `/api/settings/telegram`, `/api/config`,
   `/api/health`, y el job `dist/jobs/matching.job.js` que evalúa ofertas y notifica por Telegram.
 - `services/web/src/database/schema.ts` (Drizzle) es un **espejo** del SQL, no la fuente de verdad.
