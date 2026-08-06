@@ -5,6 +5,7 @@ import type postgres from 'postgres';
 import { schema } from '../src/database/schema';
 import { InterestsService } from '../src/interests/interests.service';
 import { MatchingService } from '../src/matching/matching.service';
+import { TELEGRAM_MAX_CHARS } from '../src/matching/message';
 import { TelegramApiClient } from '../src/telegram/telegram-api.client';
 import { makeSql, resetSchema, seedCatalog, seedUser, TEST_DB } from './helpers';
 import type { SeedIds } from './helpers';
@@ -37,7 +38,11 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
   function makeService(telegram: TelegramApiClient): MatchingService {
     // Drizzle sobre el mismo cliente de test; no hace falta levantar Nest para un servicio con
     // dos dependencias.
-    return new MatchingService(drizzle(sql, { schema }) as never, telegram);
+    const service = new MatchingService(drizzle(sql, { schema }) as never, telegram);
+    // Sin espera entre trozos: la pausa real es para no chocar con el rate-limit de la Bot API, y
+    // aquí el cliente es un doble.
+    service.chunkDelayMs = 0;
+    return service;
   }
 
   /** Usuario con Telegram ya vinculado (el job ignora a quien no lo tiene). */
@@ -59,6 +64,24 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
       })}
       RETURNING id`;
     return row.id;
+  }
+
+  /**
+   * `n` variantes más de la misma prenda, cada una con su color, todas con la misma bajada. Sirven
+   * para llenar un resumen: colores distintos para que `collapseSameGarment` no las funda en una.
+   */
+  async function seedVariantes(n: number): Promise<void> {
+    for (let i = 0; i < n; i += 1) {
+      const [v] = await sql<{ id: number }[]>`
+        INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+        VALUES (${seeded.productId}, ${`ZARA-1-24-c${i}`}, '24', ${`color-${i}`}, ${`SKU24C${i}`})
+        RETURNING id`;
+      await sql`
+        INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at,
+                                   scrape_run_id)
+        VALUES (${v.id}, 39.99, 39.99, 0, true, now() - interval '2 days', NULL),
+               (${v.id}, 19.99, 39.99, 50, true, now(), ${runId})`;
+    }
   }
 
   async function countNotifications(): Promise<number> {
@@ -425,6 +448,75 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     expect(Number(rows[0].user_id)).toBe(Number(ok.id));
     // La marca de agua no avanza: el lote se reevaluará para recuperar al que falló.
     expect(await sql`SELECT * FROM job_state WHERE job = 'matching'`).toHaveLength(0);
+  });
+
+  /**
+   * #220: el resumen se mandaba de una pieza. Con el lote real de QA —87 prendas, 17 717
+   * caracteres— Telegram devolvía 400, el job lo contaba como envío fallido, la marca de agua no
+   * avanzaba y el lote volvía más grande a la pasada siguiente. Se atascaba solo.
+   */
+  it('un lote grande se trocea y ningún mensaje pasa del límite de Telegram (#220)', async () => {
+    const user = await seedLinkedUser('kc-match-troceo', 930);
+    await seedInterest(user.id);
+    await seedVariantes(40);
+    const { client, sent } = fakeTelegram();
+
+    const summary = await makeService(client).run(false);
+
+    expect(summary.deals).toBe(41); // las 40 sembradas aquí más la de seedCatalog
+    expect(summary.notified).toBe(41);
+    expect(summary.usersNotified).toBe(1);
+    expect(summary.failedSends).toBe(0);
+
+    expect(sent.length).toBeGreaterThan(1);
+    for (const mensaje of sent) {
+      expect(mensaje.chatId).toBe(930);
+      expect(mensaje.text.length).toBeLessThanOrEqual(TELEGRAM_MAX_CHARS);
+    }
+    expect(await countNotifications()).toBe(41);
+  });
+
+  it('si falla un trozo, lo entregado no se repite y solo se reintenta el resto (#220)', async () => {
+    const user = await seedLinkedUser('kc-match-troceo-fallo', 931);
+    await seedInterest(user.id);
+    await seedVariantes(40);
+
+    // Telegram acepta el primer mensaje y rechaza el segundo.
+    const enviados: string[] = [];
+    const client = {
+      enabled: true,
+      sendMessage: (_chatId: number, text: string) => {
+        enviados.push(text);
+        return Promise.resolve(enviados.length === 1);
+      },
+    } as unknown as TelegramApiClient;
+
+    const parcial = await makeService(client).run(false);
+
+    // Corta al primer rechazo en vez de seguir insistiendo: si es un 429 por ritmo, insistir lo
+    // empeora.
+    expect(enviados).toHaveLength(2);
+    expect(parcial.failedSends).toBe(1);
+    expect(parcial.usersNotified).toBe(1);
+    const entregadas = parcial.notified;
+    expect(entregadas).toBeGreaterThan(0);
+    expect(entregadas).toBeLessThan(41);
+
+    // Solo conservan su reserva las ofertas del trozo que sí salió; las demás se sueltan para que
+    // la pasada siguiente vuelva a evaluarlas.
+    expect(await countNotifications()).toBe(entregadas);
+    expect(await sql`SELECT * FROM job_state WHERE job = 'matching'`).toHaveLength(0);
+
+    // Telegram vuelve. El lote se reprocesa entero, pero lo ya entregado choca contra el UNIQUE:
+    // solo se avisa de lo que faltaba, y nadie recibe dos veces la misma prenda.
+    const ok = fakeTelegram(true);
+    const retry = await makeService(ok.client).run(false);
+
+    expect(retry.notified).toBe(41 - entregadas);
+    expect(await countNotifications()).toBe(41);
+    const [state] = await sql<{ last_scrape_run_id: string }[]>`
+      SELECT last_scrape_run_id FROM job_state WHERE job = 'matching'`;
+    expect(Number(state.last_scrape_run_id)).toBe(runId);
   });
 
   it('la marca de agua avanza al mayor scrape_run del lote', async () => {
