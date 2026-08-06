@@ -2030,8 +2030,8 @@ garantiza. Medido en QA el 06/08/2026: la pasada **33** (`hm`, 25.544 filas) arr
 terminó a las 20:49:04, **11 s después** que la **34** (`lefties`, 20:48:53). El matching marcó 34 y
 las 25.544 filas de la 33 quedaron por debajo de la marca: ningún lote futuro las mira. No costó
 ningún aviso por casualidad —ninguna de esas filas bajaba de su mínimo de 90 días, que es lo que
-#122 lleva midiendo de H&M— y **esa casualidad es la razón de que nadie se enterara**: el Job sale
-en verde, `notification` no tiene un hueco visible y la marca avanza con normalidad.
+lleva midiendo de H&M la #122— y **esa casualidad es la razón de que nadie se enterara**: el Job
+sale en verde, `notification` no tiene un hueco visible y la marca avanza con normalidad.
 
 La restricción que decide el diseño, y que no es evidente hasta que se busca: **una pasada abierta
 no deja ningún rastro observable**. Su fila de `scrape_run` se inserta *dentro* de la transacción de
