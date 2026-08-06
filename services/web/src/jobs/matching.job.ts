@@ -2,8 +2,9 @@
  * Job de matching de ofertas (CronJob de k3s, tras el scraper).
  *
  * Evalúa los precios recién scrapeados contra los intereses de los usuarios y manda un resumen
- * por Telegram a quien tenga una bajada real. Idempotente: la marca de agua (`job_state`) acota
- * el lote y el UNIQUE de `notification` impide avisar dos veces del mismo evento de precio.
+ * por Telegram a quien tenga una bajada real. Idempotente: el lote son las pasadas que aún no se
+ * han evaluado (`job_state` + `matching_scanned_run`) y el UNIQUE de `notification` impide avisar
+ * dos veces del mismo evento de precio.
  *
  * Uso: `node dist/jobs/matching.job.js [--dry-run]` (o `pnpm job:matching`). Config por entorno:
  *   DATABASE_URL         (requerido)

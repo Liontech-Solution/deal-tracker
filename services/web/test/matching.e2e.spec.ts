@@ -580,6 +580,138 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
   });
 
   /**
+   * #240, el escenario entero. Una pasada que sigue en transacción **no existe para nadie**: su
+   * fila de `scrape_run` viaja dentro de su propia transacción. Aquí se reproduce quitándola de la
+   * base y devolviéndola después con su id original, que es exactamente lo que ve el job.
+   *
+   * Con el diseño anterior —guardar el mayor id visto— este spec falla: la marca saltaba a la
+   * pasada posterior y las filas de la rezagada quedaban por debajo para siempre.
+   */
+  it('una pasada que commitea tarde se evalúa cuando aparece, no se pierde (#240)', async () => {
+    const user = await seedLinkedUser('kc-match-rezagada', 913);
+    await seedInterest(user.id);
+
+    // La pasada `runId` (la rezagada) todavía no ha commiteado: ni su fila ni sus precios se ven.
+    await sql`UPDATE price_history SET scrape_run_id = NULL WHERE scrape_run_id = ${runId}`;
+    await sql`DELETE FROM scrape_run WHERE id = ${runId}`;
+
+    // Mientras tanto arranca y termina una pasada POSTERIOR, con su propio precio.
+    const [posterior] = await sql<{ id: number }[]>`
+      INSERT INTO scrape_run (retailer_id, status, finished_at)
+      VALUES (${seeded.retailerId}, 'success', now()) RETURNING id`;
+    const [p2] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${seeded.retailerId}, 'ZARA-9', 'Prenda de la pasada posterior', 'niño', 'ropa',
+              'camisetas', 'desconocido', 'https://x/9')
+      RETURNING id`;
+    const [v2] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p2.id}, 'ZARA-9-4', '4 años', 'azul', 'SKU9A') RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at,
+                                 scrape_run_id)
+      VALUES (${v2.id}, 9.99, 19.99, 50, true, now(), ${posterior.id})`;
+
+    const { client, sent } = fakeTelegram();
+    const primera = await makeService(client).run(false);
+
+    // Nadie sigue esa prenda, así que no hay aviso; lo que importa es dónde se queda el suelo.
+    expect(primera.deals).toBe(0);
+    // NO avanza hasta la posterior: el id de la rezagada es un hueco en la secuencia, y un hueco
+    // puede ser una pasada en vuelo. Pasarlo es justo lo que perdía el lote.
+    expect(primera.watermark).toBe(runId - 1);
+    // La posterior sí queda anotada, para no reevaluarla mientras el suelo espera.
+    const libro = await sql<{ scrape_run_id: string }[]>`
+      SELECT scrape_run_id FROM matching_scanned_run ORDER BY 1`;
+    expect(libro.map((r) => Number(r.scrape_run_id))).toEqual([Number(posterior.id)]);
+
+    // Y ahora la rezagada commitea, con el id que tenía reservado desde el principio.
+    await sql`
+      INSERT INTO scrape_run (id, retailer_id, status, finished_at)
+      OVERRIDING SYSTEM VALUE
+      VALUES (${runId}, ${seeded.retailerId}, 'success', now())`;
+    await sql`
+      UPDATE price_history SET scrape_run_id = ${runId}
+      WHERE variant_id = ${seeded.variantId} AND price = 19.99`;
+
+    const segunda = await makeService(client).run(false);
+
+    // Se evalúa y se avisa: es el aviso que antes no llegaba nunca.
+    expect(segunda.deals).toBe(1);
+    expect(segunda.notified).toBe(1);
+    expect(sent).toHaveLength(1);
+    // Y con el hueco ya resuelto, el suelo cruza las dos de una vez.
+    expect(segunda.watermark).toBe(Number(posterior.id));
+  });
+
+  /**
+   * La cara incómoda de recuperar la pasada rezagada, y la casilla 3 de #240 mirada de verdad: el
+   * `price_event_key` es `<scrape_run_id>:<precio>`, así que para el MISMO precio en dos pasadas la
+   * clave cambia y el UNIQUE de la 0005 **no** protege. Quien tiene que cortar es `evaluateDeal`.
+   *
+   * Solo puede darse si se solapan dos pasadas de la MISMA tienda (una variante vive en una sola
+   * tienda, y hay un `scrape_run` por tienda y pasada). Se deja pinchado para que quien toque la
+   * regla vea qué depende de ella.
+   */
+  it('la rezagada no repite el aviso que ya mandó la posterior por el mismo precio (#240)', async () => {
+    const user = await seedLinkedUser('kc-match-rezagada-dup', 915);
+    await seedInterest(user.id);
+
+    // La rezagada aún no ha commiteado: sus filas no existen para nadie, ni siquiera como
+    // histórico. Se borran de verdad, que es lo único fiel — con la fila ahí, la posterior la vería
+    // como mínimo previo y no avisaría, y el spec probaría otra cosa.
+    await sql`DELETE FROM price_history WHERE scrape_run_id = ${runId}`;
+    await sql`DELETE FROM scrape_run WHERE id = ${runId}`;
+
+    // La pasada posterior ve la MISMA variante al MISMO precio, un minuto después.
+    const [posterior] = await sql<{ id: number }[]>`
+      INSERT INTO scrape_run (retailer_id, status, finished_at)
+      VALUES (${seeded.retailerId}, 'success', now()) RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at,
+                                 scrape_run_id)
+      VALUES (${seeded.variantId}, 19.99, 39.99, 50, true, now() + interval '1 minute',
+              ${posterior.id})`;
+
+    const { client, sent } = fakeTelegram();
+    const primera = await makeService(client).run(false);
+    expect(primera.notified).toBe(1); // la posterior avisa de la bajada
+
+    // Y ahora commitea la rezagada, con su precio idéntico y su sello ANTERIOR.
+    await sql`
+      INSERT INTO scrape_run (id, retailer_id, status, finished_at)
+      OVERRIDING SYSTEM VALUE
+      VALUES (${runId}, ${seeded.retailerId}, 'success', now())`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at,
+                                 scrape_run_id)
+      VALUES (${seeded.variantId}, 19.99, 39.99, 50, true, now(), ${runId})`;
+
+    const segunda = await makeService(client).run(false);
+
+    expect(segunda.notified).toBe(0);
+    expect(sent).toHaveLength(1);
+    expect(await countNotifications()).toBe(1);
+  });
+
+  it('el libro no crece cuando las pasadas van en orden: el suelo las absorbe (#240)', async () => {
+    const user = await seedLinkedUser('kc-match-libro', 914);
+    await seedInterest(user.id);
+    const { client } = fakeTelegram();
+
+    await makeService(client).run(false);
+
+    // Todo lo que queda por debajo del suelo lo dice `job_state`: guardarlo también en el libro
+    // sería duplicar el estado y hacerlo crecer sin tope.
+    const [{ n }] = await sql<{ n: string }[]>`SELECT count(*) AS n FROM matching_scanned_run`;
+    expect(Number(n)).toBe(0);
+    const [state] = await sql<{ last_scrape_run_id: string }[]>`
+      SELECT last_scrape_run_id FROM job_state WHERE job = 'matching'`;
+    expect(Number(state.last_scrape_run_id)).toBe(runId);
+  });
+
+  /**
    * Segunda cara de la MISMA talla y color, con otro SKU: es lo que publican Lefties, H&M e
    * Hipercor (#108). Baja al mismo precio y en la misma pasada que la sembrada, que es lo que
    * pasa siempre en la realidad —las dos caras comparten precio en el 100 % de los grupos—.

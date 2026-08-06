@@ -234,13 +234,18 @@ que la prenda ha costado jamás, ese tachado se descarta y vale el máximo realm
 
 ### Garantías de entrega
 
-- **Incremental** por marca de agua (`job_state`, migración 0007): solo mira
-  `price_history.scrape_run_id > last_scrape_run_id`. Guardar el mayor id procesado —en vez de "el
-  último run"— recupera el hueco si una ejecución se pierde, y hay un `scrape_run` **por tienda**.
+- **Incremental** por **pasadas pendientes**: el lote son los `scrape_run` con precios que el job no
+  ha evaluado todavía. El estado son dos piezas: `job_state` (migración 0007) guarda el **suelo**
+  —todo id por debajo está resuelto— y `matching_scanned_run` (migración 0027) el libro de lo ya
+  procesado por encima. No vale con guardar el mayor id visto: los `scrape_run` **no se completan en
+  orden de id**, y una pasada que commitea tarde nacía por debajo de la marca y no se avisaba nunca
+  (#240). Hay un `scrape_run` **por tienda**.
+- **Solo el precio vigente**: una fila ya superada por otra más reciente de la misma variante no
+  avisa. Un aviso llega al móvil de alguien; mandarle un precio que ya no existe es peor que callar.
 - **Idempotente**: se reserva la fila en `notification` (UNIQUE
   `interest_id, variant_id, price_event_key`) **antes** de enviar, así un reintento no duplica.
-- **Sin avisos perdidos**: si el envío falla se **suelta la reserva** y **no avanza la marca de
-  agua**, de modo que el siguiente intento lo reevalúa. El job sale con código ≠ 0 para que el Job
+- **Sin avisos perdidos**: si el envío falla se **suelta la reserva** y **no avanza el estado**, de
+  modo que el siguiente intento lo reevalúa. El job sale con código ≠ 0 para que el Job
   de k8s lo reintente. Prioriza un duplicado raro sobre un silencio permanente.
 - Quien **no tiene Telegram vinculado** no genera fila: recibirá la próxima bajada en lugar de
   quemar el evento en el vacío.
