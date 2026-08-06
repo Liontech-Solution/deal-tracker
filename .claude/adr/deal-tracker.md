@@ -2021,9 +2021,39 @@ Cuatro decisiones del troceo que conviene no volver a discutir:
   condición de arriba: como la marca no avanza, la pasada siguiente reprocesa el lote entero y lo ya
   entregado choca contra el `UNIQUE`. Sin duplicados y sin silencios.
 - **La pausa entre trozos (~1 mensaje/segundo y chat) vive en una propiedad, no en el constructor.**
-  Y el motivo es estructural, no de estilo: **nada monta `MatchingModule` en los tests** —solo lo
-  hace `jobs/matching.job.ts`—, así que una dependencia más que Nest tuviera que resolver pasaría
-  CI en verde y rompería en el cluster. Vale para cualquier cosa que se le añada a `MatchingService`.
+  El motivo era estructural: nada montaba `MatchingModule` en los tests —solo lo hacía
+  `jobs/matching.job.ts`—, así que una dependencia más que Nest tuviera que resolver pasaba CI en
+  verde y rompía en el cluster. **Desde #239 ese agujero está tapado** (ver abajo); la propiedad se
+  queda porque los e2e necesitan bajarla a 0 sin pasar por la DI, pero ya no es una restricción.
+
+### El grafo de DI de un job no lo monta nadie salvo el propio job (#239)
+
+`AppModule` no importa `MatchingModule` —es un CronJob, no una ruta HTTP— y `matching.e2e.spec.ts`
+construye el servicio a mano con `new MatchingService(db, telegram)`. Resultado: **el contenedor de
+Nest no resolvía `MatchingService` en ningún test**, así que un parámetro de constructor irresoluble
+pasaba `lint`, `typecheck`, `test` y el CI entero, y reventaba al arrancar el CronJob — Job en
+`Error` sin haber evaluado nada, el mismo síntoma que costó dos sesiones distinguir en #220 y #221.
+Y no lo cubría nada más: no hay smoke de despliegue, y `/validar-qa` mira el resultado de una
+pasada, no que el contexto levante.
+
+Tres decisiones del arreglo que vale la pena no volver a discutir:
+
+- **El módulo del job vive en su propio fichero** (`jobs/matching-job.module.ts`), separado del
+  entrypoint. El test tiene que montar el módulo *real* —una copia de sus `imports` en el spec se
+  desincroniza sola— y sin separarlo habría que importar el CLI desde vitest, cuyo arranque depende
+  del guard `require.main === module` y del build CommonJS que corre en el cluster.
+- **El spec no necesita Postgres y por eso no se salta.** `postgres(url, {max: 10})` es perezoso: no
+  abre conexión hasta la primera consulta, y montar el contenedor no ejecuta ninguna. Corre siempre,
+  también en un `pnpm test` sin base — el agujero que tapa es de CI, no de datos, y un spec que se
+  salta cuando falta `TEST_DATABASE_URL` no lo taparía.
+- **El call site a mano de los e2e era media red, y solo media.** Un parámetro nuevo *requerido*
+  rompe `typecheck` en `new MatchingService(db, telegram)`; uno **con valor por defecto** no, y ese
+  pasa el compilador y los e2e intactos. Medido: es el único caso donde falla exclusivamente
+  `test/jobs-di.spec.ts`, y es el que define para qué sirve el spec.
+
+Vale para cualquier job futuro de `src/jobs/` — hoy solo está el de matching, y `database/migrate.ts`
+no cuenta porque no usa DI. `AppModule` sí estaba cubierto: `test/helpers.ts` lo compila con
+`Test.createTestingModule` en cada e2e.
 
 ### La marca de agua mide lo ESCANEADO, no lo que produjo aviso (#221)
 
