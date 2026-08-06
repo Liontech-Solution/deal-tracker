@@ -17,3 +17,4 @@
 - [gh-issue-view-comments-solo-comenta](gh-issue-view-comments-solo-comenta.md) — `--comments` imprime SOLO los comentarios (y nada si no hay): el cuerpo pide una segunda llamada
 - [keycloak-cors-preflight-enganya](keycloak-cors-preflight-enganya.md) — el preflight OPTIONS refleja cualquier origen y no prueba nada; el claim `allowed-origins` del token sí, y sin navegador no hay CORS
 - [keycloak-admin-desde-el-pod](keycloak-admin-desde-el-pod.md) — no saques el secret de admin: `kcadm.sh` se autentica dentro del pod con las env que ya trae por `envFrom`, y ahí ArgoCD no revierte
+- [gh-pr-merge-auto-no-espera](gh-pr-merge-auto-no-espera.md) — aquí los checks no son obligatorios: `--auto` mergea al instante con el CI encolado; mira `statusCheckRollup`, no `gh pr checks`
