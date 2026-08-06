@@ -2004,16 +2004,53 @@ externo —el caso D11 de `/validar-qa`— no puede distinguir «el matching est
 tiendas no le interesan a nadie», y por eso dio P0 a lo que no lo era. Se agrava cuantos menos
 intereses haya, o sea en un sistema recién arrancado: el caso normal, no el raro.
 
-Se mide sobre `price_history` a pelo (`max(scrape_run_id) WHERE scrape_run_id > marca`), sin cruzar
-con `interest` ni filtrar por stock ni por el foco barefoot: lo que decide que una pasada está vista
-es haberla mirado, no que produjera aviso. Así cubre también una pasada cuyas filas fueran todas de
-agotado.
+Se mide sobre `price_history` a pelo, sin cruzar con `interest` ni filtrar por stock ni por el foco
+barefoot: lo que decide que una pasada está vista es haberla mirado, no que produjera aviso. Así
+cubre también una pasada cuyas filas fueran todas de agotado.
 
-Queda un riesgo **preexistente** que esto no cambia y conviene tener escrito: si dos pasadas se
-solapan y la de id mayor commitea primero, la marca puede adelantar a la menor y sus filas quedarían
-por debajo para siempre. Ya pasaba igual antes —la marca sale de filas ya commiteadas—, y en el
-cluster no se da porque los scrapers van escalonados; dejarían de estarlo si alguien apretara los
-`schedule` de los CronJobs.
+### Una pasada en vuelo es INVISIBLE, así que el lote son las pasadas pendientes (#240)
+
+Aquí decía que el riesgo del solape era preexistente y aceptado. Se materializó, y con filas dentro.
+
+`max(scrape_run_id)` da por hecho que las pasadas se completan **en orden de id**, y nada lo
+garantiza. Medido en QA el 06/08/2026: la pasada **33** (`hm`, 25.544 filas) arrancó antes pero
+terminó a las 20:49:04, **11 s después** que la **34** (`lefties`, 20:48:53). El matching marcó 34 y
+las 25.544 filas de la 33 quedaron por debajo de la marca: ningún lote futuro las mira. No costó
+ningún aviso por casualidad —ninguna de esas filas bajaba de su mínimo de 90 días, que es lo que
+#122 lleva midiendo de H&M— y **esa casualidad es la razón de que nadie se enterara**: el Job sale
+en verde, `notification` no tiene un hueco visible y la marca avanza con normalidad.
+
+La restricción que decide el diseño, y que no es evidente hasta que se busca: **una pasada abierta
+no deja ningún rastro observable**. Su fila de `scrape_run` se inserta *dentro* de la transacción de
+la propia pasada (`ingest.py`), así que hasta que commitea no existe para nadie más. O sea que la
+corrección intuitiva —«no avanzar por encima de la pasada en curso más antigua»— **no se puede
+implementar**: no hay forma de preguntar cuáles están abiertas.
+
+Así que se invierte la pregunta: en vez de «¿hasta dónde he llegado?», **«¿qué he procesado ya?»**.
+Una pasada rezagada aparece cuando commitea, no está en el libro, y entra sola en el lote siguiente
+— no hace falta verla mientras está abierta, que era justo lo imposible. El estado son dos piezas:
+`job_state.last_scrape_run_id` es el **suelo** (todo id por debajo está resuelto) y
+`matching_scanned_run` (migración `0027`) el libro de lo procesado por encima.
+
+Dos consecuencias que conviene no confundir con un fallo:
+
+- **El suelo se queda atrás a propósito** cuando hay un hueco en la secuencia de ids. Un hueco es o
+  una pasada en vuelo (su lote está por llegar) o un id quemado por un rollback (la abortada no deja
+  fila; `_record_failed_run` inserta una **nueva**), y desde el job son indistinguibles. Se elige la
+  lectura conservadora: esperar. Lo único que cuesta equivocarse es que el libro conserve unas filas
+  de más. Por eso el caso D11 de `/validar-qa` ya no juzga por `last_scrape_run_id` a solas —un
+  suelo retrasado es normal— sino por qué pasadas quedan pendientes.
+- **Descartar una constante de tiempo fue deliberado.** Un «hueco de más de N horas ya se puede
+  saltar» habría evitado que el libro crezca, pero devuelve el fallo original en cuanto una pasada
+  tarde más que N, y en silencio — que es exactamente lo que esto viene a quitar. Se prefiere una
+  tabla que crece ~470 filas al año en el peor caso.
+
+De camino apareció la otra mitad del problema, que el `UNIQUE` de la `0005` **no** cubre: el
+`price_event_key` es `<scrape_run_id>:<precio>`, así que el mismo precio en dos pasadas son dos
+claves distintas y una rezagada reavisaba lo que la posterior ya había mandado. Comprobado con un
+spec antes de arreglarlo. La corrección no es tocar la clave sino descartar en `findCandidates` los
+precios **ya superados** por otro más reciente de la misma variante, que además es correcto por sí
+solo: un aviso llega al móvil de alguien, y mandarle un precio que ya no existe es peor que callar.
 
 ### Un interés se identifica por su ALCANCE, y por eso la baja es lógica
 
