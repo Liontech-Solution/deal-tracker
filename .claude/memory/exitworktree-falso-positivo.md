@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: f7134910-25bd-4262-b9e3-badce27e011e
-  modified: 2026-08-03T23:23:09.161Z
+  modified: 2026-08-06T12:57:06.862Z
 ---
 
 Al cerrar sesión, `ExitWorktree` con `action: "remove"` se niega con *«Worktree has N commits on
@@ -18,12 +18,18 @@ el que borrar sí destruye algo. Tratarlo como ruido por costumbre es exactament
 sesión ajena.
 
 **How to apply:** antes de re-invocar con `discard_changes: true`, demostrar que el commit está a
-salvo — no basta con que el PR figure como mergeado:
+salvo — no basta con que el PR figure como mergeado. Desde dentro del worktree el sandbox veta
+`git -C` **y también** `cmd; echo $status` como una sola orden, así que lo que sí pasa es:
 
 ```bash
-git -C <repo-canónico> merge-base --is-ancestor <sha-del-worktree> origin/main && echo "está en main"
+git branch --contains <sha> -a      # debe listar remotes/origin/main
 ```
 
 Si sale bien, el `discard_changes` no descarta nada y el mensaje final («Discarded 1 commit») es
-igual de engañoso. Si falla, el aviso era real: `action: "keep"`. Ver [[cerrar-sesion]] y
-[[verificar-en-cluster-dev]].
+igual de engañoso. Si falla, el aviso era real: `action: "keep"`.
+
+**Y el orden importa:** si sales con `action: "keep"` (p. ej. para actualizar `main` en el checkout
+canónico antes de reindexar, ver [[reindexar-tras-actualizar-main]]), **ya no hay sesión de worktree
+y `ExitWorktree` pasa a ser un no-op**: no lo borra ni forzándolo. A partir de ahí se retira a mano
+con `git worktree remove <ruta>`, y la rama que tenía prestada solo se puede borrar después. Medido
+el 06/08/2026 con `issue-240`. Ver [[cerrar-sesion]] y [[verificar-en-cluster-dev]].
