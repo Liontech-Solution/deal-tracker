@@ -151,6 +151,24 @@ dos, un fallo garantizado a fecha fija. La regla es que **el CronJob de una capa
 (cortar release → poner `false`) escritos en el propio patch, no solo en el PR. En dev no aplica:
 el bump es automático.
 
+**QA no tiene Keycloak propio: se autentica contra el realm de dev.** `/api/config` de QA devuelve
+`https://keycloak-dev.liontechsolution.com` y realm `deal-tracker-dev` — el mismo client
+`deal-tracker-web` que usa dev. Los dos entornos comparten identidad y configuración de client, así
+que **tocar ese client afecta a los dos**, y un fallo de config que parece «de dev» tumba QA sin que
+nada en el overlay de QA lo insinúe. Medido el 06/08/2026 validando v0.1.7 (#219): el campo **Web
+Origins** llevaba `https://dealtracker-qa.liontechsolution.com/*`, sintaxis de *redirect URI* donde
+Keycloak espera un **origen desnudo**; como el navegador manda `Origin` sin ruta, no casaba, y
+Keycloak no emitía `Access-Control-Allow-Origin` en la respuesta real de `/token`. Login roto para
+todo usuario real de QA.
+
+Dos trampas de diagnóstico que salen de ahí y valen para cualquier CORS contra Keycloak, porque las
+dos llevan a concluir lo contrario de lo que pasa: el **preflight `OPTIONS` no prueba nada** —refleja
+cualquier origen, incluso uno inventado—, y el dato bueno es el claim `allowed-origins` del propio
+token. Y **sin navegador no hay CORS**: `.claude/qa-login.py` hace exactamente el mismo flujo que la
+SPA (Authorization Code + PKCE, mismo client, mismo redirect URI) y funciona, así que el frente de
+API de `/validar-qa` puede pasar sus 51 casos autenticados en verde con el login roto para todo el
+mundo. Es justo el punto ciego que obliga a que el frente de UI se ejerza en un navegador de verdad.
+
 **El arm64 solo se compila en `main`, y eso es deliberado.** El cluster son Raspberry Pi, así que
 la variante arm64 es obligatoria para desplegar; pero emularla con QEMU en cada PR costaba ~9 min
 por servicio *y se tiraba* (los PR construyen con `push: false`). Medido: el job `image` de un PR
