@@ -14,3 +14,5 @@
 - [cerrar-issue-desde-el-pr](cerrar-issue-desde-el-pr.md) — «Cierra #N» en español no autocierra nada; la keyword va en inglés o se cierra a mano
 - [reindexar-tras-actualizar-main](reindexar-tras-actualizar-main.md) — `index_repository` lee el árbol del checkout principal, que no se actualiza al mergear desde un worktree: `merge --ff-only` antes de reindexar, y para eso hay que **salir del worktree primero** (el sandbox veta `git -C`, y el prefijo `!` también)
 - [commit-en-fish-se-come-backticks](commit-en-fish-se-come-backticks.md) — `git commit -m` con backticks en fish sustituye el identificador por vacío y commitea igual: mensajes y cuerpos por heredoc `<<'EOF'`
+- [gh-issue-view-comments-solo-comenta](gh-issue-view-comments-solo-comenta.md) — `--comments` imprime SOLO los comentarios (y nada si no hay): el cuerpo pide una segunda llamada
+- [keycloak-cors-preflight-enganya](keycloak-cors-preflight-enganya.md) — el preflight OPTIONS refleja cualquier origen y no prueba nada; el claim `allowed-origins` del token sí, y sin navegador no hay CORS
