@@ -361,9 +361,20 @@ Y el resultado del job del vigía lanzado en la Fase 1:
 kubectl -n deal-tracker-qa logs job/validacion-vigia-<version> --tail=200
 ```
 
-Su código de salida ya es un veredicto: **0** nada accionable, **1** algo lo es. Cada `✖` del
-informe del vigía es **P0** (una tienda dejó de dejarnos entrar); cada `⚠` es **P1**. Si el vigía no
-llegó a terminar, el frente queda **NO CUBIERTO** — no se aprueba por silencio.
+Su código de salida ya es un veredicto: **0** nada accionable, **1** algo lo es. Si el vigía no llegó
+a terminar, el frente queda **NO CUBIERTO** — no se aprueba por silencio.
+
+**La severidad la decide la marca del hallazgo, no el símbolo** (#251). La tabla manda y está en
+`SKILL.md`, sección «El vigía»; en corto:
+
+- `✖` **sin marca** (hojas retiradas, parseo roto, ninguna hoja viva) → **P0**. Es el caso de «la
+  tienda dejó de dejarnos entrar», que es para lo que existe el vigía.
+- `✖ [cobertura]` (hay una hoja publicada que no ingerimos) → **P1**, y **P0 solo si alguna de las
+  hojas que nombra es una de las cinco categorías del brief**. No es que la tienda esté rota: es
+  alcance de producto pendiente.
+- `⚠ [estacional]` (hoja de campaña apagada) → **P2 exento, no abre issue**: el propio vigía declara
+  que su id vuelve con la campaña.
+- `⚠` sin marca → **P1**, como siempre.
 
 **Este caso depende de la Fase 1 del orquestador**, que es quien lanza el job. Si corres el frente
 de datos solo (`/validar-qa --frente datos`), no lo lances tú: declara D13 **fuera de alcance de

@@ -29,6 +29,8 @@ from scraper.stores.registry import available_slugs, get_store
 from scraper.vigia import (
     COBERTURA_DECLARADA,
     COBERTURA_SIN_VIGILAR,
+    MARCA_COBERTURA,
+    MARCA_ESTACIONAL,
     SIN_VIGILANCIA_DE_HOJAS,
     Informe,
     Medida,
@@ -493,6 +495,51 @@ def test_una_categoria_publicada_y_sin_mapear_es_accionable_y_se_nombra() -> Non
     assert len(informe.accionables) == 1
     assert "ninos/nina/ropa-deportiva (25)" in informe.accionables[0]
     assert "ninos/nina/camisetas" not in informe.accionables[0]
+
+
+def test_el_hallazgo_de_cobertura_se_marca_para_que_el_liston_lo_distinga() -> None:
+    """Un `✖` de cobertura NO es un `✖` de «la tienda no nos deja entrar», y se nota en el texto.
+
+    Esto lo fija un test a propósito, y el motivo es que hay un consumidor fuera de este repo: el
+    listón de `/validar-qa` (`.claude/skills/validar-qa/SKILL.md`) lee el log del vigía y decide con
+    él si una versión se promueve. Hasta #251 hacía P0 *cualquier* `✖`, y así cinco prendas de
+    bañador de bebé —que el equipo había etiquetado `prioridad-4`— bloquearon dos releases seguidas.
+
+    Si alguien reescribe el mensaje sin la marca, lo que tiene que romperse es ESTO y no una
+    validación de QA dentro de tres semanas.
+    """
+    tienda = TiendaConArbol(
+        {"ninos/nina": [_nodo("ninos/nina/ropa-deportiva", count=25)]},
+        mapeadas=[],
+    )
+    informe = Informe("falsa")
+
+    revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+
+    assert informe.accionables[0].startswith(MARCA_COBERTURA)
+    assert f"✖ {MARCA_COBERTURA}" in informe.render()
+
+
+def test_la_hoja_estacional_se_marca_como_exenta() -> None:
+    """La otra mitad de #251, y el extremo contrario: un `⚠` que NO debe abrir issue.
+
+    El vigía ya declara en código que esto vuelve solo (`LeafHealth.estacional`), así que abrir una
+    issue por ello sería el «hallazgo de relleno» que la propia skill prohíbe. La marca es lo que
+    permite al listón eximirlo sin tener que interpretar la prosa.
+    """
+    tienda = TiendaFalsa(
+        hojas=[
+            LeafHealth(_AMBITO, "viva", True, "HTTP 200"),
+            LeafHealth(_AMBITO, "rebajas_nina.x", False, "HTTP 404", estacional=True),
+        ]
+    )
+    informe = Informe("falsa")
+
+    revisar_hojas(tienda, informe)  # type: ignore[arg-type]
+
+    assert informe.esta_bien, "sigue sin ser accionable: la marca clasifica, no cambia el veredicto"
+    assert informe.avisos[0].startswith(MARCA_ESTACIONAL)
+    assert f"⚠ {MARCA_ESTACIONAL}" in informe.render()
 
 
 def test_una_categoria_declarada_no_suena() -> None:

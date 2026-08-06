@@ -280,20 +280,22 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig("ninos/bebe-nino/bermudas-y-petos", "niño", "ropa", "pantalones"),
     CategoryConfig("ninos/bebe-nino/camisetas", "niño", "ropa", "camisetas"),
     CategoryConfig("ninos/bebe-nino/camisas", "niño", "ropa", "camisetas"),
-    # NO hay `ninos/bebe-nino/punto-y-jerseis` (#151). La tenía, y la tienda la retiró entre el
-    # 24/07 y el 02/08/2026: `--tree ninos/bebe-nino` publica ocho categorías y ninguna es esa,
-    # mientras que `bebe-nina` SÍ la sigue publicando (7 productos). Es la asimetría entre ramas
-    # que avisa el comentario de arriba, ahora también en el tiempo.
+    # `ninos/bebe-nino/punto-y-jerseis` VA Y VIENE, y esa es la lección: no es una hoja que la
+    # tienda retirase, es una categoría de temporada. #151 la quitó de aquí al medir que se había
+    # ido entre el 24/07 y el 02/08/2026 —`--tree ninos/bebe-nino` publicaba ocho categorías y
+    # ninguna era esa, mientras `bebe-nina` SÍ la seguía publicando— y volvió antes del 05/08.
+    # Se reingiere en #212 con 4 prendas, ya creciendo (eran 3 doce horas antes).
     #
-    # Se retiró en vez de sustituirse porque se dio por hecho que no había sustituta: «lo que la
-    # rama publica y no ingerimos es `ropa-deportiva` y `abrigos-y-cazadoras`, que no son
-    # `sudaderas`». **Eso era una suposición y se ha medido en #175: es falsa.**
-    # `bebe-nino/ropa-deportiva` son 18 productos que la propia tienda etiqueta «Sudaderas sin
-    # capucha» (14) y «Conjuntos» (4) en su faceta `attr.fashion_level3`. Sí había sustituta, y va
-    # mapeada al final de esta lista.
+    # Quien la vuelva a ver desaparecer: NO la borre otra vez. Cuando se fue se dio por hecho
+    # además que no había sustituta —«lo que la rama publica y no ingerimos es `ropa-deportiva` y
+    # `abrigos-y-cazadoras`, que no son `sudaderas`»— y **eso era una suposición que #175 midió
+    # falsa**: `bebe-nino/ropa-deportiva` son 18 productos que la propia tienda etiqueta
+    # «Sudaderas sin capucha» (14) y «Conjuntos» (4) en su faceta `attr.fashion_level3`. Sigue
+    # mapeada a la cabeza de esta lista con su filtro, y las dos conviven igual que en `bebe-nina`.
     #
-    # Si vuelve en otoño (es ropa de temporada) no lo dirá el vigía, que solo sonda lo mapeado:
-    # lo delata `--tree`.
+    # Que su ida y vuelta se note ya no depende de `--tree` a mano: `revisar_cobertura` (#156)
+    # compara lo publicado con lo mapeado cada jueves, y es quien cantó el regreso.
+    CategoryConfig("ninos/bebe-nino/punto-y-jerseis", "niño", "ropa", "sudaderas"),
     CategoryConfig("ninos/bebe-nino/accesorios-y-pijamas", "niño", "ropa", "ropa-interior"),
     # `accesorios-y-pijamas` es la única del bloque que entra sucia: mezcla los pijamas (que sí son
     # ropa interior, igual que en `pijamas-y-calcetines` de 6-14) con gorros y baberos, que no lo
@@ -303,6 +305,12 @@ CATEGORIES: list[CategoryConfig] = [
     #
     # Se quedan FUERA a propósito, por no ser ninguna de las cinco del brief y porque su equivalente
     # de 6-14 tampoco se mapea: `bano` / `banadores-bebe` y `abrigos-y-cazadoras`.
+    #
+    # **Escribirlo aquí no basta y eso costó #212**: lo comprobable es
+    # `vigia.COBERTURA_DECLARADA["sfera"]`, y esta prosa decía «`bano` / `banadores-bebe`» mientras
+    # aquella lista solo tenía las TRES ramas que se llaman `bano`. La cuarta, la del slug
+    # asimétrico, cantó como hueco cada jueves hasta que se declaró. Al tocar esta lista, tócala
+    # también allí.
     #
 ]
 
