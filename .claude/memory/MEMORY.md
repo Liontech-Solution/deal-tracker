@@ -8,6 +8,7 @@
 - [adr-update-por-cli](adr-update-por-cli.md) — `manage_adr --mode update` reemplaza el ADR entero; publicarlo con el CLI desde el fichero y ya por `--args-file` (el ADR no cabe en `--content`), nunca a mano; `sections` y `adr_present` no prueban que el grafo tenga TU versión, y si otra sesión reindexa a la vez la republicación se pierde sin error
 - [verificar-arquitectura-imagen](verificar-arquitectura-imagen.md) — sin buildx ni `read:packages`; para probar que una imagen es multiarch, mirar en qué nodo arranca el pod
 - [scraper-sin-just-ni-env](scraper-sin-just-ni-env.md) — `just` no está instalado y no hay `.env`: las recetas a mano, `mypy` sin argumentos, venv propio por worktree y el `DATABASE_URL` de pega de `--check-categories`
+- [web-tests-sin-env-con-docker](web-tests-sin-env-con-docker.md) — los tests del web no necesitan `.env` (vitest lee `process.env`, y escribir `.env` está vetado por permisos): sus dos bases, en un Postgres desechable de Docker
 - [exitworktree-falso-positivo](exitworktree-falso-positivo.md) — `ExitWorktree --remove` avisa de commits «a descartar» aunque el PR esté mergeado: comprobar con `merge-base --is-ancestor` antes de forzar
 - [buscar-issue-antes-de-abrir](buscar-issue-antes-de-abrir.md) — buscar si el hallazgo ya tiene issue (aunque sea mencionado de pasada) antes de abrir una nueva
 - [gh-pr-merge-desde-worktree](gh-pr-merge-desde-worktree.md) — el error «main is already used by worktree» llega DESPUÉS de mergear: comprobar el PR y borrar la rama a mano
