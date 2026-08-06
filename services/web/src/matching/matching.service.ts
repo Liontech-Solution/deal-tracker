@@ -50,12 +50,11 @@ export class MatchingService {
    */
   async run(dryRun: boolean): Promise<MatchingSummary> {
     const watermark = await this.readWatermark();
+    const maxRunId = await this.readScanned(watermark);
     const rows = await this.findCandidates(watermark);
 
     const evaluadas: Deal[] = [];
-    let maxRunId = watermark;
     for (const row of rows) {
-      maxRunId = Math.max(maxRunId, row.scrapeRunId);
       const verdict = evaluateDeal(row);
       if (verdict.notify) {
         evaluadas.push({ row, verdict, priceEventKey: `${row.scrapeRunId}:${row.price}` });
@@ -154,6 +153,30 @@ export class MatchingService {
     }
 
     return entregados;
+  }
+
+  /**
+   * Mayor `scrape_run` **escaneado** en este lote, que es hasta donde puede avanzar la marca de
+   * agua (#221).
+   *
+   * Se mide sobre `price_history` a pelo, sin cruzar con `interest` ni filtrar por stock ni por el
+   * foco barefoot: lo que decide que una pasada está vista es haberla mirado, no que produjera
+   * aviso. Derivarlo de las filas candidatas —como se hacía— dejaba la marca clavada en la última
+   * pasada con candidato: en QA se quedó en 34 con pasadas correctas hasta la 38, porque mango,
+   * sfera, zara y springfield no tenían a nadie que las siguiera. Cada ejecución volvía a
+   * escanearlas, el coste crecía con el histórico, y la marca dejaba de servir para saber si el
+   * matching iba al día. Se agrava cuantos menos intereses haya, o sea al arrancar.
+   *
+   * Lo que esto NO arregla, porque ya pasaba igual: si dos pasadas se solapan y la de id mayor
+   * commitea primero, la marca puede adelantar a la menor y sus filas quedarían por debajo para
+   * siempre. En el cluster los scrapers van escalonados y no se da.
+   */
+  private async readScanned(watermark: number): Promise<number> {
+    const rows = await this.db.execute(sql`
+      SELECT max(scrape_run_id) AS max_run FROM price_history WHERE scrape_run_id > ${watermark}
+    `);
+    const row = (rows as unknown as { max_run: string | number | null }[])[0];
+    return row?.max_run == null ? watermark : Number(row.max_run);
   }
 
   /**

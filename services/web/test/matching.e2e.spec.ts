@@ -356,8 +356,14 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     await seedInterest(user.id);
     const { client, sent } = fakeTelegram();
 
+    // La marca de agua avanza aunque el lote no dé candidatos (#221), así que se rebobina en cada
+    // vuelta para que todas vean el mismo lote: lo que se comprueba aquí es el filtro barefoot, y
+    // sin esto las vueltas 2 y 3 saldrían a 0 candidatos por no mirar nada.
+    const rebobinar = () => sql`DELETE FROM job_state WHERE job = 'matching'`;
+
     for (const marca of ['no', 'desconocido', null]) {
       await sql`UPDATE product SET barefoot = ${marca} WHERE id = ${seeded.productId}`;
+      await rebobinar();
       const summary = await makeService(client).run(false);
       expect(summary.candidates, `barefoot=${marca}`).toBe(0);
     }
@@ -366,6 +372,7 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
 
     // ...y con la marca puesta, el mismo caso sí avisa: el filtro es lo único que cambiaba.
     await sql`UPDATE product SET barefoot = 'si' WHERE id = ${seeded.productId}`;
+    await rebobinar();
     expect((await makeService(client).run(false)).deals).toBe(1);
   });
 
@@ -529,6 +536,47 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     const [state] = await sql<{ last_scrape_run_id: string }[]>`
       SELECT last_scrape_run_id FROM job_state WHERE job = 'matching'`;
     expect(Number(state.last_scrape_run_id)).toBe(runId);
+  });
+
+  /**
+   * #221: la marca salía de las filas candidatas, o sea de lo que sobrevive al JOIN con `interest`.
+   * En QA se quedó en 34 con pasadas correctas hasta la 38 —mango, sfera, zara y springfield no
+   * tenían a nadie que las siguiera—, así que cada ejecución volvía a escanearlas para nada.
+   */
+  it('la marca de agua avanza aunque la pasada no produzca ningún candidato (#221)', async () => {
+    const user = await seedLinkedUser('kc-match-wm-sin-candidatos', 912);
+    await seedInterest(user.id);
+
+    // Pasada posterior, con precios de una prenda que no sigue nadie: se escanea entera y no deja
+    // ni una fila candidata.
+    const [otra] = await sql<{ id: number }[]>`
+      INSERT INTO scrape_run (retailer_id, status, finished_at)
+      VALUES (${seeded.retailerId}, 'success', now()) RETURNING id`;
+    const [p2] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${seeded.retailerId}, 'ZARA-2', 'Camiseta que no sigue nadie', 'niño', 'ropa',
+              'camisetas', 'desconocido', 'https://x/2')
+      RETURNING id`;
+    const [v2] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p2.id}, 'ZARA-2-4', '4 años', 'azul', 'SKU4A') RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at,
+                                 scrape_run_id)
+      VALUES (${v2.id}, 9.99, 19.99, 50, true, now(), ${otra.id})`;
+
+    const { client } = fakeTelegram();
+    const summary = await makeService(client).run(false);
+
+    // El aviso sale del lote de siempre y la pasada nueva no aporta candidatos...
+    expect(summary.deals).toBe(1);
+    // ...pero la marca llega hasta ella igual, en vez de clavarse en la última que sí avisó.
+    expect(summary.watermark).toBe(Number(otra.id));
+
+    const [state] = await sql<{ last_scrape_run_id: string }[]>`
+      SELECT last_scrape_run_id FROM job_state WHERE job = 'matching'`;
+    expect(Number(state.last_scrape_run_id)).toBe(Number(otra.id));
   });
 
   /**
