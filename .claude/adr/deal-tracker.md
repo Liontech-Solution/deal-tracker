@@ -2253,3 +2253,16 @@ casos. Lo que sí cambia es la comprobación: **no asumir en ninguna de las dos 
 `manage_adr --mode sections` al terminar — el `adr_present` de `index_repository` solo describe
 cómo quedó en ese instante. Y por eso el fichero versionado es la fuente de verdad: el grafo puede
 perder esto en cualquier momento.
+
+**Una referencia `#N` nunca debe quedar a principio de línea en este fichero.** El parser de
+secciones trata cualquier `#` en esa posición como encabezado, así que un `#227).` al que el reflow
+del párrafo dejó abriendo línea aparece en `--mode sections` como una sección más, con media frase
+por título (medido el 06/08/2026: 40 secciones en vez de 39). Ensucia justo lo que se usa para
+navegar el ADR. La comprobación es `grep -n '^#[0-9]' .claude/adr/deal-tracker.md`, y el arreglo es
+mover una palabra al principio de la línea siguiente.
+
+Y un aviso sobre cómo se verifica ese arreglo, porque costó dos PR el día que se encontró: **el
+`{"status":"updated"}` de `manage_adr` no dice que el grafo tenga lo que tú crees**, solo que
+aceptó lo que le mandaste. Si tras republicar la sección fantasma sigue ahí, la primera hipótesis
+correcta no es «se ha perdido la republicación» sino «el fichero sigue mal». Se distingue mirando el
+fichero, no el grafo.
