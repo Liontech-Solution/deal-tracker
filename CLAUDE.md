@@ -18,15 +18,17 @@ and `deal-tracker-qa` (semver releases, public at `dealtracker-qa.liontechsoluti
 Retailers implemented: **Zara** (public AJAX JSON endpoints), **Sfera** (headless Chromium — it sits
 behind Akamai), **Lefties**, **Cacles Barefoot** (Shopify `products.json`; the first *natively*
 barefoot store, so `barefoot='si'` is declared per-store instead of guessed), **C&A** (GraphQL
-persisted query; the only one that publishes the Ómnibus 30-day minimum), **Hipercor** (headless
+persisted query; the first to publish the Ómnibus 30-day minimum, though Springfield populates it
+far more), **Hipercor** (headless
 Chromium, and the first store scraped **through its own pages** rather than an API: its `robots.txt`
 disallows `/api`, so the listing and the product sheet are read from the `dataLayer` and the
 `ld+json` each page embeds), **H&M** (REST API on `api.hm.com`, outside the Akamai that guards
 the storefront, so plain `httpx` gets in), **Mango Kids** (the only store that *publishes its own
 category tree*: a public menu endpoint hands out the `catalogId` the listing API consumes, so no leaf
 is guessed) and **Springfield** (the first listed by **sitemap** — its `robots.txt` bans the SFCC
-grid — which also hands over `lastmod` as a free signature). That closes the retailer list from the
-brief.
+grid — which also hands over `lastmod` for free, though measuring it two days apart showed it is a
+batch stamp of the sitemap generator and worthless as a signature, #227). That closes the retailer
+list from the brief.
 
 H&M is the only store so far whose **dead leaf is invisible**: an unresolvable `pageId` returns 200
 with a full, plausible page — the whole `categoryId` bucket. It is detected with a *canary*: one

@@ -59,9 +59,15 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
   con la limitación de nacimiento de no poder decir nada de antes de que empezáramos a mirar. Ahora
   hay con qué contrastar, y **la discrepancia entre ambas cifras es en sí misma la señal**: medido
   en C&A el 02/08/2026, **67 de 364** variantes con precio tachado anuncian descuento mientras la
-  propia tienda declara haberlas vendido más baratas dentro de esos 30 días. Hoy solo la puebla
-  C&A; `NULL` significa **«esta tienda no lo declara»**, nunca «no hubo mínimo», y ninguna consulta
-  puede tratarlo como un cero. Se captura desde la primera pasada aunque el detector aún no lo use,
+  propia tienda declara haberlas vendido más baratas dentro de esos 30 días. La pueblan **dos**
+  tiendas, y la que más no es la que se documentó primero: medido en QA el 06/08/2026, `springfield`
+  **17 714 de 17 776** filas y `c-and-a` **1426 de 8341**; las otras siete, cero. `NULL` significa
+  **«esta tienda no lo declara»**, nunca «no hubo mínimo», y ninguna consulta puede tratarlo como un
+  cero — con dos tiendas poblándolo de forma tan desigual, confundirlos sesga hacia Springfield
+  cualquier comparación. Un tercer candidato a vigilar: H&M sirve `priorPrice` en el nivel superior
+  del producto (no dentro de `prices[]`, que es donde se miró), con `redPrice < priorPrice <
+  whitePrice` en los casos vistos — pero solo en la sección de adulto, porque en infantil no hay ni
+  una rebaja (0 de 118 197 filas en 30 días, #106). Se captura desde la primera pasada aunque el detector aún no lo use,
   porque **el histórico no se reconstruye hacia atrás**.
 - **`cacles` es la primera tienda barefoot NATIVA**, y entró porque el foco barefoot (#30) dejaba la
   zapatería casi vacía: las otras tres son cadenas de moda convencional y entre ellas sumaban ~92
@@ -473,15 +479,37 @@ sitemap — y ese sitemap resulta traer más de lo que suele:
 
 - **La taxonomía va en la propia URL** (`/{mundo}/{género}/{categoría}[/{subcat}]/{slug}/{id}.html`),
   así que el ámbito de cada producto se resuelve **sin una sola petición**.
-- **Trae `lastmod` en las 12 842 URLs**, y eso *es* la `signature`. Es lo que hace viable la tienda:
-  el detalle cuesta una petición por ficha, así que sin huella cada pasada costaría el catálogo
-  entero. Medido: **25-31 min en frío contra 1m39s** en régimen estable, ×17.
+- **Trae `lastmod` en las 12 842 URLs**, y eso *parecía* ser la `signature`. Medido justo tras la
+  pasada en frío: **25-31 min contra 1m39s**, ×17. Ese número no sobrevive a la cadencia real; ver
+  abajo.
 - **Todo el listado son 4 peticiones** (el índice y tres ficheros de producto).
 
-Riesgo abierto que no se puede cerrar en una sesión y queda anotado: **si `lastmod` no se moviera al
-cambiar solo el precio, el detalle condicional congelaría los precios**. Exige observar el mismo
-producto en dos días. La red que lo cubre mientras tanto es el refresco periódico forzado
-(`last_detail_at` + `SCRAPER_DETAIL_MAX_AGE_DAYS`), que ya existe por otro motivo.
+**El riesgo que quedó anotado aquí está medido, y la respuesta invierte el motivo** (06/08/2026,
+#227). Se temía que *si `lastmod` no se moviera al cambiar solo el precio, el detalle condicional
+congelaría los precios*. No pasa — pero no porque el `lastmod` siga al precio, sino porque **se
+mueve para todo**. Sobre las dos pasadas de QA separadas por dos días (run 23 el 03/08, run 38 el
+05/08):
+
+| ¿cambió el precio entre las dos pasadas? | productos | rango de `lastmod` visto en la run 38 |
+|---|---:|---|
+| no | 958 | 04/08 08:07 → 05/08 07:00 |
+| **sí** | **132** | 04/08 08:07 → 05/08 07:00 |
+
+Idéntico: el `lastmod` **no lleva información de precio en ninguna de las dos direcciones**. Se
+reescribe por tandas —315 productos el 04/08 a las 08:00, 734 el 04/08 a las 19:00, 125 el 05/08 a
+las 07:00— porque es una marca del **generador del sitemap**, no del producto. Consecuencia: la
+segunda pasada pidió ficha de **1183 de 1193 productos y tardó 27 min**, o sea que el detalle
+condicional no filtró nada y el ×17 de arriba solo existe en la ventana de minutos que sigue a una
+pasada. No es el refresco forzado quien lo provoca: `SCRAPER_DETAIL_MAX_AGE_DAYS` son 7 días y entre
+las dos pasadas hay 2.
+
+**Lo que se generaliza, y es lo que importa para la próxima tienda por sitemap:** un `lastmod` es
+una propiedad del generador, no del producto, y su utilidad como huella **no se puede medir en la
+misma sesión en que se implementa la tienda** — dos pasadas separadas por minutos siempre dirán que
+funciona. Hay que medirla con dos pasadas separadas por la cadencia real, y hasta entonces el ahorro
+es una hipótesis, no un número. Nada de esto rompe datos: como el `lastmod` se mueve para todo, los
+precios nunca se congelan y `price_history` crece con el catálogo entero. El coste es solo tiempo de
+pasada.
 
 **Lo que se generaliza es qué es una hoja cuando no hay hojas.** El vigía necesita algo que sondear
 y las bajas necesitan ámbitos declarados, y aquí resultaron ser **dos listas distintas, con el error
