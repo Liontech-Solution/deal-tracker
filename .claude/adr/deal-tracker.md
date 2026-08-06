@@ -484,9 +484,9 @@ sitemap — y ese sitemap resulta traer más de lo que suele:
   abajo.
 - **Todo el listado son 4 peticiones** (el índice y tres ficheros de producto).
 
-**El riesgo que quedó anotado aquí está medido, y la respuesta invierte el motivo** (06/08/2026, ver
-#227). Se temía que *si `lastmod` no se moviera al cambiar solo el precio, el detalle condicional
-congelaría los precios*. No pasa — pero no porque el `lastmod` siga al precio, sino porque **se
+**El riesgo que quedó anotado aquí está medido, y la respuesta invierte el motivo** (06/08/2026,
+ver #227). Se temía que *si `lastmod` no se moviera al cambiar solo el precio, el detalle
+condicional congelaría los precios*. No pasa — pero no porque el `lastmod` siga al precio, sino porque **se
 mueve para todo**. Sobre las dos pasadas de QA separadas por dos días (run 23 el 03/08, run 38 el
 05/08):
 
