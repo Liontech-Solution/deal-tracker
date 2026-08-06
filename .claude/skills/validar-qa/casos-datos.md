@@ -292,10 +292,21 @@ ORDER BY d.dia DESC;
 Una fila con `alerta` es **P0**: la pasada escribió catálogo pero no precio. Un día a cero **sin**
 pasada es simplemente un día sin pasada y no se reporta.
 
-## D11 · Notificaciones y marca de agua
+## D11 · Notificaciones, suelo y pasadas pendientes
 
 ```sql
 SELECT job, last_scrape_run_id, updated_at FROM job_state;
+
+-- Pasadas ya evaluadas que siguen por encima del suelo: si hay muchas, el suelo está frenado por
+-- un hueco en la secuencia de ids (#240).
+SELECT count(*) AS en_el_libro, min(scrape_run_id), max(scrape_run_id) FROM matching_scanned_run;
+
+-- Lo que de verdad importa: pasadas con precios que el matching NO ha evaluado.
+SELECT DISTINCT ph.scrape_run_id
+FROM price_history ph
+WHERE ph.scrape_run_id > (SELECT last_scrape_run_id FROM job_state WHERE job = 'matching')
+  AND NOT EXISTS (SELECT 1 FROM matching_scanned_run m WHERE m.scrape_run_id = ph.scrape_run_id)
+ORDER BY 1;
 
 SELECT count(*) AS avisos_7d, count(DISTINCT user_id) AS usuarios,
        max(sent_at) AS ultimo
@@ -306,8 +317,13 @@ SELECT interest_id, variant_id, price_event_key, count(*)
 FROM notification GROUP BY 1, 2, 3 HAVING count(*) > 1;
 ```
 
-`last_scrape_run_id` que no se ha movido desde la última pasada con éxito es **P0**: el matching no
-está avanzando y nadie recibe avisos. Duplicados en `notification` son **P0**.
+Pasadas pendientes de hace más de una semana son **P0**: el matching no las está consumiendo y
+nadie recibe sus avisos. Duplicados en `notification` son **P0**.
+
+Ojo con leer `last_scrape_run_id` a solas, que es lo que se hacía hasta #240: el suelo **se queda
+atrás a propósito** cuando hay un hueco en la secuencia (un id quemado por una pasada que hizo
+rollback, o una todavía en vuelo), y eso no significa que el matching esté parado. Quien contesta
+esa pregunta es la consulta de pasadas pendientes.
 
 ## D12 · Migraciones
 

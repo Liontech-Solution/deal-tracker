@@ -3,7 +3,7 @@ import { inArray, sql } from 'drizzle-orm';
 
 import { generoCondition } from '../catalog/gender.sql';
 import { Database, DRIZZLE } from '../database/database.module';
-import { notification } from '../database/schema';
+import { matchingScannedRun, notification } from '../database/schema';
 import { TelegramApiClient } from '../telegram/telegram-api.client';
 import { evaluateDeal } from './deal-rule';
 import { collapseSameGarment } from './dedupe';
@@ -23,10 +23,18 @@ const CHUNK_DELAY_MS = 1_100;
 /**
  * Evalúa los precios recién scrapeados contra los intereses de los usuarios y avisa por Telegram.
  *
- * Incremental por marca de agua: solo mira `price_history.scrape_run_id > last_scrape_run_id`.
- * Es seguro porque el scraper ingesta cada pasada en una sola transacción (nunca se ve un run a
- * medias), y guardar el mayor id procesado —en vez de "el último run"— recupera solo el hueco si
- * una ejecución se pierde.
+ * Incremental por **pasadas pendientes**: el lote son los `scrape_run` que tienen precios y que este
+ * job no ha evaluado todavía. El estado son dos piezas complementarias: `job_state` guarda el
+ * **suelo** (todo id por debajo está resuelto) y `matching_scanned_run` el libro de lo procesado por
+ * encima de él.
+ *
+ * No basta con guardar el mayor id visto, que es lo que se hacía hasta #240: los `scrape_run` **no
+ * se completan en orden de id**. Una pasada larga puede seguir en transacción cuando otra posterior
+ * commitea, y sus filas nacerían por debajo de la marca — o sea invisibles para siempre, sin que
+ * nada lo delate. Preguntando "¿qué he procesado ya?" en vez de "¿hasta dónde he llegado?", la
+ * rezagada entra sola en el lote siguiente en cuanto commitea, que es lo único que se puede
+ * observar: mientras está abierta no deja ningún rastro (su fila de `scrape_run` viaja dentro de su
+ * propia transacción).
  */
 @Injectable()
 export class MatchingService {
@@ -49,9 +57,9 @@ export class MatchingService {
    * registra qué habría enviado: es lo que corre en `dev`, donde no hay bot.
    */
   async run(dryRun: boolean): Promise<MatchingSummary> {
-    const watermark = await this.readWatermark();
-    const maxRunId = await this.readScanned(watermark);
-    const rows = await this.findCandidates(watermark);
+    const floor = await this.readFloor();
+    const pendingRuns = await this.readPendingRuns(floor);
+    const rows = pendingRuns.length === 0 ? [] : await this.findCandidates(pendingRuns);
 
     const evaluadas: Deal[] = [];
     for (const row of rows) {
@@ -64,14 +72,18 @@ export class MatchingService {
     // Dos SKU de la misma prenda son un solo aviso (#108). Ver `collapseSameGarment`.
     const { kept: deals, collapsed } = collapseSameGarment(evaluadas);
 
+    // Los ids del lote, y no solo cuántos: una pasada que aparece con id **menor** que el suelo
+    // anterior es la firma de #240 —una rezagada que commiteó tarde— y sin verlos no se distingue
+    // de una pasada normal.
     this.logger.log(
-      `Lote desde scrape_run > ${watermark}: ${rows.length} candidato(s), ${deals.length} oferta(s)` +
+      `Lote (suelo ${floor}): pasada(s) [${pendingRuns.join(', ')}], ` +
+        `${rows.length} candidato(s), ${deals.length} oferta(s)` +
         (collapsed > 0 ? `, ${collapsed} cara(s) duplicada(s) colapsada(s)` : ''),
     );
 
     const summary: MatchingSummary = {
       dryRun,
-      watermark: maxRunId,
+      watermark: floor,
       candidates: rows.length,
       deals: deals.length,
       duplicatesCollapsed: collapsed,
@@ -103,15 +115,16 @@ export class MatchingService {
       if (entregados.length < fresh.length) summary.failedSends += 1;
     }
 
-    // La marca de agua solo avanza si todo se entregó: si no, el próximo intento (o el reintento
-    // del Job de k8s) reprocesa el lote. Los ya avisados están protegidos por su fila.
-    if (!dryRun && maxRunId > watermark && summary.failedSends === 0) {
-      await this.saveWatermark(maxRunId);
+    // El estado solo avanza si todo se entregó: si no, el próximo intento (o el reintento del Job
+    // de k8s) reprocesa el lote. Los ya avisados están protegidos por su fila.
+    if (!dryRun && pendingRuns.length > 0 && summary.failedSends === 0) {
+      await this.markScanned(pendingRuns);
+      summary.watermark = await this.advanceFloor(floor);
     }
 
     this.logger.log(
       `Fin${dryRun ? ' (dry-run, sin cambios)' : ''}: ${summary.notified} aviso(s) para ` +
-        `${summary.usersNotified} usuario(s), marca de agua ${summary.watermark}`,
+        `${summary.usersNotified} usuario(s), suelo ${summary.watermark}`,
     );
     return summary;
   }
@@ -156,27 +169,33 @@ export class MatchingService {
   }
 
   /**
-   * Mayor `scrape_run` **escaneado** en este lote, que es hasta donde puede avanzar la marca de
-   * agua (#221).
+   * Las pasadas con precios que este job todavía no ha evaluado.
+   *
+   * **Sin tope por arriba** a propósito: una pasada rezagada commitea con un id *menor* que el de
+   * otra ya procesada, y cualquier `max(...)` la volvería a dejar fuera — que es el fallo entero de
+   * #240.
    *
    * Se mide sobre `price_history` a pelo, sin cruzar con `interest` ni filtrar por stock ni por el
-   * foco barefoot: lo que decide que una pasada está vista es haberla mirado, no que produjera
-   * aviso. Derivarlo de las filas candidatas —como se hacía— dejaba la marca clavada en la última
-   * pasada con candidato: en QA se quedó en 34 con pasadas correctas hasta la 38, porque mango,
-   * sfera, zara y springfield no tenían a nadie que las siguiera. Cada ejecución volvía a
-   * escanearlas, el coste crecía con el histórico, y la marca dejaba de servir para saber si el
-   * matching iba al día. Se agrava cuantos menos intereses haya, o sea al arrancar.
+   * foco barefoot (#221): lo que decide que una pasada está vista es haberla mirado, no que
+   * produjera aviso. Derivarlo de las filas candidatas dejaba el estado clavado en la última pasada
+   * con candidato — en QA se quedó en 34 con pasadas correctas hasta la 38, porque mango, sfera,
+   * zara y springfield no tenían a nadie que las siguiera—, así que cada ejecución volvía a
+   * escanearlas y el coste crecía con el histórico. Se agrava cuantos menos intereses haya, o sea
+   * al arrancar.
    *
-   * Lo que esto NO arregla, porque ya pasaba igual: si dos pasadas se solapan y la de id mayor
-   * commitea primero, la marca puede adelantar a la menor y sus filas quedarían por debajo para
-   * siempre. En el cluster los scrapers van escalonados y no se da.
+   * Las filas con `scrape_run_id` NULL no son de ninguna pasada (histórico sembrado a mano) y el
+   * `>` ya las descarta.
    */
-  private async readScanned(watermark: number): Promise<number> {
+  private async readPendingRuns(floor: number): Promise<number[]> {
     const rows = await this.db.execute(sql`
-      SELECT max(scrape_run_id) AS max_run FROM price_history WHERE scrape_run_id > ${watermark}
+      SELECT DISTINCT ph.scrape_run_id AS id
+        FROM price_history ph
+       WHERE ph.scrape_run_id > ${floor}
+         AND NOT EXISTS (
+               SELECT 1 FROM matching_scanned_run m WHERE m.scrape_run_id = ph.scrape_run_id)
+       ORDER BY 1
     `);
-    const row = (rows as unknown as { max_run: string | number | null }[])[0];
-    return row?.max_run == null ? watermark : Number(row.max_run);
+    return (rows as unknown as { id: string | number }[]).map((r) => Number(r.id));
   }
 
   /**
@@ -186,7 +205,7 @@ export class MatchingService {
    * criterio sale de la fila `interest` (NULL = "cualquiera"). El JOIN a `app_user` descarta a
    * quien no tiene Telegram: sin canal no hay aviso, y tampoco se quema el evento en `notification`.
    */
-  private async findCandidates(watermark: number): Promise<CandidateRow[]> {
+  private async findCandidates(runIds: number[]): Promise<CandidateRow[]> {
     const rows = await this.db.execute(sql`
       WITH batch AS (
         SELECT ph.variant_id, ph.price, ph.list_price, ph.scraped_at, ph.scrape_run_id,
@@ -198,7 +217,19 @@ export class MatchingService {
         JOIN variant  v ON v.id = ph.variant_id
         JOIN product  p ON p.id = v.product_id
         JOIN retailer r ON r.id = p.retailer_id
-        WHERE ph.scrape_run_id > ${watermark} AND ph.in_stock
+        -- Sin paréntesis alrededor del array: drizzle despliega los ids en un parámetro por
+        -- elemento y ya los envuelve él, así que un par de más los convierte en un record y la
+        -- comparación revienta con "bigint = record". readPendingRuns garantiza que no viene vacío.
+        WHERE ph.scrape_run_id IN ${runIds} AND ph.in_stock
+          -- Solo el precio VIGENTE de la variante. Importa desde que el lote puede traer una
+          -- pasada rezagada (#240): sus precios pueden estar ya superados por otra posterior, y
+          -- avisar de uno superado es mandar al móvil de alguien un precio que ya no existe. De
+          -- paso cierra el duplicado que asomaba por ahí — la clave del evento lleva el
+          -- scrape_run_id, así que el mismo precio en dos pasadas son dos claves y el UNIQUE de la
+          -- 0005 no lo habría parado.
+          AND NOT EXISTS (
+                SELECT 1 FROM price_history nueva
+                 WHERE nueva.variant_id = ph.variant_id AND nueva.scraped_at > ph.scraped_at)
           -- Foco barefoot (#30): no se avisa de calzado que no sea respetuoso. Un aviso es más
           -- intrusivo que una tarjeta del catálogo — llega solo al móvil de alguien — así que
           -- mandar ahí lo que el catálogo esconde sería la peor versión del mismo error.
@@ -321,7 +352,8 @@ export class MatchingService {
     await this.db.delete(notification).where(inArray(notification.id, ids));
   }
 
-  private async readWatermark(): Promise<number> {
+  /** Suelo: todo `scrape_run_id` por debajo o igual está resuelto y no vuelve a mirarse. */
+  private async readFloor(): Promise<number> {
     const rows = await this.db.execute(
       sql`SELECT last_scrape_run_id FROM job_state WHERE job = ${JOB}`,
     );
@@ -329,11 +361,52 @@ export class MatchingService {
     return row ? Number(row.last_scrape_run_id) : 0;
   }
 
-  private async saveWatermark(runId: number): Promise<void> {
-    await this.db.execute(sql`
-      INSERT INTO job_state (job, last_scrape_run_id) VALUES (${JOB}, ${runId})
-      ON CONFLICT (job) DO UPDATE SET last_scrape_run_id = ${runId}, updated_at = now()
+  /** Anota el lote en el libro. `DO NOTHING` porque dos ejecuciones solapadas verían lo mismo. */
+  private async markScanned(runIds: number[]): Promise<void> {
+    await this.db
+      .insert(matchingScannedRun)
+      .values(runIds.map((id) => ({ scrapeRunId: id })))
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Sube el suelo por el prefijo **contiguo** ya resuelto y poda el libro por debajo.
+   *
+   * Un id está resuelto si está en el libro o si es una pasada commiteada que no escribió ningún
+   * precio (una que falló, por ejemplo: no hay nada que evaluar en ella). Lo que **frena** el suelo
+   * es un id que no tiene fila en `scrape_run`, y eso es exactamente lo que hay que respetar: o es
+   * una pasada en vuelo cuya fila aún no ha commiteado —y su lote está por llegar— o es un id
+   * quemado por un rollback, que no volverá. Los dos son indistinguibles desde aquí, así que se
+   * elige la lectura conservadora: el suelo espera. Lo único que cuesta la lectura equivocada es que
+   * el libro conserve unas filas de más.
+   */
+  private async advanceFloor(floor: number): Promise<number> {
+    const rows = await this.db.execute(sql`
+      WITH tope AS (SELECT coalesce(max(id), ${floor}) AS id FROM scrape_run),
+           freno AS (
+             SELECT min(g) AS id
+               FROM generate_series(${floor} + 1, (SELECT id FROM tope)) g
+              WHERE NOT EXISTS (SELECT 1 FROM matching_scanned_run m WHERE m.scrape_run_id = g)
+                AND NOT EXISTS (
+                      SELECT 1 FROM scrape_run sr
+                       WHERE sr.id = g
+                         AND NOT EXISTS (
+                               SELECT 1 FROM price_history ph WHERE ph.scrape_run_id = g))
+           )
+      SELECT coalesce((SELECT id FROM freno) - 1, (SELECT id FROM tope)) AS suelo
     `);
+    const nuevo = Number((rows as unknown as { suelo: string | number }[])[0].suelo);
+    if (nuevo <= floor) return floor;
+
+    await this.db.execute(sql`
+      INSERT INTO job_state (job, last_scrape_run_id) VALUES (${JOB}, ${nuevo})
+      ON CONFLICT (job) DO UPDATE SET last_scrape_run_id = ${nuevo}, updated_at = now()
+    `);
+    // El libro solo guarda lo que está por encima del suelo: por debajo ya lo dice `job_state`.
+    await this.db.execute(
+      sql`DELETE FROM matching_scanned_run WHERE scrape_run_id <= ${nuevo}`,
+    );
+    return nuevo;
   }
 }
 

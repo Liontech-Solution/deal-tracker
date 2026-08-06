@@ -242,13 +242,24 @@ export const notification = pgTable(
 );
 
 /**
- * Marca de agua de los jobs (migración 0007). El job de matching solo evalúa los precios de
- * `scrape_run_id` mayores que el último procesado.
+ * Suelo de los jobs (migración 0007). Para el matching, todo `scrape_run_id` por debajo está
+ * resuelto; lo que hay por encima lo decide `matchingScannedRun`.
  */
 export const jobState = pgTable('job_state', {
   job: text('job').primaryKey(),
   lastScrapeRunId: bigint('last_scrape_run_id', { mode: 'number' }).notNull().default(0),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Pasadas ya evaluadas por el matching, por encima del suelo (migración 0027). Existe porque los
+ * `scrape_run` no se completan en orden de id: una pasada larga puede commitear después de otra
+ * posterior, y con un simple "mayor id visto" sus filas quedaban bajo la marca y no se avisaban
+ * nunca (#240). Sin FK a `scrape_run`, como `notification.variant_id`: tabla del web, tabla ajena.
+ */
+export const matchingScannedRun = pgTable('matching_scanned_run', {
+  scrapeRunId: bigint('scrape_run_id', { mode: 'number' }).primaryKey(),
+  processedAt: timestamp('processed_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const productRelations = relations(product, ({ one, many }) => ({
@@ -286,6 +297,7 @@ export const schema = {
   interest,
   notification,
   jobState,
+  matchingScannedRun,
   productRelations,
   productImageRelations,
   productTagRelations,

@@ -51,7 +51,11 @@ export interface Deal {
 /** Resumen de una ejecución, para el log y para los tests. */
 export interface MatchingSummary {
   dryRun: boolean;
-  /** Mayor `scrape_run_id` visto en el lote; 0 si no había nada nuevo. */
+  /**
+   * Suelo tras la ejecución: todo `scrape_run_id` por debajo está resuelto. **No** es el mayor id
+   * del lote — se queda a propósito por debajo de un hueco en la secuencia, porque un hueco puede
+   * ser una pasada que aún no ha commiteado (#240). En `dryRun` no se mueve.
+   */
   watermark: number;
   candidates: number;
   /** Ofertas a avisar, ya colapsadas las caras duplicadas. */

@@ -71,9 +71,11 @@ export function makeSqlAt(url: string): postgres.Sql {
 export async function resetSchema(sql: postgres.Sql): Promise<void> {
   await runMigrations(sql);
   // `job_state` incluida: si la marca de agua sobrevive a un reset, los ids reiniciados quedan
-  // por debajo de ella y el job no vería ningún lote.
+  // por debajo de ella y el job no vería ningún lote. `matching_scanned_run` por lo mismo y peor:
+  // no hay ningún suelo que lo delate, así que una pasada "ya procesada" de otro spec dejaría el
+  // lote vacío sin que nada lo explicase.
   await sql.unsafe(`
-    TRUNCATE notification, interest, app_user, job_state,
+    TRUNCATE notification, interest, app_user, job_state, matching_scanned_run,
              price_history, product_image, variant, product, scrape_run, retailer
     RESTART IDENTITY CASCADE
   `);
