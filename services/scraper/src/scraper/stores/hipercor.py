@@ -84,6 +84,44 @@ Cacles en #179 aunque por otro motivo. La lista de `CATEGORIES` se mantiene a ma
 hoja se valida sola**: una ruta que ya no exista cae en la comprobación de espejismo y se cuenta
 como hoja caída en vez de ingerir el catálogo del género entero. Lo que esto deja sin cubrir es lo
 contrario —una categoría **nueva** que la tienda publique— y hoy no hay forma legítima de verlo.
+
+**La zapatería de Hipercor es calzado convencional, y por eso no la ve nadie en el catálogo**
+(#222). Los 286 zapatos vivos están los 286 en `desconocido`, y eso es **correcto**: no es que el
+clasificador esté ciego. Medido el 06/08/2026 sobre los 286 (22 niña / 46 niño / 218 unisex), con
+la heurística real y en tres frentes:
+
+  - **El nombre.** 0 con señal fuerte —ninguno nombra «barefoot», «respetuoso», «descalzo»,
+    «minimalista» ni el drop—, 0 con señal negativa, y **50 con UNA sola señal débil**
+    («suela flexible»), ninguno con dos. O sea que el `desconocido` no sale de un empate raro: sale
+    de que no hay nada que afirmar.
+  - **La ficha, que SÍ publica más texto que el nombre** —y esto contradecía la hipótesis con la
+    que se abrió la issue—. Lleva un bloque `attribute_groups` (Composición, Puntera, Cierre) que
+    hoy no se lee. Se pidieron las 286 fichas: las 286 lo traen, y **pasárselo al clasificador no
+    cambia ni un producto** (286 `desconocido` antes y después). Son 34 valores distintos en total
+    —material exterior/interior, suela, puntera, cierre, lavado—: describen **de qué está hecho el
+    zapato, no cómo está construido**, que es lo que la heurística necesita. El `description` del
+    `ld+json`, por su parte, es literalmente el `name`.
+  - **La propia tienda**, que es la vía preferente de `barefoot.py`. No declara nada: cero
+    apariciones del concepto (con el patrón anclado) en la rejilla entera —navegación, 206
+    etiquetas de faceta— y bajo `zapatos-infantiles` no publica más hojas que las tres que ya
+    ingerimos. Coherente con lo que #179 midió aquí arriba.
+
+**Cuidado con el atajo, que aquí también está medido.** La ficha dice «Puntera **Redonda**» y
+`_DEBILES` lleva «puntera **redondeada**», que no casan. Aflojar esa marca a `puntera redond` es lo
+primero que se le ocurre a cualquiera, y le pondría media señal al **45 % del catálogo (128 de
+286)**: hoy marcaría `si` a 4 lonas de bebé —las que además llevan «suela flexible» en el nombre—,
+y a muchas más en cuanto entrase cualquier otra señal débil. Es la misma trampa que `mango.py`
+documenta con «Punta redonda» (92 de 137), y por el mismo motivo: es un adjetivo de forma, no de
+construcción. Lo mismo con los 18 productos que llevan «bio» en el nombre —chanclas y sandalias—:
+su ficha no dice de ellos más que los materiales, así que no hay en ella nada que respalde leer
+«bio» como calzado respetuoso.
+
+**La señal barata para re-medirlo**, el día que Hipercor se meta en calzado respetuoso, es la misma
+consulta de la que salió #222 (caso D8 de `/validar-qa`):
+
+    SELECT p.barefoot, count(*) FROM product p JOIN retailer r ON r.id = p.retailer_id
+    WHERE r.slug = 'hipercor' AND p.section = 'zapateria' AND p.delisted_at IS NULL
+    GROUP BY 1;
 """
 
 from __future__ import annotations
@@ -728,6 +766,12 @@ def parse_pdp(html: str, cat: CategoryConfig, url: str | None = None) -> Scraped
         # como Lefties ni faceta que lo diga. Queda la heurística de texto sobre el nombre, que es
         # el plan B para el que existe (mismo caso que Sfera, #33). Lo que no se pueda afirmar se
         # queda en `desconocido`, que es un estado, no una carencia.
+        #
+        # **Solo el nombre, y es deliberado desde #222**: la ficha publica además un bloque
+        # `attribute_groups`, pero pasárselo no cambia ni uno de los 286 zapatos —enumera
+        # materiales, puntera y cierre, no construcción—. Está medido en el docstring del módulo,
+        # con la trampa que deja montada («Puntera Redonda» en 128 de 286). No volver sobre esto
+        # sin releerlo.
         barefoot=classify_barefoot(
             retailer=SLUG,
             retailer_product_id=pid,
