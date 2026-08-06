@@ -1989,6 +1989,24 @@ Y una precondición que no estaba escrita en ningún sitio: `findCandidates` hac
 haga lo que haga el scraper**. Vincular exige a un humano pulsando «Start» sobre un deep-link de un
 solo uso (`POST /api/settings/telegram/link`); no hay forma de hacerlo desde el cluster.
 
+**Confirmado con pasadas normales, y hay un tercer filtro que no estaba contado.** Revalidado en QA
+el 06/08/2026 durante la validación de v0.1.8, esta vez **sin** `--refresh-all` —o sea con el
+comportamiento de una pasada cualquiera— y por los dos caminos de `compare_base`:
+
+| intento | lote | candidatos | ofertas | qué cortó |
+|---|---|---:|---:|---|
+| pasada de H&M (`run #39`, 20.251 precios) | `[39]` | 10.469 | **0** | condición A: `mínimos_nuevos = 0` de 11.020, y `mejor_diferencia = 0.00` — el mejor caso de la tienda es un precio **igual** a su mínimo, nunca por debajo |
+| pasada de Lefties (`run #40`) + interés con `compare_base='list_price'` | `[40]` | 75 | **0** | `honestListPrice`: `precio 3,99 · PVP 4,99 · max_observed 3,99` → descuento honesto **0 %** |
+
+El dato nuevo es el tercero, y muerde a quien quiera **fabricar un lote grande** (por ejemplo para
+ejercer el troceo de #220): el foco barefoot de `findCandidates`
+(`p.section IS DISTINCT FROM 'zapateria' OR p.barefoot = 'si'`) **recorta el lote un 78 %**. En la
+pasada de Lefties, de 59 prendas rebajadas solo **13** sobreviven al filtro, porque lo que más
+rebaja una tienda de moda es zapatería que no es barefoot. Con 13 viñetas (~2.650 caracteres) no se
+llega ni a los 4.096 de un solo mensaje, así que **acotar el interés no es el problema: el techo lo
+pone el catálogo barefoot rebajado, y en QA no da**. Es la razón por la que #220 sigue sin prueba
+sobre artefacto desplegado pese a tres intentos con autorización expresa.
+
 ### El aviso no falla, se atasca: el resumen tiene un límite duro y el fallo se realimenta (#220)
 
 `sendMessage` de la Bot API admite **4096 caracteres** y el job mandaba **un único resumen por
