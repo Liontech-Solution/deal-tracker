@@ -431,6 +431,22 @@ def _talla(label: str | None) -> str | None:
     **12 variantes de las 2712 de zapatería**, y arreglarlo no es cosa de esta tienda: por debajo de
     15 las dos lecturas son plausibles desde el texto y la que decide es la sección, que la función
     de la base no conoce.
+
+    Se asume a propósito (#103), y lo que lo sostiene es que H&M sea la ÚNICA tienda con este
+    patrón: medido sobre las siete ingeridas, ninguna otra aporta un solo caso — los patucos de
+    Hipercor son de talla única y los de Cacles y Lefties se tallan con número suelto, no con rango.
+    El día que eso deje de ser cierto, la opción de pasarle la sección a `size_canon` vuelve a estar
+    sobre la mesa. Esta consulta es la señal barata que lo detecta; si devuelve algo que no sea
+    `hm`, reabrir la decisión:
+
+        select r.slug, p.section, v.size, size_canon(v.size), count(*)
+          from variant v
+          join product p on p.id = v.product_id
+          join retailer r on r.id = p.retailer_id
+         where p.section = 'zapateria' and v.delisted_at is null
+           and v.size ~ '^[0-9]+\\s*[-/]\\s*[0-9]+$'
+           and (regexp_match(v.size, '^([0-9]+)'))[1]::int < 15
+         group by 1,2,3,4 order by 5 desc;
     """
     if label is None:
         return None
@@ -445,8 +461,15 @@ def _precios(raw: Mapping[str, Any]) -> tuple[Decimal | None, Decimal | None]:
     """`(precio, tachado)` a partir de `prices[]`.
 
     Un producto rebajado trae DOS entradas: `redPrice` es lo que se paga y `whitePrice` el tachado.
-    Uno sin rebaja trae solo `whitePrice`. Hoy en infantil no hay ninguno rebajado (0 de 6518), así
-    que se decide por el tipo y no por «el menor de los dos», que sería adivinar.
+    Uno sin rebaja trae solo `whitePrice`. Se decide por el tipo y no por «el menor de los dos», que
+    sería adivinar.
+
+    En infantil no hay ni un rebajado, y ya no es cuestión de muestra: **0 de 118 197 filas en 30
+    días** (#106, cuarta medida, dos entornos). O sea que este camino no lo ha ejercido nunca un
+    dato real de esta sección. Lo que sí está comprobado contra la sección de adulto, que rebaja, es
+    que la forma es exactamente esta: los únicos `priceType` que sirve la API son `whitePrice` y
+    `redPrice`, sin un tercero. Cuidado con `minPrice`/`maxPrice`, que NO son ningún mínimo
+    histórico: son el rango dentro de la propia entrada y vienen iguales al `price`.
 
     El tachado solo cuenta si es estrictamente MAYOR, la misma guarda que en Cacles (donde venía
     igual al precio en 248 de 428 productos) y en C&A.
