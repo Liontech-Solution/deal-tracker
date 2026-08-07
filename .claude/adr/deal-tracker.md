@@ -1435,6 +1435,27 @@ que en QA —que se despliega por releases semver— hay una ventana real en la 
 antes que la `0022`. Base inalcanzable, tabla que aún no existe o INSERT rechazado degradan a «sin
 historial» y el sondeo sigue igual, como ya hacía el aviso de GitHub cuando falta el token.
 
+**Y el corolario que solo aparece cuando el vigía muere: sus dos salidas se vuelcan al final, así
+que un plazo agotado no persiste nada.** Medido el 07/08/2026 validando v0.1.9 en QA: el job murió
+por `DeadlineExceeded` a los 2700 s dejando **cero filas** en `vigia_run` y **cero líneas** de log.
+Las filas, porque se insertan en una sola transacción que se abre al arrancar y se compromete al
+acabar — por eso todas comparten `ran_at`, que es el `now()` del **inicio** de la transacción y no
+el de la escritura, y por eso `pg_stat_activity` enseña el vigía como `idle in transaction` durante
+todo el barrido. El log, porque Python bloquea el buffer al no escribir a un terminal: ni
+`kubectl logs -f` enganchado desde el arranque saca una línea hasta que el proceso sale. La segunda
+ejecución del mismo día sí completó, en **35m 21s** contra los **19m 38s** de la víspera, con
+Hipercor en **18m 50s** contra 7m 13s.
+
+Dos consecuencias que sobreviven a ponerle `PYTHONUNBUFFERED=1` (#258):
+
+- **La línea base de `vigia_run` tiene sesgo de supervivencia**: solo contiene ejecuciones que
+  terminaron. La mediana contra la que se emite el aviso de ritmo no puede incluir la pasada que se
+  agotó, que es precisamente la más lenta que hubo. El aviso llega tarde por construcción, y cuanto
+  peor se pone la cosa menos lo refleja.
+- **`activeDeadlineSeconds` no es un techo, es un borrado.** Rebasarlo no degrada el informe: lo
+  elimina entero, medidas incluidas. Es la otra cara de «lo que protege es que fallar sea barato»
+  de más arriba — aquí fallar cuesta la observación completa, que es lo caro.
+
 ### Una hoja de campaña no es una hoja retirada, y su categoría es del producto (#195, #176)
 
 Dos tiendas publican hojas cuya vida depende de una campaña, y fallaban de formas opuestas que
