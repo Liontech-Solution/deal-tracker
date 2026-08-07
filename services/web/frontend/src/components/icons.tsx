@@ -83,6 +83,20 @@ export const ExternalIcon = (p: P) => (
     <path d="M7 17L17 7M9 7h8v8" />
   </Icon>
 );
+export const CopyIcon = (p: P) => (
+  <Icon {...p}>
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M5 15V5a2 2 0 0 1 2-2h8" />
+  </Icon>
+);
+export const QrIcon = (p: P) => (
+  <Icon {...p} sw={p.sw ?? 2}>
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20v.01" />
+  </Icon>
+);
 export const ZapIcon = (p: P) => (
   <Icon {...p} sw={p.sw ?? 2.4}>
     <path d="M13 2L3 14h7l-1 8 10-12h-7z" />

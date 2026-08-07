@@ -1,4 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 
 import { apiGet, apiGetAuth, apiSend } from './client';
 import type {
@@ -103,16 +104,39 @@ export function useDeleteInterest() {
 
 const TELEGRAM_KEY = ['settings', 'telegram'];
 
+/** Durante este rato tras iniciar el enlace se sondea rápido; después se afloja. */
+const TELEGRAM_POLL_FAST_MS = 4000;
+const TELEGRAM_POLL_SLOW_MS = 15000;
+const TELEGRAM_POLL_FAST_WINDOW_MS = 2 * 60 * 1000;
+
 /**
  * Estado del vínculo de Telegram. `enabled` para no pedir sin sesión. Mientras hay un enlace
- * en curso (token vivo sin confirmar), sondea suave para detectar cuándo el bot lo confirma.
+ * en curso (token vivo sin confirmar), sondea para detectar cuándo el bot lo confirma.
+ *
+ * El sondeo se escalona a propósito. `pendingLink` es cierto durante toda la vida del token, que
+ * con #266 pasó de 15 a 60 min; a 4 s fijos eso serían ~900 peticiones, y cada una pasa por
+ * `getFreshToken()` → `kc.updateToken()`, que es justo el terreno de #262. Así que se sondea
+ * rápido los primeros minutos —cuando el usuario está escaneando el QR y espera respuesta— y
+ * despacio después, que es cuando ha dejado la pestaña abierta y ya volverá.
  */
 export function useTelegramSettings(enabled: boolean) {
+  // Cuándo se vio por primera vez el enlace en curso. En un ref y no en estado: cambiarlo no debe
+  // repintar, solo decidir la cadencia del siguiente sondeo.
+  const pendingSince = useRef<number | null>(null);
   return useQuery({
     queryKey: TELEGRAM_KEY,
     enabled,
     queryFn: () => apiGetAuth<TelegramSettingsView>('/settings/telegram'),
-    refetchInterval: (query) => (query.state.data?.pendingLink ? 4000 : false),
+    refetchInterval: (query) => {
+      if (!query.state.data?.pendingLink) {
+        pendingSince.current = null;
+        return false;
+      }
+      pendingSince.current ??= Date.now();
+      return Date.now() - pendingSince.current < TELEGRAM_POLL_FAST_WINDOW_MS
+        ? TELEGRAM_POLL_FAST_MS
+        : TELEGRAM_POLL_SLOW_MS;
+    },
   });
 }
 

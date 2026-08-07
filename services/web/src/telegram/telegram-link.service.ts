@@ -9,8 +9,11 @@ import type { RedeemResult } from './telegram.types';
  * Canje del token de vínculo que emite `SettingsService.startTelegramLink`.
  *
  * Contrapartida del deep-link `t.me/<bot>?start=<token>`: el usuario pulsa «Start», Telegram nos
- * manda `/start <token>` y aquí lo cambiamos por el `chat_id` real. El token es de un solo uso y
- * caduca a los 15 min (ver `settings.service.ts`).
+ * manda `/start <token>` y aquí lo cambiamos por el `chat_id` real. El token es de un solo uso;
+ * su caducidad la fija `LINK_TOKEN_TTL_MS` en `settings.service.ts` (hoy 60 min).
+ *
+ * El mismo canje sirve para el `/start <token>` que el usuario teclea a mano en Telegram Web: la
+ * SPA enseña el token precisamente para eso (#266), y a este servicio le llega igual.
  */
 @Injectable()
 export class TelegramLinkService {
