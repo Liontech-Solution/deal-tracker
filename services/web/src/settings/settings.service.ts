@@ -9,8 +9,14 @@ import { Database, DRIZZLE } from '../database/database.module';
 import { appUser } from '../database/schema';
 import type { TelegramLinkResult, TelegramSettingsView } from './settings.types';
 
-/** Validez del token de enlace: corta, es de un solo uso y se regenera al pedir otro. */
-const LINK_TOKEN_TTL_MS = 15 * 60 * 1000;
+/**
+ * Validez del token de enlace. Es de un solo uso y se regenera al pedir otro.
+ *
+ * Era de 15 min y se subió a 60 (#266): cualquier rodeo razonable —ir a por el móvil, instalar
+ * Telegram, iniciar sesión en Telegram Web— se comía la ventana. Medido validando v0.1.9,
+ * caducaron dos tokens seguidos antes de poder canjearlos, con el operador delante.
+ */
+const LINK_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class SettingsService {
@@ -29,6 +35,9 @@ export class SettingsService {
    * Inicia un enlace: genera un token de un solo uso, lo persiste con caducidad y devuelve el
    * deep-link `t.me/<bot>?start=<token>`. Re-vincular está permitido (sobrescribe el token).
    * Requiere `TELEGRAM_BOT_USERNAME`; sin él no se puede armar el deep-link (503).
+   *
+   * Devuelve además el token y el usuario del bot sueltos: la SPA los enseña para que el vínculo
+   * se pueda completar desde otro dispositivo o desde Telegram Web (#266).
    */
   async startTelegramLink(userId: number): Promise<TelegramLinkResult> {
     const botUsername = this.config.get('TELEGRAM_BOT_USERNAME', { infer: true });
@@ -50,6 +59,8 @@ export class SettingsService {
 
     return {
       deepLink: `https://t.me/${botUsername}?start=${token}`,
+      token,
+      botUsername,
       expiresAt: expiresAt.toISOString(),
     };
   }

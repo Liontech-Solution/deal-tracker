@@ -171,6 +171,8 @@ export interface TelegramSettingsView {
 /** Resultado de iniciar un vínculo de Telegram (espejo de `TelegramLinkResult`). */
 export interface TelegramLinkResult {
   deepLink: string;
+  token: string;
+  botUsername: string;
   expiresAt: string;
 }
 
