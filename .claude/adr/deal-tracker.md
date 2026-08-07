@@ -170,6 +170,19 @@ dos, un fallo garantizado a fecha fija. La regla es que **el CronJob de una capa
 (cortar release → poner `false`) escritos en el propio patch, no solo en el PR. En dev no aplica:
 el bump es automático.
 
+**Y la otra mitad de esa puerta: `release-qa` no promueve lo que hay en `main`, sino lo que dev
+ESTÁ CORRIENDO.** El workflow lee el `newTag` de `overlays/dev/kustomization.yaml` en el repo de
+manifiestos y le cuelga el tag semver a ese mismo digest (`imagetools create`, sin rebuild). Entre
+mergear a `main` y que dev lo corra hay dos pasos que no son instantáneos —el build multiarch, 10-13
+min medidos, y el bump del overlay— más lo que tarde ArgoCD en sincronizar. Medido el 07/08/2026
+promoviendo v0.1.9: el `scraper-ci` del merge seguía `in_progress` y dev aún corría el sha anterior;
+lanzar el `release-qa` en ese momento habría publicado una **v0.1.9 con el scraper de antes del
+arreglo**, con la validación cantando el mismo bloqueante por cuarta vez y el diagnóstico apuntando
+a cualquier sitio menos al build. La regla que queda: **la señal de que se puede promover no es el
+CI en verde, es que el CronJob de dev muestre el sha del merge**. Entre las dos cosas está el bump,
+y el bump es automático pero no inmediato — que es exactamente el matiz que «en dev no aplica» se
+come si se lee deprisa.
+
 **QA no tiene Keycloak propio: se autentica contra el realm de dev.** `/api/config` de QA devuelve
 `https://keycloak-dev.liontechsolution.com` y realm `deal-tracker-dev` — el mismo client
 `deal-tracker-web` que usa dev. Los dos entornos comparten identidad y configuración de client, así
