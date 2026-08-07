@@ -2033,6 +2033,45 @@ el parámetro que use la familia a la que pertenezca) y añadirlo a la tabla. Si
 funciona, solo que sirviendo la foto entera; equivocarse en el separador, en cambio, la deja sin
 fotos y con el placeholder puesto.
 
+### Toda petición autenticada de la SPA puede llevar dentro un salto a Keycloak (#266)
+
+`apiSend`/`apiGetAuth` piden la cabecera a `authHeaders()`, que llama a `getFreshToken()`
+(`frontend/src/auth/keycloak.ts`), y ese hace `kc.updateToken(30)`: **si al access token le quedan
+menos de 30 s, sale a la red a refrescarlo antes de que salga la petición de la API**. O sea que
+`await apiSend(...)` no es un salto de red, son hasta dos, y el segundo va a un host distinto del
+de la API.
+
+Casi siempre da igual. Importa en un caso concreto y poco intuitivo: **cualquier cosa que el
+navegador solo permita bajo un gesto del usuario deja de estar permitida después de un `await` a
+una función autenticada.** Los navegadores conceden una *activación transitoria* al gesto, que
+caduca sola; medido en Chromium 149 muestreando el decaimiento de un solo clic, sin consumirlo:
+
+| ms desde el clic | `navigator.userActivation.isActive` |
+|---:|---|
+| 10 – 5200 | `true` |
+| 6000 | `false` |
+
+Unos 5 s, que es el valor por defecto de la especificación. Así que el patrón «clic → `await`
+petición autenticada → abrir ventana» funciona con la red rápida y **falla en silencio** cuando la
+suma de los dos saltos se pasa; y en Safari, cuya política es más estricta, falla casi siempre.
+
+Eso fue #266: `SettingsPage` abría el deep-link de Telegram con `window.open` desde el `onSuccess`
+de la mutación, o sea después de los dos saltos. **La solución no es acortar la cadena sino no
+depender de ella**: se pinta un `<a>` y lo pulsa el usuario, porque un clic sobre un ancla siempre
+es gesto. Vale como regla general — si algo necesita gesto, que lo dispare el gesto, no el
+`then` de una petición.
+
+Y una trampa de diagnóstico que hace que esto sea difícil de ver desde el propio código:
+**`window.open(url, target, 'noopener')` devuelve `null` siempre**, haya abierto o no, porque con
+`noopener` no se entrega la referencia. Así que el valor de retorno no sirve para detectar el
+bloqueo, y comprobarlo «a ver si se abre» con Playwright tampoco: su Chromium no trae el bloqueador
+de pop-ups de un navegador de escritorio. Lo que sí es portable y decisivo es leer
+`navigator.userActivation.isActive` justo antes de la llamada.
+
+El mismo mecanismo es el sospechoso de #262 (un 401 aislado en el sondeo de Telegram que se cura
+solo): ese refresco implícito es una carrera que ocurre en cada petición autenticada y que nadie ve
+en el código de la llamada.
+
 ### El aviso no se puede provocar a voluntad: hace falta una bajada real, y el tachado no sirve
 
 Ejercer el camino del aviso de punta a punta (#122) es caro por un motivo que no es técnico: **el
