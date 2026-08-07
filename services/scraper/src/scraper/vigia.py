@@ -74,6 +74,26 @@ from .vigia_historial import Base, Historial
 # entero, que es global y afectaría a cualquier otra cosa que corra en el mismo proceso.
 _reloj = time.monotonic
 
+# Marcas que clasifican DOS hallazgos concretos dentro del informe, y existen para que quien lo lee
+# a máquina no tenga que reconocer una frase (#251).
+#
+# El consumidor es el listón de la skill `/validar-qa`, que hasta ahora hacía P0 *cualquier* `✖`.
+# Eso metía en el mismo saco dos cosas que no se parecen: «la tienda ha dejado de dejarnos entrar»
+# —hojas muertas, parseo roto, 429, que es la razón de ser del vigía— y «hay una hoja publicada que
+# no cubrimos», que es una decisión de alcance de producto y vale desde nada hasta bloquear una
+# release según en qué categoría caiga. Con las dos indistinguibles, cinco prendas de bañador de
+# bebé pararon dos releases seguidas (#212).
+#
+# Van al principio del motivo porque el cuerpo de la issue que el vigía abre solo ES este informe
+# (`main()` publica `informar()`), y ahí la marca dice de un vistazo de qué va el hallazgo — que es
+# justo lo que les faltó a #218 y #250, cerradas las dos como duplicadas por llegar con un titular
+# genérico que inducía a error.
+#
+# **Si las tocas, cambia el listón con ellas**: `.claude/skills/validar-qa/SKILL.md`. Hay un test
+# que las fija para que eso se note aquí y no en una validación.
+MARCA_COBERTURA = "[cobertura]"
+MARCA_ESTACIONAL = "[estacional]"
+
 # Tiendas registradas a las que se les perdona no tener `check_leaves()`, **con el motivo escrito**.
 # Vacío a propósito: las cuatro de hoy lo implementan. Existe para que la excepción sea una decisión
 # explícita y revisable y no un olvido silencioso; quien añada una entrada aquí está diciendo «esta
@@ -136,9 +156,15 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "ninos/nino/abrigos-y-cazadoras": "abrigo no es ninguna de las 5 categorías del brief",
         "ninos/bebe-nina/abrigos-y-cazadoras": "abrigo no es ninguna de las 5 categorías del brief",
         "ninos/bebe-nino/abrigos-y-cazadoras": "abrigo no es ninguna de las 5 categorías del brief",
+        # Las CUATRO ramas de baño, y van juntas por lo que enseñó #212: aquí estaban las tres que
+        # se llaman `bano`/`banadores` y faltaba `banadores-bebe`, la del slug asimétrico, que es
+        # justo la que no sale de copiar el nombre de sus hermanas. La cabecera de
+        # `sfera.CATEGORIES` ya las declaraba fuera las cuatro, pero en prosa: el vigía comprueba
+        # esta lista, no aquel comentario, así que cantó la cuarta como hueco cada jueves.
         "ninos/nina/bano": "baño no es ninguna de las 5 categorías del brief",
         "ninos/bebe-nina/bano": "baño no es ninguna de las 5 categorías del brief",
         "ninos/nino/banadores": "baño no es ninguna de las 5 categorías del brief",
+        "ninos/bebe-nino/banadores-bebe": "baño no es ninguna de las 5 categorías del brief",
         "ninos/nina/accesorios": "complementos: ni ropa ni calzado",
         "ninos/nino/accesorios": "complementos: ni ropa ni calzado",
     },
@@ -793,8 +819,8 @@ def revisar_hojas(store: BaseStore, informe: Informe) -> None:
         )
     if estacionales:
         informe.avisos.append(
-            f"{len(estacionales)} hoja(s) de campaña apagada(s) (no es una retirada: su id vuelve "
-            "con la campaña, ver `LeafHealth.estacional`):\n"
+            f"{MARCA_ESTACIONAL} {len(estacionales)} hoja(s) de campaña apagada(s) (no es una "
+            "retirada: su id vuelve con la campaña, ver `LeafHealth.estacional`):\n"
             + "\n".join(f"  - {_describe(h)}" for h in estacionales)
         )
     if total and not vivas:
@@ -910,10 +936,14 @@ def revisar_cobertura(store: BaseStore, informe: Informe) -> None:
 
     La simétrica de `revisar_hojas`, y la que faltaba. Aquella itera `CATEGORIES`, o sea lo que ya
     tenemos mapeado, así que responde «¿sigue viva la hoja que ingerimos?» y es ciega a la otra
-    mitad: una categoría nueva, o una de temporada que vuelve —`ninos/bebe-nino/punto-y-jerseis` se
-    retiró en julio y #151 la quitó de `CATEGORIES`; si la tienda la republica en otoño, nadie la
-    sonda—. El resultado es catálogo que existe y no ingerimos sin que nadie se entere: medido en
-    Sfera, 31 prendas entre las dos `ropa-deportiva` de bebé.
+    mitad: una categoría nueva, o una de temporada que vuelve. El resultado es catálogo que existe y
+    no ingerimos sin que nadie se entere: medido en Sfera, 31 prendas entre las dos `ropa-deportiva`
+    de bebé.
+
+    **Y el caso de temporada ya no es hipotético, que es la mejor prueba de que esta capa hacía
+    falta.** `ninos/bebe-nino/punto-y-jerseis` se retiró en julio y #151 la quitó de `CATEGORIES`;
+    la tienda la republicó días después y quien lo cantó fue esta capa, no una revisión a mano.
+    Volvió a `CATEGORIES` en #212.
 
     **Lo no mapeado es accionable salvo que esté declarado** en `COBERTURA_DECLARADA`. Es lo
     contrario del criterio de las otras capas —allí lo dudoso avisa y solo lo cierto rompe— y es a
@@ -983,8 +1013,8 @@ def revisar_cobertura(store: BaseStore, informe: Informe) -> None:
             if not cuelga_de(p, sin_cubrir.keys() - {p}, sep)
         ]
         informe.accionables.append(
-            f"{len(maximales)} categoría(s) publicadas y SIN cubrir — decide si se ingieren "
-            "(añádelas a CATEGORIES) o no (declara el motivo en COBERTURA_DECLARADA de "
+            f"{MARCA_COBERTURA} {len(maximales)} categoría(s) publicadas y SIN cubrir — decide si "
+            "se ingieren (añádelas a CATEGORIES) o no (declara el motivo en COBERTURA_DECLARADA de "
             "scraper/vigia.py):\n" + "\n".join(f"  - {_describe_nodo(n)}" for n in maximales)
         )
     if rotas:

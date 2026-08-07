@@ -1102,6 +1102,30 @@ vuelve— y no es teórico: es el tercer caso del mismo patrón, después de #56
 accionable, así que degradarlo a aviso lo habría dejado en el log del pod, que es el punto ciego que
 la capa venía a tapar.
 
+**Accionable dentro del vigía no significa bloqueante fuera de él, y confundirlo costó dos releases**
+(#251, 06/08/2026). El listón de `/validar-qa` hacía P0 *cualquier* `✖`, metiendo en el mismo saco
+las dos preguntas que el vigía responde y que no se parecen: «la tienda ha dejado de dejarnos
+entrar» —hojas muertas, 429, parseo roto, el fallo silencioso para el que existe— y «hay una hoja
+publicada que no cubrimos», que es una decisión de alcance de producto pendiente. Con las dos
+indistinguibles, `banadores-bebe` —cinco prendas de bebé, etiquetadas `prioridad-4` por el propio
+equipo— bloqueó v0.1.7 y v0.1.8 al mismo nivel que una tienda caída.
+
+Desde entonces `revisar_cobertura` y el aviso estacional marcan su hallazgo (`MARCA_COBERTURA`,
+`MARCA_ESTACIONAL`), y **eso convierte la salida del vigía en un contrato con un consumidor fuera de
+este código**: el listón de la skill lee la marca, no la frase. La consecuencia práctica para quien
+toque `vigia.py` es que reescribir esos dos mensajes sin la marca degrada la puerta de la release en
+silencio, así que hay un test que los fija — la del estacional ya estaba sujeta, la de cobertura no
+lo estaba por nada, y esa asimetría era justamente el agujero. Regla resultante: `✖` sin marca es
+P0; `✖ [cobertura]` es P1 salvo que la hoja caiga en una de las cinco del brief, y entonces P0;
+`⚠ [estacional]` está exento y no abre issue, porque el vigía ya declara en código que ese id vuelve
+con la campaña.
+
+Lo que hace defendible el cambio, y conviene no perderlo: **con la regla nueva v0.1.8 habría sido
+NO APTO igual**, porque la otra hoja del mismo hallazgo (`punto-y-jerseis`) es `sudaderas/jerseys`.
+Afina la severidad sin bajar el listón de lo que importa. La prueba de que el listón se revisa
+editando la skill y no negociando dentro de una validación es que los dos informes lo aplicaron tal
+cual y lo dejaron anotado en vez de rebajar el hallazgo sobre la marcha.
+
 Lo que hay que saber antes de tocarla es que **«no mapeado» no es «hueco», y suponerlo la
 inutiliza**. Medido sobre las tiendas que enumeran su árbol (ocho desde #179; las tres primeras
 son las de #156):
@@ -1116,6 +1140,18 @@ son las de #156):
 | cacles | 161 | 160 | no aplica (ver abajo) |
 | hm | 393 (de 651 en el árbol entero) | 280 | **0** |
 | lefties | 273 (de 301, sin los divisores) | 203 | **5 sin decidir (391 prendas)** |
+
+Son medidas con fecha, no el estado de hoy: **Sfera cerró sus huecos en #212** (49 rutas, 49
+cubiertas, 06/08/2026) y de paso enseñó las dos formas de cerrarlos, que son las únicas que hay.
+`banadores-bebe` se **declara** —la decisión ya estaba tomada, pero solo en la prosa de la cabecera
+de `CATEGORIES`, y `COBERTURA_DECLARADA` listaba tres de las cuatro ramas de baño: faltaba la del
+slug asimétrico, la que no sale de copiar el nombre de sus hermanas—. `punto-y-jerseis` se
+**ingiere**, porque es una de las cinco del brief. Y esa segunda es el caso de temporada que la capa
+existía para cazar, ocurrido de verdad: #151 la había quitado de `CATEGORIES` al medir que la tienda
+la retiró, la tienda la republicó días después y quien lo cantó fue `revisar_cobertura`, no una
+revisión a mano. La lección para quien vea desaparecer una hoja: **no la borres dando por hecho que
+se fue para siempre** — el comentario que documentaba aquella retirada estuvo afirmando lo falso
+desde que la hoja volvió.
 
 Las 109 de C&A eran ruido por dos motivos distintos, y los dos hay que descontarlos:
 

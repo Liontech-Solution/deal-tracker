@@ -110,8 +110,9 @@ veredicto a NO CONCLUYENTE. No se aprueba por silencio.
 ## Fase 5 · Consolidar y decidir
 
 1. **Recoge el vigía**: `kubectl -n deal-tracker-qa logs job/validacion-vigia-<version> --tail=200`.
-   Su código de salida ya es un veredicto — 0 nada accionable, 1 algo lo es. Cada `✖` es P0, cada
-   `⚠` es P1. Si no terminó, el frente queda no cubierto.
+   Su código de salida ya es un veredicto — 0 nada accionable, 1 algo lo es. La severidad de cada
+   `✖` y cada `⚠` la decide su marca, no el símbolo: ver «El vigía» en el listón. Si no terminó, el
+   frente queda no cubierto.
 2. **Escribe el informe** en `.claude/qa-reports/<version>.md` con `informe-plantilla.md`.
 3. **Abre issues** de los P0 y P1 (ver más abajo).
 4. **Emite el veredicto** en el terminal, en tres líneas: veredicto, cuántos P0/P1/P2, y la frase
@@ -126,15 +127,36 @@ sin fotos · precios ≤ 0 · talla o color sin canonicalizar en proporción apr
 barefoot colado en el catálogo por defecto · alta o baja de interés que no funciona · migraciones
 sin aplicar · los tres tags de imagen descuadrados · una tienda con la última pasada `failed`, en
 `running` colgada, o sin ninguna pasada · drift entre la versión pedida y la desplegada · caída de
-más del 30 % en las cifras de una tienda respecto al informe anterior · un `✖` del vigía · un
-«oferta real» sobre un PVP inflado.
+más del 30 % en las cifras de una tienda respecto al informe anterior · un `✖` **sin marca** del
+vigía · un «oferta real» sobre un PVP inflado.
 
 **P1 — no bloquea, pero se abre issue.** `errors > 0` en una pasada `success` · hoja de categoría
-retirada · aviso de ritmo del vigía · error en la consola del navegador · faceta que no devuelve
-resultados · regresión de UX no crítica · `ValueError: Tienda desconocida` (que es P1 **de proceso**:
-la tienda está en `main` pero el `release-qa` aún no la ha promovido, no está rota).
+retirada · aviso de ritmo del vigía · `✖ [cobertura]` del vigía · error en la consola del navegador ·
+faceta que no devuelve resultados · regresión de UX no crítica · `ValueError: Tienda desconocida`
+(que es P1 **de proceso**: la tienda está en `main` pero el `release-qa` aún no la ha promovido, no
+está rota).
 
-**P2 — se anota y ya.** Cosmético.
+**P2 — se anota y ya.** Cosmético · `⚠ [estacional]` del vigía.
+
+### El vigía
+
+Su símbolo dice que pasa algo; **la marca dice de qué clase es**, y eso cambia la severidad. Se lee
+la marca y no se interpreta la prosa: `vigia.py` las emite como constantes (`MARCA_COBERTURA`,
+`MARCA_ESTACIONAL`) y hay un test que las fija.
+
+| Qué trae el log | Severidad | Por qué |
+|---|---|---|
+| `✖` sin marca — hojas retiradas, parseo roto, ninguna hoja viva, un barrido que revienta | **P0** | Es la razón de ser del vigía: la tienda ha dejado de dejarnos entrar, y es el fallo silencioso que no se ve en ningún otro sitio |
+| `✖ [cobertura]` — hay una hoja publicada que no cubrimos | **P1**, y **P0 si alguna de las hojas que nombra cae en una de las cinco categorías del brief** (pantalones, camisetas, sudaderas/jerseys, vestidos, ropa interior) | No es que la tienda esté rota: es una decisión de alcance de producto, pendiente. Vale desde nada —un bañador— hasta prendas del brief que el usuario no ve |
+| `⚠ [estacional]` — hoja de campaña apagada | **P2**, exento: se anota y **no** se abre issue | El vigía ya declara en código que su id vuelve con la campaña (`LeafHealth.estacional`). Abrir issue por algo que la herramienta califica de benigno por diseño es el hallazgo de relleno que esta skill prohíbe |
+| `⚠` sin marca — hojas sin veredicto, aviso de ritmo | **P1** | Sin cambios |
+
+Esta granularidad la trae #251, y **el motivo hay que conocerlo para no volver atrás**: el listón
+anterior hacía P0 cualquier `✖`, y con eso `banadores-bebe` —cinco prendas de bebé que el equipo
+había etiquetado `prioridad-4`— bloqueó las releases v0.1.7 y v0.1.8. La regla nueva **no habría
+salvado ninguna de las dos**: la otra hoja del mismo hallazgo, `punto-y-jerseis`, es
+`sudaderas/jerseys` y por tanto P0 igual. Eso es justo lo que la hace defendible — afina la
+severidad sin bajar el listón de lo que de verdad importa.
 
 ### El veredicto
 

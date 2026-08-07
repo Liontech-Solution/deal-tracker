@@ -307,12 +307,22 @@ def test_el_comando_marca_lo_que_ya_ingerimos_y_lo_que_no() -> None:
         {
             "ninos/bebe-nino": _faceta(
                 {"slugs": ["ninos", "bebe-nino", "zapatos"], "label": "Zapatos", "count": 6},
-                # El hueco lo pone `banadores-bebe`, que no está mapeada ni declarada. Antes lo
-                # ponía `ropa-deportiva`, que desde #175 sí se ingiere (es `sudaderas`).
+                # Declarada fuera desde #212: cuenta como cubierta y NO es un hueco.
                 {
                     "slugs": ["ninos", "bebe-nino", "banadores-bebe"],
                     "label": "Bañadores bebé",
                     "count": 1,
+                },
+                # El hueco lo pone una hoja INVENTADA, y hay que decir por qué: en Sfera ya no
+                # queda ninguna real. Es la tercera rotación de este caso —lo puso primero
+                # `ropa-deportiva` (ingerida desde #175) y luego `banadores-bebe` (declarada desde
+                # #212)—, así que en vez de buscar la siguiente víctima se simula el escenario que
+                # de verdad justifica el comando: una categoría nueva que la tienda estrena y que
+                # nadie ha mirado todavía.
+                {
+                    "slugs": ["ninos", "bebe-nino", "hoja-que-la-tienda-acaba-de-estrenar"],
+                    "label": "Novedad",
+                    "count": 7,
                 },
             )
         }
@@ -326,8 +336,12 @@ def test_el_comando_marca_lo_que_ya_ingerimos_y_lo_que_no() -> None:
     marcas = {
         linea.split()[1]: linea.split()[0] for linea in salida.splitlines() if "ninos/" in linea
     }
+    # Las tres marcas a la vez, que es lo que #212 enseñó a no confundir: `×` es una decisión
+    # tomada y escrita donde se comprueba, `·` es una pregunta sin contestar. Las dos son «no la
+    # ingerimos» y solo la segunda es accionable.
     assert marcas["ninos/bebe-nino/zapatos"] == "✓"
-    assert marcas["ninos/bebe-nino/banadores-bebe"] == "·"
+    assert marcas["ninos/bebe-nino/banadores-bebe"] == "×"
+    assert marcas["ninos/bebe-nino/hoja-que-la-tienda-acaba-de-estrenar"] == "·"
 
 
 def test_el_comando_imprime_lo_leido_aunque_la_bajada_se_corte() -> None:
@@ -386,11 +400,11 @@ def test_la_ropa_de_bebe_no_estrena_ningun_ambito() -> None:
     del_resto = [c for c in CATEGORIES if "bebe-" not in c.category_path]
     ambitos_previos = {ScrapeScope(c.gender, c.section, c.category) for c in del_resto}
 
-    # 12 de ropa (#56) + 2 de calzado (#33), menos `bebe-nino/punto-y-jerseis`, que la tienda
-    # retiró en agosto de 2026 (#151), más las 2 `ropa-deportiva` de bebé que #175 midió y que
-    # son sudaderas. Esas dos son además las que devuelven el ámbito `niño/ropa/sudaderas` a la
-    # rama de bebé, que lo había perdido con la hoja retirada.
-    assert len(de_bebe) == 15
+    # 12 de ropa (#56) + 2 de calzado (#33) + las 2 `ropa-deportiva` de bebé que #175 midió y que
+    # son sudaderas. `bebe-nino/punto-y-jerseis` sale y entra de esta cuenta con la temporada: la
+    # tienda la retiró en agosto de 2026 (#151, 15 hojas) y la republicó días después (#212, 16).
+    # Que el número baile no es que el test envejezca mal, es lo que la tienda hace.
+    assert len(de_bebe) == 16
     for cat in de_bebe:
         assert ScrapeScope(cat.gender, cat.section, cat.category) in ambitos_previos
 
@@ -410,16 +424,20 @@ def test_la_ropa_de_bebe_se_mapea_como_su_equivalente_de_6_14() -> None:
         "ninos/bebe-nino/bermudas-y-petos": ("niño", "ropa", "pantalones"),
         "ninos/bebe-nino/camisetas": ("niño", "ropa", "camisetas"),
         "ninos/bebe-nino/camisas": ("niño", "ropa", "camisetas"),
+        "ninos/bebe-nino/punto-y-jerseis": ("niño", "ropa", "sudaderas"),
         "ninos/bebe-nino/accesorios-y-pijamas": ("niño", "ropa", "ropa-interior"),
     }
     for ruta, (genero, seccion, categoria) in esperado.items():
         cat = por_ruta[ruta]
         assert (cat.gender, cat.section, cat.category) == (genero, seccion, categoria), ruta
 
-    # La simetría entre ramas es de la TIENDA, no nuestra, y se rompe también con el tiempo:
-    # `bebe-nina` sigue publicando `punto-y-jerseis` y `bebe-nino` dejó de hacerlo (#151).
+    # La simetría entre ramas es de la TIENDA, no nuestra, y también se mueve con el tiempo: las
+    # dos ramas publican hoy `punto-y-jerseis`, pero `bebe-nino` estuvo sin ella entre el 24/07 y
+    # primeros de agosto de 2026 (#151 la quitó, #212 la devolvió). Lo que este test fija es que
+    # venga por donde venga se mapea igual, que es lo que impide que el vocabulario del catálogo
+    # se parta por rango de edad.
     assert "ninos/bebe-nina/punto-y-jerseis" in por_ruta
-    assert "ninos/bebe-nino/punto-y-jerseis" not in por_ruta
+    assert "ninos/bebe-nino/punto-y-jerseis" in por_ruta
 
 
 def test_ninguna_hoja_esta_configurada_dos_veces() -> None:
