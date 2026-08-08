@@ -1179,6 +1179,24 @@ def _resumen_de_tiempos(informes: Sequence[Informe]) -> str:
     return f"⏱ total {_duracion(total)} — la más lenta: {lenta.slug} ({_duracion(lenta.segundos)})"
 
 
+def _informe_de_plazo(sin_sondear: Sequence[str], plazo: float) -> Informe:
+    """El hallazgo de haberse quedado sin tiempo, con la forma de todo lo demás.
+
+    Viaja como un `Informe` más para no abrir una segunda vía de salida: así se imprime, cuenta
+    como `mala` y entra en el cuerpo de la issue por la maquinaria que ya existe. No lleva
+    `tiempos`, así que ni suma al resumen ni escribe en `vigia_run`.
+
+    Es **accionable** y no aviso: media lista sin mirar significa que de esas tiendas no sabemos
+    nada, y no saber es justo lo que el vigía viene a evitar.
+    """
+    informe = Informe("barrido incompleto")
+    informe.accionables.append(
+        f"el barrido se quedó sin plazo ({_duracion(plazo)}) con "
+        f"{len(sin_sondear)} tienda(s) sin sondear: {', '.join(sin_sondear)}"
+    )
+    return informe
+
+
 def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     args = _parse_args(argv)
@@ -1189,9 +1207,18 @@ def main(argv: list[str] | None = None) -> int:
     # se publica, no en un segundo pase. Si no está, `Historial` se queda inerte y todo lo demás
     # sigue igual: el veredicto no puede depender de que haya base de datos.
     historial = Historial.abrir(config)
+    arranque = _reloj()
+    sin_sondear: Sequence[str] = ()
     try:
         informes = []
-        for slug in slugs:
+        for i, slug in enumerate(slugs):
+            plazo = config.vigia_plazo_segundos
+            if plazo > 0 and _reloj() - arranque >= plazo:
+                # Se corta ENTRE tiendas y no a mitad de una: interrumpir un sondeo a medias
+                # dejaría una medida que parece lenta y solo estaba incompleta, y esa fila
+                # envenenaría la línea base de esa tienda durante semanas.
+                sin_sondear = slugs[i:]
+                break
             informe = revisar_tienda(slug, config, args.muestra)
             bases = {
                 capa: historial.linea_base(slug, capa, config.vigia_base_muestras)
@@ -1199,15 +1226,30 @@ def main(argv: list[str] | None = None) -> int:
             }
             comparar_con_base(informe, bases, config.vigia_factor_aviso)
             informes.append(informe)
-        # No se guarda en `--dry-run`: la serie mezcla mal, y una ejecución desde un portátil
-        # contra la misma base metería tiempos de fuera en la línea base del cluster — que es
-        # justo la diferencia que esto existe para medir (×11,8 en Hipercor).
-        if not args.dry_run:
-            historial.guardar(_medidas(informes))
+            # Se emite AQUÍ, tienda a tienda, y no en un `informar(informes)` al final. El
+            # 07/08/2026 el job murió por plazo y se perdió el informe entero, incluida la única
+            # pista de en qué tienda se atascó (#258). Y no era buffering —la imagen ya trae
+            # `PYTHONUNBUFFERED=1`—: era que no había nada escrito todavía.
+            print(informe.render(), end="\n\n", flush=True)
+            # Persistir por tienda es lo que de verdad sobrevive: en `DeadlineExceeded` el pod se
+            # borra y el log se va con él, pero las filas de `vigia_run` de las tiendas que sí
+            # terminaron se quedan. De paso, la transacción que `linea_base()` abre deja de vivir
+            # el barrido entero —35 min de `idle in transaction`, ver #210— y dura lo que tarda
+            # una tienda en cerrar.
+            #
+            # No se guarda en `--dry-run`: la serie mezcla mal, y una ejecución desde un portátil
+            # contra la misma base metería tiempos de fuera en la línea base del cluster — que es
+            # justo la diferencia que esto existe para medir (×11,8 en Hipercor).
+            if not args.dry_run:
+                historial.guardar(_medidas([informe]))
     finally:
         historial.cerrar()
 
-    print(informar(informes))
+    if sin_sondear:
+        informe = _informe_de_plazo(sin_sondear, config.vigia_plazo_segundos)
+        informes.append(informe)
+        print(informe.render(), end="\n\n", flush=True)
+
     if informes:
         print(_resumen_de_tiempos(informes))
     if historial.motivo:

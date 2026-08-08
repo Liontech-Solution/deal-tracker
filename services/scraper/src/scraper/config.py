@@ -70,6 +70,17 @@ class Config:
     # previas entran en la mediana que hace de línea base; con menos de 2 no se compara.
     vigia_factor_aviso: float = 3.0
     vigia_base_muestras: int = 4
+    # Plazo que el vigía se impone a sí mismo, en segundos. Existe porque el 07/08/2026 el barrido
+    # se comió los 45 min del `activeDeadlineSeconds` y el controlador mató el job: en
+    # `DeadlineExceeded` Kubernetes borra el pod, así que ni `kubectl logs` recupera después en qué
+    # tienda se atascó (#258). Un vigilante que puede morir sin decir por qué es exactamente el
+    # problema que el vigía existe para evitar.
+    #
+    # Con esto deja de barrer ANTES de que lo maten, nombra lo que se quedó sin mirar y sale por el
+    # camino normal —informe, resumen e issue—. Se pone POR DEBAJO del `activeDeadlineSeconds` del
+    # CronJob, con margen para el cierre y el aviso. `0` lo desactiva, que es lo que quieres en
+    # local: ahí nadie te va a matar el proceso.
+    vigia_plazo_segundos: float = 0.0
     # Cada cuántos segundos la pasada dice por dónde va (#146). Por TIEMPO y no por número de fichas
     # para que el volumen del log no dependa del tamaño del catálogo — y de paso sale gratis que una
     # pasada caliente no se ensucie: Zara en 1m35s no llega al primer aviso. `0` lo desactiva.
@@ -120,6 +131,7 @@ class Config:
             browser_channel=env.get("SCRAPER_BROWSER_CHANNEL") or None,
             vigia_factor_aviso=float(env.get("SCRAPER_VIGIA_FACTOR_AVISO", "3.0")),
             vigia_base_muestras=int(env.get("SCRAPER_VIGIA_BASE_MUESTRAS", "4")),
+            vigia_plazo_segundos=float(env.get("SCRAPER_VIGIA_PLAZO_SEGUNDOS", "0")),
             progress_every_seconds=float(env.get("SCRAPER_PROGRESS_EVERY_SECONDS", "300")),
             log_level=env.get("SCRAPER_LOG_LEVEL", "INFO"),
             lock_timeout=float(env.get("SCRAPER_LOCK_TIMEOUT", "30")),

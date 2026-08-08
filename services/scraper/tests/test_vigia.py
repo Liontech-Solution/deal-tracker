@@ -768,3 +768,157 @@ def test_toda_declaracion_lleva_su_motivo(slug: str) -> None:
     """El motivo hace la excepción revisable; sin él es un olvido con formato de decisión."""
     sin_motivo = [ruta for ruta, motivo in COBERTURA_DECLARADA[slug].items() if not motivo.strip()]
     assert not sin_motivo, f"{slug!r} declara sin motivo: {sin_motivo}"
+
+
+# --- el barrido: lo que sobrevive a que maten el proceso (#258) ------------------------------
+#
+# Hasta aquí nada ejercía `main()`, y por eso el 07/08/2026 nadie vio venir que un barrido que se
+# come su plazo no deja rastro: el informe se construía entero en memoria y se imprimía al final,
+# así que el `DeadlineExceeded` se lo llevaba junto con el pod. Estos tests fijan lo contrario —que
+# cada tienda se publica y se persiste EN CUANTO termina— y que quedarse sin plazo se cuenta.
+
+
+class _HistorialFalso:
+    """Doble de `Historial` que apunta cada `guardar` en la traza compartida, sin base de datos."""
+
+    motivo: str | None = None
+
+    def __init__(self, traza: list[str]) -> None:
+        self.traza = traza
+        self.tandas: list[list[tuple[str, str, float, int]]] = []
+
+    def linea_base(self, slug: str, capa: str, muestras: int) -> Base | None:
+        return None
+
+    def guardar(self, medidas) -> int:  # type: ignore[no-untyped-def]
+        filas = list(medidas)
+        self.tandas.append(filas)
+        self.traza.append(f"guardar:{','.join(sorted({f[0] for f in filas}))}")
+        return len(filas)
+
+    def cerrar(self) -> None:
+        self.traza.append("cerrar")
+
+
+def _montar_barrido(
+    monkeypatch: pytest.MonkeyPatch,
+    slugs: list[str],
+    config: Config,
+    instantes: list[float] | None = None,
+) -> tuple[list[str], _HistorialFalso]:
+    """Deja `main()` listo para correr sin red, sin base de datos y sin `.env`.
+
+    Devuelve `(traza, historial)`: la traza es el orden real de los hechos —sondeos y escrituras
+    entrelazados—, que es justo lo que estos tests miran.
+    """
+    traza: list[str] = []
+    historial = _HistorialFalso(traza)
+
+    def revisar_falsa(slug: str, cfg: Config, muestra: int) -> Informe:
+        traza.append(f"sondeo:{slug}")
+        return Informe(slug, tiempos={"hojas": Medida(10.0, 4, "hoja")})
+
+    monkeypatch.setattr(vigia, "load_dotenv", lambda: None)
+    monkeypatch.setattr(vigia.Config, "from_env", classmethod(lambda cls: config))
+    monkeypatch.setattr(vigia, "available_slugs", lambda: slugs)
+    monkeypatch.setattr(vigia, "revisar_tienda", revisar_falsa)
+    monkeypatch.setattr(vigia.Historial, "abrir", classmethod(lambda cls, cfg: historial))
+    if instantes is not None:
+        it = iter(instantes)
+        monkeypatch.setattr(vigia, "_reloj", lambda: next(it))
+    return traza, historial
+
+
+def test_cada_tienda_se_publica_y_se_persiste_antes_de_sondear_la_siguiente(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """El corazón de #258: el informe deja de existir solo en memoria.
+
+    Lo que se comprueba no es que la salida contenga las tres tiendas —eso también pasaba antes—
+    sino el ORDEN: que cuando el vigía empieza con `b`, lo de `a` ya está escrito y guardado. Es la
+    diferencia entre un plazo agotado que dice en qué tienda se atascó y uno mudo.
+    """
+    cfg = Config(database_url="postgresql://unused")
+    traza, historial = _montar_barrido(monkeypatch, ["a", "b", "c"], cfg)
+
+    assert vigia.main([]) == 0
+
+    assert traza == [
+        "sondeo:a",
+        "guardar:a",
+        "sondeo:b",
+        "guardar:b",
+        "sondeo:c",
+        "guardar:c",
+        "cerrar",
+    ]
+    # Una tanda por tienda, no una sola con las tres al final: lo que se persiste DURANTE el
+    # barrido es lo único que sobrevive a que el controlador mate el pod.
+    assert [len(t) for t in historial.tandas] == [1, 1, 1]
+    salida = capsys.readouterr().out
+    assert salida.index("## a") < salida.index("## b") < salida.index("## c")
+
+
+def test_lo_ya_barrido_sigue_impreso_aunque_el_bucle_muera_despues(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Un `KeyboardInterrupt` a mitad imita lo que hace el controlador al agotarse el plazo.
+
+    `revisar_tienda` no eleva nunca (un fallo de tienda ES el hallazgo), así que lo que de verdad
+    puede tumbar el bucle es que maten el proceso. Antes eso se llevaba el informe entero; ahora lo
+    de las tiendas que terminaron ya está fuera.
+    """
+    cfg = Config(database_url="postgresql://unused")
+    traza, historial = _montar_barrido(monkeypatch, ["a", "b"], cfg)
+    original = vigia.revisar_tienda
+
+    def revienta_en_b(slug: str, config: Config, muestra: int) -> Informe:
+        if slug == "b":
+            raise KeyboardInterrupt
+        return original(slug, config, muestra)
+
+    monkeypatch.setattr(vigia, "revisar_tienda", revienta_en_b)
+
+    with pytest.raises(KeyboardInterrupt):
+        vigia.main([])
+
+    assert "## a" in capsys.readouterr().out
+    assert historial.tandas == [[("a", "hojas", 10.0, 4)]]
+    assert traza[-1] == "cerrar"  # el `finally` cierra la conexión igual
+
+
+def test_al_agotarse_el_plazo_se_corta_y_lo_que_falta_es_accionable(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Salir por su propio pie es lo único que convierte un plazo agotado en un informe.
+
+    El corte va ENTRE tiendas: `b` no llega a sondearse, así que no deja una medida a medias que
+    luego envenene su línea base durante semanas.
+    """
+    cfg = Config(database_url="postgresql://unused", vigia_plazo_segundos=100.0)
+    # arranque=0; comprobación antes de `a` = 1 (cabe); antes de `b` = 150 (se pasó).
+    traza, _ = _montar_barrido(monkeypatch, ["a", "b", "c"], cfg, instantes=[0.0, 1.0, 150.0])
+
+    assert vigia.main(["--dry-run"]) == 1
+
+    assert traza == ["sondeo:a", "cerrar"]
+    salida = capsys.readouterr().out
+    assert "## barrido incompleto" in salida
+    assert "✖ el barrido se quedó sin plazo (1m 40s) con 2 tienda(s) sin sondear: b, c" in salida
+
+
+def test_sin_plazo_configurado_el_barrido_no_se_corta(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`0` es el valor por defecto y el de local, donde nadie mata el proceso.
+
+    Va aparte porque el fallo que importa aquí es el silencioso: un plazo mal leído que cortase
+    barridos legítimos dejaría tiendas sin mirar y el informe seguiría diciendo que todo va bien.
+    """
+    cfg = Config(database_url="postgresql://unused")
+    traza, _ = _montar_barrido(monkeypatch, ["a", "b"], cfg, instantes=[0.0, 9e9, 9e9])
+
+    assert vigia.main([]) == 0
+
+    assert [p for p in traza if p.startswith("sondeo:")] == ["sondeo:a", "sondeo:b"]
+    assert "barrido incompleto" not in capsys.readouterr().out
