@@ -200,6 +200,22 @@ Para cada una, `gh issue view <n>` y revisa:
 No cierres issues por tu cuenta ni marques casillas a bulto: si dudas de si algo cuenta como hecho,
 pregunta en vez de decidirlo tú.
 
+**Y cuando una issue se queda con todas las casillas hechas, dilo y pregunta si se cierra.** Es el
+caso que la frase de arriba deja a medias: prohíbe cerrar, y eso es fácil de leer como que el cierre
+se queda en el aire. No se queda — una issue terminada que nadie cierra vuelve al backlog en la
+siguiente revisión, y ahí cuesta el tiempo de leerla entera para descubrir que ya estaba hecha. Así
+que el resumen del cierre nombra explícitamente cuáles están completas, y si el usuario autoriza, se
+cierran con un comentario que diga **dónde acabó cada parte** — sobre todo si el trabajo se repartió
+entre repos, porque eso es justo lo que no se puede reconstruir después. Verifícalo antes de
+afirmarlo: `gh issue view <n> --json body --jq '[scan("- \\[[ x]\\]")] | join(" ")'` enseña las
+casillas de un tirón.
+
+Ojo con la trampa del reparto: una casilla puede estar hecha **en el código y no en el entorno**. El
+matching de #278 acabó con su mitad de k8s viva en prod y su mitad de código solo en `dev`, porque
+prod corría la versión anterior. Eso no impide cerrar —el trabajo está hecho y la promoción es de
+otra issue— pero se escribe en el comentario de cierre, o la próxima sesión mirará prod y creerá que
+la casilla estaba marcada en falso.
+
 ### Lo que no cabe en ninguna issue abierta: issue nueva
 
 El hallazgo típico de una sesión no encaja donde estabas trabajando — arreglando una cosa se ve
