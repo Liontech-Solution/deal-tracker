@@ -921,12 +921,17 @@ def test_check_leaves_distingue_viva_de_espejismo_de_bloqueo() -> None:
         ),
         HipercorStore.grid_url(bloqueada.category_path, 1): (403, ""),
     }
-    salud = list(_tienda(respuestas, [viva, falsa, bloqueada]).check_leaves())
+    tienda = _tienda(respuestas, [viva, falsa, bloqueada])
+    sesion = tienda._session_factory()
+    salud = list(tienda.check_leaves())
     assert [s.alive for s in salud] == [True, False, None]
     assert "12 productos" in salud[0].detail
     assert "espejismo" in salud[1].detail
     # El 403 de Akamai es problema nuestro, no de la hoja: avisa, no dictamina retirada.
     assert "403" in salud[2].detail
+    # El sondeo lee el `dataLayer`, que viene servido: navegar las hojas era el 80 % del coste del
+    # vigía en esta tienda (#259). El espejismo de arriba se detecta sin renderizar nada.
+    assert sesion.navegadas == [BASE_URL], "solo la siembra; ninguna hoja se navega"
 
 
 def test_toda_hoja_configurada_declara_ambito_del_brief() -> None:
@@ -953,10 +958,16 @@ def test_probe_alive_solo_sentencia_lo_que_la_tienda_confirma() -> None:
         muerto.url or "": (404, load_html("hipercor_ficha_retirada.html")),
         bloqueado.url or "": (403, ""),
     }
-    veredictos = _tienda(respuestas, []).probe_alive([vivo, muerto, bloqueado, sin_url])
+    tienda = _tienda(respuestas, [])
+    sesion = tienda._session_factory()
+    veredictos = tienda.probe_alive([vivo, muerto, bloqueado, sin_url])
     assert veredictos == {"A56615356": True, "A99999999": False}
     # Ausente del mapa = no concluyente. Devolver False ante un 403 daría bajas masivas falsas.
     assert "A55555555" not in veredictos and "A44444444" not in veredictos
+    # De la respuesta solo se lee el status, así que renderizar la ficha es trabajo tirado, y aquí
+    # era por producto (#259). El 404 honesto se lee igual de lo servido, que es lo que `_ficha()`
+    # viene haciendo desde #160 sobre estas mismas URLs.
+    assert sesion.navegadas == [BASE_URL], "solo la siembra; ningún sondeo se navega"
 
 
 @pytest.mark.parametrize("pagina,esperado", [(1, ""), (2, "2/"), (7, "7/")])
