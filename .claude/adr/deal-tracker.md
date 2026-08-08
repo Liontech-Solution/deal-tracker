@@ -2364,6 +2364,39 @@ spec antes de arreglarlo. La corrección no es tocar la clave sino descartar en 
 precios **ya superados** por otro más reciente de la misma variante, que además es correcto por sí
 solo: un aviso llega al móvil de alguien, y mandarle un precio que ya no existe es peor que callar.
 
+### Un job que muere no deja rastro por defecto, y el rastro tiene dos mitades que no se sustituyen (#278)
+
+El matching de producción se encendió el 08/08/2026 y su **única** ejecución murió en 26 s con
+`BackoffLimitExceeded`. Cuando se fue a mirar no quedaba **nada**: el pod borrado, `kubectl logs`
+devolviendo `No resources found` y `job_state` vacío. Reconstruir qué había pasado costó cruzar los
+timestamps de git de **tres repos** —la rotación de la contraseña a las 12:08:03Z, el `suspend`
+quitado a las 13:19:49Z, el Job muerto a las 13:20:34Z y el reselle en el repo de CNPG a las
+13:27Z— para concluir que el Job cayó dentro de la ventana de credenciales roscas, siete minutos
+antes de que se arreglara. Con rastro habría sido una consulta.
+
+Lo que generaliza el caso del vigía (#258) es que **el rastro tiene dos mitades y cada una cubre lo
+que la otra no puede**:
+
+- **La fila en la base** dice «llegué al final». Antes, `job_state` solo se escribía cuando el suelo
+  **avanzaba**, así que su ausencia confundía tres cosas: «no había pasadas pendientes», «no pude
+  entregar» y «no llegué a mirar». El latido se escribe al final de cada pase no-`dry-run` tocando
+  solo `updated_at` —el suelo lo sigue mandando `advanceFloor` y nadie más—, así que la señal es que
+  `updated_at` esté **viejo**. Consecuencia de contrato: `job_state` significa ahora dos cosas a la
+  vez, el suelo y la vitalidad del job.
+- **El log del pod** dice «por qué morí», y es la mitad que la base **no puede** cubrir: si el pase
+  muere porque no hay base a la que hablar —que es justo lo que pasó— ninguna fila puede registrarlo.
+  Esa mitad se compra en el repo de manifiestos con `restartPolicy: Never`, porque con `OnFailure`
+  hay un solo pod y el controlador lo borra al rendirse el Job.
+
+O sea que «que deje rastro» no es una tarea, son dos, y en repos distintos. Escribir solo la de la
+base habría dejado exactamente el fallo de este día sin explicar.
+
+Un corolario de método, porque costó dos hipótesis descartadas: **un fallo en 26 s no es trabajo, es
+arranque**, y antes de buscar el defecto en el propio job conviene comparar su spec con el del
+entorno donde sí funciona. Aquí eran idénticos salvo el `schedule` —mismo `command`, mismas env,
+mismos `resources`, mismo `backoffLimit`— y QA completaba en 10 s, lo que movió la sospecha del
+código al entorno, que es donde estaba.
+
 ### Un interés se identifica por su ALCANCE, y por eso la baja es lógica
 
 La protección contra el aviso repetido no vive solo en el `UNIQUE (interest_id, variant_id,

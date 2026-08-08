@@ -124,6 +124,7 @@ export class MatchingService {
       await this.markScanned(pendingRuns);
       summary.watermark = await this.advanceFloor(floor);
     }
+    if (!dryRun) await this.touchHeartbeat(summary.watermark);
 
     this.logger.log(
       `Fin${dryRun ? ' (dry-run, sin cambios)' : ''}: ${summary.notified} aviso(s) para ` +
@@ -410,6 +411,29 @@ export class MatchingService {
       sql`DELETE FROM matching_scanned_run WHERE scrape_run_id <= ${nuevo}`,
     );
     return nuevo;
+  }
+
+  /**
+   * Deja constancia de que este pase llegó al final, aunque no hubiera nada que hacer.
+   *
+   * Sin esto `job_state` solo se escribe cuando el suelo **avanza** (`advanceFloor`), así que su
+   * ausencia no distingue «no había nada que evaluar» de «no llegué a mirar». Es como el fallo del
+   * matching de prod del 08/08/2026 no dejó rastro de ninguna clase (#278): el Job murió en 26 s,
+   * el pod se borró con él y `job_state` seguía vacío, así que no había forma de saber si había
+   * corrido alguna vez. Con el latido, «¿desde cuándo no termina el matching?» es una consulta.
+   *
+   * Va al **final** a propósito: lo que significa algo es que `updated_at` esté viejo. Y el
+   * `DO UPDATE` no toca `last_scrape_run_id` — el suelo lo manda `advanceFloor()` y nadie más.
+   *
+   * Ojo con lo que esto NO cubre: si el pase muere porque no hay base a la que hablar, ninguna fila
+   * en la base puede registrarlo. Esa mitad es del CronJob, que por eso pasa a `restartPolicy:
+   * Never` para que el pod del intento fallido sobreviva con su log.
+   */
+  private async touchHeartbeat(floor: number): Promise<void> {
+    await this.db.execute(sql`
+      INSERT INTO job_state (job, last_scrape_run_id) VALUES (${JOB}, ${floor})
+      ON CONFLICT (job) DO UPDATE SET updated_at = now()
+    `);
   }
 }
 
