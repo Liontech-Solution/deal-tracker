@@ -89,6 +89,13 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     return Number(row.n);
   }
 
+  /** Suelo de `job_state`, o `null` si el matching no ha dejado ni latido (#278). */
+  async function suelo(): Promise<number | null> {
+    const [state] = await sql<{ last_scrape_run_id: string }[]>`
+      SELECT last_scrape_run_id FROM job_state WHERE job = 'matching'`;
+    return state ? Number(state.last_scrape_run_id) : null;
+  }
+
   beforeAll(() => {
     sql = makeSql();
   });
@@ -219,8 +226,7 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     expect(summary.deals).toBe(1);
     expect(sent).toHaveLength(0);
     expect(await countNotifications()).toBe(0);
-    const state = await sql`SELECT * FROM job_state WHERE job = 'matching'`;
-    expect(state).toHaveLength(0);
+    expect(await suelo()).toBeNull(); // ni marca de agua ni latido: el dry-run no escribe
   });
 
   it('varios seguimientos del mismo usuario: un solo mensaje, una fila por oferta', async () => {
@@ -423,7 +429,8 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     // Ni fila reservada ni marca de agua: un aviso no entregado no puede darse por hecho, o el
     // usuario nunca se enteraría de esta bajada.
     expect(await countNotifications()).toBe(0);
-    expect(await sql`SELECT * FROM job_state WHERE job = 'matching'`).toHaveLength(0);
+    // El latido deja fila —el pase llegó al final— pero el suelo se queda a 0 (#278).
+    expect(await suelo()).toBe(0);
 
     // Telegram vuelve: la siguiente pasada sí lo entrega.
     const ok = fakeTelegram(true);
@@ -459,7 +466,8 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     expect(rows).toHaveLength(1);
     expect(Number(rows[0].user_id)).toBe(Number(ok.id));
     // La marca de agua no avanza: el lote se reevaluará para recuperar al que falló.
-    expect(await sql`SELECT * FROM job_state WHERE job = 'matching'`).toHaveLength(0);
+    // El latido deja fila —el pase llegó al final— pero el suelo se queda a 0 (#278).
+    expect(await suelo()).toBe(0);
   });
 
   /**
@@ -517,7 +525,8 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     // Solo conservan su reserva las ofertas del trozo que sí salió; las demás se sueltan para que
     // la pasada siguiente vuelva a evaluarlas.
     expect(await countNotifications()).toBe(entregadas);
-    expect(await sql`SELECT * FROM job_state WHERE job = 'matching'`).toHaveLength(0);
+    // El latido deja fila —el pase llegó al final— pero el suelo se queda a 0 (#278).
+    expect(await suelo()).toBe(0);
 
     // Telegram vuelve. El lote se reprocesa entero, pero lo ya entregado choca contra el UNIQUE:
     // solo se avisa de lo que faltaba, y nadie recibe dos veces la misma prenda.
@@ -541,6 +550,32 @@ describe.skipIf(!TEST_DB)('job de matching (e2e)', () => {
     const [state] = await sql<{ last_scrape_run_id: string }[]>`
       SELECT last_scrape_run_id FROM job_state WHERE job = 'matching'`;
     expect(Number(state.last_scrape_run_id)).toBe(runId);
+  });
+
+  /**
+   * #278: el matching de producción murió en 26 s dejando `job_state` vacío, y con el pod borrado
+   * no había forma de saber si había corrido alguna vez. La fila solo se escribía cuando el suelo
+   * **avanzaba**, así que su ausencia tampoco distinguía «no había pasadas pendientes» de «no
+   * llegué a mirar». El latido separa las dos cosas.
+   */
+  it('un pase sin pasadas pendientes deja latido aunque no haya nada que hacer (#278)', async () => {
+    const { client } = fakeTelegram();
+    // La primera consume la pasada del seed y deja el suelo en `runId`.
+    await makeService(client).run(false);
+    await sql`UPDATE job_state SET updated_at = now() - interval '1 day' WHERE job = 'matching'`;
+
+    // La segunda no tiene nada pendiente: sin latido no escribiría nada.
+    const segunda = await makeService(client).run(false);
+
+    expect(segunda.candidates).toBe(0);
+    // La frescura se pregunta en SQL: el reloj que importa es el del servidor, no el del test.
+    const [state] = await sql<{ last_scrape_run_id: string; fresco: boolean }[]>`
+      SELECT last_scrape_run_id, updated_at > now() - interval '1 minute' AS fresco
+        FROM job_state WHERE job = 'matching'`;
+    // El suelo no se mueve —no había nada que absorber— pero `updated_at` sí: eso es lo que
+    // convierte «¿desde cuándo no termina el matching?» en una consulta.
+    expect(Number(state.last_scrape_run_id)).toBe(runId);
+    expect(state.fresco).toBe(true);
   });
 
   /**
