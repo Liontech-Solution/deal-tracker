@@ -62,3 +62,13 @@ referencias a issues (`#135`, `#64`) son constantes, así que es fácil que el a
 una al principio de una línea — y entonces sale como sección falsa en medio del índice, que es lo
 primero que se consulta para orientarse. Pasó el 03/08/2026 con dos. Se detecta con
 `grep -n "^#" .claude/adr/<proyecto>.md` y se arregla reajustando la línea, sin tocar el contenido.
+
+**Ojo: `sections` no prueba nada en un ADR sin subsecciones.** El de
+`k3s-local-apps-manifests` es una lista de viñetas dentro de `## PATTERNS`, así que `--mode sections`
+devuelve siempre los mismos seis encabezados y sale idéntico con el ADR viejo o con el nuevo. Para
+esos hay que comprobar **contenido**:
+`codebase-memory-mcp cli manage_adr --project <p> --mode get | grep -o "<frase>" | sort | uniq -c`, y
+comparar los recuentos con los del fichero. Dos trampas medidas el 08/08/2026: el `get` devuelve el
+ADR entero **en una sola línea JSON**, así que `grep -c` cuenta 1 pase lo que pase y hay que usar
+`grep -o`; y los backticks del markdown están dentro del texto, así que un patrón como
+`"OnFailure borra"` no casa con `` `OnFailure` borra ``.
