@@ -44,6 +44,11 @@ Quedan dos navegaciones de verdad, las dos necesarias y ninguna por producto: la
 cookies** al abrir la sesión (sin ellas la ficha da 403, ver `_preparar`) y el **respaldo de la
 ficha agotada**, cuyas tallas solo existen en el DOM que pinta el JS (ver `_ficha`).
 
+Y la regla vale para **toda** ruta de esta tienda, no solo para las dos calientes. Se escribió aquí
+con #160 y aun así `check_leaves()` siguió navegando las 35 rejillas y `probe_alive()` una ficha
+entera por sondeo, para acabar leyendo la primera el `dataLayer` y la segunda solo el `status`
+(corregido en #259). Antes de añadir un camino nuevo, la pregunta es si el dato viene servido.
+
 Y tiene una contrapartida que conviene saber antes de tocar `SCRAPER_DETAIL_MAX_AGE_DAYS`: la
 rejilla **no da stock por talla**, solo un estado global del producto. Así que una talla que se
 agota (o vuelve) sin que cambien ni el precio ni ese estado no se entera hasta el refresco
@@ -1080,13 +1085,24 @@ class HipercorStore:
         Pide solo la primera página de cada hoja. Contar productos NO basta como prueba de vida en
         esta tienda: una ruta retirada responde 200 con el catálogo del padre, así que sin la
         comprobación de espejismo este sondeo informaría «12 productos» de una categoría inventada.
+
+        **La rejilla se pide, no se navega**, igual que en `_iter_category`: todo lo que se lee de
+        aquí —`extraer_data_layer`, `es_espejismo`, `productos_de`— vive en el documento servido.
+        Navegarla era el 80 % del coste del vigía en esta tienda (14m 54s de 18m 32s, 26,3 s/hoja)
+        y lo que lo tenía clavado en su cap de 1 CPU mientras la pasada del scraper iba a ~75m de
+        mediana contra un cap de 2000m: no pagaban lo mismo porque no hacían lo mismo (#259).
+
+        Medido pidiendo y navegando **las mismas 12 rejillas alternadas** en un proceso, para que
+        la variación de la tienda la paguen las dos rutas: mediana 0,46 s contra 1,00 s, ×2,2. Ese
+        ×2,2 es el suelo, no el techo — se midió en un portátil, donde el cuello es la red; el
+        ahorro es de CPU, así que donde de verdad cuenta es en el cap de un pod del cluster.
         """
         with self._session_factory() as session:
             self._preparar(session)
             for cat in self._categories:
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
                 try:
-                    status, html = session.get_html(self.grid_url(cat.category_path, 1))
+                    status, html = session.pedir_html(self.grid_url(cat.category_path, 1))
                 except Exception as exc:  # navegador caído, timeout, navegación fallida
                     yield LeafHealth(scope, cat.category_path, None, type(exc).__name__)
                     continue
@@ -1126,6 +1142,16 @@ class HipercorStore:
         igual, un id inventado responde 404 y un slug cambiado con id vivo responde 200). Es la
         única señal disponible: el endpoint de stock que usa Sfera vive bajo `/api`, o sea en la
         ruta que el `robots.txt` veta.
+
+        **Se pide, no se navega** (#259): de la respuesta solo se lee el `status`, así que ejecutar
+        el JS de la ficha es trabajo entero tirado —y aquí sí era por producto, hasta el tope de
+        sondeos por pasada—. Es el mismo camino que `_ficha()` usa desde #160 sobre estas mismas
+        URLs, leyendo `GONE_STATUS` de él en cada pasada, así que la semántica del 404 no es nueva.
+        Sfera ya lo hacía por este motivo. Lo que sí hubo que comprobar contra la tienda antes de
+        cambiarlo es que **pedir dé el mismo veredicto que navegar**, porque un id muerto que
+        respondiera 200 redirigido al padre invertiría el resultado y dejaría prendas retiradas en
+        catálogo para siempre. Coinciden exactamente: id vivo `pedir=200 navegar=200`, id inventado
+        `pedir=404 navegar=404`, sin redirección.
         """
         pendientes = list(candidates)
         if not pendientes:
@@ -1138,7 +1164,7 @@ class HipercorStore:
                 if url is None:
                     continue  # sin URL no hay sondeo posible: sin veredicto
                 try:
-                    status, _ = session.get_html(url)
+                    status, _ = session.pedir_html(url)
                 except Exception:
                     continue  # timeout o error de navegación: no prueba nada
                 if status in GONE_STATUS:
