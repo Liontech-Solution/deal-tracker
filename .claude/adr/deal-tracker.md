@@ -1520,12 +1520,15 @@ por `DeadlineExceeded` a los 2700 s dejando **cero filas** en `vigia_run` y **ce
 Las filas, porque se insertan en una sola transacción que se abre al arrancar y se compromete al
 acabar — por eso todas comparten `ran_at`, que es el `now()` del **inicio** de la transacción y no
 el de la escritura, y por eso `pg_stat_activity` enseña el vigía como `idle in transaction` durante
-todo el barrido. El log, porque Python bloquea el buffer al no escribir a un terminal: ni
-`kubectl logs -f` enganchado desde el arranque saca una línea hasta que el proceso sale. La segunda
-ejecución del mismo día sí completó, en **35m 21s** contra los **19m 38s** de la víspera, con
-Hipercor en **18m 50s** contra 7m 13s.
+todo el barrido. El log, **no por buffering**: la imagen ya trae `PYTHONUNBUFFERED=1` en su etapa
+`runtime` desde siempre. Era la **estructura del programa** — `main()` recorría las nueve tiendas
+acumulando `Informe` en una lista y no imprimía ni una vez dentro del bucle, así que no había nada
+escrito que volcar. La distinción no es académica: costó una casilla de #258 pidiendo poner en el
+CronJob una variable que ya estaba, y un `PYTHONUNBUFFERED=1` no habría salvado una sola línea. La
+segunda ejecución del mismo día sí completó, en **35m 21s** contra los **19m 38s** de la víspera,
+con Hipercor en **18m 50s** contra 7m 13s.
 
-Dos consecuencias que sobreviven a ponerle `PYTHONUNBUFFERED=1` (#258):
+Dos consecuencias, ya resueltas pero que conviene tener presentes al leer la serie vieja (#258):
 
 - **La línea base de `vigia_run` tiene sesgo de supervivencia**: solo contiene ejecuciones que
   terminaron. La mediana contra la que se emite el aviso de ritmo no puede incluir la pasada que se
@@ -1534,6 +1537,57 @@ Dos consecuencias que sobreviven a ponerle `PYTHONUNBUFFERED=1` (#258):
 - **`activeDeadlineSeconds` no es un techo, es un borrado.** Rebasarlo no degrada el informe: lo
   elimina entero, medidas incluidas. Es la otra cara de «lo que protege es que fallar sea barato»
   de más arriba — aquí fallar cuesta la observación completa, que es lo caro.
+
+Arreglado el 08/08/2026 emitiendo y persistiendo **por tienda** dentro del bucle en vez de al
+final. El detalle que lo hace un patrón y no un parche: lo que de verdad sobrevive **no es el log**.
+En `DeadlineExceeded` Kubernetes borra el pod, así que `kubectl logs` tampoco lo recupera después;
+lo que queda son las filas de `vigia_run` de las tiendas que llegaron a cerrar. Un proceso que
+observa y puede ser matado tiene que **persistir por unidad de trabajo**, y la salida estándar es
+una comodidad para quien esté mirando en ese momento, no un registro. De regalo, la transacción
+dejó de vivir el barrido entero: el `commit` por tienda la reduce a segundos, que es el caso
+concreto del `idle in transaction` de #210 (sin resolver la decisión de fondo de aquella, que es de
+cluster y afecta a cuatro proyectos ajenos de la misma CNPG).
+
+**Y un contrato nuevo entre los dos repos: `SCRAPER_VIGIA_PLAZO_SEGUNDOS` vive por debajo del
+`activeDeadlineSeconds` del CronJob.** Hoy 4800 aquí contra 5400 allí. Son dos números en dos
+repositorios distintos que **solo significan algo juntos**: el de arriba es el hacha del
+controlador, el de abajo es el vigía saliendo por su propio pie —cortando entre tiendas, nunca a
+mitad de una, para no dejar una medida parcial que parezca lenta y envenene la línea base— y
+publicando lo que llevaba. Subir el deadline sin subir el plazo desperdicia el margen; bajarlo por
+debajo del plazo devuelve la muerte muda. La red de seguridad es el plazo; el deadline es lo que
+pasa si la red falla.
+
+### El cuello de las tiendas de navegador era el `limits.cpu` del pod (#160, #258, #259)
+
+La degradación del 07/08 —Hipercor ×2,6, Sfera ×4,1 en parseo, **las dos de Chromium y ninguna de
+las siete de httpx**— parecía de las tiendas o de contención entre ellas. Medido el 08/08/2026
+contra `deal-tracker-prod`, es del **cap de CPU del propio pod**:
+
+| Hipercor sola, mismo nodo (worker6), misma imagen | total | hojas | parseo |
+|---|---|---|---|
+| `limits.cpu: 1` | **18m 32s** | 14m 54s (26,3 s/hoja) | 3m 38s (43,7 s/producto) |
+| `limits.cpu: 3` | **8m 41s** | 5m 57s (10,5 s/hoja) | 2m 44s (32,8 s/producto) |
+
+Y el uso real durante el barrido con el cap suelto: **1038m**, por encima del techo viejo de 1000m.
+El pod pedía más CPU de la que el límite le dejaba coger. Tres cosas que se generalizan:
+
+- **«Correr una tienda sola» no discrimina nada en el vigía, y creerlo hizo diseñar mal el
+  experimento.** El barrido es un **bucle secuencial en un solo proceso**: las nueve tiendas nunca
+  corren a la vez, así que «contención entre ellas» no existe como fenómeno. Sola, Hipercor tardó
+  18m 32s contra 18m 50s acompañada, y Sfera 4m 26s contra 4m 40s — idénticas, como tenían que
+  salir. Lo que compite es lo de **fuera** del proceso (el cap del pod, y los demás pods del nodo),
+  y eso es invariante a con quién barras.
+- **Un límite de CPU no se nota como error, se nota como lentitud**, y por eso se confunde con la
+  tienda. Solo lo delatan dos números que hay que ir a buscar: el uso real contra el techo, y el
+  mismo trabajo con el techo movido. Ninguno sale en el informe del vigía.
+- **El nodo hay que fijarlo al comparar.** El primer intento cayó en `worker1` en vez de `worker6`
+  y habría mezclado cap con nodo. Y al fijarlo con `nodeName` se salta el scheduler, así que subir
+  también los *requests* dio `OutOfcpu`: worker6 está al **75 % de requests y 163 % de límites**, o
+  sea sin 1 CPU libre que reservar. Se sube el **límite**, no el request.
+
+Lo que esto **no** dice: sigue sin re-medirse bajo esta luz el ×11,8 local→cluster de #107, que se
+atribuyó a reputación gastada ante la tienda. Aquello fue un evento distinto y con bloqueo duro
+comprobado; esto es el régimen permanente.
 
 ### Una hoja de campaña no es una hoja retirada, y su categoría es del producto (#195, #176)
 
