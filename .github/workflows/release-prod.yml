@@ -1,0 +1,180 @@
+name: release-prod
+
+# Promoción a PRODUCCIÓN de una versión semver que ya corre en QA.
+#
+# OJO, esto NO es un release-qa apuntando a otro overlay: aquí no se promociona ninguna imagen.
+# release-qa tiene trabajo que hacer porque dev corre `sha-<7>` y QA necesita un `vX.Y.Z`, así que
+# copia la manifest list al mismo digest. Prod consume EXACTAMENTE el mismo tag `vX.Y.Z` que QA ya
+# está corriendo: no hay nada que re-etiquetar, y por eso no hay `imagetools create`.
+#
+# Lo que este workflow es de verdad es un GATE. Su valor entero está en los cuatro pasos de
+# verificación, y el que importa es el del informe:
+#
+#   La autoridad de que una versión vale para producción es `.claude/qa-reports/<version>.md`,
+#   commiteado en este repo, que empieza por `**Veredicto: APTO**`. NO el flag `prerelease` de
+#   GitHub, que lo cambia cualquiera con dos clics y no deja rastro en ningún sitio.
+#
+# El flag se asciende aquí (y en `/validar-qa` al escribir un informe APTO) para poder ver de un
+# vistazo cuál pasó, pero es la señal, nunca la decisión. Consecuencia buscada: una versión que se
+# cortó en QA y no se validó nunca no tiene informe, así que este workflow la rechaza — se queda
+# fuera de producción por no haber sido mirada, que es el comportamiento correcto.
+#
+# LA RUTA `deal-tracker/overlays/prod` DEL REPO DE MANIFIESTOS ES CONTRATO ENTRE LOS DOS REPOS.
+# Si allí se renombra el directorio, aquí el bump falla. Está dicho también en el propio
+# kustomization.yaml de prod y en k3s-local-apps-manifests#86.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión semver a promover a producción (p.ej. v0.1.9)"
+        required: true
+        type: string
+
+concurrency:
+  group: release-prod
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: promote QA → prod (vX.Y.Z)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # ascender el GitHub Release de prerelease a release
+      packages: read # comprobar que las imágenes existen en GHCR
+    env:
+      WEB_IMAGE: ghcr.io/liontech-solution/deal-tracker-web
+      SCRAPER_IMAGE: ghcr.io/liontech-solution/deal-tracker-scraper
+      # Kustomization de QA (fuente: "lo que QA ha estado corriendo") y de prod (destino del bump).
+      QA_KUSTOMIZATION: gitops/deal-tracker/overlays/qa/kustomization.yaml
+      PROD_KUSTOMIZATION: gitops/deal-tracker/overlays/prod/kustomization.yaml
+    steps:
+      - name: Validar que se lanza desde main
+        run: |
+          set -euo pipefail
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::release-prod solo se lanza desde main (ref actual: ${{ github.ref }})"
+            exit 1
+          fi
+
+      - name: Validar formato de versión (semver vX.Y.Z)
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if ! echo "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Versión inválida: '$VERSION'. Formato esperado: vX.Y.Z (p.ej. v0.1.9)"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      # Este repo primero: `actions/checkout` limpia su destino, y el segundo checkout cuelga
+      # dentro del árbol del primero (gitops/).
+      - name: Checkout de este repo (trae los informes de validación)
+        uses: actions/checkout@v5
+
+      - name: Checkout repo de manifiestos (GitOps)
+        uses: actions/checkout@v5
+        with:
+          repository: juanjocop/k3s-local-apps-manifests
+          token: ${{ secrets.GITOPS_PAT }}
+          path: gitops
+
+      # ---------------------------------------------------------------- GATE 1: el informe manda
+      - name: Exigir informe de validación con veredicto APTO
+        run: |
+          set -euo pipefail
+          informe=".claude/qa-reports/$VERSION.md"
+          if [ ! -f "$informe" ]; then
+            echo "::error::No existe $informe. Una versión sin validar no va a producción: pasa /validar-qa $VERSION y commitea su informe."
+            exit 1
+          fi
+          # El veredicto es la primera línea con el formato `**Veredicto: X**` (informe-plantilla.md).
+          # Se extrae y se compara ENTERO a propósito: un `grep APTO` a secas también casa con
+          # "NO APTO", que es justo el caso que hay que rechazar.
+          veredicto=$(grep -m1 -oP '^\*\*Veredicto: \K[^*]+(?=\*\*$)' "$informe" || true)
+          if [ -z "$veredicto" ]; then
+            echo "::error::$informe no declara veredicto en el formato '**Veredicto: X**' de informe-plantilla.md"
+            exit 1
+          fi
+          if [ "$veredicto" != "APTO" ]; then
+            echo "::error::$informe dice '$veredicto', no APTO. NO APTO y NO CONCLUYENTE bloquean igual: ninguno es un aprobado."
+            exit 1
+          fi
+          echo "$informe → APTO"
+
+      # -------------------------------------------------- GATE 2: QA tuvo que correr esa versión
+      - name: Exigir que QA esté corriendo esa versión
+        run: |
+          set -euo pipefail
+          qa_web=$(WEB_IMAGE="$WEB_IMAGE" yq '.images[] | select(.name == strenv(WEB_IMAGE)).newTag' "$QA_KUSTOMIZATION")
+          qa_scraper=$(SCRAPER_IMAGE="$SCRAPER_IMAGE" yq '.images[] | select(.name == strenv(SCRAPER_IMAGE)).newTag' "$QA_KUSTOMIZATION")
+          if [ "$qa_web" != "$VERSION" ] || [ "$qa_scraper" != "$VERSION" ]; then
+            echo "::error::QA corre web=$qa_web scraper=$qa_scraper, no $VERSION. El informe se emitió sobre lo desplegado en QA; si QA ya no lo corre, no se promueve."
+            exit 1
+          fi
+          echo "QA corre $VERSION en las dos imágenes"
+
+      - name: Login a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # --------------------------------------------- GATE 3: los artefactos siguen existiendo
+      - name: Comprobar que las imágenes vX.Y.Z existen en GHCR
+        run: |
+          set -euo pipefail
+          for image in "$WEB_IMAGE" "$SCRAPER_IMAGE"; do
+            if ! docker buildx imagetools inspect "$image:$VERSION" >/dev/null 2>&1; then
+              echo "::error::No existe $image:$VERSION en GHCR — ¿llegó a lanzarse el release-qa de esta versión?"
+              exit 1
+            fi
+            echo "ok $image:$VERSION"
+          done
+
+      - name: Ascender el GitHub Release (prerelease → release)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release edit "$VERSION" \
+            --repo "${{ github.repository }}" \
+            --prerelease=false \
+            --latest
+          # Deja escrito en las notas de dónde salió la aprobación, para que la release apunte al
+          # informe y no solo al revés. Idempotente: relanzar el workflow sobre la misma versión
+          # (que es un caso real — el estreno fue con v0.1.9, ya desplegada) no apila coletillas.
+          gh release view "$VERSION" --repo "${{ github.repository }}" --json body -q .body > /tmp/notas.md
+          if grep -q '^\*\*Promocionada a producción\*\*' /tmp/notas.md; then
+            echo "las notas ya recogen la promoción; no las toco"
+            exit 0
+          fi
+          {
+            echo
+            echo "---"
+            echo
+            echo "**Promocionada a producción** el $(date -u '+%d/%m/%Y') por \`release-prod\`."
+            echo "Aprobada por \`.claude/qa-reports/$VERSION.md\` (**Veredicto: APTO**)."
+          } >> /tmp/notas.md
+          gh release edit "$VERSION" --repo "${{ github.repository }}" --notes-file /tmp/notas.md
+
+      - name: Auto-bump del overlay de prod
+        run: |
+          set -euo pipefail
+          if [ ! -f "$PROD_KUSTOMIZATION" ]; then
+            echo "::error::No existe $PROD_KUSTOMIZATION. Esa ruta es contrato con el repo de manifiestos (k3s-local-apps-manifests#86); si el overlay se ha renombrado, hay que arreglarlo aquí."
+            exit 1
+          fi
+          # yq (mikefarah v4) viene preinstalado en los runners ubuntu-latest.
+          WEB_IMAGE="$WEB_IMAGE" VERSION="$VERSION" yq -i \
+            '(.images[] | select(.name == strenv(WEB_IMAGE)).newTag) = strenv(VERSION)' "$PROD_KUSTOMIZATION"
+          SCRAPER_IMAGE="$SCRAPER_IMAGE" VERSION="$VERSION" yq -i \
+            '(.images[] | select(.name == strenv(SCRAPER_IMAGE)).newTag) = strenv(VERSION)' "$PROD_KUSTOMIZATION"
+          cd gitops
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${PROD_KUSTOMIZATION#gitops/}"
+          git commit -m "chore(prod): deal-tracker $VERSION" || { echo "sin cambios: prod ya corría $VERSION"; exit 0; }
+          git push
