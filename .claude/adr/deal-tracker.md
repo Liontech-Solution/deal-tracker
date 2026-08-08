@@ -196,34 +196,26 @@ pasada siguiente; un aviso mal es un mensaje que ya salió. Por eso el motivo va
 propio `suspend`** en `patch-matching.yaml` — suelto en un entorno recién estrenado se lee como un
 olvido y el siguiente que pase lo enciende.
 
-**Duró horas, y lo que lo encendió fue medir el gate en vez de creerlo.** El argumento para tenerlo
-apagado era que la *llegada* de un aviso no se había ejercido nunca de extremo a extremo (#122).
-Era falso: en QA hay **17 avisos entregados entre el 04 y el 06/08**, y una fila de `notification`
-superviviente es prueba de entrega, no de intento — `findCandidates` exige
-`telegram_chat_id IS NOT NULL` y el envío **reserva antes de mandar** y suelta con `release()` lo
-que Telegram no acepta. Lo que seguía sin ejercerse era mucho más estrecho: el **colapso de caras
-duplicadas** (#108/#121).
+**Duró horas, y lo que lo encendió fue medir el gate en vez de creerlo.** El 08/08 se comprobó que
+la premisa —«la llegada de un aviso no se ha ejercido nunca»— era falsa: en QA hay **17 avisos
+entregados entre el 04 y el 06/08**, y una fila de `notification` superviviente es prueba de
+entrega, no de intento, porque el envío reserva antes de mandar y suelta lo que Telegram no acepta.
+Esto **ya estaba en este ADR** («El aviso no se puede provocar a voluntad», en PATTERNS, medido el
+04/08); lo que faltaba era que la issue lo supiera. Dato para la próxima: cuando algo lleve semanas
+bloqueado por «no se ha probado nunca», el ADR suele saber más que la issue.
 
-**Y ese caso no se puede provocar a voluntad, que es el hallazgo que hay que no volver a
-descubrir.** Medido el 08/08 sobre las nueve tiendas de QA: **2114 variantes con rebaja creíble y
-ninguna en un grupo de dos caras.** Dos causas, las dos estructurales y las dos consecuencia de
-decisiones que están bien:
+Lo que sí era nuevo es **cuánto más estrecho** era lo que quedaba sin ejercer —el colapso de caras
+duplicadas (#108/#121)— y que tampoco se puede provocar: **2114 variantes con rebaja creíble en QA
+y ninguna en un grupo de dos caras**. A las causas ya documentadas en aquella sección se suma la que
+las cierra: el caso de contraste (dos caras con URL distinta, que deben dar **dos** avisos) vive
+**solo en H&M** —1007 grupos, ninguna otra tienda tiene uno— y H&M es justo la que no publica
+tachado (#106), así que solo avisa si el precio baja de verdad.
 
-- **La regla de honestidad rechaza el tachado que no corrobora nuestro histórico**, así que un
-  aviso exige una **bajada real dentro de lo observado**, no un precio tachado. El mejor candidato
-  de Lefties —producto 4611, dos caras por talla, 6,99 con tachado de 13,99— da descuento **0 %**
-  porque nunca lo hemos visto por encima de 6,99. Y una pasada más al mismo precio no ayuda: solo
-  añade otro punto al mismo valor.
-- **El caso de contraste (dos caras con URL distinta, que deben dar DOS avisos) vive solo en H&M** —
-  1007 grupos, y ninguna otra tienda tiene uno— y H&M **no publica tachado en infantil**
-  (`con_tachado = 0` de 50 872 variantes, #106). Con PVP honesto = máximo observado, solo produce
-  aviso si el precio baja de verdad.
-
-La lección general: **un gate que no se puede ejercer a voluntad no es un gate, es un bloqueo
-indefinido disfrazado**, y hay que reconocerlo antes de atarle lo único que el producto hace. #122
-pasó de gate a vigilancia (la señal de cierre no cambia; deja de haber alguien esperándola), y la
-apuesta razonable es que el primer colapso real se vea en **prod**, que ingiere a diario contra el
-semanal de QA.
+De ahí la lección que ordena el resto: **un gate que no se puede ejercer a voluntad no es un gate,
+es un bloqueo indefinido disfrazado**, y conviene reconocerlo antes de atarle lo único que el
+producto hace. #122 pasó de gate a vigilancia —la señal de cierre no cambia, deja de haber alguien
+esperándola— y la apuesta razonable es que el primer colapso real se vea en **prod**, que ingiere a
+diario contra el semanal de QA.
 
 **El corolario que ya ha mordido dos veces: en QA, capacidad nueva ≠ capacidad disponible.** Como
 QA solo avanza con un `release-qa` manual, todo lo que se mergea a `main` llega a dev al instante y
