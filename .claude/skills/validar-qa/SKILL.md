@@ -114,8 +114,13 @@ veredicto a NO CONCLUYENTE. No se aprueba por silencio.
    `✖` y cada `⚠` la decide su marca, no el símbolo: ver «El vigía» en el listón. Si no terminó, el
    frente queda no cubierto.
 2. **Escribe el informe** en `.claude/qa-reports/<version>.md` con `informe-plantilla.md`.
-3. **Abre issues** de los P0 y P1 (ver más abajo).
-4. **Emite el veredicto** en el terminal, en tres líneas: veredicto, cuántos P0/P1/P2, y la frase
+3. **Si el veredicto es APTO, asciende la release**:
+   `gh release edit <version> --prerelease=false`. Todas nacen `prerelease` desde `release-qa`, así
+   que esto es lo que deja ver de un vistazo cuáles pasaron. **Es la señal, no la autoridad**: quien
+   decide es el informe commiteado, y es lo que `release-prod.yml` verifica antes de promover. Si el
+   veredicto no es APTO, no toques el flag.
+4. **Abre issues** de los P0 y P1 (ver más abajo).
+5. **Emite el veredicto** en el terminal, en tres líneas: veredicto, cuántos P0/P1/P2, y la frase
    que lo justifica.
 
 ---
@@ -168,6 +173,11 @@ severidad sin bajar el listón de lo que de verdad importa.
 No hay cuarta opción y no se negocia sobre la marcha. Un frente que no se pudo correr **no cuenta
 como aprobado**: el valor entero de esta skill es que nunca aprueba por omisión, y basta con
 saltárselo una vez para que deje de servir.
+
+**Y una versión que no se validó nunca tampoco llega a producción**, aunque nadie la haya declarado
+mala. Se puede cortar una release de QA y no pasarle esta skill jamás: se queda en `prerelease` para
+siempre y `release-prod.yml` la rechaza por no encontrar `.claude/qa-reports/<version>.md`. No es un
+accidente feliz, es el diseño — el silencio no promueve.
 
 ### Las issues
 
