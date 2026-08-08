@@ -121,8 +121,8 @@ fuerza `--dry-run`. Así corre `dev`.
 ### El seam con el repo de manifiestos (contexto que ningún repo documenta entero)
 
 El despliegue **no vive aquí**. Vive en `juanjocop/k3s-local-apps-manifests`, bajo
-`deal-tracker/{base,overlays/dev,overlays/qa}` (Kustomize + ArgoCD, auto-sync prune+selfHeal).
-Este repo produce imágenes; aquel decide qué corre.
+`deal-tracker/{base,overlays/dev,overlays/qa,overlays/prod}` (Kustomize + ArgoCD, auto-sync
+prune+selfHeal). Este repo produce imágenes; aquel decide qué corre.
 
 **Promoción dev → QA, el flujo completo:**
 
@@ -140,7 +140,8 @@ Este repo produce imágenes; aquel decide qué corre.
 Consecuencia: **dev sigue `sha-<7>`, QA sigue semver**, y el binario de QA es bit a bit el que se
 validó en dev. Los `newTag` de ambos kustomizations son **machine-edited — no editar a mano**.
 
-**La cadena acaba en QA sin ninguna puerta funcional, y por eso existe `/validar-qa`** (skill en
+**La cadena acabó en QA durante meses sin ninguna puerta funcional, y por eso existe `/validar-qa`**
+(skill en
 `.claude/skills/validar-qa/` + tres subagentes `validador-qa-*`, 04/08/2026). Lo que hay antes no
 mira lo desplegado: el CI del web valida lint, typecheck y vitest, y del frontend **solo que
 compila** —no hay ni un test de navegador en el repo—, y los e2e corren contra una Postgres sembrada
@@ -159,6 +160,44 @@ aprobar por omisión es la única forma real de que la puerta haga daño. Los in
 `.claude/qa-reports/<version>.md` por su bloque de cifras: es la línea base contra la que la
 validación siguiente detecta que una tienda pasó de 3381 productos a 40 con la pasada cerrando en
 `success`, que es el daño que ninguna otra comprobación ve.
+
+**El último eslabón, QA → prod, NO es una promoción, y confundirlo lleva a diseñar el workflow que
+no era** (08/08/2026, #267). `release-qa` tiene trabajo que hacer porque dev corre `sha-<7>` y QA
+necesita un `vX.Y.Z`: copia la manifest list al mismo digest. **Prod consume exactamente el mismo
+tag que QA ya está corriendo**, así que no hay nada que re-etiquetar y `release-prod.yml` no lleva
+`imagetools create`. Lo que es de verdad es un **gate**, con cuatro comprobaciones que abortan:
+el informe dice APTO · QA corre esa versión (si ya no la corre, el informe no habla de lo que se
+promueve) · las dos imágenes existen en GHCR · el overlay de prod existe (aquí **falla**, mientras
+que `release-qa` salta con un warning: la ausencia del de QA era un «todavía no», la del de prod es
+que alguien renombró el contrato).
+
+**Y la autoridad de que una versión vale para producción es el informe commiteado, no el flag
+`prerelease` de GitHub.** Los dos dicen lo mismo y solo uno deja rastro: el flag lo cambia
+cualquiera con dos clics y no aparece en ningún diff; `.claude/qa-reports/<version>.md` está en git
+y se revisa como cualquier otro fichero. Así que `/validar-qa` asciende el flag al escribir un
+informe APTO —es la señal, para ver de un vistazo cuál pasó— y `release-prod` verifica **el
+fichero**. De ahí sale un comportamiento que conviene leer como diseño y no como suerte: una
+versión que se cortó en QA y **nunca se validó** no tiene informe, así que el gate la rechaza. El
+silencio no promueve.
+
+Un detalle de implementación que parece un tecnicismo y es el fallo entero: el veredicto se extrae
+y se compara **completo**, porque un `grep APTO` a secas también casa con `NO APTO` — que es
+exactamente el caso a rechazar. Medido el 08/08/2026 sobre los cuatro informes reales: `v0.1.9`
+pasa los cuatro gates y el bump sale vacío (prod ya la corría, puesta a mano en el estreno del
+07/08); `v0.1.8` muere en el primer gate con los cinco pasos siguientes en `skipped` y su release
+intacta en `Pre-release`. **La ruta `deal-tracker/overlays/prod` es contrato entre los dos repos**,
+igual que la de QA.
+
+**En prod la ingesta se enciende antes que la notificación, y esa asimetría es deliberada.** Prod
+estrenó el 07/08/2026 sirviendo lo que ingirió *una* pasada manual de Zara, y el 08/08 se
+encendieron los nueve scrapers (banda diaria propia 21:00→01:00) dejando el **matching apagado**.
+No es un arranque a medias: el canje del `/start` sí está validado, pero la **llegada** de un aviso
+no se ha ejercido nunca de extremo a extremo (#122), así que el primer mensaje que mandase ese
+CronJob sería también el primero que nadie ha visto llegar — a personas reales y sobre precios
+reales. El coste de equivocarse no es simétrico: un catálogo pobre es una web fea y se arregla con
+la pasada siguiente; un aviso mal es un mensaje que ya salió. El motivo va escrito **junto al
+propio `suspend: true`** en `patch-matching.yaml`, porque suelto en un entorno recién estrenado se
+lee como un olvido y el siguiente que pase lo enciende.
 
 **El corolario que ya ha mordido dos veces: en QA, capacidad nueva ≠ capacidad disponible.** Como
 QA solo avanza con un `release-qa` manual, todo lo que se mergea a `main` llega a dev al instante y
@@ -251,8 +290,12 @@ resuelve eso sin pedirle a las tiendas siete veces lo mismo. Ojo a lo que encien
 QA, sin `--dry-run` y con `TELEGRAM_BOT_TOKEN`, **manda mensajes reales**.
 
 La única excepción a `suspend: true` en `base` es el **vigía** (ver más abajo): un vigía pausado no
-vigila. Lo pausa **dev**, no por prudencia sino porque dev y QA comparten cluster y salen por la
-misma IP — preguntarlo dos veces es el doble de peticiones a cambio de cero señal.
+vigila. **Solo puede haber uno**, no por prudencia sino porque los tres namespaces comparten
+cluster y salen a internet por la misma IP — preguntarlo dos veces es el doble de peticiones a
+cambio de cero señal. Lo corre **prod** desde el 07/08/2026 (antes, dev lo pausaba y lo corría QA);
+manda el entorno cuya rotura importa. El apagado de QA se hizo **en el mismo paso** que el
+despliegue de prod: antes habría dejado el cluster sin ninguno mientras prod no existiese, después
+habría abierto una ventana con dos.
 
 **Un CronJob por tienda**, porque los perfiles divergen: Zara es httpx (1 CPU / 1Gi), Sfera arrastra
 Chromium (2Gi, `emptyDir` escribible, `HOME`/`TMPDIR` redirigidos, `runAsUser: 10001`). Comparten
@@ -275,8 +318,13 @@ el catálogo no se pueble **nunca**. Hipercor consumió el 115 % de su deadline 
 el 5 % del suyo.
 
 **Base de datos real**: cluster CNPG `platform-postgres-dev` en el namespace `data-dev` — *no* el
-`postgresql-generic` del cluster. QA es público en `dealtracker-qa.liontechsolution.com` a través
-del túnel compartido `cloudflared` (la ruta se configura en el panel de Zero Trust, no en Git).
+`postgresql-generic` del cluster. **Los tres entornos lo comparten**, con una base por entorno
+(`deal_tracker`, `deal_tracker_qa`, `deal_tracker_prod`); prod no estrenó cluster por coste, y el
+disparador para revisarlo que quedó escrito no es el tamaño sino **quién la usa** — cuando entre
+gente de fuera de la familia. QA y prod son públicos en `dealtracker-qa.liontechsolution.com` y
+`dealtracker.liontechsolution.com`, pero **por túneles distintos**: `k3s-nonprod` para dev y qa,
+`k3s-prod` para producción, para que un error en Zero Trust sobre uno no alcance al otro (la ruta
+se configura en ese panel, no en Git).
 
 ### Canonicalizar el texto de las tiendas: función SQL, nunca el dato
 
