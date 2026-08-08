@@ -1795,6 +1795,55 @@ Dos cosas de método que costaron tiempo y se repiten cada vez que se mide una t
   (la tienda da altas entre pasada y pasada). Contra una tienda viva, el A/B hay que cerrarlo
   repitiendo, no razonando sobre la dirección de la diferencia.
 
+#### Y en la tienda que originó la regla quedaron dos rutas sin convertir, cinco días invisibles (#259)
+
+Lo de arriba se aplicó a Hipercor y se comprobó en Sfera, y aun así **la conversión se quedó a
+medias en la propia Hipercor**. Medido el 09/08/2026: `check_leaves()` seguía navegando sus 34 hojas
+para acabar leyendo el `dataLayer` —el mismo que `_iter_category()` lee del documento servido dos
+métodos más arriba— y `probe_alive()` navegaba una ficha entera por sondeo para quedarse solo con el
+`status`, hasta el tope de 50 por pasada. La ironía del reparto: a Sfera **sí** se le convirtió el
+`probe_alive` en #168 («14/14 veredictos idénticos»); a Hipercor, que es donde nació la regla, no.
+
+Por qué sobrevivió tanto sin verse, que es la parte generalizable:
+
+- **Las rutas frías no están en el camino crítico de la pasada.** `check_leaves()` y `probe_alive()`
+  no se ejercen al medir una pasada de ingesta —la primera solo la usa el vigía, la segunda solo
+  entra cuando hay candidatos a baja—, así que la métrica que disparó #160 (coste por ficha, pasada
+  en frío) no las mira. Se convierte lo que se está midiendo.
+- **Y su coste se leyó como problema de cluster.** El vigía se clavaba en 1038m contra un cap de
+  1000m mientras el scraper de la misma tienda iba a ~75m de mediana contra uno de 2000m. Esa
+  diferencia de ×14 tiene una explicación sencilla —no hacían lo mismo— y durante cinco días se
+  atribuyó a contención de nodo, con dos issues (#258, #259) razonando sobre el `limits.cpu`.
+
+La cabecera del módulo llevaba desde #160 declarando el invariante en presente («quedan **dos**
+navegaciones de verdad, y **ninguna por producto**») y era falso desde el día que se escribió. Un
+invariante afirmado en una docstring no se verifica solo: en `hipercor.py` ahora lo defienden dos
+tests que afirman `navegadas == [BASE_URL]`, que es como ya se vigilaba `list_catalog()`.
+
+Medido pidiendo y navegando **las mismas 12 rejillas alternadas** en un proceso, para que la
+variación de la tienda la paguen las dos rutas: mediana **0,46 s contra 1,00 s, ×2,2**; y el barrido
+del vigía, hojas 37,3 s → 20,0 s (1,1 → 0,6 s/hoja). Ese ×2,2 es **el suelo**: se midió en un
+portátil, donde el cuello es la red, y lo que se ahorra es CPU.
+
+Dos cosas comprobadas de camino que evitan repetir el trabajo:
+
+- **El 404 sobrevive al cambio de transporte.** Es el riesgo real, porque `probe_alive()` alimenta
+  las bajas y un id muerto que respondiera 200 redirigido al padre dejaría prendas retiradas en
+  catálogo para siempre. Coinciden exactamente: vivo `pedir=200 navegar=200`, inventado
+  `pedir=404 navegar=404`, sin redirección.
+- **`page.request` no pasa por `route()`**, así que `bloquear()` y `descartar_recursos()` no aplican
+  por esa vía. Hoy no viola el `Disallow: /api` de esta tienda —ni la rejilla ni la ficha apuntan
+  ahí, y una página que no se renderiza no pide nada por su cuenta—, pero es una asimetría entre los
+  dos transportes que conviene tener presente si algún día la tienda redirige una ficha.
+
+Corolario para la siguiente tienda que se convierta: **la lista de rutas a mirar no es «el listado y
+la ficha», es todo lo que implemente el `Protocol`** — `list_catalog`, `fetch_details`,
+`check_leaves`, `probe_alive` y `category_tree`. Un `grep get_html` por el fichero contesta en
+segundos. Estado hoy: en `hipercor.py` el único `get_html()` que queda es el respaldo de la ficha
+agotada; `sfera.py` y `lefties.py` no tienen ninguno; `hm.py` conserva uno en `_menu_html()`, que
+solo llama `category_tree()` —o sea `--tree` y el vigía, nunca la pasada normal—, y por eso sus
+`limits.memory: 512Mi` no esconden un OOM latente pese a arrancar Chromium.
+
 ### Un pod muerto deja su transacción abierta, y la siguiente pasada se queda muda esperándola
 
 Corolario operativo de que la ingesta sea atómica, y cuesta caro reconocerlo tarde. Al borrar un Job
