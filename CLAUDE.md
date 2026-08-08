@@ -7,10 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Both services are **built and deployed**. This is a **polyglot monorepo**: scraping/ingestion in
 **Python** (`services/scraper`), user experience in **Node/TS** (`services/web`, NestJS API +
 React/Vite SPA + Telegram bot). The two services never call each other — they integrate through the
-**shared Postgres**, whose schema is the contract as neutral SQL in `db/migrations` (`0001` …
-`0022`). The `scraper` service owns writes to `retailer`/`product`/`variant`/`price_history`/
-`scrape_run`/`vigia_run`; the `web` service owns `app_user` (Telegram link included)/`interest`/
-`notification`/`job_state`.
+**shared Postgres**, whose schema is the contract as the numbered series of neutral SQL under
+`db/migrations` (`ls` it — a range written here goes stale every few weeks). The `scraper` service
+owns writes to `retailer`/`product`/`variant`/`price_history`/`scrape_run`/`vigia_run`; the `web`
+service owns `app_user` (Telegram link included)/`interest`/`notification`/`job_state`.
 
 Running in the cluster today: namespaces `deal-tracker-dev` (auto-deployed on every push to `main`)
 and `deal-tracker-qa` (semver releases, public at `dealtracker-qa.liontechsolution.com`).
@@ -189,20 +189,28 @@ These are facts about the running system, not plans:
   are **not** base's, so a new store cannot inherit base's `schedule` without checking what it
   collides with.
 - **Database:** the **CNPG** cluster `platform-postgres-dev` in namespace `data-dev` — *not* the
-  cluster's `postgresql-generic`. It also holds the price-history time series.
+  cluster's `postgresql-generic`. Despite the `-dev` in its name, **all three environments share
+  it**, one database each: `deal_tracker`, `deal_tracker_qa`, `deal_tracker_prod`. It also holds the
+  price-history time series.
 - **Auth/login:** **Keycloak**, already deployed in the cluster. The web service is a resource
   server: it validates access JWTs against the realm JWKS.
-- **Environments:** `dev local`, `dev`, `qa` (`prod` not yet stood up).
-- **CI/CD:** GitHub Actions (`scraper-ci.yml`, `web-ci.yml`, `release-qa.yml`) build and publish
-  `ghcr.io/liontech-solution/deal-tracker-{scraper,web}`, then a `bump` job rewrites the image tag
-  in the manifests repo; **ArgoCD** syncs it. dev tracks `sha-<7>` automatically; QA tracks semver
-  via the manual `release-qa` workflow, which promotes **by digest** (no rebuild). PRs only validate
-  on amd64 — the **multiarch build runs on `main`** (#61), so a PR check being green does not mean
-  the arm64 image exists yet.
+- **Environments:** `dev local`, `dev`, `qa`, `prod`. **`prod` is up**: deployed since 2026-08-07,
+  public at `dealtracker.liontechsolution.com`, ingesting daily and with the matching job on. It has
+  0 registered users on purpose — Keycloak users are created by hand with `kcadm.sh`.
+- **CI/CD:** GitHub Actions (`scraper-ci.yml`, `web-ci.yml`, `release-qa.yml`, `release-prod.yml`)
+  build and publish `ghcr.io/liontech-solution/deal-tracker-{scraper,web}`, then a `bump` job
+  rewrites the image tag in the manifests repo; **ArgoCD** syncs it. dev tracks `sha-<7>`
+  automatically; QA tracks semver via the manual `release-qa` workflow, which promotes **by digest**
+  (no rebuild). PRs only validate on amd64 — the **multiarch build runs on `main`** (#61), so a PR
+  check being green does not mean the arm64 image exists yet. `release-prod` promotes nothing — prod
+  consumes the very tag QA already runs — it is a **gate**: it refuses to move unless
+  `.claude/qa-reports/<version>.md` says `**Veredicto: APTO**`, QA is running that version, both
+  images exist in GHCR and the prod overlay is where the contract says. The authority is that
+  committed report, never the GitHub `prerelease` flag.
 - **Manifests live in a separate repo:** `juanjocop/k3s-local-apps-manifests`, under
-  `deal-tracker/{base,overlays/dev,overlays/qa}`. The `images[].newTag` values there are
-  **machine-edited — never hand-edit them**. ArgoCD runs with `selfHeal: true`, so a `kubectl patch`
-  against the cluster gets reverted; cluster changes go through that repo.
+  `deal-tracker/{base,overlays/dev,overlays/qa,overlays/prod}`. The `images[].newTag` values there
+  are **machine-edited — never hand-edit them**. ArgoCD runs with `selfHeal: true`, so a
+  `kubectl patch` against the cluster gets reverted; cluster changes go through that repo.
 - **Cluster access:** `~/.kube/k3slocal.yaml` is the kubeconfig for inspecting the cluster.
 
 ## Language note
