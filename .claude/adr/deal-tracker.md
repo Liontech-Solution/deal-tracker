@@ -643,6 +643,27 @@ es una hipótesis, no un número. Nada de esto rompe datos: como el `lastmod` se
 precios nunca se congelan y `price_history` crece con el catálogo entero. El coste es solo tiempo de
 pasada.
 
+**Ese coste está aceptado como decisión (09/08/2026, #227), y con la serie completa aparece un dato
+que invierte lo que promete el mecanismo de dos fases: la pasada «en régimen estable» no es más
+barata que la fría.**
+
+| | duración | productos |
+|---|---:|---:|
+| QA 03/08 (en frío) | 25m 29s | 1112 |
+| QA 05/08 | 26m 44s | 1193 |
+| QA 08/08 | 34m 08s | 1191 |
+| prod 09/08 | 33m 44s | 1191 |
+
+O sea que el ahorro no es pequeño: **no existe en ninguna pasada**. Se acepta porque no hay huella
+más barata posible —precio y tallas solo viven en la ficha y el `robots.txt` veta la rejilla de
+SFCC, así que cualquier alternativa exigiría la petición que la huella existe para evitar—, porque
+cabe con ×2,2 sobre el `activeDeadlineSeconds` de 4500 s (el catálogo tendría que llegar a ~2650
+productos para rozarlo) y porque **un tercio de esos 34 min es cortesía deliberada**
+(`request_delay` con jitter sobre ~1300 peticiones) que no hay que quitar. Se descartó bajar la
+cadencia en el repo de manifiestos: no hace falta con ese margen. Consecuencia para quien lea un
+informe de validación: **Springfield es el más caro de la banda con diferencia** —33m 44s contra los
+3m 36s del segundo— y eso es lo esperado, no una regresión.
+
 **Lo que se generaliza es qué es una hoja cuando no hay hojas.** El vigía necesita algo que sondear
 y las bajas necesitan ámbitos declarados, y aquí resultaron ser **dos listas distintas, con el error
 barato en lados opuestos**:
