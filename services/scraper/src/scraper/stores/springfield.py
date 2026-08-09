@@ -22,14 +22,19 @@ autorizado y denegación de servicio, nada de esto. Y `myspringfield.com` **no d
 
 Cinco cosas que hay que tener presentes al tocar este fichero, todas medidas contra el sitio real:
 
-1. **`lastmod` es la huella, y es la única que hay.** Precio y tallas viven solo en la ficha, así
-   que no se puede construir una huella de precio sin pedirla — que es justo lo que la huella
-   existe para evitar. Las 12 842 URLs del sitemap traen `lastmod`, así que sirve. **Riesgo abierto
-   (#81): si `lastmod` no se moviera al cambiar solo el precio, el detalle condicional congelaría
-   los precios.** No se puede comprobar en una sesión (exige ver el mismo producto en dos
-   momentos); mientras tanto la red que lo cubre es el refresco periódico forzado
-   (`product.last_detail_at` + `SCRAPER_DETAIL_MAX_AGE_DAYS`), que vuelve a pedir la ficha aunque
-   la huella no cambie.
+1. **`lastmod` es la huella, es la única que hay, y NO AHORRA NADA.** Precio y tallas viven solo en
+   la ficha, así que no se puede construir una huella de precio sin pedirla — que es justo lo que la
+   huella existe para evitar. Las 12 842 URLs del sitemap traen `lastmod`, así que sirve como huella
+   *formalmente*; lo que no hace es filtrar. **Medido (#227)**: el `lastmod` es una marca del
+   **generador del sitemap**, no del producto, y se reescribe por tandas. Sobre dos pasadas de QA
+   separadas por dos días, los 132 productos cuyo precio cambió y los 958 cuyo precio no cambió
+   traían **el mismo rango exacto** de `lastmod`: no lleva información de precio en ninguna de las
+   dos direcciones. Consecuencia práctica, y es la que hay que tener en la cabeza al tocar esto:
+   **se pide la ficha de casi todos los productos en casi todas las pasadas** (1183 de 1193).
+   El riesgo que #81 dejó anotado —que un `lastmod` inmóvil congelara los precios— **no ocurre, pero
+   la respuesta invierte el motivo**: no es que la huella siga al precio, es que se mueve para todo.
+   Por eso `price_history` crece con el catálogo entero y no hay precios congelados. El coste, que
+   es lo único que queda del asunto, está aceptado a conciencia: ver `fetch_details`.
 2. **La ficha no hay que parsearla, hay que leer sus atributos.** Cada talla es un `<input>` con
    un JSON entero en `size-data` (pid, talla, stock, precio y tachado) y cada color un `<div>` con
    otro en `data-color-info` (nombre, stock, precio, tachado y el mínimo de 30 días). O sea que el
@@ -363,6 +368,13 @@ def parse_sitemap_products(xml: str) -> list[EntradaSitemap]:
     Una URL sin `lastmod` se descarta: sin huella no hay detalle condicional, y emitirla con una
     huella inventada (la cadena vacía, la fecha de hoy) haría que pareciese que nunca cambia o que
     cambia siempre. Hoy las traen las 12 842.
+
+    **Ojo si eso deja de ser cierto** (#227): medido que el `lastmod` de esta tienda no filtra nada,
+    el descarte ya no compra lo que decía comprar — se perdería el producto entero a cambio de un
+    ahorro que no existe. Se mantiene el comportamiento porque hoy es un caso vacío y porque emitir
+    huellas inventadas es peor, pero el día que aparezca una URL sin `lastmod` la respuesta correcta
+    es emitirla con huella fija (siempre se pide su ficha, que es lo que ya pasa con todas), no
+    descartarla.
     """
     raiz = ET.fromstring(xml)
     entradas = []
@@ -703,10 +715,33 @@ class SpringfieldStore:
                     )
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
-        """Una petición por producto, más una por cada color adicional.
+        """Una petición por producto, más una por cada color adicional. **Casi siempre, todas.**
 
-        Lo caro de esta tienda es esto, y por eso el detalle condicional por `lastmod` es lo que la
-        hace viable: en régimen estable solo se piden las fichas que hayan cambiado.
+        Lo caro de esta tienda es esto, y conviene no engañarse con la palabra «condicional»: el
+        detalle condicional por `lastmod` **no filtra nada aquí** (ver el punto 1 de la cabecera),
+        así que en la práctica esto pide una ficha por producto vivo en cada pasada. Medido:
+
+            QA   03/08  25m 29s  1112 productos   <- pasada en frío
+            QA   05/08  26m 44s  1193
+            QA   08/08  34m 08s  1191
+            prod 09/08  33m 44s  1191
+
+        O sea que **la pasada «en régimen estable» no es más barata que la fría**, que es justo lo
+        contrario de lo que promete el mecanismo de dos fases de `base.py`.
+
+        **El coste está aceptado a conciencia (#227), no por descuido**, y estas son las razones,
+        por si alguien vuelve con la tentación de optimizarlo:
+
+        - **No hay huella más barata posible.** Precio y tallas solo viven en la ficha, y el
+          `robots.txt` veta la rejilla de SFCC, que es el otro sitio donde vivirían. Cualquier
+          huella alternativa exigiría exactamente la petición que se quiere evitar.
+        - **Cabe con holgura**: ~34 min contra el `activeDeadlineSeconds` de 4500 s del CronJob
+          (×2,2). A ~1,7 s por producto, el catálogo tendría que pasar de 1191 a ~2650 para
+          rozar el plazo. Si algún día se acerca, el número a mirar es ese, no la huella.
+        - **Un tercio de ese tiempo es cortesía deliberada** (`request_delay` con jitter,
+          ~1300 peticiones). No es coste accidental y **no hay que quitarlo**.
+        - **No rompe nada**: httpx puro, sin navegador, y `price_history` sale ganando porque se
+          observa el catálogo entero en cada pasada en vez de solo lo que cambió.
         """
         with self._client() as client:
             for entry in entries:

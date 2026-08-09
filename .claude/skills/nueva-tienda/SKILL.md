@@ -51,6 +51,16 @@ Esas fixtures son el golden file de los tests: sin ellas no hay tests determinis
 - `scopes()` — los ámbitos (género/sección/categoría) que este scraper recorre. Acota la
   detección de bajas: solo se descataloga dentro de ámbitos realmente escaneados.
 
+**El ahorro de la huella no se puede medir en esta sesión, y si te listas por sitemap
+probablemente sea cero** (#227). Dos pasadas separadas por minutos siempre dirán que el detalle
+condicional funciona: la segunda no encuentra nada cambiado *porque no ha dado tiempo a que
+cambie*. Eso es lo que hizo escribir un ahorro de ×17 en Springfield que a cadencia real resultó
+ser **ninguno** — su `lastmod` es una propiedad del **generador del sitemap**, no del producto, y
+se reescribe por tandas sobre el catálogo entero. Así que: si la huella sale del listado (precio,
+stock), mídela y créetela; si sale de un `lastmod`, **escríbela como hipótesis** hasta que dos
+pasadas separadas por la cadencia real la confirmen. Nada de esto rompe datos —una huella que se
+mueve de más pide detalle de más, nunca de menos—, pero decide si la tienda tarda 2 min o 34.
+
 Reglas que el revisor va a mirar:
 - Las funciones `parse_*` son **puras** (JSON/HTML → dataclasses), sin red. Es lo que se testea.
 - Precios en `Decimal`, nunca `float`. Ojo a las tiendas que sirven céntimos como entero.
