@@ -331,18 +331,30 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(f"{_BEBE_NINO}/sudaderas-y-chandal", "niño", "ropa", "sudaderas"),
     CategoryConfig(f"{_BEBE_NINO}/jerseis-y-chaquetas", "niño", "ropa", "sudaderas"),
     CategoryConfig(f"{_BEBE_NINO}/bodies", "niño", "ropa", "ropa-interior"),
-    # --- conjuntos (#192): LAS ÚLTIMAS a propósito ---
-    # `list_catalog()` deduplica con «gana la primera», así que ir detrás significa que un conjunto
-    # que la tienda también publica bajo una de las cinco del brief conserva ESA categoría; solo se
-    # etiqueta `conjuntos` el que no sale en ninguna otra hoja.
+    # --- conjuntos (#192, retiradas en #277): ESTA TIENDA YA NO PUBLICA NINGUNA ---
     #
-    # **Solo existen en las dos ramas de bebé.** Sondeado el 05/08/2026 con `check_leaves()`:
-    # `nina-4-16-anos/conjuntos` y `nino-4-16-anos/conjuntos` NO existen y son **espejismo** — la
-    # tienda resuelve el padre y devuelve su catálogo con un 200 y una página perfectamente
-    # plausible. Contar productos habría dado por buenas dos hojas inventadas; esta tienda exige
-    # `es_espejismo()` para cualquier ruta nueva y no es opcional.
-    CategoryConfig(f"{_BEBE_NINA}/conjuntos", "niña", "ropa", "conjuntos"),  # 1 producto
-    CategoryConfig(f"{_BEBE_NINO}/conjuntos", "niño", "ropa", "conjuntos"),  # 1 producto
+    # Aquí vivían las dos únicas hojas de `conjuntos` que quedaban, las de bebé. Iban LAS ÚLTIMAS a
+    # propósito, y ese invariante hay que respetarlo si algún día vuelven: `list_catalog()` dedup
+    # con «gana la primera», así que ir detrás es lo que hace que un conjunto que la tienda además
+    # publica bajo una de las cinco del brief conserve ESA categoría, y solo se etiquete
+    # `conjuntos` el que no sale en ninguna otra hoja. Lo guarda
+    # `test_conjuntos_va_detras_de_las_hojas_del_brief_de_su_genero`, que hoy no comprueba nada
+    # porque no hay ninguna, pero vuelve a morder en cuanto se añada una.
+    #
+    # Las de 4-16 ya eran **espejismo** desde el sondeo del 05/08/2026 (#192) y las dos de bebé lo
+    # son desde el 08/08: la tienda resuelve el padre y sirve su catálogo con un 200 y una página
+    # perfectamente plausible. Reproducido el 09/08 desde dos redes distintas, y visible en prod
+    # como los `errors=2` de cada pasada.
+    #
+    # **No se pudo buscar un id nuevo, y no por pereza: en esta tienda no se puede.** Cualquier
+    # hijo inventado resuelve al padre, así que sondear slugs no distingue «existe con otro
+    # nombre» de «no existe» — comprobado con siete candidatos (`conjuntos-y-packs`, `packs`,
+    # `sets`…): los siete «responden» y los siete son espejismo. Y la vía legítima para
+    # enumerar —el menú de la tienda— vive bajo `/api`, que es lo que el `robots.txt` veta (#179).
+    # O sea que la ausencia de prueba es aquí lo máximo que se puede obtener.
+    #
+    # Quitarlas no cambia lo que se ingiere: una hoja espejismo ya no ingería nada.
+    # `deal_tracker_prod` tiene 0 productos en `conjuntos` y QA conserva 1, de cuando la hoja vivía.
 ]
 
 
