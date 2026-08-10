@@ -397,10 +397,10 @@ export function ProductPage() {
           productId: product.id,
           productName: product.name,
           variantId: current?.id,
-          variantLabel:
-            current && (current.size || current.color)
-              ? [current.size ? `Talla ${current.size}` : null, current.color].filter(Boolean).join(' · ')
-              : null,
+          // La etiqueta la sirve la API, no se rehace aquí (#248): reconstruirla en TypeScript con
+          // `current.size` —la talla CRUDA— hacía que el modal confirmara 'Talla 2 años (92 cm)' y
+          // que `/seguimientos` y el bot dijeran luego 'Talla 2 años'.
+          variantLabel: current?.variantLabel ?? null,
         }}
       />
     </section>

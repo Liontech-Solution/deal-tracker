@@ -62,6 +62,13 @@ export interface VariantWithPrice {
   discountPct: string | null;
   inStock: boolean | null;
   scrapedAt: string | null;
+  /**
+   * Cómo se nombra esta variante donde el usuario la reconoce como «la prenda que sigo»: la misma
+   * `variantLabel()` que rotula `/seguimientos` y el aviso de Telegram (#223, #248). Lleva la talla
+   * CANÓNICA, mientras que `size` sigue siendo la de la tienda — que es lo que pinta el selector de
+   * tallas de la ficha. `null` cuando la variante no tiene ni talla ni color.
+   */
+  variantLabel: string | null;
   /** Veredicto de descuento honesto de esta variante (misma regla que el aviso). */
   honesty: HonestyVerdict;
 }

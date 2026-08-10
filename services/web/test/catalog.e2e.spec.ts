@@ -624,6 +624,26 @@ describe.skipIf(!TEST_DB)('talla canónica · faceta y filtro (e2e)', () => {
       .expect(200);
     expect(res.body.variants[0].size).toBe('26 (16,3 cm)');
   });
+
+  /**
+   * #248. Las dos mitades van juntas a propósito, porque la gracia está en que DIFIEREN: la ficha
+   * pinta la talla de la tienda en el selector, y la etiqueta con la que el usuario confirma el
+   * seguimiento lleva la canónica — la misma que verá luego en `/seguimientos` y en el aviso de
+   * Telegram, que se rotulan con esta misma `variantLabel()` desde #223.
+   *
+   * Antes de #248 el modal rehacía la etiqueta en el frontend con `variants[].size`, así que
+   * confirmaba 'Talla 11-12 años (152 cm)' y la lista enseñaba después 'Talla 11-12 años'. Con una
+   * fixture cuya canónica coincidiera con la cruda, este test no podría distinguir las dos.
+   */
+  it('nombra la variante con la talla canónica, aunque el selector la enseñe cruda', async () => {
+    const [row] = await sql<{ id: number }[]>`SELECT id FROM product WHERE name = 'Camiseta Zara'`;
+    const res = await request(app.getHttpServer())
+      .get(`/api/catalog/products/${row.id}`)
+      .expect(200);
+    const [variante] = res.body.variants;
+    expect(variante.size).toBe('11-12 años (152 cm)');
+    expect(variante.variantLabel).toBe('Talla 11-12 años · rojo');
+  });
 });
 
 describe.skipIf(!TEST_DB)('color canónico · faceta, filtro y foto (e2e)', () => {
