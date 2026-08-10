@@ -722,9 +722,74 @@ def test_sondeo_respeta_el_tope_y_no_da_de_baja_lo_no_sondeado(db_conn: Any) -> 
 
     assert len(store.probed) == 1
     assert result.probes_sent == 1
-    assert result.probes_unresolved == 1  # el que no cupo
+    assert result.probes_over_cap == 1  # el que no cupo: rutina, no error (#261)
+    assert result.probes_unresolved == 0
     assert result.products_delisted == 1  # solo el confirmado
     assert _scalar(db_conn, "SELECT count(*) FROM product WHERE delisted_at IS NULL") == 2
+
+
+def _sondeos(conn: Any, run_ts: Any) -> tuple[Any, ...]:
+    """`(errors, sent, alive, dead, over_cap, unresolved, limpia)` de la pasada de `run_ts`."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT errors, probes_sent, probes_alive, probes_dead, probes_over_cap, "
+            "probes_unresolved, message IS NULL FROM scrape_run WHERE started_at = %s",
+            (run_ts,),
+        )
+        row = cur.fetchone()
+    assert row is not None
+    return tuple(row)
+
+
+def test_fuera_del_tope_no_cuenta_como_error_y_queda_en_su_columna(db_conn: Any) -> None:
+    """#261: un candidato que no cupo en el tope no es un error; se persiste en `probes_over_cap`.
+
+    Es lo que hacía ilegible el `errors = 60` de Zara: la pasada estaba limpia y el número decía
+    otra cosa. Se afirma sobre la FILA, no sobre `IngestResult`, porque el valor de esto es que la
+    pregunta se responda con una consulta sin abrir el log de un pod que se recicla.
+    """
+    products = [_product(f"A{i}", f"P{i}", [_variant(f"A{i}-1", "20.00")]) for i in range(3)]
+    sigs = {f"A{i}": "s" for i in range(3)}
+    ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
+
+    # Faltan A1 y A2; solo cabe un sondeo y el que se sondea sigue a la venta.
+    store = ProbingFakeStore(
+        [products[0]],
+        signatures={"A0": "s"},
+        verdicts={"A1": True, "A2": True},
+        scopes=[ScrapeScope("niña", "zapateria", "zapatos")],
+    )
+    ingest(
+        db_conn, store, run_ts=T2, delist_min_baseline=5, delist_min_misses=1, delist_probe_max=1
+    )
+
+    # errors = 0 y `message` a NULL: la pasada está limpia, que es justo lo que antes no se veía.
+    assert _sondeos(db_conn, T2) == (0, 1, 1, 0, 1, 0, True)
+
+
+def test_sondeo_sin_veredicto_si_cuenta_como_error(db_conn: Any) -> None:
+    """#261: la contrapartida — una tienda que no contesta NO se puede quedar en silencio.
+
+    Es la mitad que no se toca al sacar los sondeos de `errors`: que la tienda deje de dejarnos
+    entrar es el fallo silencioso que el proyecto entero existe para cazar.
+    """
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={}, explode=True)
+    ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    errors, sent, _alive, _dead, over_cap, unresolved, _limpia = _sondeos(db_conn, T2)
+    assert (sent, over_cap, unresolved) == (1, 0, 1)
+    assert errors == 1  # el sondeo sin veredicto sí suma
+
+
+def test_pasada_limpia_deja_los_sondeos_a_cero(db_conn: Any) -> None:
+    """#261: sin candidatos, las cinco columnas quedan a 0 — el caso que hace útil la consulta."""
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    assert _sondeos(db_conn, T1) == (0, 0, 0, 0, 0, 0, True)
 
 
 def test_sondeo_desactivado_vuelve_a_la_histeresis(db_conn: Any) -> None:

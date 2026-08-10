@@ -58,11 +58,28 @@ igual pidiendo una sola vez. Se ven idénticos en HTTP y significan lo contrario
 tienda recién mergeada en `main` no está en la imagen de QA hasta que un `release-qa` la promueve.
 Es P1 de proceso, y decirlo como si el scraper estuviera roto manda a alguien a depurar la nada.
 
-**`errors` no cuenta productos perdidos.** Es la suma de sospechosos, sondeos de baja sin resolver y
-hojas de categoría caídas. Los 69 de Zara eran sondeos que se reintentan, no 69 prendas fuera del
-catálogo; los 15 de Sfera escondían **una hoja de categoría muerta**, que es un hallazgo peor y
-propio. Nunca reportes el número suelto: ábrelo con D3 y di de qué está hecho. Decir «69 productos
-no llegaron al catálogo» es falso y manda a alguien a buscar prendas que están ahí.
+**`errors` no cuenta productos perdidos.** Es la suma de sospechosos, hojas de categoría caídas y
+sondeos **sin veredicto**. Los 15 de Sfera escondían **una hoja de categoría muerta**, que es un
+hallazgo peor y propio. Nunca reportes el número suelto: ábrelo con D3 y di de qué está hecho. Decir
+«69 productos no llegaron al catálogo» es falso y manda a alguien a buscar prendas que están ahí.
+
+**Desde la 0028 los sondeos tienen columnas propias, y hay que leerlas** (#261). Antes los que no
+cabían en el tope sumaban en `errors`, y eso es lo que hizo que tres validaciones seguidas
+escalaran el `errors = 60` de Zara como si la ingesta estuviera rota. Se midió y era lo contrario:
+de 40 candidatos ausentes 14+ días, **39 seguían con stock**. Así que:
+
+```sql
+SELECT probes_sent, probes_alive, probes_dead, probes_over_cap, probes_unresolved
+  FROM scrape_run WHERE id = …;
+```
+
+- **`probes_over_cap` alto NO es un error de ingesta.** Es el pool de candidatos superando el tope de
+  sondeos por pasada, y `probes_sent + probes_over_cap` es ese pool. Lo que sí hay que mirar es su
+  **tendencia entre versiones**: si crece pasada tras pasada con `probes_dead = 0`, lo que falla no
+  son las bajas sino la **cobertura del listado** — hay prendas vivas que la pasada ha dejado de ver.
+  Eso es P2 y se contrasta contra el `## Cifras` anterior, no P0.
+- **`probes_unresolved > 0` sí es un hallazgo.** Son sondeos hechos a los que la tienda no contestó:
+  bloqueo, red o respuesta ambigua. Es la tienda negándose a entrar, que es el fallo silencioso.
 
 **La evidencia caduca.** El desglose de una pasada vive en el log del pod y los pods se recolectan
 en días. Cuando `kubectl logs` conteste `error: timed out waiting for the condition` —que parece un
@@ -80,8 +97,8 @@ detectar regresión, y aparentar que sí es peor que reconocerlo.
 Devuelve una tabla de hallazgos, el más grave primero, y nada más. Cada uno con:
 
 - **La consulta o el comando exacto** y su salida recortada. Sin eso no es verificable.
-- **Qué le pasa al usuario.** No «errors = 69» sino «69 sondeos de baja de Zara sin confirmar: esas
-  prendas quedan en limbo y si persiste el catálogo arrastra artículos retirados».
+- **Qué le pasa al usuario.** No «errors = 69» sino «106 candidatos a baja de Zara fuera del tope de
+  sondeos, y el pool crece pasada a pasada: son prendas a la venta que el listado ha dejado de ver».
 - **Severidad, con el criterio de `casos-datos.md`.** P0 bloquea la promoción, P1 abre issue, P2 se
   anota. No inventes una escala propia ni negocies el listón sobre la marcha.
 - **Si es nuevo o ya estaba.** Esto es obligatorio y va antes de proponer ninguna issue: **busca si

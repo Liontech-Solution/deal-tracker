@@ -404,11 +404,16 @@ def main(argv: list[str] | None = None) -> int:
             f"ausentes pendientes de confirmar (histéresis, umbral {config.delist_min_misses}): "
             f"{result.products_missing} productos / {result.variants_missing} variantes"
         )
-    if result.probes_sent or result.probes_unresolved:
+    if result.probes_sent or result.probes_over_cap or result.probes_unresolved:
+        # `over_cap` y `unresolved` se dicen por separado (#261): el primero es la cola normal de
+        # una tienda con muchos candidatos, el segundo es la tienda sin contestar. Solo el segundo
+        # suma en `errors`, así que leerlos juntos era lo que hacía ilegible el número.
         print(
             f"confirmación activa: {result.probes_sent} sondeos "
             f"({result.probes_alive} siguen a la venta, {result.probes_dead} retirados, "
-            f"{result.probes_unresolved} sin confirmar: se reintentan)"
+            f"{result.probes_unresolved} sin veredicto) · "
+            f"{result.probes_over_cap} fuera del tope de {config.delist_probe_max}: "
+            f"entran los primeros en la siguiente pasada"
         )
     if result.skipped_scopes:
         print(
