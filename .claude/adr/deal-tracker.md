@@ -1444,7 +1444,7 @@ CI → **comprobar que ArgoCD ha sincronizado la imagen en el CronJob** (dispara
 `Tienda desconocida`) → disparar el job a mano → leer el log. Diez minutos de reloj, casi todos de
 espera.
 
-**Y una trampa de lectura en esa consulta: `scrape_run.errors` no cuenta productos perdidos.** Es
+**Y una trampa de lectura en esa consulta: `scrape_run.errors` no cuenta productos perdidos.** Era
 `len(sospechosos) + sondeos_sin_resolver + hojas_de_categoría_caídas`, tres cosas de gravedad muy
 distinta sumadas en un entero. Medido el 04/08/2026 en QA: los `errors = 69` de Zara eran sondeos de
 confirmación de baja sin resolver **que se reintentan en la pasada siguiente** —ningún producto
@@ -1452,8 +1452,38 @@ faltaba del catálogo—, mientras que los `errors = 15` de Sfera eran 14 sondeo
 categoría muerta de 35**, es decir una categoría entera que dejó de ingerirse y un ámbito sin
 detección de bajas, que es un hallazgo propio y mucho peor. Leer el contador como «N productos
 perdidos» es falso en los dos sentidos: alarma de más en un caso y esconde el grave en el otro. El
-desglose está en la línea de resumen del log del pod (`confirmación activa: …` y
+desglose estaba en la línea de resumen del log del pod (`confirmación activa: …` y
 `⚠ N/M hojas de categoría no responden`), **que caduca cuando el pod se recolecta**.
+
+**Desde #261 (10/08/2026) ese sumando ya no está, y el motivo cambia lo que el número significa.**
+La hipótesis natural —el pool de candidatos supera el tope de 50 sondeos por pasada, luego hay
+prendas retiradas que se quedan en catálogo para siempre— **se midió y es falsa**. Se sondearon a
+mano 40 productos de Zara que llevaban 14+ días sin aparecer en ningún listado de QA: `probe_alive`
+los dio vivos a los **40/40**, y al abrir la ficha **39/40 tenían `in_stock`** en alguna talla. O
+sea que el sondeo **no miente** y la confirmación activa hace exactamente lo que debe. Lo que el
+número mide no es una fuga de bajas: es **cobertura incompleta del listado**, prendas a la venta que
+la pasada ha dejado de ver. La consecuencia práctica al leer una pasada: `errors` alto con
+`message IS NULL` nunca fue una ingesta rota.
+
+Dos mecanismos que hay que tener juntos para no volver a diagnosticarlo mal:
+
+- **El tope no mata de hambre a nadie**, y por eso subirlo no arregla nada. `_load_delist_candidates`
+  ordena `missing_streak DESC`, así que lo que se sale del tope entra **primero** en la pasada
+  siguiente. Se ve en el dato: con 6 pasadas de Zara en QA el `missing_streak` máximo es **3**. Un
+  tope proporcional al catálogo solo dispararía más peticiones para recibir más «sigue vivo».
+- **El pool crece igualmente, porque nada lo drena.** Zara 25 → 60 → 106 y Sfera 1 → 15 → 31 → 33 →
+  45 en pasadas sucesivas, con **`probes_dead = 0`**: Sfera no ha dado una sola baja nunca. Las
+  únicas salidas del pool son «volver a verse» y «muerte confirmada», y la segunda no ocurre.
+
+De ahí el reparto que deja la 0028: `errors` se queda con sospechosos + hojas caídas + **sondeos sin
+veredicto**, y los que no caben en el tope se van a `scrape_run.probes_over_cap`. La distinción es
+lo importante y no el sitio — *no cupo* es la rutina de una tienda con muchos candidatos, *sin
+veredicto* es la tienda negándose a contestar, que es el fallo silencioso que el vigía existe para
+cazar. Sacar los dos de `errors` habría apagado la alarma buena junto con el ruido. Las cinco
+columnas `probes_{sent,alive,dead,over_cap,unresolved}` hacen que «¿el pool crece o se drena?» sea
+una consulta y no una excavación en el log de un pod: `probes_sent + probes_over_cap` es el pool y
+`probes_dead` el drenaje. **No hay backfill**, así que la serie empieza en la 0028 y las filas
+anteriores tienen 0 en las cinco.
 
 **Y esa copia duradera no existía: `scrape_run.message` solo se rellenaba en el camino de fallo**
 (`_record_failed_run`), o sea justo en el caso en el que la pasada NO cierra en `success`. La hoja
@@ -1664,6 +1694,13 @@ no cuelgan de ninguna hoja permanente, así que al acabar la campaña dejan de v
 esté agotado —Sfera usa dos señales, esta una— y a un producto confirmado vivo `ingest.py` le pone
 la racha a cero (`_rescue`), así que un saldo agotado que la tienda siga sirviendo en el detalle se
 quedaría en el catálogo indefinidamente. Hay que mirarlo al acabar esta campaña.
+
+Con una calibración que ahorra dar por hecho el desenlace: **el temor análogo en Zara se midió y
+salió al revés** (#261, ver la trampa de lectura de `scrape_run.errors` más arriba) — de 40
+candidatos ausentes 14+ días, 39 tenían stock y `probe_alive` acertaba en los 40. Que el sondeo sea
+la señal débil no implica que esté mintiendo; en Zara lo que fallaba era la cobertura del listado.
+Lo de Lefties sigue en pie porque su sondeo es de una sola señal y el de Zara pide la ficha entera,
+pero la conclusión hay que medirla, no deducirla.
 
 ### Una pasada muda no se puede depurar, y las dos tiendas que acumulan son ciegas por diseño
 
