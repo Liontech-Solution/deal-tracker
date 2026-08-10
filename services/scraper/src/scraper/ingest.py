@@ -149,7 +149,8 @@ class IngestResult:
     probes_sent: int  # candidatos a baja sondeados (confirmación activa)
     probes_alive: int  # el sondeo los encontró vivos: rescatados, no se dan de baja
     probes_dead: int  # el sondeo confirmó la retirada
-    probes_unresolved: int  # sin veredicto (fallo, respuesta ambigua o fuera del tope)
+    probes_over_cap: int  # no cabían en el tope: rutina, entran los primeros en la siguiente
+    probes_unresolved: int  # sondeados y sin veredicto (fallo de red, bloqueo o respuesta ambigua)
     # Reparto si/no/desconocido del calzado ACTIVO de la tienda tras la pasada. Es el informe que
     # pide #30, y va aquí en vez de en una consulta a mano porque es la cifra que dice si el foco
     # barefoot tiene contenido: una zapatería que se queda en 0 productos `si` no es un detalle
@@ -760,12 +761,24 @@ def _advance_missing(
 
 @dataclass
 class ProbeOutcome:
-    """Resultado de la confirmación activa de una pasada (ver `_confirm_candidates`)."""
+    """Resultado de la confirmación activa de una pasada (ver `_confirm_candidates`).
+
+    Los cinco contadores se persisten en `scrape_run.probes_*` (migración 0028, #261): sin ellos
+    la única huella del mecanismo era un sumando dentro de `errors`, y la pregunta "¿el pool de
+    candidatos crece o se drena?" obligaba a leer el log de un pod que se recicla.
+    `sent + over_cap` es el pool de la pasada; `dead` es el drenaje real.
+
+    `over_cap` y `unresolved` estaban juntos y se separan aquí porque **no son lo mismo**, y esa es
+    toda la diferencia entre una alarma útil y una que nadie mira: quedarse fuera del tope es la
+    rutina de una tienda con muchos candidatos, mientras que quedarse sin veredicto es la tienda
+    negándose a contestar. Solo el segundo suma en `errors`.
+    """
 
     sent: int = 0
     alive: int = 0
     dead: int = 0
-    unresolved: int = 0
+    over_cap: int = 0  # no cabían en el tope de sondeos: rutina, se sondean en la siguiente
+    unresolved: int = 0  # sondeados y sin veredicto: fallo de red, bloqueo o respuesta ambigua
     blocked_ids: list[int] = field(default_factory=list)  # `product.id` que NO se dan de baja
 
 
@@ -833,7 +846,7 @@ def _confirm_candidates(
     candidates = candidates[:max_probes]
     outcome = ProbeOutcome(
         sent=len(candidates),
-        unresolved=len(over_cap),
+        over_cap=len(over_cap),
         blocked_ids=[product_id for product_id, _pid, _url in over_cap],
     )
 
@@ -915,11 +928,16 @@ def _success_message(
 ) -> str | None:
     """Por qué esta pasada, aun con éxito, no está del todo limpia. `None` si lo está (#151).
 
-    Existe porque `errors` es un entero que suma tres cosas distintas —ámbitos sospechosos,
-    sondeos sin resolver y hojas caídas— y el detalle solo se decía por stdout. Una pasada de QA
-    cerró en `success` con `errors = 15` llevando dentro una hoja de Sfera retirada, o sea un
-    ámbito entero sin detección de bajas durante semanas; cuando alguien fue a mirar, el log del
-    pod ya se había reciclado y no había forma de saber **qué hoja**.
+    Existe porque `errors` es un entero que suma tres cosas distintas —ámbitos sospechosos, hojas
+    caídas y sondeos sin veredicto— y el detalle solo se decía por stdout. Una pasada de QA cerró
+    en `success` con `errors = 15` llevando dentro una hoja de Sfera retirada, o sea un ámbito
+    entero sin detección de bajas durante semanas; cuando alguien fue a mirar, el log del pod ya se
+    había reciclado y no había forma de saber **qué hoja**.
+
+    Había un cuarto sumando y desde #261 ya no: los candidatos que no caben en el tope de sondeos.
+    Se midió que no son un error —de 40 candidatos de Zara ausentes 14+ días, 39 tenían stock— sino
+    prendas vivas que el listado ha dejado de ver, así que viven en `scrape_run.probes_over_cap`
+    (migración 0028). Los sondeos SIN VEREDICTO sí siguen sumando: ésos son la tienda sin contestar.
 
     Devolver `None` cuando no hay nada que contar no es cosmética: es lo que hace que la consulta
     sea `WHERE message IS NOT NULL` en vez de un `LIKE` sobre texto libre.
@@ -1201,18 +1219,31 @@ def ingest(
                 """
                 UPDATE scrape_run
                 SET finished_at = clock_timestamp(), status = 'success',
-                    products_seen = %s, variants_seen = %s, errors = %s, message = %s
+                    products_seen = %s, variants_seen = %s, errors = %s, message = %s,
+                    probes_sent = %s, probes_alive = %s, probes_dead = %s,
+                    probes_over_cap = %s, probes_unresolved = %s
                 WHERE id = %s
                 """,
                 (
                     len(entries),
                     variants_seen,
-                    len(suspicious) + probe.unresolved + report.leaves_failed,
-                    # `errors` cuenta; `message` dice QUÉ (#151). Los sondeos sin resolver no
-                    # entran: son benignos por diseño —se reintentan en la siguiente pasada— y
-                    # meterlos haría que casi ninguna pasada tuviera el `message` a NULL, que es
-                    # lo único que hace útil la consulta.
+                    # Los candidatos que no cupieron en el tope ya NO suman aquí (#261): se midió
+                    # que no son un error ni prendas retiradas atrapadas —de 40 candidatos de Zara
+                    # ausentes 14+ días, el sondeo llamaba vivos a los 40 y 39 tenían stock de
+                    # verdad— sino prendas vivas que el listado ha dejado de ver. Contarlas hacía
+                    # que tres validaciones seguidas leyeran una cobertura incompleta como una
+                    # ingesta rota. Los sondeos SIN VEREDICTO sí siguen contando: ésos son la
+                    # tienda negándose a contestar, que es justo lo que hay que cazar.
+                    len(suspicious) + report.leaves_failed + probe.unresolved,
+                    # `errors` cuenta; `message` dice QUÉ (#151). El desglose del sondeo no entra en
+                    # `message`: tiene columnas propias (migración 0028), y meterlo aquí dejaría
+                    # casi ninguna pasada con `message` a NULL —lo único que hace útil la consulta.
                     _success_message(report, suspicious, gender_frozen, rescued),
+                    probe.sent,
+                    probe.alive,
+                    probe.dead,
+                    probe.over_cap,
+                    probe.unresolved,
                     run_id,
                 ),
             )
@@ -1246,6 +1277,7 @@ def ingest(
             probes_sent=probe.sent,
             probes_alive=probe.alive,
             probes_dead=probe.dead,
+            probes_over_cap=probe.over_cap,
             probes_unresolved=probe.unresolved,
             barefoot_counts=barefoot_counts,
             tag_counts=tag_counts,
