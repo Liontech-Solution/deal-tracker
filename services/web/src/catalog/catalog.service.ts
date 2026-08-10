@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { sql, type SQL } from 'drizzle-orm';
 
 import { Database, DRIZZLE } from '../database/database.module';
+import { variantLabel } from '../interests/interests.service';
 import { classifyHonesty, HONESTY_WINDOW_DAYS } from '../matching/deal-rule';
 import { honestDiscountSql, isRealDealSql, type DealSqlColumns } from '../matching/deal-rule.sql';
 import { GENERO_UNISEX, generoCondition } from './gender.sql';
@@ -385,7 +386,8 @@ export class CatalogService {
         GROUP BY size_canon(v.size), color_canon(v.color), coalesce(v.url, ''),
                  (v.delisted_at IS NULL)
       )
-      SELECT v.id, v.retailer_variant_id, v.size, v.color, v.sku, v.url, v.delisted_at,
+      SELECT v.id, v.retailer_variant_id, v.size, size_canon(v.size) AS size_canon,
+             v.color, v.sku, v.url, v.delisted_at,
              l.price, l.list_price, l.discount_pct, g.in_stock, l.scraped_at,
              s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points
       FROM prenda g
@@ -398,6 +400,10 @@ export class CatalogService {
     const variants: VariantWithPrice[] = variantRows.map((row) => ({
       id: Number(row.id),
       retailerVariantId: String(row.retailer_variant_id),
+      // La talla sale CRUDA a propósito, y no es un descuido pendiente de arreglar (#248): es el
+      // texto que pinta el selector de tallas de la ficha, y en ropa infantil el paréntesis que
+      // `size_canon` borra —'2 años (92 cm)' -> '2 años', ver la 0024— es justo por lo que un padre
+      // elige. La canónica no se pierde: viaja en `variantLabel`, aquí abajo.
       size: (row.size as string | null) ?? null,
       color: (row.color as string | null) ?? null,
       sku: (row.sku as string | null) ?? null,
@@ -408,6 +414,15 @@ export class CatalogService {
       discountPct: (row.discount_pct as string | null) ?? null,
       inStock: row.in_stock == null ? null : Boolean(row.in_stock),
       scrapedAt: row.scraped_at ? new Date(row.scraped_at as string).toISOString() : null,
+      // La MISMA función que nombra la variante en `/seguimientos` y en el aviso de Telegram, con
+      // la talla canónica que calcula la base: es lo que impide que el modal de «Seguir esta
+      // variante» confirme una talla y la lista enseñe otra (#248). El color va crudo, como en los
+      // otros dos llamantes — `color_canon` devuelve NULL para lo que no reconoce (#51), así que
+      // canonizarlo aquí lo borraría de la etiqueta en vez de normalizarlo.
+      variantLabel: variantLabel(
+        (row.size_canon as string | null) ?? null,
+        (row.color as string | null) ?? null,
+      ),
       honesty: classifyHonesty({
         price: (row.price as string | null) ?? null,
         listPrice: (row.list_price as string | null) ?? null,

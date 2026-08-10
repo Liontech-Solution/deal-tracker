@@ -189,9 +189,15 @@ export class InterestsService {
  * Exportada para que los avisos de Telegram nombren la variante igual que la web.
  *
  * **La talla se le pasa ya canónica**, y eso es contrato del llamante, no de aquí: esta función
- * solo concatena. Los dos llamantes la traen de la base con `size_canon` —el SELECT de `list()` y
- * el de `findCandidates` (`matching.service.ts`)— porque canonizar en TypeScript sería una segunda
- * definición de «misma talla». Pasarle la cruda es lo que causó #223.
+ * solo concatena. Los TRES llamantes la traen de la base con `size_canon` —el SELECT de `list()`,
+ * el de `findCandidates` (`matching.service.ts`) y el del detalle de producto
+ * (`catalog.service.ts`)— porque canonizar en TypeScript sería una segunda definición de «misma
+ * talla». Pasarle la cruda es lo que causó #223.
+ *
+ * El tercero se sumó en #248: la ficha servía la etiqueta al modal de «Seguir esta variante»
+ * rehaciéndola en el frontend con la talla cruda, así que el usuario confirmaba una talla y su
+ * lista le enseñaba otra. Que la sirva la API es lo que impide que vuelva a haber un cuarto sitio
+ * donde el formato se reinvente.
  */
 export function variantLabel(size: string | null, color: string | null): string | null {
   const parts = [size ? `Talla ${size}` : null, color].filter((p): p is string => !!p);
