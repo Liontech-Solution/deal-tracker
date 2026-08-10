@@ -385,9 +385,10 @@ crudo a cualquier consumidor. No: la canónica es el vocabulario del producto, a
 nombre una variante delante del usuario tiene que hablarlo. Lo crudo se conserva en la columna
 —para el join de las fotos y para la ficha de la tienda—, no para rotular.
 
-Importa porque los sitios que nombran una variante son **dos**: la lista de seguimientos
-(`GET /interests`) y el aviso de Telegram, que comparten `variantLabel()` precisamente para no
-divergir. Los dos devolvían la talla de la tienda mientras la faceta, el filtro y el propio
+Importa porque los sitios que nombran una variante son **tres**: la lista de seguimientos
+(`GET /interests`), el aviso de Telegram y el modal de «Seguir esta variante» de la ficha, que
+comparten `variantLabel()` precisamente para no divergir. Los dos primeros devolvían la talla de la
+tienda mientras la faceta, el filtro y el propio
 `interest.size` guardado decían otra cosa: el usuario seguía una «Talla 24» y el bot le hablaba de
 una «Talla 24 (14,9 cm)». La canónica ya venía calculada por la base en los dos casos —en el
 `SELECT` de `findCandidates` viaja como `sizeCanon`, al lado de la cruda—, así que el arreglo no
@@ -400,6 +401,21 @@ enlace, mientras que la coherencia entre lo que el usuario sigue y lo que el bot
 único que sostiene que sean la misma prenda. El color, en cambio, sigue crudo **a propósito**:
 `color_canon` niega devolviendo `NULL` (0016), así que canonizar la etiqueta no normalizaría el
 color — lo borraría.
+
+**El tercero apareció arreglando los otros dos, y por eso la etiqueta la sirve la API** (#248). El
+modal de la ficha rehacía la etiqueta a mano en TypeScript con `variants[].size`, así que al dejar
+canónicos el backend y el bot quedó él solo diciendo la cruda: el usuario confirmaba «Talla 2 años
+(92 cm)» y su lista le enseñaba «Talla 2 años». La regla que evita un cuarto sitio es que **el
+detalle del catálogo emite `variantLabel` ya montado** —`GET /catalog/products/:id` lo calcula con
+la misma función y con `size_canon(v.size)` en el `SELECT`—, en vez de que cada consumidor
+concatene. Rehacerla en el frontend no era una duplicación cosmética: canonizar en TypeScript sería
+una segunda definición de «misma talla», que es justo lo que el punto 1 prohíbe.
+
+Y el corolario que no se ve solo: `variants[].size` **sigue saliendo cruda** en esa misma respuesta,
+porque es lo que pinta el selector de tallas, y en ropa infantil el paréntesis que `size_canon`
+borra (`2 años (92 cm)` → `2 años`) es por lo que un padre elige. Las dos formas viajan juntas — la
+cruda para elegir, la canónica para nombrar — igual que ya hacía `findCandidates` con `size` y
+`sizeCanon`.
 
 **Un mismo texto puede significar cosas distintas, y la sección NO es lo que lo decide.** `size_canon`
 leía `25-34` o `20 /21` como rango de EDAD cuando en Cacles son números de pie: plantillas vendidas
