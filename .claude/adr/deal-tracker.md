@@ -112,6 +112,20 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
 con `node dist/database/migrate.js` (initContainer del Deployment). Cualquiera de los dos puede
 aplicarlas; ninguno es "el dueño".
 
+**Y por eso el esquema y el código del scraper avanzan a velocidades distintas, con una ventana en
+medio en la que una columna nueva existe y nadie la escribe.** El initContainer del web aplica la
+migración **en el instante de la promoción**; el código del scraper que rellena esas columnas no
+llega hasta que **cada CronJob vuelve a dispararse**. En QA esa ventana dura hasta **siete días**
+(pasadas los lunes); en prod, horas (diarias). Medido el 10/08/2026 validando v0.2.0: el
+`release-qa` aterrizó a las **11:39 UTC**, después de las nueve pasadas semanales (03:00 → 06:45),
+así que la `0028` estaba aplicada y las cinco columnas `probes_*` salían a **0 en las nueve
+tiendas** — no porque el código no escribiera, sino porque ninguna tienda había ingerido todavía
+con la imagen nueva (`kubectl get pod <pasada> -o jsonpath='{...containers[0].image}'` lo dice, y es
+la comprobación que zanja la duda). La consecuencia al validar: **un valor por defecto uniforme
+justo después de una migración no prueba que el código esté roto**, y confundir las dos cosas es un
+P0 falso. Si hay que ejercerlo antes de la siguiente pasada natural, se dispara a mano
+(`kubectl -n <ns> create job <nombre> --from=cronjob/deal-tracker-scraper-<slug>`).
+
 **Todo lo `KEYCLOAK_*` y `TELEGRAM_*` es opcional a propósito**: sin ellas la auth queda apagada
 (la SPA funciona como catálogo público, los endpoints de usuario dan 401) y el job de matching
 fuerza `--dry-run`. Así corre `dev`.
