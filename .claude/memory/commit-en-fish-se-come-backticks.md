@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: c45d5524-8f07-4135-ba73-a112e84384a1
-  modified: 2026-08-05T11:56:49.383Z
+  modified: 2026-08-11T13:13:24.434Z
 ---
 
 La shell de este equipo es **fish**, donde los backticks son sustitución de comandos igual que en
@@ -33,3 +33,23 @@ EOF
 
 Si ya se ha commiteado, `git commit --amend -F /dev/stdin <<'EOF'` lo arregla antes de subir.
 Medido el 05/08/2026 cerrando [[verificar-en-cluster-dev]] la sesión de #169.
+
+**Vuelve a morder en `gh issue comment`, y ahí no hay commit que releer.** El 11/08/2026, cerrando
+#292, un `gh issue comment 308 --body "…"` con backticks sin escapar publicó el comentario **con
+ocho identificadores vaciados** (`0030`, `prioridad-2`, `variant_count`, `color_family`…) y solo
+avisó con `command not found` en el stderr, que se pierde entre la salida del propio `gh`. El
+comentario se publica igual, y en una épica es justo donde vive el estado del proyecto.
+
+Dos formas que sí funcionan, y conviene saber cuál usar:
+
+- **Escapar cada backtick** (`\``) dentro de `--body "…"`: sirve, y así se publicaron los
+  comentarios de #292 y #290 ese mismo día sin perder nada. Pero es fácil olvidar uno.
+- **`--body-file <fichero>`**: la buena para cualquier texto largo, porque el contenido no pasa por
+  la shell. Se escribe el markdown con la herramienta `Write` y se le pasa la ruta.
+
+Se arregla sin borrar nada: `gh issue comment <n> --edit-last --body-file <fichero>` reemplaza el
+último comentario en su sitio.
+
+**Y el aviso vale para toda la familia**: `gh issue create --body`, `gh pr create --body`,
+`gh pr comment`, `gh release create --notes`. Todo lo que lleve markdown con identificadores va por
+fichero.
