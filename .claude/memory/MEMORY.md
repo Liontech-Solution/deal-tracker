@@ -21,4 +21,5 @@
 - [keycloak-cors-preflight-enganya](keycloak-cors-preflight-enganya.md) — el preflight OPTIONS refleja cualquier origen y no prueba nada; el claim `allowed-origins` del token sí, y sin navegador no hay CORS
 - [keycloak-admin-desde-el-pod](keycloak-admin-desde-el-pod.md) — no saques el secret de admin: `kcadm.sh` se autentica dentro del pod con las env que ya trae por `envFrom`, y ahí ArgoCD no revierte
 - [gh-pr-merge-auto-no-espera](gh-pr-merge-auto-no-espera.md) — aquí los checks no son obligatorios: `--auto` mergea al instante con el CI encolado; mira `statusCheckRollup`, no `gh pr checks`
+- [saber-que-dispara-un-merge](saber-que-dispara-un-merge.md) — comprueba qué CI dispara el cambio antes de mergear: los workflows filtran por `paths` y un PR de solo documentación sale con **0 checks**, sin imagen ni bump
 - [escrituras-contra-prod-las-pide-el-usuario](escrituras-contra-prod-las-pide-el-usuario.md) — el clasificador bloquea `create job` contra prod y el `gh pr merge` de los manifiestos: se piden al usuario con `!`, las lecturas sí pasan
