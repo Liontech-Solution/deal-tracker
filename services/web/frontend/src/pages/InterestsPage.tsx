@@ -5,6 +5,7 @@ import type { InterestView } from '../api/types';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthProvider';
 import { BellIcon, CloseIcon } from '../components/icons';
+import { ProductImage } from '../components/ProductImage';
 import { ErrorState } from '../components/States';
 import { useToast } from '../components/Toast';
 import { capitalize } from '../lib/format';
@@ -102,10 +103,34 @@ function InterestCard({
   onDelete: () => void;
   deleting: boolean;
 }) {
+  // Un interés por filtros no apunta a ninguna prenda ('toda la ropa de niña rebajada un 30 %'),
+  // así que no hay foto ni ficha a la que ir: la tarjeta se queda como estaba. Manda
+  // `targetProductId` y no `imageUrl`, para que una prenda cuya galería aún no se ha traído siga
+  // siendo enlazable y enseñe el hueco de «SIN FOTO» en vez de desaparecer.
+  const prenda = interest.targetProductId !== null ? `/producto/${interest.targetProductId}` : null;
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '15px 17px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 13, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '14px 16px' }}>
+      {prenda && (
+        <Link
+          to={prenda}
+          aria-label={`Ver ${interest.productName ?? 'la prenda'}`}
+          style={{ flex: 'none', width: 64, borderRadius: 'var(--r-md)', overflow: 'hidden', display: 'block' }}
+        >
+          {/* El doble del hueco: la miniatura son 64 px y así no se ve borrosa en pantallas 2x. */}
+          <ProductImage src={interest.imageUrl} alt="" section={interest.productSection} width={128} />
+        </Link>
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 800, fontSize: 15.5, marginBottom: 5 }}>{scopeTitle(interest)}</div>
+        <div style={{ fontWeight: 800, fontSize: 15.5, marginBottom: 5 }}>
+          {prenda ? (
+            <Link to={prenda} style={{ color: 'inherit', textDecoration: 'none' }}>
+              {scopeTitle(interest)}
+            </Link>
+          ) : (
+            scopeTitle(interest)
+          )}
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           <Chip>−{formatPct(interest.minDiscountPct)}% mínimo</Chip>
           <Chip>{interest.compareBase === 'list_price' ? 'vs PVP' : 'vs mínimo reciente'}</Chip>

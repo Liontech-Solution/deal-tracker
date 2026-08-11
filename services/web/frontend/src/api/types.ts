@@ -165,6 +165,15 @@ export interface InterestView {
   retailerName: string | null;
   productName: string | null;
   variantLabel: string | null;
+  /**
+   * Con qué enseñar la prenda seguida (#302). Los tres vienen `null` en un interés por filtros,
+   * que no apunta a ninguna prenda, así que la tarjeta tiene que seguir funcionando sin ellos.
+   * `targetProductId` no es `productId`: ese es el alcance declarado del interés, y un interés de
+   * variante lo trae `null` aunque tenga ficha que enseñar.
+   */
+  targetProductId: number | null;
+  imageUrl: string | null;
+  productSection: string | null;
 }
 
 /** Estado del vínculo de Telegram (espejo de `TelegramSettingsView` del backend). */

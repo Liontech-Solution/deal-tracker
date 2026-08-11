@@ -3,7 +3,14 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import { Database, DRIZZLE } from '../database/database.module';
-import { interest, product, retailer, variant, type Interest } from '../database/schema';
+import {
+  interest,
+  product,
+  productImage,
+  retailer,
+  variant,
+  type Interest,
+} from '../database/schema';
 import type { CreateInterestDto } from './dto/create-interest.dto';
 import type { InterestView } from './interests.types';
 
@@ -15,16 +22,42 @@ export class InterestsService {
    * Lista los intereses activos del usuario, enriquecidos con los nombres del objetivo
    * (producto/variante/tienda) cuando apuntan a uno. Las uniones son por id lógico y LEFT
    * (sin FK dura desde `interest`): si el objetivo ya no existe, los nombres vienen `null`.
+   *
+   * Desde #302 devuelve además con qué **enseñar** la prenda seguida —foto, y el id con el que
+   * enlazar a su ficha—, porque la lista traía la configuración del aviso y no la prenda. Todo
+   * eso puede venir `null` y la tarjeta tiene que aguantarlo: **un interés por filtros no apunta
+   * a ninguna prenda** ('toda la ropa de niña por debajo de 10 €' no tiene foto que enseñar).
    */
   async list(userId: number): Promise<InterestView[]> {
     // El producto que da nombre a la variante apuntada (product_id de la variante).
     const variantProduct = alias(product, 'variant_product');
+    // La foto DEL COLOR de la variante seguida, cuando la galería la tiene. Mismo criterio que la
+    // tarjeta del catálogo (`applyReprImages`, catalog.service.ts) y por el mismo motivo: el color
+    // cuelga de la variante, así que enseñar la foto de "el primer color" junto a una talla y un
+    // color concretos puede mezclar y enseñar una prenda que no es la que se sigue.
+    //
+    // El join va por el color CRUDO porque así lo guarda `product_image` —igual que el `color_repr`
+    // del catálogo, que sale de `v.color` sin canonizar—. Un `variant.color` NULL no casa con nada
+    // y cae al respaldo, que es lo que se quiere.
+    const colorImage = alias(productImage, 'color_image');
 
     const rows = await this.db
       .select({
         interest,
         directProductName: product.name,
         variantProductName: variantProduct.name,
+        // Para enlazar a la ficha: el producto apuntado, o el de la variante apuntada. Se
+        // seleccionan los dos ids por separado y se resuelven en TypeScript en lugar de con un
+        // `coalesce` en SQL, para que drizzle siga convirtiendo el `bigint` a número — postgres.js
+        // devuelve como string el bigint que sale de una expresión.
+        variantProductId: variant.productId,
+        directProductImage: product.imageUrl,
+        variantProductImage: variantProduct.imageUrl,
+        colorImage: colorImage.url,
+        // La sección del PRODUCTO, no la del interés: `interest.section` es la del filtro y viene
+        // null en un interés que apunta a una prenda. La usa el hueco de la foto para su fondo.
+        directProductSection: product.section,
+        variantProductSection: variantProduct.section,
         // La talla CANÓNICA, no la de la tienda (#223). `variant.size` guarda el texto crudo
         // ('2 años (92 cm)'), y esta etiqueta la lee el usuario en dos sitios: su lista de
         // seguimientos y —vía `variantLabel`, ver abajo— el aviso de Telegram. Devolverla cruda
@@ -42,6 +75,14 @@ export class InterestsService {
       .leftJoin(variant, eq(variant.id, interest.variantId))
       .leftJoin(variantProduct, eq(variantProduct.id, variant.productId))
       .leftJoin(
+        colorImage,
+        and(
+          eq(colorImage.productId, variant.productId),
+          eq(colorImage.color, variant.color),
+          eq(colorImage.position, 0),
+        ),
+      )
+      .leftJoin(
         retailer,
         eq(
           retailer.id,
@@ -56,6 +97,12 @@ export class InterestsService {
       retailerName: r.retailerName ?? null,
       productName: r.directProductName ?? r.variantProductName ?? null,
       variantLabel: variantLabel(r.variantSize, r.variantColor),
+      targetProductId: r.interest.productId ?? r.variantProductId ?? null,
+      // La del color seguido si la galería la tiene; si no, la principal del producto. La galería
+      // la estrenan las fichas según se les vuelve a pedir el detalle, así que el respaldo no es
+      // un caso raro.
+      imageUrl: r.colorImage ?? r.directProductImage ?? r.variantProductImage ?? null,
+      productSection: r.directProductSection ?? r.variantProductSection ?? null,
     }));
   }
 

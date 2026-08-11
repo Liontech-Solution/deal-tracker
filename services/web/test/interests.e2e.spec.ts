@@ -2,7 +2,15 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type postgres from 'postgres';
 
-import { makeApp, makeSql, resetSchema, seedCatalog, seedUser, TEST_DB } from './helpers';
+import {
+  makeApp,
+  makeSql,
+  resetSchema,
+  seedCatalog,
+  seedUser,
+  SEED_IMAGE_URL,
+  TEST_DB,
+} from './helpers';
 import type { SeedIds } from './helpers';
 
 describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
@@ -73,8 +81,48 @@ describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
       expect(view.productName).toBe('Botas niña');
       expect(view.retailerName).toBe('Zara');
       expect(view.variantLabel).toBe('Talla 24 · rojo');
+      // #302: con qué enseñar la prenda. El seed no tiene galería, así que la foto es la principal
+      // del producto — el respaldo, que no es un caso raro: la galería la estrenan las fichas según
+      // se les vuelve a pedir el detalle.
+      expect(view.targetProductId).toBe(Number(ids.productId));
+      expect(view.imageUrl).toBe(SEED_IMAGE_URL);
+      expect(view.productSection).toBe('zapateria');
     } finally {
       await app.close();
+    }
+  });
+
+  it('la foto es la DEL COLOR seguido cuando la galería la tiene (#302)', async () => {
+    // Dos colores del mismo producto con foto propia: la tarjeta tiene que enseñar la del color de
+    // la variante seguida, no «la primera». Es el mismo criterio que la tarjeta del catálogo, y sin
+    // él un interés de la bota roja podría ilustrarse con la foto de la azul.
+    const [azul] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${ids.productId}, 'ZARA-1-24-azul', '24', 'azul', 'SKU24AZ')
+      RETURNING id`;
+    await sql`
+      INSERT INTO product_image (product_id, color, position, url)
+      VALUES (${ids.productId}, 'rojo', 0, 'https://static.example/p/ZARA-1-rojo.jpg'),
+             (${ids.productId}, 'azul', 0, 'https://static.example/p/ZARA-1-azul.jpg')`;
+
+    const user = await seedUser(sql, 'kc-sub-color-foto');
+    const app = await makeApp(user);
+    try {
+      await request(app.getHttpServer())
+        .post('/api/interests')
+        .send({ variantId: azul.id })
+        .expect(201);
+
+      const listed = await request(app.getHttpServer()).get('/api/interests').expect(200);
+      const view = listed.body[0];
+      expect(view.imageUrl).toBe('https://static.example/p/ZARA-1-azul.jpg');
+      // Y el enlace sale por la variante: este interés NO trae `productId`, que es su alcance.
+      expect(view.productId).toBeNull();
+      expect(view.targetProductId).toBe(Number(ids.productId));
+    } finally {
+      await app.close();
+      await sql`DELETE FROM product_image WHERE product_id = ${ids.productId}`;
+      await sql`DELETE FROM variant WHERE id = ${azul.id}`;
     }
   });
 
@@ -119,6 +167,12 @@ describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
       expect(view.productName).toBeNull();
       expect(view.variantLabel).toBeNull();
       expect(view.retailerName).toBeNull();
+      // #302: no apunta a ninguna prenda, así que no hay foto ni ficha a la que enlazar. Es el caso
+      // que la tarjeta tiene que seguir aguantando: 'toda la ropa de niña rebajada un 30 %' se
+      // enseña con el resumen de sus filtros y nada más.
+      expect(view.targetProductId).toBeNull();
+      expect(view.imageUrl).toBeNull();
+      expect(view.productSection).toBeNull();
     } finally {
       await app.close();
     }
