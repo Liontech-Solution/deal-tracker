@@ -67,6 +67,10 @@ pnpm frontend:dev             # SPA dev server
 pnpm migrate                  # apply db/migrations
 pnpm job:matching             # deal matching + Telegram notifications
 pnpm lint && pnpm typecheck && pnpm test
+# CAREFUL: the tsconfig of services/web only includes src/ and test/, so that typecheck does NOT
+# cover the frontend. Its own is a separate package, and CI does run it (web-ci.yml) — without
+# these two, a green local run means less than it looks:
+pnpm --filter @deal-tracker/frontend lint && pnpm --filter @deal-tracker/frontend typecheck
 ```
 
 Validation of the deployed QA environment is a Claude Code skill, not a `just` recipe — it drives a
