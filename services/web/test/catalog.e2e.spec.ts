@@ -609,6 +609,44 @@ describe.skipIf(!TEST_DB)('talla canónica · faceta y filtro (e2e)', () => {
     ]);
   });
 
+  /**
+   * #329. Los tres ejes multiseleccionables viajan como parámetro REPETIDO y se resuelven con
+   * `= ANY(...)`, o sea unión. Lo que hay que sujetar son las dos mitades: que varios valores
+   * sumen, y que **uno solo siga funcionando igual** — los marcadores de antes de este cambio y
+   * los enlaces que el propio catálogo genera son de un valor.
+   */
+  it('dos tallas devuelven la UNIÓN de lo que devuelve cada una', async () => {
+    const una = await nombres('/api/catalog/products?size=48-51');
+    const otra = await nombres('/api/catalog/products?size=36-38');
+    const dos = await nombres('/api/catalog/products?size=48-51&size=36-38');
+    expect(dos).toEqual([...una, ...otra].sort());
+  });
+
+  it('una talla CON COMA sobrevive al viaje, que es lo que descarta separar por comas', async () => {
+    // `26 (16,3 cm)` lleva una coma dentro: un separador por comas la partiría en dos tallas que
+    // no existen, y el filtro devolvería vacío sin dar ningún error.
+    expect(await nombres('/api/catalog/products?size=26%20(16%2C3%20cm)&size=48-51')).toEqual([
+      'Bota Sfera',
+      'Bota Zara',
+      'Plantilla Cacles',
+    ]);
+  });
+
+  it('dos tiendas devuelven las dos, y una sola sigue devolviendo la suya', async () => {
+    const soloZara = await nombres('/api/catalog/products?retailer=zara');
+    const dos = await nombres('/api/catalog/products?retailer=zara&retailer=sfera');
+    expect(soloZara.every((n) => dos.includes(n))).toBe(true);
+    expect(dos.length).toBeGreaterThan(soloZara.length);
+  });
+
+  it('un valor repetido no altera el resultado', async () => {
+    // El DTO deduplica: `?size=26&size=26` es pedir la 26, no pedirla dos veces.
+    expect(await nombres('/api/catalog/products?size=26&size=26')).toEqual([
+      'Bota Sfera',
+      'Bota Zara',
+    ]);
+  });
+
   it('el chip de un rango de pie devuelve producto, venga con guion o con barra', async () => {
     expect(await nombres('/api/catalog/products?size=48-51')).toEqual(['Plantilla Cacles']);
     expect(await nombres('/api/catalog/products?size=36-38')).toEqual(['Calcetín Cacles']);
@@ -1144,6 +1182,48 @@ describe.skipIf(!TEST_DB)('dos SKU para la misma prenda · ficha y recuento (e2e
     const noCasa = await request(app.getHttpServer()).get('/api/catalog/products?retailer=hm&size=99');
     expect(noCasa.status).toBe(200);
     expect(noCasa.body.items).toHaveLength(0);
+  });
+
+  /**
+   * #326. `variant_count` se quedó filtrando por `color_canon` cuando #291 movió el filtro del
+   * catálogo a `color_family`, así que un producto devuelto POR la familia declaraba **0 prendas
+   * comprables** si ninguna de sus variantes se llamaba exactamente como la familia: 2.012 de los
+   * 3.063 que devuelve `?color=azul`, medidos sobre una copia de dev.
+   *
+   * No lo cazó nadie porque los otros casos de `variantCount` usan colores de UNA palabra (`rojo`,
+   * `azul`), donde `color_canon` y `color_family` coinciden y las dos semánticas dan lo mismo. Este
+   * siembra `azul claro` a propósito —2.724 variantes en dev, la forma más común de la familia—,
+   * que es la única manera de distinguirlas. (Ojo: `azul marino` NO vale, porque `color_family` le
+   * da familia propia `marino`.)
+   */
+  it('variantCount cuenta por FAMILIA cuando el filtro es por familia (#326)', async () => {
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${hm}, 'sudadera-claro', 'Sudadera azul claro', 'niño', 'ropa', 'sudaderas',
+              NULL, 'https://hm/claro.html')
+      RETURNING id`;
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku, url)
+      VALUES (${p.id}, 'claro-0', '104', 'azul claro', 'claro-sku', 'https://hm/claro.html')
+      RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${v.id}, 9.99, 19.99, 50, true, now())`;
+    try {
+      const res = await request(app.getHttpServer())
+        .get('/api/catalog/products?color=azul&section=ropa')
+        .expect(200);
+      const item = res.body.items.find((i: { id: number }) => i.id === Number(p.id));
+      // El listado lo devuelve porque `azul claro` es de la familia `azul`...
+      expect(item).toBeDefined();
+      // ...así que su recuento no puede ser 0: sería declarar que dentro no hay nada que comprar.
+      expect(item.variantCount).toBe(1);
+    } finally {
+      await sql`DELETE FROM price_history WHERE variant_id = ${v.id}`;
+      await sql`DELETE FROM variant WHERE id = ${v.id}`;
+      await sql`DELETE FROM product WHERE id = ${p.id}`;
+    }
   });
 
   it('activeOnly=false no levanta el filtro de variantes retiradas', async () => {

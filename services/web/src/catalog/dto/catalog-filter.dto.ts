@@ -1,8 +1,55 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 /** Tope del término de búsqueda: nadie busca frases, y acota el coste del `LIKE` sin índice. */
 export const MAX_SEARCH_LENGTH = 80;
+
+/**
+ * Cuántos valores admite un eje multiseleccionable, y cuánto puede medir cada uno.
+ *
+ * No son números redondos: la faceta más grande del catálogo son las **165 tallas** de `ropa` sin
+ * nada más filtrado (medido en dev), y el panel deja marcar todos sus chips, así que un tope por
+ * debajo de eso convertiría en un 400 algo que la interfaz permite hacer. El de longitud sale de la
+ * talla cruda más larga que hay en la base (32 caracteres) con margen: por la query string puede
+ * llegar la cruda y no la canónica, porque los enlaces viejos siguen vivos.
+ *
+ * Están para acotar el abuso —una URL con diez mil valores—, no para disciplinar al usuario.
+ */
+export const MAX_VALORES_POR_EJE = 200;
+export const MAX_LONGITUD_VALOR = 80;
+
+/**
+ * Normaliza a lista lo que llega por la query string en los ejes multiseleccionables (#329).
+ *
+ * Express entrega **`string` con un valor y `string[]` con dos o más**, así que sin esto el filtro
+ * cambiaría de tipo según cuántos chips haya marcados. Y es lo que mantiene vivos los **enlaces de
+ * un solo valor**: los marcadores de antes de la multiselección y los que genera el propio
+ * catálogo siguen filtrando igual.
+ *
+ * Se separan por parámetro repetido y **no por comas**, y eso lo decide el dato: hay tallas que
+ * llevan una coma dentro (`26 (16,3 cm)`), así que un separador por comas partiría un valor
+ * legítimo en dos que no existen.
+ *
+ * Deduplica y descarta vacíos porque los dos se cuelan solos al construir URLs a mano y no
+ * significan nada: `?size=&size=26` es pedir la 26.
+ */
+function aLista({ value }: { value: unknown }): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  const bruto = Array.isArray(value) ? value : [value];
+  const limpio = bruto
+    .filter((v): v is string => typeof v === 'string')
+    .map((v) => v.trim())
+    .filter((v) => v !== '');
+  return limpio.length ? [...new Set(limpio)] : undefined;
+}
 
 /**
  * Filtro de calzado respetuoso. `si` es el DEFECTO del producto entero: es una plataforma de ropa
@@ -57,17 +104,46 @@ export class CatalogFilterDto {
   @IsString()
   category?: string;
 
+  /**
+   * Los tres ejes **multiseleccionables** (#329). Viajan como parámetro repetido
+   * (`?size=4 años&size=104`) y se resuelven con `= ANY(...)`, o sea unión: pedir dos tallas
+   * devuelve lo que devolvía cada una por separado.
+   *
+   * Que sean estos tres y no todos tiene una razón medida: **el vocabulario de talla lo fija la
+   * tienda, no la prenda** — Sfera solo publica años, C&A solo alturas en cm—, así que con
+   * selección única quien pincha `4 años` excluye a C&A sin que nada se lo diga, aunque su `104`
+   * sea esa misma talla. Color y tienda van con ella porque combinarlos es igual de natural
+   * (dos familias, dos tiendas que comparar).
+   *
+   * `category` y `gender` se quedan simples a propósito: en género, la regla `unisex` de
+   * `gender.sql.ts` hace que marcar niño+niña devuelva casi el catálogo entero, y ese fichero lo
+   * comparte el job de matching. Y `section` es el eje de navegación, con el que además las
+   * pestañas del panel cortan la ambigüedad de las tallas (#292): ahí marcar las dos sería volver
+   * a mezclar dos vocabularios que se solapan.
+   */
   @IsOptional()
-  @IsString()
-  size?: string;
+  @Transform(aLista)
+  @IsArray()
+  @ArrayMaxSize(MAX_VALORES_POR_EJE)
+  @IsString({ each: true })
+  @MaxLength(MAX_LONGITUD_VALOR, { each: true })
+  size?: string[];
 
   @IsOptional()
-  @IsString()
-  color?: string;
+  @Transform(aLista)
+  @IsArray()
+  @ArrayMaxSize(MAX_VALORES_POR_EJE)
+  @IsString({ each: true })
+  @MaxLength(MAX_LONGITUD_VALOR, { each: true })
+  color?: string[];
 
   @IsOptional()
-  @IsString()
-  retailer?: string; // slug de la tienda
+  @Transform(aLista)
+  @IsArray()
+  @ArrayMaxSize(MAX_VALORES_POR_EJE)
+  @IsString({ each: true })
+  @MaxLength(MAX_LONGITUD_VALOR, { each: true })
+  retailer?: string[]; // slugs de tienda
 
   /**
    * Por defecto `si`: el catálogo esconde el calzado no respetuoso salvo que se pida lo contrario.

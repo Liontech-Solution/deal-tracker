@@ -28,6 +28,16 @@ function buildUrl(path: string, params?: Record<string, unknown>): string {
   const url = new URL(BASE + path, window.location.origin);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
+      // Los ejes multiseleccionables (#329) viajan como parámetro REPETIDO. Con `set`, que es lo
+      // que hacía esto cuando todos eran de un valor, solo habría llegado el último de la lista y
+      // el filtro habría mentido sin dar ningún error. Una lista vacía no escribe nada, que es lo
+      // mismo que no filtrar por ese eje.
+      if (Array.isArray(value)) {
+        for (const v of value) {
+          if (v !== undefined && v !== null && v !== '') url.searchParams.append(key, String(v));
+        }
+        continue;
+      }
       if (value !== undefined && value !== null && value !== '') {
         url.searchParams.set(key, String(value));
       }

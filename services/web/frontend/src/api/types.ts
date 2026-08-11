@@ -227,9 +227,15 @@ export interface ProductQuery {
   gender?: string;
   section?: string;
   category?: string;
-  size?: string;
-  color?: string;
-  retailer?: string;
+  /**
+   * Los tres ejes multiseleccionables (#329): viajan como parámetro repetido y el backend los
+   * resuelve con `= ANY(...)`, o sea unión. Una lista vacía es «sin filtrar por este eje».
+   *
+   * `gender`, `section` y `category` se quedan de un solo valor a propósito — ver el DTO.
+   */
+  size?: string[];
+  color?: string[];
+  retailer?: string[];
   inStock?: boolean;
   /** Solo ofertas reales (mínimo nuevo con rebaja honesta), no cualquier rebaja declarada. */
   onlyDeals?: boolean;
