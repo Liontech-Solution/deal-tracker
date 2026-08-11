@@ -999,6 +999,63 @@ describe.skipIf(!TEST_DB)('dos SKU para la misma prenda · ficha y recuento (e2e
     expect(res.body.items[0].variantCount).toBe(1);
     expect(res.body.items[0].anyInStock).toBe(true);
   });
+
+  it('dos artículos distintos con la misma talla y color sí cuentan dos', async () => {
+    // El contraste del test anterior: aquí las dos caras tienen URL distinta, así que son dos
+    // prendas comprables y no una publicada dos veces. Sujeta que la clave del DISTINCT siga
+    // llevando la URL, que es lo que separa los dos casos.
+    const res = await request(app.getHttpServer()).get('/api/catalog/products?retailer=hm');
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].variantCount).toBe(2);
+  });
+
+  /**
+   * Desde #307 el recuento se calcula fuera de `matched`, después del LIMIT, así que tiene que
+   * repetir por su cuenta los filtros DE VARIANTE de la consulta. Estos tres los fijan: si alguno
+   * se cayera, el contador diría 2 donde la lista solo enseña una prenda comprable.
+   */
+  it('variantCount respeta el filtro de stock, que mira la última fila de precio', async () => {
+    // De las dos caras de H&M solo una está en stock: la lista sigue trayendo el producto, pero
+    // solo cuenta la comprable. Es el discriminante del `ORDER BY scraped_at DESC LIMIT 1`.
+    const res = await request(app.getHttpServer()).get('/api/catalog/products?retailer=hm&inStock=true');
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].variantCount).toBe(1);
+  });
+
+  it('variantCount respeta el filtro de talla', async () => {
+    const casa = await request(app.getHttpServer()).get('/api/catalog/products?retailer=hm&size=27');
+    expect(casa.status).toBe(200);
+    expect(casa.body.items).toHaveLength(1);
+    expect(casa.body.items[0].variantCount).toBe(2);
+
+    const noCasa = await request(app.getHttpServer()).get('/api/catalog/products?retailer=hm&size=99');
+    expect(noCasa.status).toBe(200);
+    expect(noCasa.body.items).toHaveLength(0);
+  });
+
+  it('activeOnly=false no levanta el filtro de variantes retiradas', async () => {
+    // `activeOnly` habla del producto, no de la variante. Con el producto descatalogado y una de
+    // sus dos caras retirada, el recuento tiene que bajar de 2 a 1: si el contador de fuera se
+    // dejara `delisted_at IS NULL`, seguiría diciendo 2 y prometería una prenda que ya no existe.
+    const [agotada] = await sql<{ id: number }[]>`
+      SELECT id FROM variant WHERE product_id = ${hmProduct} ORDER BY id LIMIT 1`;
+    await sql`UPDATE product SET delisted_at = now() WHERE id = ${hmProduct}`;
+    await sql`UPDATE variant SET delisted_at = now() WHERE id = ${agotada.id}`;
+    try {
+      const res = await request(app.getHttpServer()).get(
+        '/api/catalog/products?retailer=hm&activeOnly=false',
+      );
+      expect(res.status).toBe(200);
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].variantCount).toBe(1);
+      expect(res.body.items[0].anyInStock).toBe(true);
+    } finally {
+      await sql`UPDATE variant SET delisted_at = NULL WHERE id = ${agotada.id}`;
+      await sql`UPDATE product SET delisted_at = NULL WHERE id = ${hmProduct}`;
+    }
+  });
 });
 
 describe.skipIf(!TEST_DB)('eje transversal · ropa deportiva (e2e)', () => {

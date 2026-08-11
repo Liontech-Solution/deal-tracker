@@ -174,8 +174,6 @@ export class CatalogService {
                p.retailer_product_id, p.name, p.gender, p.section, p.category, p.barefoot, p.url,
                p.image_url,
                v.id AS variant_id, v.color, l.price, l.list_price, l.discount_pct, l.in_stock,
-               -- Para contar prendas comprables y no filas (#108); ver variant_count más abajo.
-               size_canon(v.size) AS size_canon, COALESCE(v.url, p.url) AS variant_url,
                s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points
         FROM product p
         JOIN retailer r ON r.id = p.retailer_id
@@ -222,13 +220,7 @@ export class CatalogService {
                -- otro cualquiera: el precio cuelga de la variante (talla+color), así que enseñar la
                -- foto del "primer color" junto al precio de la variante más barata puede mezclar.
                (array_agg(color ORDER BY in_stock DESC, price ASC))[1] AS color_repr,
-               BOOL_OR(in_stock) AS any_in_stock,
-               -- Prendas comprables, no filas: la misma clave con la que la ficha colapsa las
-               -- caras duplicadas (#108). Sin esto, un producto de Lefties con las 22 tallas
-               -- publicadas dos veces declara 44 variantes. Los coalesce evitan que una fila
-               -- con talla, color y URL a NULL forme una ROW toda nula, que COUNT no contaría.
-               COUNT(DISTINCT (coalesce(size_canon, ''), coalesce(color_canon(color), ''),
-                               coalesce(variant_url, ''))) AS variant_count
+               BOOL_OR(in_stock) AS any_in_stock
         FROM matched
         GROUP BY id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
                  name, gender, section, category, barefoot, url, image_url
@@ -247,7 +239,42 @@ export class CatalogService {
              -- subconsulta se evalúe sobre la página y no sobre el catálogo entero. Un ARRAY vacío
              -- es lo normal: hoy solo hay un eje y solo lo alimentan tres tiendas.
              ARRAY(SELECT pt.tag FROM product_tag pt
-                    WHERE pt.product_id = scored.id ORDER BY pt.tag) AS tags
+                    WHERE pt.product_id = scored.id ORDER BY pt.tag) AS tags,
+             -- Prendas comprables, no filas: la misma clave con la que la ficha colapsa las caras
+             -- duplicadas (#108). Sin esto, un producto de Lefties con las 22 tallas publicadas dos
+             -- veces declara 44 variantes. Los coalesce evitan que una fila con talla, color y URL a
+             -- NULL forme una ROW toda nula, que COUNT no contaría.
+             --
+             -- Vive aquí fuera —después del LIMIT, como los ejes transversales— y no dentro de
+             -- agg, por lo que midió #307: ahí este COUNT(DISTINCT ROW(...)) obliga a ordenar TODAS
+             -- las variantes vivas por un valor calculado (159.037 en prod, con derrame a disco) y
+             -- la petición sin filtros tardaba 24 s en vez de 0,33 s. Con cualquier filtro puesto no
+             -- se notaba, porque matched colapsa a unos cientos de filas.
+             --
+             -- Al salir de matched hay que repetir sus filtros DE VARIANTE, que son los únicos que
+             -- cambian el recuento; los de producto (género, sección, categoría, tienda, búsqueda,
+             -- barefoot, deportiva) no lo tocan. El delisted_at IS NULL va siempre: activeOnly solo
+             -- levanta el filtro del producto, nunca el de la variante.
+             --
+             -- El "ORDER BY ... LIMIT 1" es el espejo por variante del CTE latest, y la duplicación
+             -- es a sabiendas: correlar contra latest cuesta 603 ms por página frente a los 16 ms de
+             -- esta forma, porque un CTE materializado no tiene índice y se recorre entero una vez
+             -- por fila. Lo que sujeta que las dos digan lo mismo es el test de inStock sobre el
+             -- fixture de dos SKU.
+             (SELECT COUNT(DISTINCT (coalesce(size_canon(v2.size), ''),
+                                     coalesce(color_canon(v2.color), ''),
+                                     coalesce(COALESCE(v2.url, scored.url), '')))
+                FROM variant v2
+               WHERE v2.product_id = scored.id
+                 AND v2.delisted_at IS NULL
+                 AND EXISTS (SELECT 1 FROM price_history ph WHERE ph.variant_id = v2.id)
+                 AND (${size}::text IS NULL OR size_canon(v2.size) = size_canon(${size}))
+                 AND (${color}::text IS NULL OR color_canon(v2.color) = color_canon(${color}))
+                 AND (${inStock}::boolean IS NULL
+                      OR (SELECT ph.in_stock FROM price_history ph
+                           WHERE ph.variant_id = v2.id
+                           ORDER BY ph.scraped_at DESC LIMIT 1) = ${inStock})
+             ) AS variant_count
         FROM scored
       WHERE (${onlyDeals}::boolean IS NOT TRUE OR is_real_deal)
       ORDER BY ${orderBy}
