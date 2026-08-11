@@ -387,7 +387,16 @@ forma es ya el patrón para cualquier campo de texto que venga de las tiendas:
    se comprueba en un minuto y conviene hacerlo, porque olvidarlo no rompe nada visible: se cuenta el
    mismo filtro con y sin índice (`SET enable_indexscan/bitmapscan = off`) y los dos números tienen
    que coincidir. Medido en la 0017 dejando fuera el `REINDEX` a propósito: 0 contra 12.
-6. **El resultado depende del `ctype` de la base, así que hay que probarlo con el del cluster.** Las
+6. **Plegar es perder, y a veces se pierde algo que distinguía de verdad (#331).** El patrón da por
+   hecho que las formas que colapsan son la misma cosa escrita de dos maneras, y casi siempre lo es
+   —`26` y `26 (16,3 cm)` son el pie 26—. Pero el paréntesis no siempre repite: H&M lo usa para
+   **discriminar**, y `0-1 meses (44 cm)` y `0-1 meses (50 cm)` son dos alturas de recién nacido
+   distintas que `size_canon` funde en `0-1 meses` desde la 0024. Son 9 productos de 12.870, todos de
+   H&M (medido el 11/08/2026), y la consecuencia es que un interés en esa canónica casa con las dos
+   alturas. Lo que hay que retener no es el caso sino la pregunta al escribir una regla de plegado:
+   *¿lo que estoy borrando es redundante en TODAS las tiendas, o solo en las que miré?* La ficha se
+   salva porque el selector rotula con el texto crudo (#248), que es otra vez la regla 2.
+7. **El resultado depende del `ctype` de la base, así que hay que probarlo con el del cluster.** Las
    dos funciones empiezan plegando la caja, y `lower()` **no baja las letras acentuadas** bajo ctype
    `C` — que es el de la CNPG: `deal_tracker` y `deal_tracker_qa` son `UTF8 | C | C`. Se pliega con
    un `translate()` explícito (0021) y **nunca con `lower()` a secas**. Detalle en el apartado de
@@ -2385,6 +2394,59 @@ tallas), Cacles solo números (16), C&A alturas en cm, Springfield los cinco (50
 Por eso elegir tienda deja la lista en una o dos formas de medir y el panel pone *Tienda* justo
 encima de *Talla*. No se obliga a elegirla: el catálogo existe para no ir tienda por tienda, y
 condicionar el filtro de talla a una tienda le quitaría el sentido al producto.
+
+### Un filtro de varios valores tiene UNA forma obligatoria, o se lleva el índice por delante (#329)
+
+El apartado anterior deja medido que **el vocabulario de talla lo fija la tienda**. La consecuencia
+tardó en verse: mientras el filtro admitió **un solo valor**, elegir una talla no acotaba la
+búsqueda, la **partía por un eje que el usuario no había elegido y no podía ver**. Medido en `ropa`
+sobre la copia de dev (11/08/2026):
+
+| filtro | productos | tiendas |
+|---|---:|---|
+| solo `4 años` | 1.485 | hipercor, mango, sfera, springfield, zara |
+| solo `104` | 331 | **c-and-a** |
+| las dos a la vez | 1.816 | las seis |
+
+`4 años` y `104` son **la misma talla física**. Quien pinchaba la primera perdía C&A entera sin que
+nada se lo dijera. Por eso `size`, `color` y `retailer` admiten varios valores desde la v0.3.0, y
+`category`/`gender` no: en género la regla `unisex` haría que niño+niña devolviera casi todo, y
+`section` es el eje de navegación que además corta la ambigüedad de las tallas (#292).
+
+**El transporte es parámetro repetido, y lo decide el dato.** `?size=4 años&size=104`, nunca una
+lista separada por comas: hay tallas con una coma dentro (`26 (16,3 cm)`), así que ese separador
+partiría un valor legítimo en dos que no existen. Express entrega `string` con un valor y `string[]`
+con dos o más, de modo que el DTO normaliza con un `@Transform` — y eso es también lo que mantiene
+vivos los enlaces de un solo valor, que son los marcadores anteriores al cambio.
+
+**Y la forma del SQL no es indiferente, es la mitad del asunto.** El plegado va dentro de un
+`ARRAY(SELECT size_canon(x) FROM unnest($1::text[]) AS x)` **no correlado**, que Postgres resuelve
+una vez como InitPlan dejando delante un `columna = ANY($0)` plano. Así el predicado sigue siendo
+indexable y `ix_variant_size_canon` / `ix_variant_color_family` se conservan. Plegar fila a fila
+dentro del `ANY` los perdería, con el coste que ya midió #307 (1,4 ms → 1 s). Comprobado con
+`EXPLAIN (ANALYZE)`:
+
+| | tiempo | plan |
+|---|---:|---|
+| 1 talla | 0,89 ms | `Bitmap Index Scan on ix_variant_size_canon` |
+| 5 tallas | 2,37 ms | `Bitmap Index Scan on ix_variant_size_canon` (4.723 filas) |
+| 3 familias de color | 7,13 ms | `Bitmap Index Scan on ix_variant_color_family` (36.530 filas) |
+
+Vive en `ejeMultiple()` de `catalog.service.ts` y lo usan **tres** sitios que no pueden separarse: el
+`WHERE` de `matched`, la subconsulta de `variant_count` y `deVariante()`/`deProducto()` de
+`getFacets`. Cualquier filtro nuevo de varios valores —#325 con `size_band` es el siguiente— se monta
+con esa función, no a mano.
+
+Dos trampas que costaron tiempo y no se deducen leyendo el código:
+
+- **En una plantilla `sql` de Drizzle, un array de JS se aplana en parámetros sueltos.** Así que
+  `${valores}::text[]` no manda un array: manda un escalar, y Postgres responde
+  `malformed array literal: "26"`. La lista se construye como `ARRAY[$1, $2, ...]` con `sql.join`.
+- **Los dos índices son PARCIALES** (`WHERE delisted_at IS NULL`), así que una consulta de prueba
+  que no lleve ese predicado hace *seq scan* y parece demostrar que el índice no sirve. Y una copia
+  recién restaurada de `pg_dump` no tiene estadísticas hasta que se le pasa `ANALYZE`, ni
+  necesariamente todos los índices —el `CREATE INDEX` de `color_family` falla durante la restauración
+  por orden de dependencias—. Las dos cosas juntas producen un falso negativo muy convincente.
 
 ### Un plan de Postgres medido en el portátil no predice el del cluster (#292)
 
