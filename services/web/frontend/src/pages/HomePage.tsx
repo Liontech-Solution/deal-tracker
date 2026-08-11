@@ -98,8 +98,21 @@ export function HomePage() {
               </button>
             ))}
           </div>
+          {/* Era un `toast` que decía «Inicia sesión para guardar tus seguimientos · muy pronto»
+              incluso a quien ya tenía sesión (#301): el único CTA de una portada pública no llevaba
+              a ninguna parte. Ahora lleva al catálogo, que es de donde se sigue una prenda; sin
+              sesión y con realm, al login, porque el catálogo está cerrado desde #309 y mandar allí
+              a un anónimo solo le enseñaría la página de acceso. */}
           <div style={{ marginTop: 16 }}>
-            <button className="btn btn-secondary" style={{ padding: '13px 22px', fontSize: 15 }} onClick={() => toast('Inicia sesión para guardar tus seguimientos · muy pronto')}>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '13px 22px', fontSize: 15 }}
+              onClick={() => {
+                if (conCatalogo) navigate('/catalogo');
+                else if (auth.enabled) auth.login();
+                else toast('Inicio de sesión con Keycloak · disponible al desplegar');
+              }}
+            >
               Empieza a seguir prendas
             </button>
           </div>

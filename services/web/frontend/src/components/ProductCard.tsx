@@ -1,15 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 
 import { HonestyBadge, StockBadge, StoreBadge } from './Badges';
+import { FollowModal } from './FollowModal';
 import { BellIcon } from './icons';
 import { ProductImage } from './ProductImage';
-import { useToast } from './Toast';
 import type { ProductListItem } from '../api/types';
+import { useSeguirPrenda } from '../auth/useSeguirPrenda';
 import { discountInt, eurStr } from '../lib/format';
 
 export function ProductCard({ p }: { p: ProductListItem }) {
   const navigate = useNavigate();
-  const toast = useToast();
+  const seguir = useSeguirPrenda();
 
   const honesty = p.honesty;
   const suspicious = honesty === 'suspicious';
@@ -18,6 +19,7 @@ export function ProductCard({ p }: { p: ProductListItem }) {
   const disc = discountInt(p.discountFrom);
 
   return (
+    <>
     <div
       className="card-hover"
       onClick={() => navigate(`/producto/${p.id}`)}
@@ -38,11 +40,15 @@ export function ProductCard({ p }: { p: ProductListItem }) {
             <HonestyBadge kind={honesty} />
           </div>
         )}
+        {/* Abre el mismo modal que la ficha, con alcance de producto entero: desde la rejilla no
+            hay talla ni color elegidos, así que el aviso cubre «todas las tallas y colores», que es
+            un caso que `FollowModal` ya contempla. El `stopPropagation` sigue siendo necesario:
+            toda la tarjeta navega a la ficha. */}
         <button
           aria-label="Seguir prenda"
           onClick={(e) => {
             e.stopPropagation();
-            toast('Inicia sesión para seguir prendas · muy pronto');
+            seguir.abrir();
           }}
           style={{
             position: 'absolute',
@@ -105,5 +111,15 @@ export function ProductCard({ p }: { p: ProductListItem }) {
         </div>
       </div>
     </div>
+
+    {/* Hermano de la tarjeta y no hijo suyo: el modal es una capa fija, así que da igual dónde
+        cuelgue, pero dentro de la tarjeta cualquier clic suyo burbujearía hasta el `onClick` que
+        navega a la ficha y el modal se cerraría llevándote a otra página. */}
+    <FollowModal
+      open={seguir.abierto}
+      onClose={seguir.cerrar}
+      target={{ productId: p.id, productName: p.name }}
+    />
+    </>
   );
 }
