@@ -16,7 +16,7 @@
 - [gh-pr-merge-desde-worktree](gh-pr-merge-desde-worktree.md) — el error «main is already used by worktree» llega DESPUÉS de mergear: comprobar el PR y borrar la rama a mano
 - [cerrar-issue-desde-el-pr](cerrar-issue-desde-el-pr.md) — «Cierra #N» en español no autocierra nada; la keyword va en inglés o se cierra a mano
 - [reindexar-tras-actualizar-main](reindexar-tras-actualizar-main.md) — `index_repository` lee el árbol del checkout principal, que no se actualiza al mergear desde un worktree: `merge --ff-only` antes de reindexar, y para eso hay que **salir del worktree primero** (el sandbox veta `git -C`, y el prefijo `!` también)
-- [commit-en-fish-se-come-backticks](commit-en-fish-se-come-backticks.md) — `git commit -m` con backticks en fish sustituye el identificador por vacío y commitea igual: mensajes y cuerpos por heredoc `<<'EOF'`
+- [commit-en-fish-se-come-backticks](commit-en-fish-se-come-backticks.md) — `git commit -m` y `gh issue comment --body` con backticks en fish vacían el identificador y publican igual: los cuerpos, por `--body-file` o heredoc `<<'EOF'`
 - [gh-issue-view-comments-solo-comenta](gh-issue-view-comments-solo-comenta.md) — `--comments` imprime SOLO los comentarios (y nada si no hay): el cuerpo pide una segunda llamada
 - [keycloak-cors-preflight-enganya](keycloak-cors-preflight-enganya.md) — el preflight OPTIONS refleja cualquier origen y no prueba nada; el claim `allowed-origins` del token sí, y sin navegador no hay CORS
 - [keycloak-admin-desde-el-pod](keycloak-admin-desde-el-pod.md) — no saques el secret de admin: `kcadm.sh` se autentica dentro del pod con las env que ya trae por `envFrom`, y ahí ArgoCD no revierte
