@@ -2356,22 +2356,44 @@ error en ninguna parte.
 De ahí la forma de la solución, en `frontend/src/lib/image.ts`:
 
 - **La tabla se indexa por host del CDN, no por slug de tienda.** La regla la tiene el CDN, no el
-  retailer, y dos tiendas del mismo grupo comparten CDN (Zara y Lefties, ambas Inditex) mientras que
-  El Corte Inglés sirve Sfera e Hipercor desde **hosts distintos con reglas distintas**. Además el
-  componente solo recibe la URL: no sabe de qué tienda es, y no debería.
-- **Un host desconocido se deja intacto**, no cae en el `w` por defecto. Es el fallo seguro: una
-  foto más pesada de la cuenta se ve, una URL rota no. Es también lo que hace que registrar una
-  tienda nueva no pueda romper el catálogo entero por omisión.
-- **«No pedir ancho» es una respuesta legítima y hay tres.** C&A no acepta ninguno (Cloudinary con
-  las transformaciones vetadas para `productimages/`), Shopify da 404 con `width`, y el `sw` de
-  Springfield **no es determinista** — la misma URL devuelve 85 KB o 383 KB según el parámetro, así
-  que añadirle cualquier query puede cuadruplicar el peso.
+  retailer, y la correspondencia tienda↔host **no es uno a uno en ninguna de las dos direcciones**:
+  Zara y Lefties (Inditex) comparten regla; `dam.elcorteingles.es` lo comparten **Sfera e Hipercor**;
+  e H&M publica por **dos hosts distintos**, `image.hm.com` y `media.arket.com` (Arket es marca del
+  grupo). Además el componente solo recibe la URL: no sabe de qué tienda es, y no debería.
+- **Un host desconocido se deja intacto**, no cae en el `w` por defecto. Es el fallo seguro —una foto
+  más pesada de la cuenta se ve, una URL rota no— y es lo que impide que registrar una tienda rompa
+  el catálogo por omisión. Pero tiene un coste medido, y conviene no venderlo como gratis: **es
+  invisible**. `media.arket.com` estuvo fuera de la tabla tres validaciones sirviendo **557 KB por
+  foto** en 187 productos, el peor caso del catálogo, sin aparecer en ninguna comprobación (#300).
+  Por eso la vigilancia no puede vivir en un test —un vitest no ve la base— sino en un caso de
+  `/validar-qa` (`casos-datos.md`) que agrupa `image_url` por host y lo contrasta con la tabla.
+- **«No pedir ancho» es una respuesta legítima, y quedan dos.** C&A no acepta ninguno (Cloudinary con
+  las transformaciones vetadas para `productimages/`: `?w=` lo ignora y la transformación en la ruta
+  da 400) y el `sw` de Springfield **no es determinista y encima empeora** — 74 KB en crudo, 387 KB
+  con `?sw=563`, así que añadirle cualquier query puede quintuplicar el peso.
+- **Si la URL ya trae pedido el ancho, no se pide otra vez** (#300). Manda el que puso la tienda. No
+  es una elegancia: es la condición para poder tocar `dam.elcorteingles.es`, donde **396 de las 864
+  fotos de Sfera llegan ya con `?impolicy=Resize&width=516`** y las 512 de Hipercor no traen nada. Sin
+  la regla, a las primeras se les concatenaría el parámetro por segunda vez — el CDN lo aguanta (200,
+  33 KB) pero la precedencia pasa a ser suya. Es el caso general de lo anterior: **el mismo host
+  puede necesitar trato distinto según qué tienda escribió la URL**, y eso no se puede resolver en
+  una tabla indexada por host; se resuelve mirando la URL.
+
+Y una advertencia sobre la tabla misma, que es lo que #300 enseñó por las malas: **sus `null` son
+afirmaciones sobre terceros, y caducan sin avisar**. De sus nueve entradas, tres estaban mal a la vez
+y ninguna había fallado nunca: Arket no estaba; `dam.elcorteingles.es` decía «ya trae su
+`impolicy&width` desde el scraper» cuando `hipercor.py` **no lo añade en ningún camino** (las URL
+salen literales del `ld+json`, y el parámetro que se veía lo ponía el JSON de origen de Sfera); y
+Shopify decía «`width` da 404» cuando hoy responde **200 y sirve 44 KB en vez de 222 KB**. Las tres
+eran suposiciones que nadie volvió a medir, y el fallo seguro las mantuvo calladas. Al leer esta
+tabla, remedir antes de creerla.
 
 Lo que conviene saber al **añadir tienda**: hay un paso que no está en ningún test y que nadie
 adivina, porque el fallo no se parece a un fallo — medir su CDN con `curl` (cruda, con `?w=`, y con
 el parámetro que use la familia a la que pertenezca) y añadirlo a la tabla. Sin hacerlo la tienda
 funciona, solo que sirviendo la foto entera; equivocarse en el separador, en cambio, la deja sin
-fotos y con el placeholder puesto.
+fotos y con el placeholder puesto. Y ojo con dar por hecho que una tienda trae **un** host: se
+comprueba con la consulta de `casos-datos.md`, que es la que habría cazado a Arket.
 
 ### Toda petición autenticada de la SPA puede llevar dentro un salto a Keycloak (#266)
 
