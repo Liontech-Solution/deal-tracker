@@ -63,12 +63,18 @@ describe('SettingsService.startTelegramLink', () => {
 
     const antes = Date.now();
     const res = await service.startTelegramLink(7);
-    const restanteMin = (new Date(res.expiresAt).getTime() - antes) / 60_000;
+    const despues = Date.now();
+    const expira = new Date(res.expiresAt).getTime();
 
     // Era de 15 min y se subió a 60: con 15 no daba tiempo a ir a por el móvil, y eso caducó dos
     // tokens seguidos durante la validación de v0.1.9.
-    expect(restanteMin).toBeGreaterThan(55);
-    expect(restanteMin).toBeLessThanOrEqual(60);
+    //
+    // Cada extremo se mide contra el reloj que le toca, y no los dos contra `antes` (#322): el
+    // servicio calcula la caducidad con su propio `Date.now()`, que corre entre las dos marcas, así
+    // que `expira - antes` es siempre ≥ 60 min y el techo solo pasaba si la llamada duraba menos de
+    // un milisegundo. Por construcción `expira` cae en [antes + TTL, despues + TTL].
+    expect(expira - despues).toBeLessThanOrEqual(60 * 60_000);
+    expect(expira - antes).toBeGreaterThan(55 * 60_000);
   });
 
   it('lanza 503 si el bot de Telegram no está configurado', async () => {
