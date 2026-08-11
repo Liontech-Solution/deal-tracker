@@ -1,4 +1,5 @@
 - [kubeconfig-location](kubeconfig-location.md) — kubeconfig en `~/.kube/k3slocal.yaml` (symlink desde `config`); dos equipos, sin `argocd` CLI
+- [comandos-en-worktree-aislado](comandos-en-worktree-aislado.md) — en un worktree el prefijo `VAR=valor` se rechaza (usa `env`), y el pod de la CNPG está en solo lectura: el SQL largo va en un `-c` de una línea
 - [memoria-en-repo](memoria-en-repo.md) — la memoria se versiona en `.claude/memory/`; cada equipo necesita el symlink desde `~/.claude`
 - [qa-test-user](qa-test-user.md) — user de prueba `test-qa` en QA; `python3 .claude/qa-login.py` da un token para probar la API
 - [mcp-sin-npx-pnpm](mcp-sin-npx-pnpm.md) — evita npx; MCP por binario global de pnpm o venv dedicado en `~/.local/share/mcp` (sin pipx ni sudo); no `pnpm setup`
