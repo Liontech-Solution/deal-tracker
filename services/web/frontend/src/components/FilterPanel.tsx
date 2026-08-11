@@ -1,16 +1,24 @@
 import { useEffect, useState } from 'react';
 
 import type { Facets } from '../api/types';
-import { capitalize } from '../lib/format';
 import { colorHex } from '../lib/colors';
+import { alternar } from '../lib/filters';
+import { capitalize } from '../lib/format';
 
 export interface CatalogFilters {
   gender: string;
   section: string;
   category: string;
-  size: string;
-  color: string;
-  retailer: string;
+  /**
+   * Los tres ejes que admiten varios valores (#329). Lista vacía = sin filtrar por ese eje.
+   *
+   * Son estos tres porque combinarlos es lo natural y porque en la talla la selección única era
+   * además **incorrecta**: el vocabulario lo fija la tienda, así que pedir `4 años` dejaba fuera a
+   * C&A, que mide en centímetros y llama `104` a esa misma talla.
+   */
+  size: string[];
+  color: string[];
+  retailer: string[];
   inStock: boolean;
   onlyDeals: boolean;
   deportiva: boolean;
@@ -245,7 +253,12 @@ function Switch({ label, checked, onChange }: { label: string; checked: boolean;
 }
 
 export function FilterPanel({ facets, value, onChange }: Props) {
-  const toggle = (key: keyof CatalogFilters, v: string) => onChange({ [key]: value[key] === v ? '' : v });
+  /** Ejes de un solo valor: volver a pulsar el chip elegido lo quita. */
+  const toggle = (key: 'gender' | 'category', v: string) =>
+    onChange({ [key]: value[key] === v ? '' : v });
+  /** Ejes multiseleccionables (#329): el chip suma o resta de la lista. */
+  const toggleMulti = (key: 'size' | 'color' | 'retailer', v: string) =>
+    onChange({ [key]: alternar(value[key], v) });
 
   return (
     <div>
@@ -281,7 +294,7 @@ export function FilterPanel({ facets, value, onChange }: Props) {
         <Group label="Tienda">
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {facets.retailers.map((r) => (
-              <Chip key={r.slug} label={r.name} selected={value.retailer === r.slug} onClick={() => toggle('retailer', r.slug)} />
+              <Chip key={r.slug} label={r.name} selected={value.retailer.includes(r.slug)} onClick={() => toggleMulti('retailer', r.slug)} />
             ))}
           </div>
         </Group>
@@ -308,7 +321,7 @@ export function FilterPanel({ facets, value, onChange }: Props) {
                 // número de pie sin que nadie lo haya pedido — que es justo la ambigüedad que estas
                 // pestañas existen para cortar. La categoría por lo mismo: `pantalones` no existe
                 // en zapatería y dejaría el catálogo vacío.
-                onChange({ section: s.value, size: '', category: '' });
+                onChange({ section: s.value, size: [], category: '' });
               }}
               style={{
                 flex: 1,
@@ -336,10 +349,10 @@ export function FilterPanel({ facets, value, onChange }: Props) {
           <>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {facets.sizes.map((s) => (
-                <Chip key={s} label={s} selected={value.size === s} onClick={() => toggle('size', s)} />
+                <Chip key={s} label={s} selected={value.size.includes(s)} onClick={() => toggleMulti('size', s)} />
               ))}
             </div>
-            {facets.sizes.length > TALLAS_PARA_SUGERIR_TIENDA && !value.retailer ? (
+            {facets.sizes.length > TALLAS_PARA_SUGERIR_TIENDA && !value.retailer.length ? (
               <div style={{ fontSize: 12.5, color: 'var(--text-faint)', marginTop: 10, lineHeight: 1.45 }}>
                 Son {facets.sizes.length} tallas porque cada tienda mide a su manera: unas por edad,
                 otras por altura en cm y otras por letras. Elige una <strong>tienda</strong> arriba
@@ -358,7 +371,7 @@ export function FilterPanel({ facets, value, onChange }: Props) {
         <Group label="Color">
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {facets.colors.map((c) => (
-              <Chip key={c} label={capitalize(c)} selected={value.color === c} onClick={() => toggle('color', c)} dot={colorHex(c)} />
+              <Chip key={c} label={capitalize(c)} selected={value.color.includes(c)} onClick={() => toggleMulti('color', c)} dot={colorHex(c)} />
             ))}
           </div>
         </Group>

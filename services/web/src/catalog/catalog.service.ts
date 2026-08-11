@@ -60,6 +60,42 @@ export function tagCondition(tag: string | undefined, alias: string): SQL {
 export const TAG_DEPORTIVA = 'deportiva';
 
 /**
+ * Condición de un eje **multiseleccionable** (#329): `columna = ANY(<lo pedido>)`, o sea unión.
+ *
+ * `plegado` es la función de la base con la que hay que normalizar lo que llega por la query string
+ * —`size_canon` o `color_family`— para que siga comparándose contra lo mismo que la columna, y para
+ * que los enlaces guardados con el texto crudo sigan encontrando. `null` cuando no hay que plegar
+ * nada, que es el caso del slug de tienda.
+ *
+ * **La forma importa, no es indiferente.** El `ARRAY(SELECT ...)` es una subconsulta NO correlada:
+ * Postgres la resuelve una vez como InitPlan y deja delante un `= ANY(<array constante>)`, que sigue
+ * apoyándose en los índices por expresión `ix_variant_size_canon` (0014) e `ix_variant_color_family`
+ * (0029). Plegar dentro del `ANY` fila a fila los perdería, y lo que eso cuesta ya está medido en
+ * #307: la misma consulta pasó de 1,4 ms a 1 s.
+ *
+ * Sin valores devuelve `true` en vez de omitirse en quien llama, para componer igual que
+ * `barefootCondition` y `tagCondition` y que no haya dos formas de montar el `WHERE`.
+ */
+export function ejeMultiple(
+  valores: string[] | null | undefined,
+  columna: SQL,
+  plegado: 'size_canon' | 'color_family' | null,
+): SQL {
+  if (!valores?.length) return sql`true`;
+  // `ARRAY[$1, $2, ...]` y no un solo parámetro de tipo array: en una plantilla `sql` de Drizzle un
+  // array de JS se aplana en parámetros sueltos, así que `${valores}::text[]` le pasaba a Postgres
+  // un escalar y reventaba con «malformed array literal».
+  const lista = sql`ARRAY[${sql.join(
+    valores.map((v) => sql`${v}`),
+    sql`, `,
+  )}]::text[]`;
+  const buscados = plegado
+    ? sql`ARRAY(SELECT ${sql.raw(plegado)}(x) FROM unnest(${lista}) AS x)`
+    : lista;
+  return sql`${columna} = ANY(${buscados})`;
+}
+
+/**
  * Columnas de la variante "mejor oferta" ya agregada, contra las que se evalúa la honestidad en
  * SQL. Son exactamente las mismas que se le pasan a `classifyHonesty` más abajo (`list_from`
  * incluido): si aquí se colara otra columna, el filtro y la etiqueta hablarían de precios distintos.
@@ -186,7 +222,7 @@ export class CatalogService {
         WHERE ${generoCondition(sql`${gender}::text`, sql.raw('p.gender'))}
           AND (${section}::text IS NULL OR p.section = ${section})
           AND (${category}::text IS NULL OR p.category = ${category})
-          AND (${retailer}::text IS NULL OR r.slug = ${retailer})
+          AND ${ejeMultiple(retailer, sql`r.slug`, null)}
           -- Talla canónica (#43): variant.size guarda el texto de la tienda, donde la misma talla
           -- aparece como '26', '26 (16,3 cm)' y '26 (16.3 cm)'. Se canonicaliza también lo que llega
           -- por query string, así que los enlaces antiguos con la talla cruda siguen vivos.
@@ -195,7 +231,7 @@ export class CatalogService {
           -- Esta igualdad es la que justifica el índice por expresión de la migración 0014: sin él,
           -- la función se evalúa una vez por variante y esta consulta pasa de 1,4 ms a 1 segundo
           -- (medido sobre una copia de dev con 33.311 variantes).
-          AND (${size}::text IS NULL OR size_canon(v.size) = size_canon(${size}))
+          AND ${ejeMultiple(size, sql`size_canon(v.size)`, 'size_canon')}
           -- Color por FAMILIA (#291, migración 0029), no por color canónico. El panel ofrecía 2.859
           -- chips —el 85,2 % compuestos tipo 'amarillo claro/bluey'— y en un móvil eso es
           -- inservible; ahora ofrece las ~19 familias que deja color_family.
@@ -209,7 +245,7 @@ export class CatalogService {
           -- tarjeta y la ficha lo siguen enseñando, y el aviso lo sigue casando por color_canon
           -- (ver la cabecera de la 0029, que explica por qué los dos "color" significan cosas
           -- distintas). Y es lo que justifica el índice ix_variant_color_family.
-          AND (${color}::text IS NULL OR color_family(v.color) = color_family(${color}))
+          AND ${ejeMultiple(color, sql`color_family(v.color)`, 'color_family')}
           AND (${inStock}::boolean IS NULL OR l.in_stock = ${inStock})
           AND (${q.activeOnly} = false OR p.delisted_at IS NULL)
           AND ${search}
@@ -281,8 +317,15 @@ export class CatalogService {
                WHERE v2.product_id = scored.id
                  AND v2.delisted_at IS NULL
                  AND EXISTS (SELECT 1 FROM price_history ph WHERE ph.variant_id = v2.id)
-                 AND (${size}::text IS NULL OR size_canon(v2.size) = size_canon(${size}))
-                 AND (${color}::text IS NULL OR color_canon(v2.color) = color_canon(${color}))
+                 AND ${ejeMultiple(size, sql`size_canon(v2.size)`, 'size_canon')}
+                 -- Por FAMILIA, igual que el WHERE de matched (#326). Se quedó en color_canon
+                 -- cuando #291 movió el filtro a color_family, y eso hacía que un producto que el
+                 -- catálogo devuelve por la familia 'azul' declarase CERO prendas comprables si
+                 -- ninguna de sus variantes se llamaba exactamente 'azul': 2.012 de los 3.063 que
+                 -- devuelve ese filtro, medidos sobre una copia de dev. No se veía porque la SPA no
+                 -- pinta variantCount en ninguna parte, y los tests usaban colores de una sola
+                 -- palabra, donde las dos funciones coinciden.
+                 AND ${ejeMultiple(color, sql`color_family(v2.color)`, 'color_family')}
                  AND (${inStock}::boolean IS NULL
                       OR (SELECT ph.in_stock FROM price_history ph
                            WHERE ph.variant_id = v2.id
@@ -604,11 +647,11 @@ export class CatalogService {
     const deVariante = (alias: string, excepto: Eje | null): SQL[] => {
       const a = sql.raw(alias);
       const cs: SQL[] = [];
-      if (size !== null && excepto !== 'size') {
-        cs.push(sql`size_canon(${a}.size) = size_canon(${size})`);
+      if (size?.length && excepto !== 'size') {
+        cs.push(ejeMultiple(size, sql`size_canon(${a}.size)`, 'size_canon'));
       }
-      if (color !== null && excepto !== 'color') {
-        cs.push(sql`color_family(${a}.color) = color_family(${color})`);
+      if (color?.length && excepto !== 'color') {
+        cs.push(ejeMultiple(color, sql`color_family(${a}.color)`, 'color_family'));
       }
       return cs;
     };
@@ -628,7 +671,7 @@ export class CatalogService {
       if (excepto !== 'category') {
         cs.push(sql`(${category}::text IS NULL OR p.category = ${category})`);
       }
-      if (excepto !== 'retailer') cs.push(sql`(${retailer}::text IS NULL OR r.slug = ${retailer})`);
+      if (excepto !== 'retailer') cs.push(ejeMultiple(retailer, sql`r.slug`, null));
       return cs;
     };
 

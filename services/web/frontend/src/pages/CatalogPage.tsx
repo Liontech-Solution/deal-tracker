@@ -6,6 +6,7 @@ import type { ProductQuery, ProductSort } from '../api/types';
 import { FilterPanel } from '../components/FilterPanel';
 import type { CatalogFilters } from '../components/FilterPanel';
 import { CloseIcon, FilterIcon } from '../components/icons';
+import { aplicarPatch } from '../lib/filters';
 import { ProductCard } from '../components/ProductCard';
 import { EmptyState, ErrorState, ProductGridSkeleton } from '../components/States';
 import { capitalize } from '../lib/format';
@@ -25,9 +26,12 @@ export function CatalogPage() {
     gender: params.get('gender') ?? '',
     section: params.get('section') ?? '',
     category: params.get('category') ?? '',
-    size: params.get('size') ?? '',
-    color: params.get('color') ?? '',
-    retailer: params.get('retailer') ?? '',
+    // `getAll` y no `get` (#329): estos tres viajan como parámetro repetido, y con `get` solo
+    // llegaría el primero — el catálogo filtraría por una talla mientras el panel enseña tres
+    // marcadas.
+    size: params.getAll('size'),
+    color: params.getAll('color'),
+    retailer: params.getAll('retailer'),
     inStock: params.get('inStock') === 'true',
     onlyDeals: params.get('onlyDeals') === 'true',
     deportiva: params.get('deportiva') === 'true',
@@ -49,19 +53,14 @@ export function CatalogPage() {
     gender: filters.gender || undefined,
     section: filters.section || undefined,
     category: filters.category || undefined,
-    size: filters.size || undefined,
-    color: filters.color || undefined,
-    retailer: filters.retailer || undefined,
+    size: filters.size.length ? filters.size : undefined,
+    color: filters.color.length ? filters.color : undefined,
+    retailer: filters.retailer.length ? filters.retailer : undefined,
     deportiva: filters.deportiva || undefined,
   });
 
   const setFilters = (patch: Partial<CatalogFilters & { sort: ProductSort; q: string }>) => {
-    const next = new URLSearchParams(params);
-    for (const [k, v] of Object.entries(patch)) {
-      if (v === '' || v === false || v === undefined) next.delete(k);
-      else next.set(k, String(v));
-    }
-    setParams(next, { replace: true });
+    setParams(aplicarPatch(params, patch), { replace: true });
   };
 
   const query: Omit<ProductQuery, 'limit' | 'offset'> = {
@@ -69,9 +68,9 @@ export function CatalogPage() {
     gender: filters.gender || undefined,
     section: filters.section || undefined,
     category: filters.category || undefined,
-    size: filters.size || undefined,
-    color: filters.color || undefined,
-    retailer: filters.retailer || undefined,
+    size: filters.size.length ? filters.size : undefined,
+    color: filters.color.length ? filters.color : undefined,
+    retailer: filters.retailer.length ? filters.retailer : undefined,
     inStock: filters.inStock || undefined,
     onlyDeals: filters.onlyDeals || undefined,
     deportiva: filters.deportiva || undefined,
@@ -107,9 +106,17 @@ export function CatalogPage() {
   if (filters.gender) chips.push({ label: capitalize(filters.gender), clear: () => setFilters({ gender: '' }) });
   if (filters.section) chips.push({ label: capitalize(filters.section), clear: () => setFilters({ section: '' }) });
   if (filters.category) chips.push({ label: capitalize(filters.category), clear: () => setFilters({ category: '' }) });
-  if (filters.size) chips.push({ label: `Talla ${filters.size}`, clear: () => setFilters({ size: '' }) });
-  if (filters.color) chips.push({ label: capitalize(filters.color), clear: () => setFilters({ color: '' }) });
-  if (filters.retailer) chips.push({ label: retailerName(filters.retailer), clear: () => setFilters({ retailer: '' }) });
+  // Un chip POR VALOR, cada uno con su aspa (#329). Un solo chip que dijera «Talla 4 años, 104,
+  // 36-38» solo se podría quitar entero, y con tres tallas puestas lo normal es querer soltar una.
+  for (const s of filters.size) {
+    chips.push({ label: `Talla ${s}`, clear: () => setFilters({ size: filters.size.filter((x) => x !== s) }) });
+  }
+  for (const c of filters.color) {
+    chips.push({ label: capitalize(c), clear: () => setFilters({ color: filters.color.filter((x) => x !== c) }) });
+  }
+  for (const r of filters.retailer) {
+    chips.push({ label: retailerName(r), clear: () => setFilters({ retailer: filters.retailer.filter((x) => x !== r) }) });
+  }
   if (filters.inStock) chips.push({ label: 'En stock', clear: () => setFilters({ inStock: false }) });
   if (filters.deportiva)
     chips.push({ label: 'Ropa deportiva', clear: () => setFilters({ deportiva: false }) });
@@ -129,9 +136,9 @@ export function CatalogPage() {
       gender: '',
       section: '',
       category: '',
-      size: '',
-      color: '',
-      retailer: '',
+      size: [],
+      color: [],
+      retailer: [],
       inStock: false,
       onlyDeals: false,
       deportiva: false,
