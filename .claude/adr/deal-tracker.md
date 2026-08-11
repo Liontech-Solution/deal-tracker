@@ -449,7 +449,11 @@ a ~1 s. Al ampliar una de estas funciones, antes de meter una dimensión nueva e
 el propio valor ya distingue: sale más barato y no ata el índice. Cerrado en #64.
 
 Los límites de cada función están fijados por tests que rompen si alguien los amplía sin decidirlo
-(rangos de edad solapados y el umbral pie/edad en la talla; familias de color y acentos en el color).
+(rangos de edad solapados y el umbral pie/edad en la talla; los acentos en el color). Uno de esos
+límites ya se ha cruzado a propósito, y cómo se cruzó es el patrón para el siguiente:
+**agrupar familias de color** — declarado fuera por la 0015 con el argumento de que «agrupar por
+familia es producto, no formato» — lo pidió el producto en #291, y se resolvió con una **tercera
+función encima**, no ampliando la que ya existía. Ver más abajo.
 Ese candado es lo que obliga a que un cambio de criterio se vea: la 0017 no pudo mover el umbral sin
 reescribir el test que lo fija. Una función puede
 además **negar** una etiqueta devolviendo `NULL`: `color_canon` lo hace con un nombre que son solo
@@ -471,6 +475,42 @@ escrita en el contrato con seguridad, que se cayó en cuanto alguien consultó l
 
 Antes de escribir en el contrato que algo no se puede o que algo es siempre así, comprobar sobre los
 datos de quién —y de qué— se está hablando. La consulta cuesta un minuto.
+
+**El tercer piso: `color_family` (0029), encima de `color_canon` y sin tocarla.** Cuando el producto
+pide plegar más —#291: el panel ofrecía **2.859 chips de color**, el 85,2 % compuestos tipo
+`amarillo claro/bluey`, inservible en un móvil— la salida NO es ampliar la función que ya existe.
+Se apila una nueva, y hay tres razones que valen para el siguiente que quiera plegar algo:
+
+- **El índice por expresión guarda los valores ya calculados.** Cambiar el cuerpo de `color_canon`
+  deja obsoleto `ix_variant_color_canon` en silencio, y entonces el filtro devuelve *filas
+  equivocadas, no un error*. La propia 0015 dejó escrita la obligación de reindexar; construir
+  encima la esquiva entera.
+- **Se hereda el plegado de acentos de la 0021 gratis**, así que las reglas de familia funcionan
+  igual bajo el `UTF8 | C | C` del cluster sin volver a razonar sobre el ctype (#105).
+- **Cada piso tiene su propio consumidor, y no son el mismo.** Desde la 0029, `color` significa
+  **cosas distintas** en dos sitios que se parecen: el `?color=` del catálogo es **familia**, y
+  `interest.color` sigue siendo el **canónico exacto**, porque el aviso existe para no mentir y un
+  interés plegado a familia dispararía por cualquier azul. Es deliberado y está escrito en la
+  cabecera de la migración; si algún día se añade un «seguir esta búsqueda» que capture el filtro
+  activo, ese es el sitio donde se cuela un interés de familia sin que nadie lo note.
+
+Dos datos medidos que decidieron el alcance, y que no son evidentes desde el código:
+
+- **El buscador libre no repesca el color.** `fold()` cubre `p.name || category || gender` y el
+  color no entra ahí, así que un color sin familia no es alcanzable por **ningún** camino. Eso es lo
+  que convierte «¿qué hacemos con lo que no encaja?» en una pregunta de producto y no de formato: la
+  respuesta fue vocabulario (de 1.093 productos sin color filtrable a 11 sobre 16.517) más una
+  familia `estampado` para lo que no nombra ningún color.
+- **Plegar por el segmento anterior a la `/`, nunca por la cadena entera**: 385 colores (13,5 %)
+  caen en la familia equivocada mirando la cadena completa, porque detrás de la barra va el nombre
+  del dibujo o de la licencia.
+
+Efecto colateral que conviene saber antes de tocar índices: **`ix_variant_color_canon` (0015) se
+quedó sin consumidor** con este cambio. Era parcial por `delisted_at IS NULL` y solo servía al
+filtro del catálogo, que es el que se mudó a `color_family`. La función sigue muy viva (matching,
+alta de intereses, agrupación de la ficha), pero ninguno de esos usos calza con el patrón del
+índice: el matching evalúa `color_canon(b.color)` sobre la CTE `batch`, sin `delisted_at` por
+ningún lado. No se ha borrado — es mantenimiento muerto, no un fallo.
 
 **Y cuando una tienda escribe la talla al revés, se le da la vuelta EN LA TIENDA, no en la
 función.** Zara e Hipercor sirven la edad delante y los centímetros en el paréntesis
