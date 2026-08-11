@@ -2250,6 +2250,49 @@ Lo que conviene saber al **añadir tienda**: la comprobación es una consulta
 es) y **no la hace ningún test con fixtures**, porque el patrón solo aparece con el catálogo entero
 delante.
 
+### El listado del catálogo paga la agregación del catálogo ENTERO en cada petición (#307, #314)
+
+`listProducts()` no puede recortar la página antes de agregar. Su `ORDER BY` —los cuatro órdenes que
+admite— usa `price_from`, `is_real_deal`, `honest_discount` y `max_discount`, que son valores **por
+producto** calculados a partir de todas sus variantes; y `is_real_deal` se decide sobre las columnas
+`*_repr`, que solo existen tras el `GROUP BY`. Así que cada petición del catálogo agrega las ~159.000
+filas variante×precio vivas para devolver 12. Ese es el suelo, y **crece con el catálogo**: medido en
+prod el 11/08/2026, ~1,2 s con el `Sort` por `product_id` derramando 8,7 MB a disco
+(`external merge`) más el `GroupAggregate` de los `array_agg(... ORDER BY in_stock DESC, price ASC)`
+que eligen la variante representativa. Bajar de ahí no es un índice: pide un agregado por producto
+materializado, que es #314.
+
+Encima de ese suelo se pueden apilar costes que **sí** son evitables, y hay uno resuelto que fija la
+convención. `variant_count` —el «N tallas» de la tarjeta, el contador de prendas comprables de #108—
+vivía dentro del `GROUP BY` como `COUNT(DISTINCT ROW(size_canon, color_canon, url))`, y para
+calcularlo Postgres ordenaba las 159.037 variantes **por un valor calculado**, llamando a
+`size_canon()` y `color_canon()` una vez por variante: **24 s** en la vista por defecto, contra ~1,2 s
+sin él. Con un filtro puesto no se veía, porque el conjunto colapsa a unos cientos de filas y el sort
+sale gratis — de ahí que el catálogo filtrado fuera a 1 s y el catálogo entero no.
+
+La regla que sale de esto: **lo que es puramente de presentación va en el `SELECT` de fuera, después
+del `LIMIT`**, para que se evalúe sobre la página y no sobre el catálogo. Vale para un dato que no
+aparezca en ningún `ORDER BY` ni en ningún `WHERE` —hay que comprobarlo, no suponerlo— y ya lo usan
+`tags` y `variant_count`. Dos trampas medidas al aplicarla:
+
+- **Al salir del conjunto ya filtrado hay que repetir sus filtros, y solo los de nivel variante**
+  (`delisted_at`, talla, color y stock). Los de producto no cambian el recuento. `activeOnly` es el
+  que engaña: levanta el filtro del **producto**, nunca el de la variante.
+- **Correlar contra un CTE materializado es la forma lenta**, y no se ve venir: un CTE no tiene
+  índice, así que se recorre entero una vez por fila de la página. Contra el CTE `latest` son
+  **603 ms** por página; la misma subconsulta contra las tablas base, apoyada en
+  `ix_variant_product` y `ix_price_history_variant_time`, **16 ms**. El precio es expresar «la última
+  fila de precio» dos veces en el mismo fichero, y eso se sujeta con un test del filtro `inStock`.
+
+Y una lección de método que costó dos números escritos en dos issues: **para medir, hay que medir la
+consulta que ejecuta el servicio, no una escrita a mano que se le parezca**. #307 estimó 0,33 s a
+partir de un probe recortado y el arreglo real da ~1,25 s; la diferencia era que el probe también
+dejaba fuera los `array_agg`. La consulta de verdad se saca del driver, no del editor: `log_statement`
+en la Postgres desechable, una petición, y del log salen el SQL y sus parámetros para pasarlos a
+`PREPARE`/`EXECUTE` contra los datos reales. También es lo único que deja comprobar en el plan lo que
+de verdad importa al mover algo fuera del `LIMIT`: que la subconsulta corra con **`loops` = tamaño de
+la página** y no una vez por producto, porque entre la agregación y el `LIMIT` hay un nodo `Sort`.
+
 ### `image_url` es una cadena opaca de la tienda, y el consumidor no puede suponerle forma (#207)
 
 `product.image_url` lo escribe el scraper y lo consume la SPA, así que es contrato entre servicios
