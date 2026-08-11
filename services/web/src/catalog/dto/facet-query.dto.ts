@@ -1,36 +1,21 @@
-import { Transform } from 'class-transformer';
-import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
-
-import { BAREFOOT_FILTERS, type BarefootFilter } from './product-query.dto';
+import { CatalogFilterDto } from './catalog-filter.dto';
 
 /**
  * Parámetros de `GET /api/catalog/facets`.
  *
- * Comparte `barefoot` con el listado a propósito: las facetas describen los filtros de una vista
- * concreta, así que si esa vista esconde el calzado no respetuoso, sus chips también deben hacerlo.
+ * **No añade nada**: desde #292 la faceta recibe exactamente los mismos ejes que el listado, porque
+ * describe la vista que el listado va a devolver. Que sea una clase vacía es la intención — el día
+ * que se añada un filtro barato, aparece en las dos a la vez y no hay nada que recordar.
  *
- * `section` es el mismo criterio llevado a su conclusión: las tallas de la ropa (rangos de edad) y
- * las del calzado (números de pie) no son el mismo vocabulario, y ofrecer las dos listas juntas hace
- * inútiles a las dos. Las categorías igual. El género y la sección misma NO se acotan: son los ejes
- * de navegación con los que se sale de la vista.
+ * Lo que decide qué acota a qué **no vive aquí sino en `getFacets`**, y merece decirse porque no es
+ * evidente: cada faceta aplica todos los filtros activos MENOS el de su propio eje. Si la lista de
+ * tallas se acotara también por la talla elegida, quedaría esa sola talla y no habría forma de
+ * cambiar de idea sin limpiar el filtro.
+ *
+ * La excepción es `section`, que nunca acota a nadie: es el eje de navegación con el que se sale de
+ * la vista, y desde #292 también es lo que eligen las pestañas Ropa/Zapatería del grupo de talla.
+ * Ropa y zapatería no comparten vocabulario de talla —y peor: 36 de sus formas COINCIDEN
+ * significando cosas distintas, `36-38` es calcetín en una y número de pie en la otra—, así que sin
+ * sección elegida el panel no ofrece tallas en vez de ofrecer las 205 mezcladas.
  */
-export class FacetQueryDto {
-  @IsOptional()
-  @IsIn(BAREFOOT_FILTERS)
-  barefoot: BarefootFilter = 'si';
-
-  @IsOptional()
-  @IsString()
-  section?: string;
-
-  /**
-   * Mismo criterio que `barefoot` llevado al eje transversal (#180): con el interruptor encendido,
-   * las facetas describen ESA vista. Si no, el panel ofrecería categorías y tallas que la vista
-   * filtrada no devuelve — y aquí se notaría más que en ningún otro filtro, porque el eje solo lo
-   * alimentan tres tiendas y deja fuera categorías enteras.
-   */
-  @IsOptional()
-  @Transform(({ value }) => (value === undefined ? undefined : value === 'true' || value === true))
-  @IsBoolean()
-  deportiva?: boolean;
-}
+export class FacetQueryDto extends CatalogFilterDto {}

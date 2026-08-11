@@ -214,7 +214,8 @@ function StatsRow({ items }: { items: { n: string; l: string }[] }) {
  * razón por la que `TodaysDeals` siempre fue un componente aparte.
  */
 function StatsConTiendas() {
-  const facets = useFacets();
+  // Sin filtros: aquí se quiere el número de tiendas del catálogo entero, no el de una vista.
+  const facets = useFacets({});
   const tiendas = {
     // Sin número inventado mientras carga: un guion dice la verdad, un "8" por defecto no.
     n: facets.data ? `${facets.data.retailers.length}` : '—',

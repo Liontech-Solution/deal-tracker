@@ -31,15 +31,29 @@ export function CatalogPage() {
     inStock: params.get('inStock') === 'true',
     onlyDeals: params.get('onlyDeals') === 'true',
     deportiva: params.get('deportiva') === 'true',
+    minPrice: params.get('minPrice') ?? '',
+    maxPrice: params.get('maxPrice') ?? '',
   };
   const search = params.get('q') ?? '';
   const sort = (params.get('sort') as ProductSort) ?? 'ofertas';
 
-  // Las facetas describen ESTA vista, así que se piden para la sección que se está mirando: las
-  // tallas de ropa (rangos de edad) y de calzado (números de pie) no son la misma lista.
-  // El eje va con ellas por lo mismo: con «solo deportiva» puesto, las categorías y tallas que
-  // el panel ofrece tienen que ser las que esa vista devuelve, no las del catálogo entero.
-  const facets = useFacets(filters.section || undefined, filters.deportiva || undefined);
+  // Las facetas describen ESTA vista, así que se les pasa lo que hay filtrado (#292). Antes solo
+  // viajaban `section` y el eje deportiva, y el panel ofrecía tallas que dentro de la categoría ya
+  // elegida no existían: se pinchaba el chip y el catálogo salía vacío.
+  //
+  // `inStock` y `onlyDeals` se quedan fuera y **no es un descuido**: el backend los rechaza con 400
+  // porque no cruzan (montar el CTE de precios en cada cambio de filtro sale caro). Por eso se
+  // enumera lo que va en vez de reenviar `query` entero.
+  const facets = useFacets({
+    q: search || undefined,
+    gender: filters.gender || undefined,
+    section: filters.section || undefined,
+    category: filters.category || undefined,
+    size: filters.size || undefined,
+    color: filters.color || undefined,
+    retailer: filters.retailer || undefined,
+    deportiva: filters.deportiva || undefined,
+  });
 
   const setFilters = (patch: Partial<CatalogFilters & { sort: ProductSort; q: string }>) => {
     const next = new URLSearchParams(params);
@@ -61,11 +75,27 @@ export function CatalogPage() {
     inStock: filters.inStock || undefined,
     onlyDeals: filters.onlyDeals || undefined,
     deportiva: filters.deportiva || undefined,
+    minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
+    maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
     sort,
   };
 
   const q = useProducts(query);
   const items = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
+
+  /**
+   * Lo que hay en pantalla es el resultado de los filtros ANTERIORES (#292).
+   *
+   * Con `keepPreviousData` la rejilla ya no parpadea a vacío, pero eso solo cambia la mentira de
+   * sitio: pasa de decir «0 prendas» a afirmar un recuento viejo como si fuera el nuevo. Mientras
+   * dura, ni la cabecera ni el botón dan número — el sitio donde iba el recuento dice qué está
+   * pasando, y la rejilla se atenúa para que se vea que lo de debajo aún no es la respuesta.
+   *
+   * `isPending` entra en la misma cuenta por el primer render, cuando todavía no hay página previa
+   * que conservar.
+   */
+  const contando = q.isPlaceholderData || q.isPending;
+  const recuento = `${items.length}${q.hasNextPage ? '+' : ''}`;
 
   // chips activos
   const retailerName = (slug: string) => facets.data?.retailers.find((r) => r.slug === slug)?.name ?? slug;
@@ -83,6 +113,14 @@ export function CatalogPage() {
   if (filters.inStock) chips.push({ label: 'En stock', clear: () => setFilters({ inStock: false }) });
   if (filters.deportiva)
     chips.push({ label: 'Ropa deportiva', clear: () => setFilters({ deportiva: false }) });
+  // Un solo chip para el rango: son dos parámetros pero una sola idea, y dos chips que solo se
+  // pueden quitar por separado hacen pensar que son filtros distintos.
+  if (filters.minPrice || filters.maxPrice) {
+    const desde = filters.minPrice ? `${filters.minPrice} €` : '';
+    const hasta = filters.maxPrice ? `${filters.maxPrice} €` : '';
+    const label = desde && hasta ? `${desde} – ${hasta}` : desde ? `Desde ${desde}` : `Hasta ${hasta}`;
+    chips.push({ label, clear: () => setFilters({ minPrice: '', maxPrice: '' }) });
+  }
 
   const activeCount = chips.length;
   const clearAll = () =>
@@ -97,6 +135,8 @@ export function CatalogPage() {
       inStock: false,
       onlyDeals: false,
       deportiva: false,
+      minPrice: '',
+      maxPrice: '',
     });
 
   return (
@@ -106,9 +146,10 @@ export function CatalogPage() {
           <h1 className="serif" style={{ fontSize: 34, margin: '0 0 2px' }}>
             {search ? `«${search}»` : 'Catálogo'}
           </h1>
-          <div style={{ color: 'var(--text-muted)', fontSize: 14.5 }}>
-            {items.length}
-            {q.hasNextPage ? '+' : ''} {items.length === 1 && !q.hasNextPage ? 'prenda' : 'prendas'}
+          <div style={{ color: 'var(--text-muted)', fontSize: 14.5 }} aria-live="polite">
+            {contando
+              ? 'Buscando prendas…'
+              : `${recuento} ${items.length === 1 && !q.hasNextPage ? 'prenda' : 'prendas'}`}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -164,7 +205,19 @@ export function CatalogPage() {
             <EmptyState onClear={clearAll} />
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 16 }}>
+              {/* Atenuada mientras lo de debajo sigue siendo la respuesta a los filtros de antes.
+                  `pointerEvents` para que no se pinche una ficha que está a punto de irse. */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))',
+                  gap: 16,
+                  opacity: q.isPlaceholderData ? 0.45 : 1,
+                  pointerEvents: q.isPlaceholderData ? 'none' : undefined,
+                  transition: 'opacity .15s ease',
+                }}
+                aria-busy={q.isPlaceholderData}
+              >
                 {items.map((p) => (
                   <ProductCard key={p.id} p={p} />
                 ))}
@@ -201,8 +254,12 @@ export function CatalogPage() {
               {activeCount > 0 && (
                 <button className="btn btn-secondary" style={{ padding: 16 }} onClick={clearAll}>Limpiar</button>
               )}
+              {/* El botón del reporte original: decía «Ver 0 prendas» mientras cargaba. Ahora, si
+                  el recuento aún no es el de estos filtros, lleva a los resultados sin cantarlos.
+                  No se deshabilita a propósito: cerrar el cajón es una acción que siempre vale, y
+                  un botón muerto en un cajón de móvil parece que la app se ha colgado. */}
               <button className="btn btn-primary" style={{ flex: 1, padding: 16, fontSize: 16 }} onClick={() => setDrawer(false)}>
-                Ver {items.length}{q.hasNextPage ? '+' : ''} prendas
+                {contando ? 'Ver resultados' : `Ver ${recuento} prendas`}
               </button>
             </div>
           </div>
