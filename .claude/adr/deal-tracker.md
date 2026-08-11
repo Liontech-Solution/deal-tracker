@@ -2350,9 +2350,9 @@ La consecuencia es la que hay que recordar, porque no se deduce leyendo el códi
 llamada: **dev en verde no prueba absolutamente nada sobre el acceso**. Ni el despliegue, ni un
 recorrido manual, ni el CI. El comportamiento que la issue existe para producir solo es observable
 donde hay realm, o sea **QA y prod**, y a QA no llega hasta que un `release-qa` corta la versión.
-Eso mueve trabajo de verificación *después* del merge por construcción, no por descuido, y por eso
-#309 cerró con dos casillas vivas en una issue aparte (#311) en vez de quedarse abierta esperando
-un despliegue.
+Eso mueve trabajo de verificación *después* del merge por construcción, no por descuido, y por
+eso #309 cerró con dos casillas vivas en una issue aparte (#311) en vez de quedarse abierta
+esperando un despliegue.
 
 Generalizado, que es lo que vale para la próxima: **cuando un control de seguridad se apaga solo en
 algún entorno, la matriz de verificación deja de ser «pasa / no pasa» y se convierte en «pasa
