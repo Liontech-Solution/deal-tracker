@@ -3,16 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { usePriceHistory, useProduct } from '../api/hooks';
 import type { Honesty, VariantWithPrice } from '../api/types';
-import { useAuth } from '../auth/AuthProvider';
 import { StoreBadge } from '../components/Badges';
 import type { Stock } from '../components/Badges';
+import { useSeguirPrenda } from '../auth/useSeguirPrenda';
 import { FollowModal } from '../components/FollowModal';
 import { ArrowLeftIcon, BellIcon, ExternalIcon } from '../components/icons';
 import { PriceBlock } from '../components/PriceBlock';
 import { PriceHistoryChart } from '../components/PriceHistoryChart';
 import { ProductImage } from '../components/ProductImage';
 import { ProductGridSkeleton, ErrorState } from '../components/States';
-import { useToast } from '../components/Toast';
 import { colorHex } from '../lib/colors';
 import { capitalize } from '../lib/format';
 import { available, countAvailableSizes, distinctSizes, sizeAvailable } from '../lib/variants';
@@ -76,8 +75,6 @@ export function ProductPage() {
   const { id } = useParams();
   const productId = id ? Number(id) : undefined;
   const navigate = useNavigate();
-  const toast = useToast();
-  const auth = useAuth();
 
   const { data: product, isPending, isError, refetch } = useProduct(productId);
 
@@ -85,7 +82,7 @@ export function ProductPage() {
   const [color, setColor] = useState<string | null>(null);
   // La ficha de la tienda de la referencia elegida: junto al color, es lo que la identifica.
   const [refUrl, setRefUrl] = useState<string | null>(null);
-  const [followOpen, setFollowOpen] = useState(false);
+  const seguir = useSeguirPrenda();
 
   const variants = useMemo(() => product?.variants ?? [], [product]);
   const sizes = useMemo(() => distinctSizes(variants), [variants]);
@@ -171,19 +168,9 @@ export function ProductPage() {
     variants.some((v) => v.color === r.color && v.url === r.url && v.size === size && available(v));
   const tallaDisponible = (s: string) => sizeAvailable(variants, s);
 
-  const onFollow = () => {
-    // Hasta que `/api/config` no resuelve, `enabled` no es concluyente (ver AuthProvider).
-    if (!auth.ready) return;
-    if (!auth.enabled) {
-      toast('Inicio de sesión con Keycloak · disponible al desplegar');
-      return;
-    }
-    if (!auth.authenticated) {
-      auth.login();
-      return;
-    }
-    setFollowOpen(true);
-  };
+  // La regla de quién puede seguir vive en `useSeguirPrenda` desde #301, para que la ficha y la
+  // campana de la tarjeta del catálogo no puedan prometer cosas distintas.
+  const onFollow = seguir.abrir;
 
   return (
     <section className="dt-fade" style={{ paddingTop: 18 }}>
@@ -391,8 +378,8 @@ export function ProductPage() {
       </div>
 
       <FollowModal
-        open={followOpen}
-        onClose={() => setFollowOpen(false)}
+        open={seguir.abierto}
+        onClose={seguir.cerrar}
         target={{
           productId: product.id,
           productName: product.name,
