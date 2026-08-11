@@ -770,6 +770,117 @@ describe.skipIf(!TEST_DB)('color canónico · faceta, filtro y foto (e2e)', () =
 });
 
 /**
+ * Familias de color (#291, migración 0029).
+ *
+ * El panel ofrecía 2.859 chips de color en `ropa` —el 85,2 % compuestos tipo 'amarillo claro/bluey',
+ * donde lo que va detrás de la barra es el nombre del dibujo— y en un móvil eso no es un filtro.
+ * Desde esta versión la faceta ofrece FAMILIAS y el parámetro `color` filtra por familia.
+ *
+ * Los colores sembrados son reales, de `deal_tracker_qa`, y cada uno está por un motivo distinto.
+ */
+describe.skipIf(!TEST_DB)('familias de color · catálogo (e2e)', () => {
+  let sql: postgres.Sql;
+  let app: INestApplication;
+
+  const FOTO_MARINO = 'https://static.example/p/marino-0.jpg';
+
+  async function seedColor(retailerId: number, name: string, color: string): Promise<number> {
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${retailerId}, ${name}, ${name}, 'niña', 'zapateria', 'barefoot', 'si', 'https://x')
+      RETURNING id`;
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p.id}, ${name + '-v'}, '26', ${color}, ${name + '-sku'}) RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${v.id}, 19.99, 39.99, 50, true, now())`;
+    return p.id;
+  }
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    const [zara] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('zara', 'Zara', 'https://www.zara.com') RETURNING id`;
+
+    // 'azul marino' NO es de la familia 'azul': el orden de las reglas de color_family lo decide,
+    // y es el par que se rompería primero si alguien lo cambiara.
+    const idMarino = await seedColor(zara.id, 'Bota marino', 'AZUL MARINO');
+    await seedColor(zara.id, 'Bota azul', 'Azul claro');
+
+    // El compuesto que motiva plegar por el segmento anterior a la barra: mirando la cadena entera,
+    // este se archiva como AZUL porque el nombre del dibujo lleva 'blue'. Son 385 colores (13,5 %).
+    await seedColor(zara.id, 'Bota amarilla', 'amarillo claro/bluey');
+
+    // 'rayas' no nombra ningún color, y aun así tiene que seguir siendo filtrable: hoy es un chip.
+    await seedColor(zara.id, 'Bota rayas', 'RAYAS');
+
+    // La foto se clava por el TEXTO del color (migración 0011), que la familia no toca.
+    await sql`
+      INSERT INTO product_image (product_id, color, position, url)
+      VALUES (${idMarino}, 'AZUL MARINO', 0, ${FOTO_MARINO})`;
+
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  const nombres = async (query: string): Promise<string[]> => {
+    const res = await request(app.getHttpServer()).get(query).expect(200);
+    return res.body.items.map((i: { name: string }) => i.name).sort();
+  };
+
+  it('la faceta ofrece familias, no los colores de la tienda', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/catalog/facets?section=zapateria')
+      .expect(200);
+    expect(res.body.colors).toEqual(['amarillo', 'azul', 'estampado', 'marino']);
+  });
+
+  it('el compuesto va a la familia de su primer segmento, no a la del dibujo', async () => {
+    expect(await nombres('/api/catalog/products?color=amarillo')).toEqual(['Bota amarilla']);
+    expect(await nombres('/api/catalog/products?color=azul')).not.toContain('Bota amarilla');
+  });
+
+  it('marino y azul siguen siendo familias distintas', async () => {
+    expect(await nombres('/api/catalog/products?color=azul')).toEqual(['Bota azul']);
+    expect(await nombres('/api/catalog/products?color=marino')).toEqual(['Bota marino']);
+  });
+
+  /**
+   * Los enlaces antiguos llevaban un color específico. No rompen, pero se ENSANCHAN a su familia:
+   * es la consecuencia aceptada de que el filtro pase a ser por familia.
+   */
+  it('un enlace antiguo con el color específico ahora devuelve su familia entera', async () => {
+    expect(await nombres('/api/catalog/products?color=azul%20claro')).toEqual(['Bota azul']);
+    expect(await nombres('/api/catalog/products?color=AZUL%20MARINO')).toEqual(['Bota marino']);
+  });
+
+  it('lo que no nombra un color sigue siendo filtrable como estampado', async () => {
+    expect(await nombres('/api/catalog/products?color=estampado')).toEqual(['Bota rayas']);
+    expect(await nombres('/api/catalog/products?color=rayas')).toEqual(['Bota rayas']);
+  });
+
+  /**
+   * Lo que la issue prometía no tocar: el color específico se sigue guardando y enseñando, y la
+   * foto por color sigue casando porque `variant.color` conserva el texto crudo de la tienda.
+   */
+  it('la tarjeta sigue enseñando el color de la tienda, no la familia', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/catalog/products?color=marino')
+      .expect(200);
+    expect(res.body.items[0].colorRepr).toBe('AZUL MARINO');
+    expect(res.body.items[0].imageUrl).toBe(FOTO_MARINO);
+  });
+});
+
+/**
  * Género unisex (#32): un producto que sirve para niño y para niña tiene que salir en los DOS
  * filtros, no en ninguno.
  *

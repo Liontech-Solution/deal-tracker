@@ -193,10 +193,20 @@ export class CatalogService {
           -- la función se evalúa una vez por variante y esta consulta pasa de 1,4 ms a 1 segundo
           -- (medido sobre una copia de dev con 33.311 variantes).
           AND (${size}::text IS NULL OR size_canon(v.size) = size_canon(${size}))
-          -- Color canónico (#49), mismo trato y misma razón que la talla: la tienda escribe 'Verde'
-          -- y 'VERDE' para el mismo color. Canonicalizar también lo que llega por query string deja
-          -- vivos los enlaces antiguos, y es lo que justifica el índice de la migración 0015.
-          AND (${color}::text IS NULL OR color_canon(v.color) = color_canon(${color}))
+          -- Color por FAMILIA (#291, migración 0029), no por color canónico. El panel ofrecía 2.859
+          -- chips —el 85,2 % compuestos tipo 'amarillo claro/bluey'— y en un móvil eso es
+          -- inservible; ahora ofrece las ~19 familias que deja color_family.
+          --
+          -- Plegar también lo que llega por query string mantiene vivos los enlaces antiguos, igual
+          -- que en la talla, con una diferencia que conviene tener presente: aquí no solo siguen
+          -- vivos, se ENSANCHAN. Un ?color=azul marino guardado en un marcador pasa a devolver
+          -- todos los azules. Es la consecuencia aceptada de que el filtro sea por familia.
+          --
+          -- El color específico NO se pierde por esto: se sigue guardando en variant.color, la
+          -- tarjeta y la ficha lo siguen enseñando, y el aviso lo sigue casando por color_canon
+          -- (ver la cabecera de la 0029, que explica por qué los dos "color" significan cosas
+          -- distintas). Y es lo que justifica el índice ix_variant_color_family.
+          AND (${color}::text IS NULL OR color_family(v.color) = color_family(${color}))
           AND (${inStock}::boolean IS NULL OR l.in_stock = ${inStock})
           AND (${q.activeOnly} = false OR p.delisted_at IS NULL)
           AND ${search}
@@ -602,25 +612,28 @@ export class CatalogService {
     };
 
     /**
-     * Colores CANÓNICOS distintos entre variantes vivas de productos activos (#49).
+     * FAMILIAS de color distintas entre variantes vivas de productos activos (#49 y #291).
+     *
+     * Devolvía el color canónico, y eran **2.859 chips** en `ropa` —63 KB de payload, el 85,2 %
+     * compuestos tipo 'amarillo claro/bluey'—. En un móvil eso no es un filtro, que es literalmente
+     * lo que reportó #291. `color_family` (migración 0029) los pliega a **~19 familias**.
      *
      * Misma estructura de dos niveles que `pickSizes` y por la misma medida: `crudas` deduplica el
-     * TEXTO de la tienda ANTES de canonicalizar, así la función se llama una vez por forma distinta
-     * (220 en dev) y no una por variante (33.311). El DISTINCT de fuera funde las equivalentes.
-     * Medido sobre ese volumen: 32,1 ms canonicalizando fila a fila contra 14,2 ms deduplicando
-     * antes. Menos espectacular que en la talla (866 ms → 13 ms) porque `color_canon` es mucho más
-     * barata, pero es la mitad del tiempo del panel de filtros por escribir el SELECT de otra forma.
+     * TEXTO de la tienda ANTES de plegar, así la función se llama una vez por forma distinta y no
+     * una por variante. Aquí importa más que antes: `color_family` son ~20 regexes encadenados
+     * sobre el resultado de `color_canon`, bastante más cara que la propia `color_canon`.
      *
-     * El orden alfabético del canónico basta —a diferencia de la talla, es el que se espera de una
-     * lista de colores—, así que aquí no hace falta el equivalente de `size_sort`.
+     * El orden alfabético basta —a diferencia de la talla, es el que se espera de una lista de
+     * colores—, así que aquí no hace falta el equivalente de `size_sort`.
      *
-     * El `IS NOT NULL` de fuera no es defensivo: `color_canon` devuelve NULL a propósito para un
-     * nombre que son solo dígitos (#51, migración 0016 — Zara escribe el id del color como nombre
-     * en 10 productos). Sin él, ese NULL llegaría a la SPA como el chip literal `"null"`.
+     * El `IS NOT NULL` de fuera no es defensivo, y ahora tapa dos casos en vez de uno: el nombre
+     * que son solo dígitos, que ya negaba `color_canon` (#51, migración 0016), y lo que no encaja
+     * en ninguna familia —7 valores en QA, entre ellos códigos como '1-114' y literales como
+     * 'default'—. Sin él, ese NULL llegaría a la SPA como el chip literal `"null"`.
      */
     const pickColors = async (): Promise<string[]> => {
       const rows = (await this.db.execute(sql`
-        SELECT DISTINCT color_canon(cruda) AS value FROM (
+        SELECT DISTINCT color_family(cruda) AS value FROM (
           SELECT DISTINCT v.color AS cruda
           FROM variant v
           JOIN product p ON p.id = v.product_id
@@ -629,7 +642,7 @@ export class CatalogService {
             AND ${visible}
             AND ${inSection}
         ) crudas
-        WHERE color_canon(cruda) IS NOT NULL
+        WHERE color_family(cruda) IS NOT NULL
         ORDER BY value
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => String(r.value));
