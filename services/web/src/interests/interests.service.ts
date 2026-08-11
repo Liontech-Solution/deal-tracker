@@ -97,6 +97,11 @@ export class InterestsService {
       retailerName: r.retailerName ?? null,
       productName: r.directProductName ?? r.variantProductName ?? null,
       variantLabel: variantLabel(r.variantSize, r.variantColor),
+      // Las mismas dos piezas que acaban de armar la etiqueta, sueltas (#297): la SPA capitaliza
+      // el color para que la ficha y el modal no digan 'Rosa' y 'rosa' a pocos centímetros, y esto
+      // le evita tener que partir `variantLabel` por su separador o rehacer `size_canon` en TS.
+      variantSize: r.variantSize,
+      variantColor: r.variantColor,
       targetProductId: r.interest.productId ?? r.variantProductId ?? null,
       // La del color seguido si la galería la tiene; si no, la principal del producto. La galería
       // la estrenan las fichas según se les vuelve a pedir el detalle, así que el respaldo no es

@@ -8,7 +8,7 @@ import { BellIcon, CloseIcon } from '../components/icons';
 import { ProductImage } from '../components/ProductImage';
 import { ErrorState } from '../components/States';
 import { useToast } from '../components/Toast';
-import { capitalize } from '../lib/format';
+import { capitalize, etiquetaVariante } from '../lib/format';
 
 /** Página "Mis seguimientos": lista y borra los intereses del usuario autenticado. */
 export function InterestsPage() {
@@ -154,7 +154,11 @@ function InterestCard({
 /** Título del alcance: nombre del producto/variante, o resumen de los filtros. */
 function scopeTitle(it: InterestView): string {
   if (it.productName) {
-    return it.variantLabel ? `${it.productName} · ${it.variantLabel}` : it.productName;
+    // Se compone aquí en vez de pintar `it.variantLabel` (#297): aquella es la etiqueta del aviso
+    // de Telegram y lleva el color crudo, así que esta lista decía 'rosa' donde la ficha dice
+    // 'Rosa'. Las dos salen ahora de `etiquetaVariante`.
+    const variante = etiquetaVariante(it.variantSize, it.variantColor);
+    return variante ? `${it.productName} · ${variante}` : it.productName;
   }
   const parts = [it.gender, it.section, it.category, it.size, it.color]
     .filter((p): p is string => !!p)

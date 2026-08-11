@@ -52,6 +52,11 @@ export interface VariantWithPrice {
   id: number;
   retailerVariantId: string;
   size: string | null;
+  /**
+   * La talla plegada por `size_canon`, que la calcula la base. Es la que hay que pasarle a
+   * `etiquetaVariante()` (#297); `size` sigue siendo lo que rotula el selector de la ficha.
+   */
+  sizeCanon: string | null;
   color: string | null;
   sku: string | null;
   url: string | null;
@@ -178,7 +183,15 @@ export interface InterestView {
   createdAt: string;
   retailerName: string | null;
   productName: string | null;
+  /**
+   * La etiqueta que compone el backend. **Es la del aviso de Telegram**, con el color crudo; la SPA
+   * no la pinta desde #297, sino que arma la suya con `etiquetaVariante(variantSize, variantColor)`
+   * para capitalizar el color sin cambiar lo que se envía.
+   */
   variantLabel: string | null;
+  /** Talla CANÓNICA y color CRUDO: las piezas con las que la SPA rotula la variante (#297). */
+  variantSize: string | null;
+  variantColor: string | null;
   /**
    * Con qué enseñar la prenda seguida (#302). Los tres vienen `null` en un interés por filtros,
    * que no apunta a ninguna prenda, así que la tarjeta tiene que seguir funcionando sin ellos.

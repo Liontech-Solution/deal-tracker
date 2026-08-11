@@ -53,6 +53,16 @@ export interface VariantWithPrice {
   id: number;
   retailerVariantId: string;
   size: string | null;
+  /**
+   * La misma talla que `size`, plegada por `size_canon` (0014). Sale aparte desde #297 para que la
+   * SPA pueda componer la etiqueta de la variante —la que confirma el modal de seguimiento— sin
+   * rehacer la canónica en TypeScript, que es justo lo que #248 condenó.
+   *
+   * `size` sigue siendo la de la tienda y sigue siendo lo que pinta el selector: en ropa infantil
+   * el paréntesis que `size_canon` borra ('2 años (92 cm)' -> '2 años', ver la 0024) es por lo que
+   * un padre elige.
+   */
+  sizeCanon: string | null;
   color: string | null;
   sku: string | null;
   url: string | null;

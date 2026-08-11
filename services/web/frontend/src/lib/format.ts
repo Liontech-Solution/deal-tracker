@@ -27,3 +27,32 @@ export function discountInt(value: string | null | undefined): number | null {
 export function capitalize(value: string): string {
   return value.length ? value[0].toUpperCase() + value.slice(1) : value;
 }
+
+/**
+ * Cómo se nombra una variante en la SPA: «Talla 2 años · Rosa».
+ *
+ * Existe por #297. La ficha rotulaba el chip de color con `capitalize()` y el modal que se abre
+ * encima tomaba la etiqueta ya montada por la API, que emite el color **crudo** — así que a pocos
+ * centímetros se leía `Rosa` y `rosa`. Aquí las dos salen de la misma función, que es lo que impide
+ * que vuelvan a separarse.
+ *
+ * **El plegado es de presentación y se queda en la SPA.** `variantLabel()` del backend no se toca,
+ * porque es la cadena que va al aviso de Telegram: cambiar la caja de lo que se envía tiene que ser
+ * una decisión propia, no un efecto de rebote de arreglar un rótulo.
+ *
+ * `capitalize` y no una capitalización por segmentos: el 78 % de los colores son compuestos (2.169
+ * de 2.782 distintos, medidos en dev) y las tiendas ya los escriben con criterios propios —H&M da
+ * `Blanco/Floral` y Zara `blanco / negro`—. Subir la inicial de cada tramo reescribiría 2.169
+ * valores para imponer un criterio que ninguna tienda usa; subir solo la primera es lo que el chip
+ * del catálogo lleva haciendo desde siempre, y con esto la etiqueta dice exactamente lo mismo.
+ *
+ * La talla tiene que llegar CANÓNICA (`sizeCanon` / `variantSize`), no la cruda de la tienda: es la
+ * que ve el usuario en `/seguimientos` y la que guarda `interest.size`, y rehacerla aquí desde el
+ * texto crudo es el fallo que arregló #248.
+ */
+export function etiquetaVariante(size: string | null, color: string | null): string | null {
+  const partes = [size ? `Talla ${size}` : null, color ? capitalize(color) : null].filter(
+    (p): p is string => !!p,
+  );
+  return partes.length ? partes.join(' · ') : null;
+}

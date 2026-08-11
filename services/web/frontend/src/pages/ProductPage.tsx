@@ -13,7 +13,7 @@ import { PriceHistoryChart } from '../components/PriceHistoryChart';
 import { ProductImage } from '../components/ProductImage';
 import { ProductGridSkeleton, ErrorState } from '../components/States';
 import { colorHex } from '../lib/colors';
-import { capitalize } from '../lib/format';
+import { capitalize, etiquetaVariante } from '../lib/format';
 import { available, countAvailableSizes, distinctSizes, sizeAvailable } from '../lib/variants';
 
 function stockOf(v: VariantWithPrice): Stock {
@@ -384,10 +384,12 @@ export function ProductPage() {
           productId: product.id,
           productName: product.name,
           variantId: current?.id,
-          // La etiqueta la sirve la API, no se rehace aquí (#248): reconstruirla en TypeScript con
-          // `current.size` —la talla CRUDA— hacía que el modal confirmara 'Talla 2 años (92 cm)' y
-          // que `/seguimientos` y el bot dijeran luego 'Talla 2 años'.
-          variantLabel: current?.variantLabel ?? null,
+          // Se compone con las PIEZAS que sirve la API, nunca con `current.size` (#248): aquella es
+          // la talla cruda, y rehacer la etiqueta con ella hacía que el modal confirmara
+          // 'Talla 2 años (92 cm)' y que `/seguimientos` y el bot dijeran luego 'Talla 2 años'.
+          // `sizeCanon` es la misma canónica que usa el backend, así que la talla no se mueve; lo
+          // único que cambia es la caja del color, que es de lo que va #297.
+          variantLabel: etiquetaVariante(current?.sizeCanon ?? null, current?.color ?? null),
         }}
       />
     </section>
