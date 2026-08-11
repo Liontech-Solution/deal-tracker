@@ -254,6 +254,26 @@ CI en verde, es que el CronJob de dev muestre el sha del merge**. Entre las dos 
 y el bump es automático pero no inmediato — que es exactamente el matiz que «en dev no aplica» se
 come si se lee deprisa.
 
+**Pero esa regla tiene un falso negativo, y es esperar un sha que no va a existir nunca.** Los dos
+workflows filtran por `paths`: `web-ci` solo dispara con `services/web/**`, `db/migrations/**` o su
+propio `.yml`, y `scraper-ci` con `services/scraper/**`, `db/migrations/**` o el suyo. Así que **un
+merge a `main` que no toque ninguna de esas rutas —documentación, `README.md`, `CLAUDE.md`,
+`.claude/**`— no construye imagen ni dispara el bump**: no genera *ningún* run. Dos consecuencias
+que la lista de arriba no deja ver porque describe el flujo como incondicional:
+
+- **El `sha-<7>` que corre dev no es la punta de `main`, y no tiene por qué serlo.** Medido el
+  11/08/2026: `main` en `bb7afeb` (merge del PR #339, solo `README.md`), último run de `web-ci` en
+  `main` sobre `00ad732` (merge del #338), y el overlay de dev en `sha-00ad732`. Quien aplique la
+  regla de arriba tras un merge de documentación esperará indefinidamente.
+- **Las dos imágenes van naturalmente desincronizadas**, porque cada workflow solo mira su servicio:
+  en esa misma medida, el web iba en `sha-00ad732` y el scraper en `sha-394c314`. Que difieran no
+  indica nada roto.
+
+Y en el lado del PR el mismo filtro da un tercer estado que no es ni verde ni rojo: un PR de solo
+documentación sale con **0 checks** (`gh pr view <n> --json statusCheckRollup` devuelve lista vacía;
+el PR #337, de solo `CLAUDE.md`, y el #339 lo confirman). No es que falten por salir — no van a
+salir. Lo que decide ahí es `mergeable`/`mergeStateStatus`, no la espera de un verde.
+
 **QA no tiene Keycloak propio: se autentica contra el realm de dev.** `/api/config` de QA devuelve
 `https://keycloak-dev.liontechsolution.com` y realm `deal-tracker-dev` — el mismo client
 `deal-tracker-web` que usa dev. Los dos entornos comparten identidad y configuración de client, así
