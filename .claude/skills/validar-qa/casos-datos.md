@@ -225,6 +225,37 @@ Fíjate en que se parte de `retailer` con `LEFT JOIN`, igual que en D2 y por el 
 tienda con **cero productos** desaparece de un `JOIN` normal, y esa es precisamente la que hay que
 ver. Un `activos = 0` aquí es **P0**, y se corresponde con una tienda ausente de `/catalog/facets`.
 
+### Y de qué CDN salen: ningún host fuera de la tabla de anchos
+
+Las fotos van hotlinked desde el CDN de cada tienda, y a cada uno hay que pedirle el ancho con el
+parámetro que entienda. Qué entiende cada cual vive en `ANCHO_POR_HOST`
+(`services/web/frontend/src/lib/image.ts`), y **un host que no esté en la tabla se sirve crudo**: la
+foto se ve, así que no rompe nada y no aparece en ninguna otra comprobación.
+
+Por ahí se colaron los 187 productos que H&M publica en `media.arket.com`, a 557 KB por foto durante
+tres validaciones (#300). Esto es lo único que ve a la vez la tabla y la base:
+
+```sql
+SELECT split_part(split_part(p.image_url, '://', 2), '/', 1) AS host,
+       count(*) AS fotos, count(DISTINCT r.slug) AS tiendas, min(r.slug) AS ejemplo_tienda
+FROM product p JOIN retailer r ON r.id = p.retailer_id
+WHERE p.image_url IS NOT NULL AND p.delisted_at IS NULL
+GROUP BY 1 ORDER BY 2 DESC;
+```
+
+Contrasta cada `host` con las claves de `ANCHO_POR_HOST`. **Un host que no esté en la tabla es P2**
+—no está roto, está sin optimizar— y se arregla midiendo su CDN con `curl` y añadiéndolo:
+
+```bash
+curl -s -o /dev/null -w '%{http_code} %{size_download} %{time_total}\n' "<url>"
+curl -s -o /dev/null -w '%{http_code} %{size_download} %{time_total}\n' "<url>?<param>=563"
+```
+
+Dos cosas que la salida enseña y conviene no malinterpretar: **un host puede ser de dos tiendas**
+(`dam.elcorteingles.es` es de Sfera y de Hipercor, y solo la primera trae el ancho de origen), y una
+tienda puede publicar por **dos hosts** (H&M por `image.hm.com` y `media.arket.com`). Así que el
+recuento por host no cuadra con el de tiendas, y no es un error.
+
 ## D8 · Barefoot, sección y género
 
 ```sql
