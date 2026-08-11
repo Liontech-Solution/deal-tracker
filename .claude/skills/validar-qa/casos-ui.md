@@ -11,23 +11,34 @@ ve un hueco y se va— pero son la señal más temprana que hay.
 
 ---
 
-## U0 · Sesión
+## U0 · Sesión y el muro del catálogo
+
+Desde v0.3.0 **al catálogo solo se entra con sesión** (#309). Este bloque se ejerce entero
+**anónimo** —ventana limpia o de incógnito, sin arrastrar la sesión de una pasada anterior— y es lo
+primero que se hace, porque a partir de U3 ya no se puede volver atrás sin cerrar sesión.
 
 | # | Paso | Se espera |
 |---|---|---|
-| U1 | Cargar `/` sin sesión | catálogo público visible, botón de login en la cabecera |
-| U2 | Pulsar login | redirección al Keycloak de `keycloak-dev`, formulario real |
-| U3 | Entrar con las credenciales de `.claude/qa-test-user.local` | vuelta a la SPA **ya autenticada**, `UserMenu` en lugar del botón |
+| U1 | Cargar `/` sin sesión | la home: hero, «cómo funciona» y botón de login en la cabecera. **Ni una prenda, ni una foto de producto, ni el número de tiendas** — donde iba la tira de ofertas hay una invitación a entrar. Un solo producto visible aquí es **P0**: es la promesa de la versión |
+| U1b | Ir a `/catalogo` sin sesión (por la pestaña «Catálogo», el buscador de la cabecera o una tarjeta de sección) | aterriza en `/acceso`: hace falta cuenta · el registro está cerrado por ahora · botón de entrar. Que se vea el catálogo, aunque sea un instante antes de redirigir, es **P0** |
+| U1c | Abrir `/producto/<id>` a pelo sin sesión (el enlace compartido) | mismo muro en `/acceso` |
+| U1d | Abrir `/acceso` directamente | la página se sostiene sola y ofrece login, sin quedarse en blanco por no traer destino |
+| U1e | Con `browser_network_requests`, mirar las llamadas de U1 | las de `/api/catalog/*` o no se hacen, o responden **401**. Un 200 con datos significa que el candado está solo en la interfaz — **P0** |
+| U2 | Pulsar login desde `/acceso` (viniendo de U1c) | redirección al Keycloak de `keycloak-dev`, formulario real |
+| U3 | Entrar con las credenciales de `.claude/qa-test-user.local` | vuelta a la SPA **ya autenticada**, `UserMenu` en lugar del botón, y **de vuelta a la ficha de U1c**, no a la raíz. Volver a `/` es **P1**: rompe compartir enlaces, que es justo lo que U12 protege en el catálogo |
 | U4 | Recargar la página | la sesión **sobrevive** (`check-sso` + PKCE). Si obliga a repetir login, es **P0**: nadie usa así una web |
 
 El login va por la interfaz de verdad, no inyectando un token: parte de lo que se valida es que el
 `silent-check-sso` funciona en el dominio de QA.
 
+**Del resto del fichero en adelante se da por hecha la sesión de U3.** Antes de v0.3.0 daba igual
+en casi todos los casos; ahora no, porque sin ella no hay catálogo que recorrer.
+
 ## U1 · Home
 
 | # | Paso | Se espera |
 |---|---|---|
-| U5 | Cargar `/` | hero, buscador y tira de ofertas **con productos y fotos** |
+| U5 | Cargar `/` **con sesión** | hero, buscador y tira de ofertas **con productos y fotos**, y el contador «N tiendas rastreadas» con su número. Contrasta con U1: los mismos elementos que allí no pueden verse, aquí tienen que estar |
 | U6 | La tira de ofertas | 8 ítems como mucho; si no hay ninguna oferta real, el estado vacío honesto, nunca una fila rota |
 | U7 | Escribir en el buscador y enviar | navega a `/catalogo?q=…` con el término aplicado |
 | U8 | Pulsar una sugerencia (`botas`) | misma navegación con ese término |
@@ -69,7 +80,7 @@ El login va por la interfaz de verdad, no inyectando un token: parte de lo que s
 
 | # | Paso | Se espera |
 |---|---|---|
-| U32 | «Seguir esta variante» **sin** sesión | lanza el login, no un error |
+| U32 | «Seguir esta variante» **sin** sesión | ~~lanza el login~~ **ya no se puede ejercer desde v0.3.0**: a la ficha no se llega sin sesión (#309), así que la rama anónima solo es alcanzable si el token caduca con la página abierta. Si consigues provocarlo, el botón tiene que llevar al login y no dar un error; si no, decláralo **no aplicable**, no fallado |
 | U33 | Con sesión | abre el `FollowModal` |
 | U34 | El modal | alcance variante/producto, slider 5–70 en pasos de 5 (20 por defecto), base de comparación y ventana 7/14/30/60/90 (30 por defecto) |
 | U35 | Escape y clic en el fondo | cierran el modal |

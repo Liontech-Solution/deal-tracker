@@ -19,7 +19,12 @@ export interface AuthContextValue {
   ready: boolean;
   authenticated: boolean;
   user: AuthUser | null;
-  login: () => void;
+  /**
+   * Arranca el login. Sin argumento vuelve a la URL actual, que es lo que quiere casi todo el
+   * mundo; con `redirectTo` (URL absoluta) vuelve a otro sitio — lo usa la página de acceso de
+   * #309, a la que se llega redirigido desde el destino real y por tanto no puede usar la suya.
+   */
+  login: (redirectTo?: string) => void;
   logout: () => void;
 }
 
@@ -66,7 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ready,
       authenticated,
       user,
-      login: () => getKeycloak()?.login({ redirectUri: window.location.href }),
+      login: (redirectTo?: string) =>
+        getKeycloak()?.login({ redirectUri: redirectTo ?? window.location.href }),
       logout: () => getKeycloak()?.logout({ redirectUri: window.location.origin }),
     }),
     [enabled, ready, authenticated, user],

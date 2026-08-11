@@ -6,8 +6,17 @@ Base: `https://dealtracker-qa.liontechsolution.com/api`. Token del usuario `test
 ```bash
 API=https://dealtracker-qa.liontechsolution.com/api
 TOKEN=$(.claude/skills/validar-qa/scripts/qa-token.sh)
+aut=(-H "Authorization: Bearer $TOKEN")                  # atajo: petición firmada
 cod() { curl -s -o /dev/null -w '%{http_code}' "$@"; }   # solo el código
 ```
+
+> **Desde v0.3.0 el catálogo pide sesión (#309).** Salvo que un caso diga explícitamente lo
+> contrario, **todas** las peticiones de este fichero van firmadas con `"${aut[@]}"` — incluidas
+> las del catálogo, que hasta v0.2.0 se hacían a pelo. Solo tres endpoints siguen siendo públicos,
+> y hay casos que lo comprueban: `/health`, `/config` y el 404 de A3.
+>
+> Un 401 inesperado en el bloque de catálogo casi siempre es el token caducado, no una regresión:
+> vuelve a pedirlo antes de escribir nada.
 
 Estos casos no repiten lo que ya cubren los e2e de `services/web/test/`. Están para lo que aquellos
 no pueden ver: que el **contrato desplegado en QA**, contra el **dato real de nueve tiendas** y con
@@ -23,7 +32,7 @@ Keycloak de por medio, se comporta como dice el código.
 | A2 | `GET /config` | 200 con `url`, `realm` y `clientId` **no nulos**. En QA hay Keycloak; tres nulos significan que el despliegue perdió la configuración y media SPA queda en modo placeholder — **P0** |
 | A3 | `GET /noexiste` | 404, y **no** el `index.html` de la SPA: el `ServeStaticModule` excluye `/api/*` |
 
-## Catálogo público
+## Catálogo (con sesión)
 
 | # | Petición | Se espera |
 |---|---|---|
@@ -77,11 +86,16 @@ Keycloak de por medio, se comporta como dice el código.
 
 ## Autenticación
 
+Desde v0.3.0 este bloque es el que sostiene la promesa central de la versión: **sin cuenta no se ve
+ni un producto ni una tienda** (#309). Los cuatro del catálogo se suman aquí a los seis de usuario.
+
 | # | Petición | Se espera |
 |---|---|---|
-| A36 | Los seis endpoints de usuario **sin** `Authorization` | **401** los seis. Un 500 significa que la estrategia JWT no se registró — **P0** |
+| A36 | Los **diez** endpoints protegidos **sin** `Authorization` — los seis de usuario (`/interests` ×3, `/settings/telegram` ×3) y los **cuatro del catálogo** (`/catalog/products`, `/catalog/products/:id`, `/catalog/variants/:id/price-history`, `/catalog/facets`) | **401** los diez. Un 500 significa que la estrategia JWT no se registró — **P0**. Un **200 en cualquiera de los cuatro del catálogo es P0 y hunde la versión**: es exactamente lo que #309 existe para impedir |
 | A37 | Con `Authorization: Bearer basura` | **401**, no 500 |
 | A38 | `GET /interests` con token válido | 200 y un array (vacío o no) |
+| A52 | `GET /health` y `GET /config` **sin** `Authorization` | **200** los dos. Si el candado se los hubiera llevado por delante, la SPA no podría ni ofrecer login: la página de acceso quedaría muerta y nadie podría entrar — **P0** |
+| A53 | `GET /catalog/products` **con** token válido | 200 y el mismo cuerpo que A4. Contrasta con A36: prueba que el candado deja pasar a quien tiene sesión, no que el catálogo esté roto |
 
 ## Intereses
 

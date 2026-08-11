@@ -47,25 +47,38 @@ async function parseError(res: Response): Promise<never> {
   throw new ApiError(res.status, detail);
 }
 
-/** GET público (catálogo). No adjunta token. */
-export async function apiGet<T>(path: string, params?: Record<string, unknown>): Promise<T> {
-  const res = await fetch(buildUrl(path, params), { headers: { Accept: 'application/json' } });
-  if (!res.ok) await parseError(res);
-  return (await res.json()) as T;
-}
-
 async function authHeaders(): Promise<Record<string, string>> {
   const token = await tokenGetter();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-/** GET autenticado (recursos del usuario, p.ej. `/interests`). Adjunta `Bearer` si hay sesión. */
-export async function apiGetAuth<T>(path: string, params?: Record<string, unknown>): Promise<T> {
+/**
+ * GET que adjunta el token **si lo hay**. Antes era el GET público del catálogo y nunca lo
+ * adjuntaba; desde #309 el catálogo pide sesión, así que sus cuatro hooks tienen que ir firmados.
+ *
+ * Sigue tolerando la ausencia de token porque su otro llamante es `/config`, que se pide durante
+ * el arranque de Keycloak — ahí todavía no hay instancia y `getFreshToken()` devuelve `null`, o
+ * sea que esa petición sale igual que siempre. El endpoint es público y tiene que seguirlo: sin
+ * él el navegador no sabe ni contra qué realm autenticarse.
+ *
+ * El cambio vive aquí y no en los hooks a propósito, para no tocar `hooks.ts` (#292).
+ */
+export async function apiGet<T>(path: string, params?: Record<string, unknown>): Promise<T> {
   const res = await fetch(buildUrl(path, params), {
     headers: { Accept: 'application/json', ...(await authHeaders()) },
   });
   if (!res.ok) await parseError(res);
   return (await res.json()) as T;
+}
+
+/**
+ * GET de un recurso **del usuario** (`/interests`, `/settings/*`). Desde #309 hace exactamente lo
+ * mismo que `apiGet`, y se queda como alias por lo que declara en el call site: estos endpoints
+ * responden 401 sin token siempre, mientras que los de `apiGet` solo lo hacen si el entorno trae
+ * Keycloak.
+ */
+export async function apiGetAuth<T>(path: string, params?: Record<string, unknown>): Promise<T> {
+  return apiGet<T>(path, params);
 }
 
 /** POST/PUT/PATCH/DELETE autenticado. Devuelve `T` o `void` si la respuesta es 204. */

@@ -84,7 +84,9 @@ Dos casos no se sostienen solos, y hay que saberlo antes de correr un frente ais
 
 - **D6** (prendas duplicadas) necesita contrastar la base contra la respuesta de la API. Con
   `--frente datos` el agente lo resuelve con `curl`, pero en la pasada completa la respuesta ya la
-  tiene el frente de API: pásale el `product_id` en lugar de que lo repita.
+  tiene el frente de API: pásale el `product_id` en lugar de que lo repita. Desde v0.3.0 ese `curl`
+  **va firmado** (`scripts/qa-token.sh`): el catálogo ya no es público (#309), y sin token devuelve
+  401 — que a mitad de un frente de datos se lee como una API caída y no lo es.
 - **D13** (vigía) depende del job de la Fase 1. Con `--frente datos` **no se lanza**: se declara
   fuera de alcance de esa ejecución. Una dependencia no satisfecha no es un fallo, y reportarla como
   tal mete un P0 falso.

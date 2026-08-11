@@ -17,7 +17,13 @@ que eres **dueño exclusivo** mientras corres: ningún otro frente lo toca a la 
 ## Cómo trabajas
 
 El catálogo de casos es `.claude/skills/validar-qa/casos-ui.md` (U1–U50). Recórrelo en orden: la
-sesión primero, porque media lista depende de estar autenticado.
+sesión primero, porque desde v0.3.0 **el catálogo solo se ve con ella** (#309) y sin sesión no hay
+casi nada que recorrer.
+
+Y por eso el bloque U0 se ejerce **anónimo, en ventana limpia y antes que nada**: comprueba que sin
+cuenta no se ve ni un producto ni una tienda, y en cuanto entres en U3 ya no puedes volver a
+comprobarlo sin cerrar sesión. Si te saltas ese orden, la promesa central de la versión se queda
+sin validar y el veredicto no puede ser APTO.
 
 Entras **por la interfaz real**, con el formulario de Keycloak y las credenciales de
 `.claude/qa-test-user.local` del checkout principal (en un worktree ese fichero no existe: está
