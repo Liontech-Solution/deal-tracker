@@ -3,8 +3,10 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 import { AuthProvider } from './auth/AuthProvider';
 import { Layout } from './components/Layout';
+import { RequireSession } from './components/RequireSession';
 import { ThemeProvider } from './components/ThemeProvider';
 import { ToastProvider } from './components/Toast';
+import { AccessPage } from './pages/AccessPage';
 import { CatalogPage } from './pages/CatalogPage';
 import { HomePage } from './pages/HomePage';
 import { InterestsPage } from './pages/InterestsPage';
@@ -23,8 +25,26 @@ const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { index: true, element: <HomePage /> },
-      { path: 'catalogo', element: <CatalogPage /> },
-      { path: 'producto/:id', element: <ProductPage /> },
+      // Las dos rutas que enseñan catálogo van tras el candado de #309. `/seguimientos` y
+      // `/ajustes` no lo necesitan: ya resuelven la sesión dentro de la página, y subirlas aquí
+      // significaría borrar esas ramas, que es trabajo de #302.
+      {
+        path: 'catalogo',
+        element: (
+          <RequireSession>
+            <CatalogPage />
+          </RequireSession>
+        ),
+      },
+      {
+        path: 'producto/:id',
+        element: (
+          <RequireSession>
+            <ProductPage />
+          </RequireSession>
+        ),
+      },
+      { path: 'acceso', element: <AccessPage /> },
       { path: 'seguimientos', element: <InterestsPage /> },
       { path: 'ajustes', element: <SettingsPage /> },
     ],

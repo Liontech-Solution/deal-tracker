@@ -92,6 +92,13 @@ Everything `KEYCLOAK_*` and `TELEGRAM_*` is **optional by design**: with them un
 (the SPA works as a public catalog, user endpoints return 401) and the matching job forces
 `--dry-run`. That is exactly how `dev` runs.
 
+Which means the **catalogue lock cuts both ways**. Since v0.3.0 (#309) the four catalogue endpoints
+require a session and the SPA sends anonymous visitors to `/acceso` — but only *where Keycloak is
+configured*, because `CatalogAuthGuard` and `RequireSession` both hinge on `isAuthConfigured()`. In
+`dev`, which deliberately drops the `KEYCLOAK_*`, the catalogue stays wide open. So **a green dev
+proves nothing about access**: that is only observable in QA and prod. The home is public either
+way, but with no session it shows neither products nor the retailer count.
+
 Docker images build with the build context at the **repo root**:
 `docker build -f services/scraper/Dockerfile -t deal-tracker-scraper .`
 

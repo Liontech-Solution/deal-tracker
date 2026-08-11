@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { useAuth } from '../auth/AuthProvider';
 import { HonestyBadge } from '../components/Badges';
 import { ArrowRightIcon, CheckIcon, SearchIcon } from '../components/icons';
 import { ProductCard } from '../components/ProductCard';
@@ -21,23 +22,29 @@ const SUGGESTIONS = ['botas', 'pantalones', 'sudadera'];
 /** Cuántas ofertas enseña la portada. Suficiente para dos filas cómodas y ni una tarjeta de relleno. */
 const DEALS_ON_HOME = 8;
 
+/** Las dos cifras que no salen del catálogo, y que por tanto ve todo el mundo. */
+const STATS_FIJOS = [
+  { n: 'Barefoot', l: 'ropa y calzado infantil' },
+  { n: 'Cero', l: 'descuentos falsos' },
+];
+
 export function HomePage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const facets = useFacets();
+  const auth = useAuth();
   const [text, setText] = useState('');
+
+  /**
+   * Si quien mira puede ver catálogo (#309). Con Keycloak configurado hace falta sesión; sin él
+   * —así corre `dev`— la home es la de siempre. Mientras `ready` es falso se asume que no: pintar
+   * la tira de ofertas antes de saberlo dispararía `useProducts` sin token y devolvería un 401.
+   */
+  const conCatalogo = auth.ready && (!auth.enabled || auth.authenticated);
 
   const goSearch = (q: string) => {
     const term = q.trim();
     navigate(term ? `/catalogo?q=${encodeURIComponent(term)}` : '/catalogo');
   };
-
-  const stats = [
-    // Sin número inventado mientras carga: un guion dice la verdad, un "8" por defecto no.
-    { n: facets.data ? `${facets.data.retailers.length}` : '—', l: 'tiendas rastreadas' },
-    { n: 'Barefoot', l: 'ropa y calzado infantil' },
-    { n: 'Cero', l: 'descuentos falsos' },
-  ];
 
   return (
     <section className="dt-fade">
@@ -96,14 +103,7 @@ export function HomePage() {
               Empieza a seguir prendas
             </button>
           </div>
-          <div style={{ display: 'flex', gap: 22, marginTop: 30, flexWrap: 'wrap' }}>
-            {stats.map((st) => (
-              <div key={st.l}>
-                <div className="serif" style={{ fontSize: 26, fontWeight: 600, color: 'var(--text)' }}>{st.n}</div>
-                <div style={{ fontSize: 13, color: 'var(--text-faint)' }}>{st.l}</div>
-              </div>
-            ))}
-          </div>
+          {conCatalogo ? <StatsConTiendas /> : <StatsRow items={STATS_FIJOS} />}
         </div>
         <div style={{ position: 'relative' }}>
           <div style={{ borderRadius: 'var(--r-xl)', overflow: 'hidden', boxShadow: 'var(--shadow-3)', background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -116,7 +116,7 @@ export function HomePage() {
         </div>
       </div>
 
-      <TodaysDeals />
+      {conCatalogo ? <TodaysDeals /> : <DealsTrasLaPuerta />}
 
       {/* dos secciones */}
       <div className="dt-two" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 36 }}>
@@ -192,6 +192,56 @@ export function HomePage() {
         </div>
       </div>
     </section>
+  );
+}
+
+function StatsRow({ items }: { items: { n: string; l: string }[] }) {
+  return (
+    <div style={{ display: 'flex', gap: 22, marginTop: 30, flexWrap: 'wrap' }}>
+      {items.map((st) => (
+        <div key={st.l}>
+          <div className="serif" style={{ fontSize: 26, fontWeight: 600, color: 'var(--text)' }}>{st.n}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-faint)' }}>{st.l}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * El contador de tiendas sale de `useFacets()`, o sea del catálogo, que desde #309 pide sesión.
+ * Vive en su propio componente para que el hook **no llegue a montarse** sin ella: es la misma
+ * razón por la que `TodaysDeals` siempre fue un componente aparte.
+ */
+function StatsConTiendas() {
+  const facets = useFacets();
+  const tiendas = {
+    // Sin número inventado mientras carga: un guion dice la verdad, un "8" por defecto no.
+    n: facets.data ? `${facets.data.retailers.length}` : '—',
+    l: 'tiendas rastreadas',
+  };
+  return <StatsRow items={[tiendas, ...STATS_FIJOS]} />;
+}
+
+/**
+ * Lo que ocupa el sitio de la tira de ofertas cuando quien mira no tiene sesión (#309). No enseña
+ * ni una prenda ni una tienda —que es justo lo que la issue pide esconder—, y evita que la home
+ * anónima se quede con un hueco sin explicar entre el hero y las dos secciones.
+ */
+function DealsTrasLaPuerta() {
+  return (
+    <div style={{ marginTop: 48, background: 'var(--surface-2)', border: '1px dashed var(--border-strong)', borderRadius: 'var(--r-lg)', padding: '40px 24px', textAlign: 'center' }}>
+      <h2 className="serif" style={{ fontSize: 28, margin: '0 0 8px' }}>
+        Las ofertas <em style={{ color: 'var(--accent)' }}>reales</em> están dentro
+      </h2>
+      <p style={{ color: 'var(--text-muted)', maxWidth: 460, margin: '0 auto 20px', lineHeight: 1.55, fontSize: 14.5 }}>
+        El catálogo y las prendas por debajo de su mínimo reciente se ven con la sesión iniciada.
+        Hace falta cuenta, y el registro está cerrado por ahora.
+      </p>
+      <Link className="btn btn-primary" to="/acceso" style={{ padding: '12px 22px', textDecoration: 'none' }}>
+        Iniciar sesión
+      </Link>
+    </div>
   );
 }
 

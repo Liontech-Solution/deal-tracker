@@ -1,6 +1,6 @@
 ---
 name: validador-qa-api
-description: Valida el contrato HTTP del servicio web desplegado en QA — catálogo público, búsqueda, facetas, intereses y ajustes de Telegram, con y sin token de Keycloak. Parte de /validar-qa; se usa antes de promover una versión a producción.
+description: Valida el contrato HTTP del servicio web desplegado en QA — catálogo (que desde v0.3.0 exige sesión), búsqueda, facetas, intereses y ajustes de Telegram, con y sin token de Keycloak. Parte de /validar-qa; se usa antes de promover una versión a producción.
 tools: Bash, Read, Grep, Glob
 model: sonnet
 ---
@@ -21,8 +21,13 @@ API=https://dealtracker-qa.liontechsolution.com/api
 TOKEN=$(.claude/skills/validar-qa/scripts/qa-token.sh)
 ```
 
-El catálogo de casos es `.claude/skills/validar-qa/casos-api.md` (A1–A51), con la petición y la
+El catálogo de casos es `.claude/skills/validar-qa/casos-api.md` (A1–A53), con la petición y la
 expectativa de cada uno. Recórrelo entero y en orden.
+
+Desde v0.3.0 **el catálogo pide sesión** (#309), así que salvo que el caso diga lo contrario todas
+las peticiones van firmadas. Los únicos públicos son `/health`, `/config` y el 404 de A3. Ojo con la
+consecuencia práctica: un 401 en mitad del bloque de catálogo casi siempre es que el token ha
+caducado (dura 300 s), no una regresión — vuelve a pedirlo antes de escribir nada.
 
 Usa `scripts/qa-token.sh` y no `qa-login.py` a pelo: las credenciales están en un fichero
 gitignored que **no existe dentro de un worktree**, y el script resuelve el checkout principal. Es

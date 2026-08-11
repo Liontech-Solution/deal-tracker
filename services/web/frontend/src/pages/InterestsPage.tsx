@@ -34,7 +34,7 @@ export function InterestsPage() {
     return (
       <Centered>
         <Empty title="Inicia sesión" text="Entra para ver y configurar los avisos de bajada de precio.">
-          <button onClick={auth.login} className="btn btn-primary" style={{ marginTop: 16, padding: '12px 20px' }}>
+          <button onClick={() => auth.login()} className="btn btn-primary" style={{ marginTop: 16, padding: '12px 20px' }}>
             Iniciar sesión
           </button>
         </Empty>
