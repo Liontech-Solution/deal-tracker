@@ -11,8 +11,24 @@ export interface InterestView extends Interest {
   retailerName: string | null;
   /** Nombre del producto apuntado (directo por `product_id` o vía la variante). */
   productName: string | null;
-  /** Etiqueta legible de la variante apuntada, p.ej. "Talla 24 · rojo". */
+  /**
+   * Etiqueta legible de la variante apuntada, p.ej. "Talla 24 · rojo".
+   *
+   * **Es la del BOT**, y por eso lleva el color tal cual lo escribe la tienda: la misma cadena que
+   * sale en el aviso de Telegram (#223). La SPA no la pinta desde #297 — se compone allí a partir
+   * de las dos piezas de abajo, para poder capitalizar el color sin tocar lo que se envía.
+   */
   variantLabel: string | null;
+  /**
+   * Las dos piezas con las que se arma `variantLabel`, expuestas desde #297 para que la SPA pueda
+   * rotular sin **parsear una cadena ya montada** ni rehacer `size_canon` en TypeScript.
+   *
+   * `variantSize` es la talla CANÓNICA (la misma que guarda `interest.size` y que ofrecen las
+   * facetas, #223); `variantColor` es el color CRUDO, porque `color_canon` devuelve NULL para lo
+   * que no reconoce (#51) y canonizarlo aquí lo borraría en vez de normalizarlo.
+   */
+  variantSize: string | null;
+  variantColor: string | null;
   /**
    * Producto al que enlazar la tarjeta (#302): el apuntado, o el de la variante apuntada. `null`
    * en un interés por filtros, que no apunta a ninguna prenda — y esa es la razón de que este

@@ -451,6 +451,9 @@ export class CatalogService {
       // `size_canon` borra —'2 años (92 cm)' -> '2 años', ver la 0024— es justo por lo que un padre
       // elige. La canónica no se pierde: viaja en `variantLabel`, aquí abajo.
       size: (row.size as string | null) ?? null,
+      // Ya se calculaba aquí abajo para `variantLabel`; desde #297 sale también como campo propio,
+      // porque la SPA compone la etiqueta por su cuenta para capitalizar el color.
+      sizeCanon: (row.size_canon as string | null) ?? null,
       color: (row.color as string | null) ?? null,
       sku: (row.sku as string | null) ?? null,
       url: (row.url as string | null) ?? null,

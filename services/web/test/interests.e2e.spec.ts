@@ -149,6 +149,11 @@ describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
       // El color va CRUDO a propósito: `color_canon` devuelve NULL para lo que no reconoce (#51),
       // así que canonizarlo aquí borraría el color en vez de normalizarlo.
       expect(view.variantLabel).toBe('Talla 2 años · Rosa / Blanco');
+      // #297: la SPA deja de pintar esa etiqueta y arma la suya con estas dos piezas, para poder
+      // capitalizar el color. `variantLabel` se comprueba justo arriba y NO cambia, que es la
+      // condición de aquella decisión: es la cadena que sale en el aviso de Telegram.
+      expect(view.variantSize).toBe('2 años');
+      expect(view.variantColor).toBe('Rosa / Blanco');
     } finally {
       await app.close();
     }
