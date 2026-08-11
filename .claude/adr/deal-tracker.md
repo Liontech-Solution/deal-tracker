@@ -2298,6 +2298,12 @@ menos de 30 s, sale a la red a refrescarlo antes de que salga la petición de la
 `await apiSend(...)` no es un salto de red, son hasta dos, y el segundo va a un host distinto del
 de la API.
 
+**Desde #309 esto alcanza también al catálogo**: `apiGet` dejó de ser el GET público que nunca
+adjuntaba token y pasa por el mismo `authHeaders()`, así que las cuatro peticiones del catálogo
+—las más frecuentes de la SPA con diferencia— pueden llevar dentro ese salto. Lo que era un
+mecanismo del rincón autenticado ahora es el camino normal, y el sospechoso de #262 se mide sobre
+un denominador mucho mayor.
+
 Casi siempre da igual. Importa en un caso concreto y poco intuitivo: **cualquier cosa que el
 navegador solo permita bajo un gesto del usuario deja de estar permitida después de un `await` a
 una función autenticada.** Los navegadores conceden una *activación transitoria* al gesto, que
@@ -2328,6 +2334,47 @@ de pop-ups de un navegador de escritorio. Lo que sí es portable y decisivo es l
 El mismo mecanismo es el sospechoso de #262 (un 401 aislado en el sondeo de Telegram que se cura
 solo): ese refresco implícito es una carrera que ocurre en cada petición autenticada y que nadie ve
 en el código de la llamada.
+
+### Un control condicionado al entorno solo se puede verificar en el entorno que lo tiene (#309)
+
+Desde v0.3.0 el catálogo pide sesión: `CatalogAuthGuard` protege los cuatro endpoints y
+`RequireSession` envuelve las rutas que los consumen. Pero **el candado es condicional a
+`isAuthConfigured()`** — sin `KEYCLOAK_ISSUER_URL` deja pasar.
+
+No es una concesión: el overlay de dev **borra las `KEYCLOAK_*` a propósito** (decisión de #23), y
+un candado incondicional dejaría ese entorno sin nada visible, que es justo donde la épica manda
+trabajar issue por issue. La alternativa —darle realm a dev— cuesta un cliente de Keycloak más y un
+secreto más en el repo de manifiestos para un entorno que existe para iterar rápido.
+
+La consecuencia es la que hay que recordar, porque no se deduce leyendo el código de una sola
+llamada: **dev en verde no prueba absolutamente nada sobre el acceso**. Ni el despliegue, ni un
+recorrido manual, ni el CI. El comportamiento que la issue existe para producir solo es observable
+donde hay realm, o sea **QA y prod**, y a QA no llega hasta que un `release-qa` corta la versión.
+Eso mueve trabajo de verificación *después* del merge por construcción, no por descuido, y por eso
+#309 cerró con dos casillas vivas en una issue aparte (#311) en vez de quedarse abierta esperando
+un despliegue.
+
+Generalizado, que es lo que vale para la próxima: **cuando un control de seguridad se apaga solo en
+algún entorno, la matriz de verificación deja de ser «pasa / no pasa» y se convierte en «pasa
+dónde»**. Hay que decir de antemano en qué entorno se comprueba cada mitad, o la mitad que no se
+puede ver aquí se da por buena sin que nadie lo haya decidido. Las dos mitades de #309:
+
+| afirmación | dónde se prueba |
+|---|---|
+| Con auth configurada, 401 sin token | spec e2e, forzando `KEYCLOAK_ISSUER_URL` antes de cargar `AppModule`. No hace falta Keycloak vivo: sin bearer, passport corta antes de mirar el JWKS |
+| Sin `KEYCLOAK_*`, el catálogo sigue abierto | los e2e de catálogo de siempre, que corren en ese entorno — son el grupo de control, y su valor es que **no** hubo que tocarlos |
+| El muro y el enlace compartido, sobre lo desplegado | solo QA y prod (#311) |
+
+Dos detalles del diseño que se decidieron aquí y conviene no revertir por descuido:
+
+- **El guard del catálogo es otro guard, no `JwtAuthGuard`.** Aquel lanza 401 cuando *no* hay auth
+  configurada, porque un recurso de usuario al que nadie puede autenticarse es exactamente un 401.
+  El catálogo quiere la regla simétrica. Los dos se apoyan en el mismo `isAuthConfigured()`, y
+  reutilizar el primero habría dejado dev sin catálogo.
+- **El candado de la SPA va en la ruta, no en los hooks.** Además de no pisar `useProducts`, envolver
+  la página impide que sus hooks lleguen a montarse: si dispararan antes de que `AuthProvider`
+  resuelva `/api/config`, el token sería `null` todavía y la primera carga daría 401 con sesión
+  válida. Por eso la rama `!ready` del wrapper no es cosmética.
 
 ### El aviso no se puede provocar a voluntad: hace falta una bajada real, y el tachado no sirve
 
