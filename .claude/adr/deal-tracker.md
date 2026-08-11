@@ -2333,6 +2333,109 @@ en la Postgres desechable, una petición, y del log salen el SQL y sus parámetr
 de verdad importa al mover algo fuera del `LIMIT`: que la subconsulta corra con **`loops` = tamaño de
 la página** y no una vez por producto, porque entre la agregación y el `LIMIT` hay un nodo `Sort`.
 
+### La faceta describe la vista, y cruzarla tiene una frontera de coste declarada (#292, #291)
+
+`getFacets()` es lo que llena el panel de filtros, y hasta la v0.3.0 solo se acotaba por `barefoot`,
+`section` y el eje `deportiva`. La consecuencia es que **ofrecía chips que no devuelven nada**: el
+panel enseñaba las tallas del catálogo entero aunque ya hubiera una categoría elegida, se pinchaba
+una y el catálogo salía vacío. Medido sobre una copia de `dev` (12.870 productos, 127.567 variantes),
+en `ropa`: de las **165** tallas ofrecidas, con una categoría puesta solo **82** devuelven algo, y con
+género y color quedan **71**. O sea que la mitad larga de los chips era una promesa falsa, y no un
+caso de borde.
+
+Desde #292 la faceta recibe los mismos filtros que el listado. Tres reglas, y ninguna es opcional:
+
+- **Cada faceta omite su propio eje.** La lista de tallas se acota por categoría, color, tienda,
+  género y búsqueda, pero **no** por la talla ya elegida. Si se acotara, quedaría esa sola talla y no
+  habría forma de cambiar de idea sin limpiar el filtro. Es la regla clásica del filtrado por
+  facetas y es lo único que lo hace usable.
+- **`sections` no la acota nada.** Es el eje de navegación con el que se sale de la vista, y desde
+  #292 también lo que eligen las pestañas del grupo de talla; unas pestañas que desaparecen según lo
+  filtrado encierran al usuario en la sección en la que está.
+- **Los filtros de variante (talla y color) se aplican a la MISMA fila de variante**, no por
+  separado. Una prenda cuenta como «azul en 4 años» si tiene una variante que es las dos cosas, no si
+  tiene una azul y otra de 4 años. Es la semántica de `matched` en `listProducts`, y cualquier otra
+  haría que la faceta prometiera lo que el listado no devuelve.
+
+**La frontera es de coste, y está declarada en `CatalogFilterDto`.** Cruzan solo los ejes que se
+resuelven con `product` + `variant`; `inStock`, `onlyDeals` y el rango `minPrice`/`maxPrice` **no**,
+porque obligarían a la faceta a montar el CTE `latest` sobre `price_history` y las facetas se piden
+ahora en **cada** cambio de filtro. Cruzar lo barato cuesta **63 ms**. Y la frontera **se nota**: el
+`ValidationPipe` global va con `forbidNonWhitelisted`, así que mandarle `inStock` a `/catalog/facets`
+no se ignora, responde **400**. Eso es lo que se quiere —una frontera silenciosa se cruza sin
+enterarse— pero obliga a la SPA a enumerar lo que manda en vez de reenviar su objeto de filtros
+entero, y por eso `FacetQuery` se deriva de `ProductQuery` con un `Pick` explícito.
+
+**Los recuentos por chip se descartaron con números**, y conviene que quede escrito porque es la
+propuesta que vuelve sola: dar a cada chip su «(12)» y apagar los de 0 costó entre **6,8 y 19,3 s**
+en las cuatro formas que se probaron, contra los 63 ms del cruce. El coste no es la canonicalización
+sino el `count(DISTINCT product_id)` por grupo, y bajarlo pide materializar un agregado por producto
+—o sea migración—, que es el mismo techo que #314.
+
+**Y la sección no es cosmética, es de corrección.** Sin sección elegida la faceta de talla ofrecía
+**205 chips de los cuales 36 son ambiguos**: `36-38` es un calcetín en `ropa` y un número de pie en
+`zapateria`, `24-25` igual. Pinchar uno filtraba las dos cosas a la vez. De ahí que el grupo de talla
+abra con dos pestañas y que cambiar de pestaña **limpie talla y categoría**: un filtro que se queda
+puesto cambiando de significado es peor que un filtro que se pierde.
+
+Un dato que ordena el panel y que no es evidente: **el vocabulario de talla lo fija la tienda, no la
+prenda.** Medido en `ropa`, todas las categorías publican 4-6 vocabularios distintos (meses, años,
+altura en cm, números, letras), mientras que por tienda se separan limpio — Sfera solo usa años (12
+tallas), Cacles solo números (16), C&A alturas en cm, Springfield los cinco (50), H&M cuatro (57).
+Por eso elegir tienda deja la lista en una o dos formas de medir y el panel pone *Tienda* justo
+encima de *Talla*. No se obliga a elegirla: el catálogo existe para no ir tienda por tienda, y
+condicionar el filtro de talla a una tienda le quitaría el sentido al producto.
+
+### Un plan de Postgres medido en el portátil no predice el del cluster (#292)
+
+Es la vuelta de tuerca a la lección de método de #307 —«mide la consulta que ejecuta el servicio, no
+una escrita a mano»—: **medir la consulta buena tampoco basta si se mide en la máquina equivocada**.
+
+El caso, con los mismos datos y el mismo SQL (faceta de color, 2.695 formas crudas en `ropa`,
+11/08/2026):
+
+|                              | portátil (PG 16.14) | dev, CNPG (PG 16.4) |
+|------------------------------|--------------------:|--------------------:|
+| sin filtros de producto      |              560 ms |            1.415 ms |
+| sin filtros + `AS MATERIALIZED` |           1.090 ms |            2.658 ms |
+| con categoría y género       |          **4.035 ms** |          **454 ms** |
+| con cat. y género + valla    |              339 ms |              818 ms |
+
+Las dos facetas que canonicalizan deduplican el texto crudo **antes** de llamar a la función, para
+que `size_canon`/`color_family` se evalúen una vez por forma distinta y no una por variante. En el
+portátil el planificador elige un **Nested Loop** y empuja `color_family(color)` **dentro del Index
+Scan**, deshaciendo el ahorro: 21.536 llamadas en vez de 794. En dev elige un **Hash Join** y no
+ocurre. Es la misma trampa que la migración 0014 documentó al descartar esa forma para el filtro de
+talla, pero con una diferencia que cambia la conclusión: **aparece o no según la máquina**.
+
+Lo importante es lo que casi se hace: poner `AS MATERIALIZED` para arreglar los 4 s. Habría sido una
+optimización tuneada al portátil que en dev —y por tanto en QA y prod, que corren la misma CNPG—
+dejaba la faceta **un 80 % más lenta en los dos casos**. Así que la regla operativa es:
+
+- **La Postgres desechable local prueba corrección, no planes.** Vale para los tests y para
+  comprobar que una consulta devuelve lo que debe; no vale para decidir una optimización que dependa
+  del plan (`MATERIALIZED`, reescribir un `EXISTS` como `JOIN`, forzar un índice).
+- **Antes de fijar una de esas, medirla contra la CNPG**, que se lee sin desplegar nada:
+  `kubectl -n data-dev exec platform-postgres-dev-1 -c postgres -- psql -d deal_tracker -c "..."`.
+  Son segundos y es la única cifra que representa dónde corre el código.
+- **Y si las dos máquinas discrepan, se escriben las dos columnas** junto a la decisión. Un solo
+  número invita a que el siguiente lo «arregle» con el suyo.
+
+Dos trampas de la copia local, medidas el mismo día y las dos silenciosas:
+
+- **`pg_dump` a través de `kubectl exec` puede truncarse.** Un volcado de 50 MB llegó cortado a
+  mitad de una fila del `COPY` de `variant`, y lo que se vio no fue un error de red sino
+  `date/time field value out of range: "20"` al restaurar — el trozo de un `timestamp` partido. La
+  tabla quedó vacía y el resto de la base parecía bien. La defensa es comprimir en el pod
+  (`bash -c "pg_dump ... | gzip -9"`): baja a 4,8 MB y `gzip -t` detecta el corte, que un `.sql`
+  plano no hace.
+- **Una restauración puede quedarse sin un índice por expresión** y no decirlo. Faltaba
+  `ix_variant_color_family`, y con él ausente la faceta de color tardaba 8,5 s en local mientras en
+  dev tardaba 1,4 s. Se atribuyó a deuda de #291 antes de comprobarlo, y era la copia. Tras
+  restaurar, `SELECT indexname FROM pg_indexes WHERE tablename='variant'` contra las dos bases; si
+  no coinciden, cualquier medida de rendimiento local habla de un esquema que no existe en ningún
+  sitio.
+
 ### `image_url` es una cadena opaca de la tienda, y el consumidor no puede suponerle forma (#207)
 
 `product.image_url` lo escribe el scraper y lo consume la SPA, así que es contrato entre servicios
