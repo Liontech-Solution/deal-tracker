@@ -1,74 +1,119 @@
 # deal-tracker
 
-Plataforma que **rastrea automáticamente ofertas** de ropa y calzado **barefoot para niños** y avisa a las familias, vía **bot de Telegram**, cuando una prenda que les interesa tiene una rebaja significativa.
+Rastrea automáticamente ofertas de **ropa y calzado barefoot infantil** y avisa por **Telegram**
+cuando una prenda que sigues baja de precio de verdad.
 
-## Motivación
+Nació de un problema concreto: la ropa barefoot para niños es cara, está repartida entre tiendas que
+no se parecen en nada y las rebajas duran poco. En vez de vigilar nueve webs a mano, dices qué te
+interesa y el sistema mira por ti.
 
-Facilitar la vida a los padres que buscan ropa para sus hijos pero no llegan a fin de mes. En lugar de vigilar manualmente muchas tiendas, el usuario configura en la plataforma qué prendas le interesan y el sistema hace el seguimiento de precios por él, avisándole solo cuando aparece una oferta que merece la pena.
+## Estado
 
-## Funcionalidades clave
+**En producción desde el 07/08/2026**, en `dealtracker.liontechsolution.com`. Ingiere a diario, con
+el trabajo de matching y el vigía encendidos. Hay además un entorno de QA público en
+`dealtracker-qa.liontechsolution.com`.
 
-- **Seguimiento de intereses por usuario:** cada familia configura, desde la plataforma web, en qué prendas está interesada para que se les haga el seguimiento de ofertas.
-- **Aviso por Telegram:** notificación cuando una prenda seguida baja de precio de forma significativa.
-- **Filtrado por talla y por modelo/color:** según lo que permita cada web, ya que el precio puede variar según la variante elegida.
-- **Segmentación niño / niña.**
-- **Secciones claramente diferenciadas:** **Ropa** y, aparte, **Zapatería** (calzado).
-- **Categorías de ropa (al menos 5):** pantalones, camisetas, sudaderas/jerseys, vestidos y ropa interior.
-- **Detección de altas y bajas de catálogo:** el sistema debe ser sensible a productos nuevos y a productos descatalogados, para dejar de consultar los que ya no existen. Requiere encontrar un **identificador único de producto por tienda**.
-- **Historial de precios:** se almacenan los precios a lo largo del tiempo para, más adelante, generar gráficos de evolución y **detectar descuentos engañosos** (cuando el porcentaje de rebaja anunciado no es real).
+Nueve tiendas, más de 150.000 variantes vivas y su histórico de precios. Las altas de usuario se
+hacen a mano: el registro está cerrado.
 
-## Obtención de precios
+## Qué hace
 
-La vía prevista es el **web scraping**, pero la mejor forma de monitorizar precios **depende de cada tienda** y habrá que investigarlo sobre la marcha, sorteando los obstáculos anti-scraping que aparezcan. Por eso los scrapers se diseñarán **por tienda y de forma desacoplada (pluggable)**.
+- **Seguimiento por prenda, talla y color.** El precio cambia según la variante en casi todas las
+  tiendas, así que el aviso se configura sobre la variante y no sobre el modelo.
+- **Aviso por Telegram** cuando una prenda seguida baja de forma significativa.
+- **Catálogo con sesión.** Navegar el catálogo requiere cuenta; sin ella solo se ve la portada.
+- **Filtros que acotan de verdad**: sección (Ropa / Zapatería), niño / niña, categoría, talla, color,
+  tienda y rango de precio. Talla, color y tienda admiten varios valores a la vez, y las facetas se
+  cruzan con lo que ya has filtrado en lugar de ofrecerte lo que dentro de tu selección no existe.
+- **Historial de precios** por variante, con su gráfica en la ficha.
+- **Detección de descuentos engañosos.** Guardar el precio a lo largo del tiempo permite contrastar
+  el tachado que anuncia la tienda con lo que la prenda ha costado de verdad. Dos tiendas (C&A y
+  Springfield) publican además el mínimo de 30 días que exige la directiva Ómnibus.
+- **Altas y bajas de catálogo.** El scraper detecta lo que desaparece para dejar de pedirlo, con
+  confirmación activa antes de dar una prenda por retirada: una hoja muerta no puede tumbar la pasada.
 
-### Tiendas objetivo
+## Cómo funciona
 
-- Mango Kids
-- Sfera
-- H&M
-- Springfield Kids
-- Zara
-- C&A
-- Hipercor
-- Lefties
+Monorepo **políglota**, dos servicios que **no se llaman entre sí**:
 
-## Arquitectura (borrador)
+| | |
+|---|---|
+| `services/scraper` | **Python.** Rastrea las tiendas e ingiere el catálogo y los precios |
+| `services/web` | **Node/TS.** API NestJS + SPA React/Vite + bot de Telegram |
 
-> Decisión abierta: **monolito vs. microservicios**. Se decidirá al arrancar el código.
+Se integran por la **Postgres compartida**, y el contrato entre ambos es su esquema: la serie
+numerada de SQL neutro bajo `db/migrations` (haz `ls`; cualquier número escrito aquí caduca en
+semanas). El scraper es dueño de las escrituras de `retailer`, `product`, `variant`, `price_history`,
+`scrape_run` y `vigia_run`; el web, de `app_user`, `interest`, `notification` y `job_state`.
 
-Piezas previstas:
+Los scrapers son **enchufables**: uno por tienda bajo `services/scraper/src/scraper/stores/`,
+registrados por slug en `registry.py`. Cómo sacar los precios no se decidió de antemano — depende de
+cada web y de lo que deje hacer.
 
-- **Plataforma web + autenticación:** donde los usuarios configuran sus prendas de interés.
-- **Servicio(s) de scraping:** un scraper por tienda, sujeto a investigación por las particularidades de cada web.
-- **Jobs / cronjobs de refresco:** procesos que rastrean y actualizan las ofertas cada cierto tiempo.
-- **Base de datos con historial de precios:** almacena precios en el tiempo para gráficas y detección de descuentos falsos.
-- **Bot de Telegram:** canal de notificación de ofertas.
+### Las nueve tiendas
 
-## Infraestructura
+| tienda | por dónde entra |
+|---|---|
+| **Zara** | endpoints AJAX JSON públicos |
+| **Lefties** | la misma API `itxrest` de Inditex que Zara, pero tras Akamai: va por navegador headless |
+| **Sfera** | navegador headless — está tras Akamai |
+| **Cacles Barefoot** | `products.json` de Shopify. Primera tienda *nativamente* barefoot, así que ahí no se adivina: se declara |
+| **C&A** | GraphQL con *persisted query* |
+| **Hipercor** | sus propias páginas, no una API: su `robots.txt` veta `/api`, así que se leen el `dataLayer` y el `ld+json` que cada página trae incrustados |
+| **H&M** | API REST en `api.hm.com`, fuera del Akamai que guarda la tienda |
+| **Mango Kids** | la única que publica su propio árbol de categorías: un endpoint de menú da el `catalogId` que consume el listado |
+| **Springfield** | por **sitemap** — su `robots.txt` veta la rejilla SFCC |
 
-- **Cluster k3s** como destino de despliegue.
-- **PostgreSQL en HA** ya montado en el cluster; se usará salvo que haya una razón fuerte para otra base de datos.
-- **Keycloak** ya desplegado en el cluster, para el sistema de login.
-- **Entornos:** `dev local` (dispositivo local), `dev` (cluster), `qa` (cluster) y `prod` (cluster).
-- **CI:** GitHub Actions.
-- **Despliegue:** ArgoCD, ya montado en k3s.
-- **Acceso al cluster:** kubeconfig en `~/.kube/k3slocal.yaml` (para inspeccionar el cluster cuando haga falta contexto).
+## Arrancar en local
 
-### Organización de repositorios
+Hace falta un **PostgreSQL** y un `DATABASE_URL`; el resto de la configuración sale del entorno
+(`.env.example` en la raíz para el scraper, `services/web/.env.example` para el web). Todo lo
+`KEYCLOAK_*` y `TELEGRAM_*` es **opcional a propósito**: sin ello la autenticación se apaga y el
+trabajo de matching se fuerza a `--dry-run`.
 
-- **Este repo** (bajo la organización de GitHub **`liontechsolution`**): construye la aplicación y el **artifact/imagen** que se despliega en el cluster. Aquí vive el **`Dockerfile`**, que debe estar muy optimizado.
-- **Repo de manifiestos** (`k3s-local-manifest` o similar, bajo el usuario `juanjocop`): define lo desplegado en el cluster (manifiestos de Kubernetes).
+```bash
+# scraper (Python) — el justfile de la raíz cubre solo este servicio
+just setup                    # venv + instalación editable con dependencias de desarrollo
+just run [tienda]             # rastrea (por defecto zara), aplicando migraciones antes
+just dry-run [tienda]         # rastrea sin escribir en la base
+just check-categories         # sondea las hojas de categoría; falla si alguna ha caducado
+just tree [tienda] [raiz]     # el árbol que publica la tienda, marcando lo que ingerimos
+just vigia                    # smoke en vivo de todas las tiendas registradas, sin ingerir
+just check                    # ruff + ruff format --check + mypy + pytest
 
-## Estado del proyecto
+# web (Node/TS) — desde services/web
+pnpm build:all                # API + frontend
+pnpm start:dev                # API en watch
+pnpm frontend:dev             # servidor de desarrollo de la SPA
+pnpm migrate                  # aplica db/migrations
+pnpm lint && pnpm typecheck && pnpm test
+```
 
-Fase inicial (greenfield): todavía **no hay código de aplicación**. Este repo arranca con la documentación de contexto para empezar a construir en la siguiente sesión.
+> **El `typecheck` de `services/web` no mira el frontend**, que es un paquete aparte. El CI sí lo
+> comprueba, así que un verde local sin estos dos vale menos de lo que parece:
+> `pnpm --filter @deal-tracker/frontend lint` y `... typecheck`.
 
-Decisiones pendientes para la próxima sesión:
+Dos avisos más sobre el verde local: los tests de ingesta del scraper **se saltan** si no defines
+`TEST_DATABASE_URL`, y los del web necesitan además un `TEST_DATABASE_URL_CTYPE_C` —una base con
+ctype `C`, como la del cluster, donde `lower()` no baja los acentos y la canonicalización se comporta
+distinto—. Sin ellas, buena parte de la suite no llega a ejecutarse.
 
-- Monolito vs. microservicios y stack tecnológico concreto.
-- Esquema de datos (catálogo, variantes talla/color, historial de precios, intereses de usuario).
-- Estrategia del **identificador único de producto por tienda** (base de la detección de altas/bajas).
+## Despliegue
 
-## Contexto para asistentes de IA
+Va a un cluster **k3s**: CronJobs por tienda para re-rastrear, más el de matching y el del vigía. La
+base es un cluster **CNPG** y el login es **Keycloak**. El CI (GitHub Actions) publica las imágenes y
+reescribe el tag en un **repo de manifiestos aparte** (`juanjocop/k3s-local-apps-manifests`), que
+**ArgoCD** sincroniza; esos manifiestos no se editan a mano.
 
-El archivo [`CLAUDE.md`](./CLAUDE.md) recoge la guía de contexto del proyecto para Claude Code y se sincroniza vía este repo, de modo que esté disponible desde cualquier dispositivo donde se clone.
+Cuatro entornos: `dev local`, `dev` (cada push a `main`), `qa` (semver) y `prod`. **Nada llega a
+producción sin un informe de QA en verde**: `release-prod` se niega a promover si
+`.claude/qa-reports/<versión>.md` no empieza por `Veredicto: APTO`.
+
+## Más contexto
+
+- [`CLAUDE.md`](./CLAUDE.md) — la guía operativa del repo: qué se rompe de qué manera, qué trampas
+  tiene el verde local y qué hay que saber antes de tocar cada cosa.
+- **El ADR**, en el MCP `codebase-memory` — la arquitectura y el contrato con el repo de manifiestos.
+  Léelo antes de cualquier cambio que cruce servicios o llegue a k8s.
+- `/validar-qa` — la skill que valida el entorno de QA de punta a punta (navegador, API, datos y
+  cluster) y emite el veredicto que abre la puerta a producción.
