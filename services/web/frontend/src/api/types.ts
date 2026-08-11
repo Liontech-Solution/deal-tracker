@@ -127,6 +127,20 @@ export interface Facets {
   retailers: RetailerFacet[];
 }
 
+/**
+ * Los ejes que `GET /catalog/facets` acepta (#292): desde que las facetas se cruzan, hay que
+ * mandarle lo mismo que al listado para que describa la vista que el listado va a devolver.
+ *
+ * **Los que necesitan precio no están, y no es por omisión:** el backend va con
+ * `forbidNonWhitelisted`, así que mandarle `inStock` u `onlyDeals` no se ignora, responde **400**.
+ * Por eso este tipo se deriva de `ProductQuery` en vez de reenviar el objeto de filtros entero —
+ * si algún día se añade un filtro barato, se suma aquí y en el DTO del backend a la vez.
+ */
+export type FacetQuery = Pick<
+  ProductQuery,
+  'q' | 'gender' | 'section' | 'category' | 'size' | 'color' | 'retailer' | 'deportiva'
+>;
+
 /** Base de comparación de la regla de aviso (espejo de `interest.compare_base`). */
 export type CompareBase = 'list_price' | 'recent_min';
 
@@ -208,6 +222,9 @@ export interface ProductQuery {
   onlyDeals?: boolean;
   /** Solo lo que la tienda publica como ropa de deporte (#180). Deja fuera a seis de las nueve. */
   deportiva?: boolean;
+  /** Rango de precio sobre el precio desde el que arranca el producto (#290). Ambos incluyen. */
+  minPrice?: number;
+  maxPrice?: number;
   sort?: ProductSort;
   limit?: number;
   offset?: number;

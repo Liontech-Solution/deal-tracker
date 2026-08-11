@@ -1,85 +1,34 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, Max, Min } from 'class-validator';
 
-/** Tope del término de búsqueda: nadie busca frases, y acota el coste del `LIKE` sin índice. */
-export const MAX_SEARCH_LENGTH = 80;
+import { CatalogFilterDto } from './catalog-filter.dto';
+
+/**
+ * Reexportados desde `catalog-filter.dto` para no romper a quien ya los importaba de aquí, que es
+ * donde vivieron hasta #292.
+ */
+export {
+  BAREFOOT_FILTERS,
+  MAX_SEARCH_LENGTH,
+  type BarefootFilter,
+} from './catalog-filter.dto';
 
 /** Criterios de ordenación admitidos por el catálogo. */
 export const PRODUCT_SORTS = ['ofertas', 'precio-asc', 'precio-desc', 'descuento'] as const;
 export type ProductSort = (typeof PRODUCT_SORTS)[number];
 
 /**
- * Filtro de calzado respetuoso. `si` es el DEFECTO del producto entero: es una plataforma de ropa
- * y calzado barefoot, así que enseñar calzado convencional sin pedirlo sería contar otra cosa.
+ * Filtros y paginación de `GET /api/catalog/products`. Todos opcionales.
  *
- * - `si` (defecto): toda la ropa + solo el calzado marcado como respetuoso.
- * - `no` / `desconocido`: solo calzado con esa marca. Sirven para auditar la clasificación.
- * - `all`: sin filtro — el escape explícito para la futura vista de "ver también el no respetuoso".
+ * Hereda de `CatalogFilterDto` los ejes que comparte con las facetas; lo que añade aquí es, por un
+ * lado, la paginación y el orden, y por otro los tres filtros que **necesitan `price_history`** y
+ * que por eso no cruzan a la faceta (la razón, medida, está en la cabecera de la clase base).
  */
-export const BAREFOOT_FILTERS = ['si', 'no', 'desconocido', 'all'] as const;
-export type BarefootFilter = (typeof BAREFOOT_FILTERS)[number];
-
-/** Filtros y paginación de `GET /api/catalog/products`. Todos opcionales. */
-export class ProductQueryDto {
-  /** Búsqueda libre sobre nombre, categoría y género. Insensible a mayúsculas y acentos. */
-  @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
-  @IsString()
-  @MaxLength(MAX_SEARCH_LENGTH)
-  q?: string;
-
-  @IsOptional()
-  @IsString()
-  gender?: string; // niño | niña | unisex
-
-  @IsOptional()
-  @IsString()
-  section?: string; // ropa | zapateria
-
-  @IsOptional()
-  @IsString()
-  category?: string;
-
-  @IsOptional()
-  @IsString()
-  size?: string;
-
-  @IsOptional()
-  @IsString()
-  color?: string;
-
-  @IsOptional()
-  @IsString()
-  retailer?: string; // slug de la tienda
-
+export class ProductQueryDto extends CatalogFilterDto {
   @IsOptional()
   @Transform(({ value }) => (value === undefined ? undefined : value === 'true' || value === true))
   @IsBoolean()
   inStock?: boolean;
-
-  /**
-   * Por defecto `si`: el catálogo esconde el calzado no respetuoso salvo que se pida lo contrario.
-   * No afecta a la ropa, donde la marca es NULL ("no aplica") y siempre pasa el filtro.
-   */
-  @IsOptional()
-  @IsIn(BAREFOOT_FILTERS)
-  barefoot: BarefootFilter = 'si';
-
-  /**
-   * Solo ropa que la tienda publica en su cajón de deporte (#180).
-   *
-   * **Apagado por defecto**, al revés que `barefoot`: aquel esconde lo que contradice al producto
-   * —calzado no respetuoso—, y este solo acota una búsqueda concreta. Encenderlo por defecto
-   * escondería casi todo el catálogo.
-   *
-   * Solo aplica a `ropa`: el calzado deportivo ya se encuentra por la categoría `zapatillas`. Y
-   * solo lo alimentan Sfera, Lefties y C&A, así que enciende un filtro que **excluye enteras** a
-   * las demás tiendas; la SPA lo dice junto al interruptor.
-   */
-  @IsOptional()
-  @Transform(({ value }) => (value === undefined ? undefined : value === 'true' || value === true))
-  @IsBoolean()
-  deportiva?: boolean;
 
   /**
    * Deja solo las **ofertas reales** (mínimo nuevo con rebaja contra el PVP creíble), no cualquier
@@ -90,6 +39,29 @@ export class ProductQueryDto {
   @Transform(({ value }) => (value === undefined ? undefined : value === 'true' || value === true))
   @IsBoolean()
   onlyDeals?: boolean;
+
+  /**
+   * Rango de precio (#290), sobre `price_from` — el precio de la variante más barata del producto,
+   * que es el que la tarjeta enseña. Filtrar por otro haría que el catálogo devolviera prendas cuyo
+   * precio visible cae fuera del rango pedido.
+   *
+   * Ambos extremos **incluyen**, que es lo que espera quien escribe "hasta 20 €".
+   *
+   * Van aquí y no en `CatalogFilterDto` por la misma razón que `inStock` y `onlyDeals`: el precio
+   * sale de `price_history`, así que cruzarlos a la faceta obligaría a montar el CTE `latest` en
+   * cada cambio de filtro. Ver la cabecera de la clase base.
+   */
+  @IsOptional()
+  @Transform(({ value }) => Number.parseFloat(value as string))
+  @IsNumber()
+  @Min(0)
+  minPrice?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => Number.parseFloat(value as string))
+  @IsNumber()
+  @Min(0)
+  maxPrice?: number;
 
   @IsOptional()
   @IsIn(PRODUCT_SORTS)

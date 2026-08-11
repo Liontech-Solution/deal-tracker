@@ -1,10 +1,17 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useRef } from 'react';
 
 import { apiGet, apiGetAuth, apiSend } from './client';
 import type {
   CreateInterestInput,
   Facets,
+  FacetQuery,
   InterestView,
   PricePoint,
   ProductDetail,
@@ -19,17 +26,22 @@ const PAGE_SIZE = 12;
 /**
  * Facetas para poblar los filtros (género/sección/categoría/talla/color/tiendas).
  *
- * `section` viaja al backend porque las tallas y las categorías de ropa y calzado no comparten
- * vocabulario: sin acotar, la lista de tallas es la unión de números de pie y rangos de edad.
+ * Desde #292 recibe **todos los filtros activos**, no solo la sección: las facetas se cruzan entre
+ * sí en el backend, así que la lista de tallas que devuelve es la de las prendas que quedan tras
+ * lo ya filtrado. Antes ofrecía tallas que dentro de la categoría elegida no existían, y pinchar
+ * una dejaba el catálogo vacío.
+ *
+ * Lo que se le manda es `FacetQuery`, que a propósito **no** incluye `inStock` ni `onlyDeals`: el
+ * backend los rechaza con 400 (ver el tipo). El objeto entra en la `queryKey`, así que cada
+ * combinación de filtros tiene su propia entrada en caché y volver atrás es instantáneo.
+ *
+ * `staleTime` largo porque el catálogo lo reescribe una pasada del scraper, no el usuario: dentro
+ * de una sesión de filtrado las facetas de una misma combinación no cambian.
  */
-export function useFacets(section?: string, deportiva?: boolean) {
+export function useFacets(query: FacetQuery) {
   return useQuery({
-    queryKey: ['facets', section ?? null, deportiva ?? false],
-    queryFn: () =>
-      apiGet<Facets>('/catalog/facets', {
-        ...(section ? { section } : {}),
-        ...(deportiva ? { deportiva: true } : {}),
-      }),
+    queryKey: ['facets', query],
+    queryFn: () => apiGet<Facets>('/catalog/facets', { ...query }),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -52,6 +64,22 @@ export function useProducts(query: Omit<ProductQuery, 'limit' | 'offset'>, pageS
       }),
     getNextPageParam: (lastPage) =>
       lastPage.items.length < lastPage.limit ? undefined : lastPage.offset + lastPage.limit,
+    /**
+     * La mitad de #292: **el contador mentía mientras cargaba**.
+     *
+     * Los filtros van en la `queryKey`, así que tocar uno estrenaba entrada de caché, `data`
+     * volvía a `undefined` e `items` a `[]`. Con eso la cabecera decía «0 prendas» y el botón del
+     * cajón «Ver 0 prendas» hasta que llegaba la respuesta — y quien lo reportó lo dijo bien:
+     * *«puede que sea un tema de latencias»*. Con los 24 s que tardaba el catálogo antes de #307
+     * eso se veía en cada clic.
+     *
+     * `keepPreviousData` mantiene la página anterior mientras llega la nueva, así que ya no hay
+     * ningún instante en el que la SPA afirme un número que no tiene. Lo que queda por hacer en
+     * quien lo pinta es NO presentar ese número como definitivo: `isPlaceholderData` dice que lo
+     * de pantalla es lo de antes, y `CatalogPage` lo usa para atenuar la rejilla y poner el botón
+     * en «ocupado». Un número viejo sin avisar es otra forma de mentir, más silenciosa.
+     */
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -16,6 +16,7 @@ import type {
   RetailerFacet,
   VariantWithPrice,
 } from './catalog.types';
+import type { FacetQueryDto } from './dto/facet-query.dto';
 import type { BarefootFilter, ProductQueryDto } from './dto/product-query.dto';
 
 /** Sección donde la marca barefoot aplica. En el resto (`ropa`) la columna es NULL. */
@@ -123,6 +124,8 @@ export class CatalogService {
     const retailer = q.retailer ?? null;
     const inStock = q.inStock ?? null;
     const onlyDeals = q.onlyDeals ?? null;
+    const minPrice = q.minPrice ?? null;
+    const maxPrice = q.maxPrice ?? null;
 
     // Búsqueda por texto: cada palabra debe aparecer en el nombre, la categoría o el género, en
     // cualquier orden ("botas niña" y "niña botas" encuentran lo mismo). El género entra porque es
@@ -286,7 +289,13 @@ export class CatalogService {
                            ORDER BY ph.scraped_at DESC LIMIT 1) = ${inStock})
              ) AS variant_count
         FROM scored
+      -- El rango de precio (#290) va AQUÍ, junto a onlyDeals: price_from es un MIN() que solo
+      -- existe tras el GROUP BY de agg, y filtrarlo después del LIMIT —o peor, en el servicio
+      -- sobre la página ya recortada— rompería la paginación por offset, que es el mismo argumento
+      -- ya escrito en #228. Extremos incluidos: quien pide "hasta 20 EUR" espera ver los de 20.
       WHERE (${onlyDeals}::boolean IS NOT TRUE OR is_real_deal)
+        AND (${minPrice}::numeric IS NULL OR price_from >= ${minPrice})
+        AND (${maxPrice}::numeric IS NULL OR price_from <= ${maxPrice})
       ORDER BY ${orderBy}
       LIMIT ${q.limit} OFFSET ${q.offset}
     `);
@@ -538,39 +547,136 @@ export class CatalogService {
   }
 
   /**
-   * Valores disponibles para los filtros. Acepta el MISMO `barefoot` que el listado y por la misma
-   * razón: unas facetas sin filtrar ofrecerían chips (`zapatos`, `zapatillas`, tallas de calzado
-   * convencional) que con el filtro por defecto no devuelven ni un producto.
+   * Valores disponibles para los filtros: los chips que el panel puede ofrecer sin mentir.
    *
-   * `section` acota por el mismo criterio, y en las tallas no es cosmético: sin él la lista mezcla
-   * números de pie con rangos de edad (medido en dev: 121 valores crudos, 60 canónicos), y ninguna
-   * de las dos mitades sirve para la sección que el usuario está mirando.
+   * Desde #292 **se cruzan con los filtros activos**. Antes solo se acotaban por `barefoot`,
+   * `section` y el eje `deportiva`, así que el panel ofrecía tallas y colores que no existen dentro
+   * de la categoría ya elegida: se pinchaba un chip y el catálogo salía vacío, que es literalmente
+   * lo que reportó la issue. Medido sobre la copia de dev, en `ropa`: de las **165** tallas que
+   * ofrecía, al elegir una categoría solo **82** devuelven algo, y con género y color puestos quedan
+   * **65**. La mitad larga de los chips era una promesa falsa.
+   *
+   * **Cada faceta omite su propio eje.** La lista de tallas se acota por categoría, color, tienda,
+   * género y búsqueda, pero NO por la talla ya elegida — si lo hiciera quedaría esa sola talla y no
+   * habría manera de cambiar de idea sin limpiar el filtro. Es la regla clásica del filtrado por
+   * facetas, y es lo único que lo hace usable.
+   *
+   * **`sections` es la excepción: no la acota nada.** Es el eje de navegación con el que se sale de
+   * la vista, y desde #292 también lo que eligen las pestañas Ropa/Zapatería del grupo de talla:
+   * unas pestañas que desaparecen según lo que haya filtrado serían una trampa.
+   *
+   * Los filtros de VARIANTE (talla y color) se aplican **a la misma fila de variante**, no por
+   * separado: una prenda cuenta como "azul en 4 años" si tiene una variante que es las dos cosas, no
+   * si tiene una azul y otra de 4 años. Es la misma semántica que `matched` en `listProducts`, y
+   * cualquier otra haría que la faceta prometiera lo que el listado luego no devuelve.
+   *
+   * Lo que NO cruza —`inStock`, `onlyDeals` y el rango de precio— y por qué, en la cabecera de
+   * `CatalogFilterDto`: es una frontera de coste medida, no un olvido.
    */
-  async getFacets(
-    barefoot: BarefootFilter = 'si',
-    section: string | null = null,
-    deportiva = false,
-  ): Promise<Facets> {
-    // El eje entra en `visible` y no en `inSection` porque acota igual que el filtro barefoot: es
-    // qué productos existen para esta vista, no qué sección se está mirando.
-    const visible = sql`(${barefootCondition(barefoot, 'p')} AND ${tagCondition(
-      deportiva ? TAG_DEPORTIVA : undefined,
-      'p',
-    )})`;
-    const inSection = sql`(${section}::text IS NULL OR p.section = ${section})`;
+  async getFacets(q: FacetQueryDto): Promise<Facets> {
+    const gender = q.gender ?? null;
+    const section = q.section ?? null;
+    const category = q.category ?? null;
+    const size = q.size ?? null;
+    const color = q.color ?? null;
+    const retailer = q.retailer ?? null;
 
-    // `gender` y `section` van SIN acotar: son los ejes de navegación de la vista, y devolver solo
-    // la sección elegida dejaría a la SPA sin las pestañas con las que se sale de ella.
+    // Mismo plegado y misma forma que la búsqueda del listado, a propósito: si el buscador y la
+    // faceta no entendieran lo tecleado igual, el panel volvería a ofrecer chips vacíos.
+    const terms = (q.q ?? '').split(/\s+/).filter(Boolean);
+    const haystack = fold(
+      sql`p.name || ' ' || coalesce(p.category, '') || ' ' || coalesce(p.gender, '')`,
+    );
+    const search = terms.length
+      ? sql.join(
+          terms.map((t) => sql`position(${fold(sql`${t}`)} in ${haystack}) > 0`),
+          sql` AND `,
+        )
+      : sql`TRUE`;
+
+    /** El eje que la faceta que se está pidiendo NO debe acotarse a sí misma. */
+    type Eje = 'gender' | 'category' | 'size' | 'color' | 'retailer';
+
+    /** Filtros de VARIANTE sobre el alias que se pase, omitiendo el eje pedido. */
+    const deVariante = (alias: string, excepto: Eje | null): SQL[] => {
+      const a = sql.raw(alias);
+      const cs: SQL[] = [];
+      if (size !== null && excepto !== 'size') {
+        cs.push(sql`size_canon(${a}.size) = size_canon(${size})`);
+      }
+      if (color !== null && excepto !== 'color') {
+        cs.push(sql`color_family(${a}.color) = color_family(${color})`);
+      }
+      return cs;
+    };
+
+    /** Filtros de PRODUCTO, omitiendo el eje pedido. `p` y `r` tienen que estar en la consulta. */
+    const deProducto = (excepto: Eje | null): SQL[] => {
+      const cs: SQL[] = [
+        barefootCondition(q.barefoot, 'p'),
+        tagCondition(q.deportiva ? TAG_DEPORTIVA : undefined, 'p'),
+        search,
+        // La sección acota SIEMPRE (nunca es el eje omitido): es la que separa dos vocabularios de
+        // talla que además se solapan —36 formas coinciden significando cosas distintas—, así que
+        // mezclarlas no es ruido, es error.
+        sql`(${section}::text IS NULL OR p.section = ${section})`,
+      ];
+      if (excepto !== 'gender') cs.push(generoCondition(sql`${gender}::text`, sql.raw('p.gender')));
+      if (excepto !== 'category') {
+        cs.push(sql`(${category}::text IS NULL OR p.category = ${category})`);
+      }
+      if (excepto !== 'retailer') cs.push(sql`(${retailer}::text IS NULL OR r.slug = ${retailer})`);
+      return cs;
+    };
+
+    /**
+     * El `WHERE` completo de una faceta.
+     *
+     * `aliasVariante` distingue los dos casos: si la consulta ya recorre variantes (tallas, colores)
+     * las condiciones de variante van en línea sobre esa fila; si solo mira productos (género,
+     * categoría, tienda) van dentro de un `EXISTS`, que es lo que las mantiene en la MISMA variante.
+     * El `EXISTS` solo se emite si hay algo que meterle: sin filtro de talla ni de color sería una
+     * subconsulta por producto a cambio de nada.
+     */
+    const donde = (excepto: Eje | null, aliasVariante?: string): SQL => {
+      const cs = deProducto(excepto);
+      if (aliasVariante) {
+        cs.push(...deVariante(aliasVariante, excepto));
+      } else {
+        const vs = deVariante('vx', excepto);
+        if (vs.length) {
+          cs.push(sql`EXISTS (SELECT 1 FROM variant vx
+                               WHERE vx.product_id = p.id AND vx.delisted_at IS NULL
+                                 AND ${sql.join(vs, sql` AND `)})`);
+        }
+      }
+      return sql.join(cs, sql` AND `);
+    };
+
+    /**
+     * Columnas de `product` que se ofrecen como chip.
+     *
+     * `sinAcotar` es solo para `sections`, el eje de navegación: devolver únicamente la sección
+     * elegida dejaría a la SPA sin las pestañas con las que se sale de ella, y sin las del grupo de
+     * talla.
+     */
     const pick = async (
       column: 'gender' | 'section' | 'category',
-      scoped = false,
+      excepto: Eje | null,
+      sinAcotar = false,
     ): Promise<string[]> => {
+      const scope = sinAcotar
+        ? sql`(${barefootCondition(q.barefoot, 'p')} AND ${tagCondition(
+            q.deportiva ? TAG_DEPORTIVA : undefined,
+            'p',
+          )})`
+        : donde(excepto);
       const rows = (await this.db.execute(sql`
         SELECT DISTINCT ${sql.raw(`p.${column}`)} AS value
         FROM product p
+        JOIN retailer r ON r.id = p.retailer_id
         WHERE ${sql.raw(`p.${column}`)} IS NOT NULL AND p.delisted_at IS NULL
-          AND ${visible}
-          AND ${scoped ? inSection : sql`TRUE`}
+          AND ${scope}
         ORDER BY value
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => String(r.value));
@@ -585,27 +691,28 @@ export class CatalogService {
      * física es también lo que hace que el aviso pueda casar con cualquier tienda.
      */
     const pickSizes = async (): Promise<string[]> => {
-      // Tres niveles, y cada uno se gana el sitio:
-      //   `crudas` deduplica el TEXTO de la tienda antes de canonicalizar. Medido sobre la copia de
-      //     dev (33.311 variantes): canonicalizar fila a fila tarda 866 ms y así 13 ms, porque la
-      //     función pasa de ~32.000 llamadas a las ~70 formas distintas que existen de verdad. En
-      //     el cluster, que son Raspberry Pi, esa diferencia es la que decide si el panel de
-      //     filtros abre al instante o no.
-      //   el DISTINCT de fuera funde las formas equivalentes.
-      //   el ORDER BY va en el nivel de arriba porque Postgres exige que sus expresiones estén en
-      //     la lista del SELECT DISTINCT, y `size_sort(...)` no pinta como chip.
+      // `crudas` deduplica el TEXTO de la tienda antes de canonicalizar. Medido sobre la copia de
+      // dev (33.311 variantes): canonicalizar fila a fila tarda 866 ms y así 13 ms, porque la
+      // función pasa de ~32.000 llamadas a las ~70 formas distintas que existen de verdad. En el
+      // cluster, que son Raspberry Pi, esa diferencia es la que decide si el panel de filtros abre
+      // al instante o no.
+      //
+      // El ORDER BY va fuera porque Postgres exige que sus expresiones estén en la lista del
+      // SELECT DISTINCT, y `size_sort(...)` no pinta como chip.
+      //
+      // Sobre la tentación de poner aquí un `AS MATERIALIZED`, ver la nota de `pickColors`: se
+      // probó, y es una optimización que depende de la máquina.
       const rows = (await this.db.execute(sql`
-        SELECT value FROM (
-          SELECT DISTINCT size_canon(cruda) AS value FROM (
-            SELECT DISTINCT v.size AS cruda
-            FROM variant v
-            JOIN product p ON p.id = v.product_id
-            WHERE v.size IS NOT NULL
-              AND v.delisted_at IS NULL AND p.delisted_at IS NULL
-              AND ${visible}
-              AND ${inSection}
-          ) crudas
-        ) t
+        WITH crudas AS (
+          SELECT DISTINCT v.size AS cruda
+          FROM variant v
+          JOIN product p ON p.id = v.product_id
+          JOIN retailer r ON r.id = p.retailer_id
+          WHERE v.size IS NOT NULL
+            AND v.delisted_at IS NULL AND p.delisted_at IS NULL
+            AND ${donde('size', 'v')}
+        )
+        SELECT value FROM (SELECT DISTINCT size_canon(cruda) AS value FROM crudas) t
         ORDER BY size_sort(value), value
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => String(r.value));
@@ -616,33 +723,58 @@ export class CatalogService {
      *
      * Devolvía el color canónico, y eran **2.859 chips** en `ropa` —63 KB de payload, el 85,2 %
      * compuestos tipo 'amarillo claro/bluey'—. En un móvil eso no es un filtro, que es literalmente
-     * lo que reportó #291. `color_family` (migración 0029) los pliega a **~19 familias**.
+     * lo que reportó #291. `color_family` (migración 0029) los pliega a **19 familias**.
      *
-     * Misma estructura de dos niveles que `pickSizes` y por la misma medida: `crudas` deduplica el
-     * TEXTO de la tienda ANTES de plegar, así la función se llama una vez por forma distinta y no
-     * una por variante. Aquí importa más que antes: `color_family` son ~20 regexes encadenados
-     * sobre el resultado de `color_canon`, bastante más cara que la propia `color_canon`.
+     * Misma estructura que `pickSizes` y por la misma medida: `crudas` deduplica el TEXTO de la
+     * tienda ANTES de plegar, así la función se llama una vez por forma distinta y no una por
+     * variante. Aquí importa más que en la talla: `color_family` son ~20 regexes encadenados sobre
+     * el resultado de `color_canon`, bastante más cara que la propia `color_canon`.
+     *
+     * El `IS NOT NULL` se comprueba sobre `value` **ya calculado** y no llamando otra vez a
+     * `color_family(cruda)`, que es como estaba: era una segunda llamada por cada forma distinta a
+     * cambio de nada. No es defensivo, y tapa dos casos: el nombre que son solo dígitos, que ya
+     * negaba `color_canon` (#51, migración 0016), y lo que no encaja en ninguna familia —7 valores
+     * en QA, entre ellos códigos como '1-114' y literales como 'default'—. Sin él, ese NULL
+     * llegaría a la SPA como el chip literal `"null"`.
+     *
+     * ⚠️ **AQUÍ NO VA UN `AS MATERIALIZED`, y conviene saber por qué antes de "arreglarlo".**
+     * Postgres puede empujar el filtro de fuera por debajo del DISTINCT y evaluar `color_family`
+     * por variante en vez de por forma distinta —la misma trampa que la 0014 documentó para la
+     * talla—, y la valla lo impide. Pero **si lo hace o no depende de la máquina**, así que ponerla
+     * arregla un entorno y estropea el otro. Medido el 11/08/2026 con los mismos datos (127.567
+     * variantes, 2.695 formas crudas de color en `ropa`), en milisegundos:
+     *
+     *                            portátil (PG 16.14)      dev, CNPG (PG 16.4)
+     *     sin filtros                    560                     1.415
+     *     sin filtros + valla          1.090                     2.658
+     *     con categoría y género       4.035                       454
+     *     con cat. y género + valla      339                       818
+     *
+     * En el portátil el planificador elige un Nested Loop y mete `color_family(color)` dentro del
+     * Index Scan: 21.536 llamadas en vez de 794. En dev elige un Hash Join y no le pasa. O sea que
+     * los 4 s **no son reproducibles donde el código corre de verdad**, y la valla, que allí los
+     * arreglaría, es en dev un 80 % más lenta en los dos casos. Se va sin valla a propósito.
+     *
+     * Lo que sí está claro es que esta faceta es la cara del panel (1,4 s en dev sin filtros, y el
+     * resto de facetas juntas no llegan a 100 ms). Si alguna vez hay que bajarla, el camino no es
+     * pelearse con el planificador sino no calcular la familia en tiempo de consulta.
      *
      * El orden alfabético basta —a diferencia de la talla, es el que se espera de una lista de
      * colores—, así que aquí no hace falta el equivalente de `size_sort`.
-     *
-     * El `IS NOT NULL` de fuera no es defensivo, y ahora tapa dos casos en vez de uno: el nombre
-     * que son solo dígitos, que ya negaba `color_canon` (#51, migración 0016), y lo que no encaja
-     * en ninguna familia —7 valores en QA, entre ellos códigos como '1-114' y literales como
-     * 'default'—. Sin él, ese NULL llegaría a la SPA como el chip literal `"null"`.
      */
     const pickColors = async (): Promise<string[]> => {
       const rows = (await this.db.execute(sql`
-        SELECT DISTINCT color_family(cruda) AS value FROM (
+        WITH crudas AS (
           SELECT DISTINCT v.color AS cruda
           FROM variant v
           JOIN product p ON p.id = v.product_id
+          JOIN retailer r ON r.id = p.retailer_id
           WHERE v.color IS NOT NULL
             AND v.delisted_at IS NULL AND p.delisted_at IS NULL
-            AND ${visible}
-            AND ${inSection}
-        ) crudas
-        WHERE color_family(cruda) IS NOT NULL
+            AND ${donde('color', 'v')}
+        )
+        SELECT value FROM (SELECT DISTINCT color_family(cruda) AS value FROM crudas) t
+        WHERE value IS NOT NULL
         ORDER BY value
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => String(r.value));
@@ -653,7 +785,7 @@ export class CatalogService {
         SELECT DISTINCT r.slug, r.name
         FROM retailer r
         JOIN product p ON p.retailer_id = r.id AND p.delisted_at IS NULL
-        WHERE ${visible}
+        WHERE ${donde('retailer')}
         ORDER BY r.name
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => ({ slug: String(r.slug), name: String(r.name) }));
@@ -666,12 +798,12 @@ export class CatalogService {
      * dos y el usuario piensa en dos.
      */
     const pickGenders = async (): Promise<string[]> =>
-      (await pick('gender')).filter((g) => g !== GENERO_UNISEX);
+      (await pick('gender', 'gender')).filter((g) => g !== GENERO_UNISEX);
 
     const [genders, sections, categories, sizes, colors, retailers] = await Promise.all([
       pickGenders(),
-      pick('section'),
-      pick('category', true),
+      pick('section', null, true),
+      pick('category', 'category'),
       pickSizes(),
       pickColors(),
       pickRetailers(),

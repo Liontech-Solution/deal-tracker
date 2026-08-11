@@ -1288,3 +1288,297 @@ describe.skipIf(!TEST_DB)('eje transversal · ropa deportiva (e2e)', () => {
     expect(await nombres('/api/catalog/products?deportiva=1')).toHaveLength(4);
   });
 });
+
+/**
+ * Las facetas se cruzan con los filtros activos (#292).
+ *
+ * El fallo que arregla: el panel ofrecía chips que, con lo ya filtrado, no devuelven ni un
+ * producto — se pinchaba una talla y el catálogo salía vacío. Medido sobre la copia de dev antes
+ * de esto: de las 165 tallas que ofrecía `ropa`, al elegir una categoría solo 82 devolvían algo.
+ *
+ * El fixture está montado para que cada aserción tenga un chip que DEBE desaparecer y otro que
+ * debe quedarse; con datos "planos" (todo cruzado con todo) estos tests pasarían sin cruzar nada.
+ */
+describe.skipIf(!TEST_DB)('facetas cruzadas con los filtros activos (#292)', () => {
+  let sql: postgres.Sql;
+  let app: INestApplication;
+
+  /** Un producto con UNA variante. Lo mínimo para que un chip exista o deje de existir. */
+  async function seed(
+    retailerId: number,
+    name: string,
+    section: string,
+    category: string,
+    gender: string,
+    size: string,
+    color: string,
+  ): Promise<void> {
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${retailerId}, ${name}, ${name}, ${gender}, ${section}, ${category},
+              ${section === 'zapateria' ? 'si' : null}, 'https://x')
+      RETURNING id`;
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p.id}, ${name + '-v'}, ${size}, ${color}, ${name + '-sku'}) RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${v.id}, 19.99, 39.99, 50, true, now())`;
+  }
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    const [zara] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('zara', 'Zara', 'https://www.zara.com') RETURNING id`;
+    const [sfera] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('sfera', 'Sfera', 'https://www.sfera.com') RETURNING id`;
+
+    // Ropa. La talla '2 años' SOLO existe en pantalones, y '8 años' SOLO en camisetas: es lo que
+    // hace observable el cruce por categoría.
+    await seed(zara.id, 'Pantalón niña', 'ropa', 'pantalones', 'niña', '2 años', 'azul');
+    await seed(zara.id, 'Camiseta niña', 'ropa', 'camisetas', 'niña', '8 años', 'rojo');
+    // El verde SOLO lo tiene una prenda de niño, y en una talla que nadie más usa.
+    await seed(sfera.id, 'Pantalón niño', 'ropa', 'pantalones', 'niño', '6 años', 'verde');
+    // Zapatería, para que la sección siga teniendo dos valores que ofrecer.
+    await seed(sfera.id, 'Bota niña', 'zapateria', 'barefoot', 'niña', '26', 'negro');
+
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  const facetas = async (query = '') => {
+    const res = await request(app.getHttpServer()).get(`/api/catalog/facets${query}`).expect(200);
+    return res.body as {
+      sizes: string[];
+      colors: string[];
+      categories: string[];
+      genders: string[];
+      sections: string[];
+      retailers: { slug: string }[];
+    };
+  };
+
+  it('la categoría elegida se lleva por delante las tallas que no existen en ella', async () => {
+    expect((await facetas('?section=ropa')).sizes).toEqual(['2 años', '6 años', '8 años']);
+    // '8 años' es de camisetas: ofrecerlo aquí es prometer un catálogo vacío.
+    expect((await facetas('?section=ropa&category=pantalones')).sizes).toEqual([
+      '2 años',
+      '6 años',
+    ]);
+  });
+
+  it('el género acota talla y color, y el color acota la talla', async () => {
+    expect((await facetas('?section=ropa&gender=ni%C3%B1o')).sizes).toEqual(['6 años']);
+    expect((await facetas('?section=ropa&gender=ni%C3%B1o')).colors).toEqual(['verde']);
+    // Y al revés: el verde solo vive en la talla del pantalón de niño.
+    expect((await facetas('?section=ropa&color=verde')).sizes).toEqual(['6 años']);
+  });
+
+  it('la tienda acota, y es lo que hace usable la lista de tallas', async () => {
+    // Cada tienda mide a su manera: elegir una es la vía rápida para quedarse con SU vocabulario.
+    expect((await facetas('?section=ropa&retailer=zara')).sizes).toEqual(['2 años', '8 años']);
+    expect((await facetas('?section=ropa&retailer=sfera')).sizes).toEqual(['6 años']);
+  });
+
+  it('la búsqueda libre acota las facetas igual que acota el listado', async () => {
+    // Si no, se teclea «camiseta» y el panel sigue ofreciendo las tallas de los pantalones.
+    expect((await facetas('?section=ropa&q=camiseta')).sizes).toEqual(['8 años']);
+    expect((await facetas('?section=ropa&q=camiseta')).colors).toEqual(['rojo']);
+  });
+
+  /**
+   * La regla que hace usable el filtrado por facetas, y la más fácil de romper sin darse cuenta:
+   * una faceta NO se acota a sí misma. Si lo hiciera, elegir «2 años» dejaría «2 años» como única
+   * talla ofrecida y no habría manera de cambiar de idea sin limpiar el filtro.
+   */
+  it('ninguna faceta se acota a sí misma', async () => {
+    const conTalla = await facetas('?section=ropa&size=2%20a%C3%B1os');
+    expect(conTalla.sizes).toEqual(['2 años', '6 años', '8 años']);
+    // ...pero sí acota a las demás: con esa talla solo queda el pantalón azul de niña.
+    expect(conTalla.colors).toEqual(['azul']);
+    expect(conTalla.categories).toEqual(['pantalones']);
+
+    const conColor = await facetas('?section=ropa&color=azul');
+    expect(conColor.colors).toEqual(['azul', 'rojo', 'verde']);
+
+    const conCategoria = await facetas('?section=ropa&category=pantalones');
+    expect(conCategoria.categories).toEqual(['camisetas', 'pantalones']);
+
+    const conTienda = await facetas('?section=ropa&retailer=zara');
+    expect(conTienda.retailers.map((r) => r.slug).sort()).toEqual(['sfera', 'zara']);
+
+    const conGenero = await facetas('?section=ropa&gender=ni%C3%B1o');
+    expect(conGenero.genders.sort()).toEqual(['niña', 'niño']);
+  });
+
+  /**
+   * `sections` es la excepción declarada: son las pestañas con las que se sale de la vista, y
+   * desde #292 también las del grupo de talla. Unas pestañas que desaparecen según lo filtrado
+   * dejarían al usuario encerrado en la sección en la que está.
+   */
+  it('la sección no la acota nada, ni siquiera un filtro que la deja sin productos', async () => {
+    expect((await facetas('?section=ropa&category=pantalones')).sections).toEqual([
+      'ropa',
+      'zapateria',
+    ]);
+    // 'pantalones' no existe en zapatería y aun así la pestaña sigue ahí.
+    expect((await facetas('?section=zapateria&color=azul')).sections).toEqual([
+      'ropa',
+      'zapateria',
+    ]);
+  });
+
+  /**
+   * La frontera declarada en `CatalogFilterDto`: los filtros que necesitan `price_history` no
+   * cruzan, porque obligarían a la faceta a montar el CTE `latest` y las facetas se piden ahora en
+   * cada cambio de filtro. Es una decisión de coste.
+   *
+   * Y la frontera **se nota**: el `ValidationPipe` global va con `forbidNonWhitelisted`, así que
+   * mandarlos aquí no es que se ignoren, es que la petición se cae con 400. Eso es lo que se
+   * quiere —una frontera silenciosa se cruza sin enterarse— pero obliga a la SPA a no reenviar el
+   * objeto de filtros entero a `/facets`, y por eso está escrito en un test y no solo en el DTO.
+   */
+  it('inStock y onlyDeals no se aceptan en las facetas: 400, no se ignoran', async () => {
+    await request(app.getHttpServer()).get('/api/catalog/facets?inStock=true').expect(400);
+    await request(app.getHttpServer()).get('/api/catalog/facets?onlyDeals=true').expect(400);
+    // Los que sí cruzan siguen aceptándose, claro.
+    await request(app.getHttpServer()).get('/api/catalog/facets?section=ropa&q=camiseta').expect(200);
+  });
+
+  /**
+   * El cruce solo sirve si promete lo mismo que el listado devuelve. Talla y color se aplican a la
+   * MISMA variante, así que un chip ofrecido tiene que dar al menos un producto.
+   */
+  it('todo chip ofrecido devuelve al menos un producto', async () => {
+    const base = '?section=ropa&category=pantalones';
+    const f = await facetas(base);
+    for (const size of f.sizes) {
+      const res = await request(app.getHttpServer())
+        .get(`/api/catalog/products${base}&size=${encodeURIComponent(size)}`)
+        .expect(200);
+      expect(res.body.items.length, `la talla «${size}» no devuelve nada`).toBeGreaterThan(0);
+    }
+    for (const color of f.colors) {
+      const res = await request(app.getHttpServer())
+        .get(`/api/catalog/products${base}&color=${encodeURIComponent(color)}`)
+        .expect(200);
+      expect(res.body.items.length, `el color «${color}» no devuelve nada`).toBeGreaterThan(0);
+    }
+  });
+});
+
+/**
+ * Rango de precio (#290).
+ *
+ * Lo que hay que sujetar no es "filtra", que es evidente, sino **dónde** filtra: sobre `price_from`
+ * ya agregado, en el `WHERE` exterior. Si alguien lo moviera al servicio —sobre la página ya
+ * recortada— los tests de paginación de aquí abajo se caerían, que es justo para lo que están.
+ */
+describe.skipIf(!TEST_DB)('rango de precio (#290)', () => {
+  let sql: postgres.Sql;
+  let app: INestApplication;
+
+  /** Un producto con una variante a un precio dado. `price_from` acaba siendo ese precio. */
+  async function seedPrecio(retailerId: number, name: string, precio: string): Promise<void> {
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category, url)
+      VALUES (${retailerId}, ${name}, ${name}, 'niña', 'ropa', 'camisetas', 'https://x')
+      RETURNING id`;
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p.id}, ${name + '-v'}, '4 años', 'azul', ${name + '-sku'}) RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${v.id}, ${precio}, 99.99, 10, true, now())`;
+  }
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    const [zara] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('zara', 'Zara', 'https://www.zara.com') RETURNING id`;
+    // Los valores están elegidos para caer JUSTO en los bordes de las consultas de abajo.
+    await seedPrecio(zara.id, 'A 5', '5.00');
+    await seedPrecio(zara.id, 'B 10', '10.00');
+    await seedPrecio(zara.id, 'C 15', '15.00');
+    await seedPrecio(zara.id, 'D 20', '20.00');
+    await seedPrecio(zara.id, 'E 25', '25.00');
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  const nombres = async (query: string): Promise<string[]> => {
+    const res = await request(app.getHttpServer()).get(`/api/catalog/products${query}`).expect(200);
+    return res.body.items.map((i: { name: string }) => i.name).sort();
+  };
+
+  it('los dos extremos INCLUYEN', async () => {
+    // Quien pide "de 10 a 20" espera ver el de 10 y el de 20. Un `>`/`<` aquí se nota poco y
+    // desconcierta mucho: el producto que se acaba de ver en la tarjeta desaparece al filtrar.
+    expect(await nombres('?minPrice=10&maxPrice=20')).toEqual(['B 10', 'C 15', 'D 20']);
+  });
+
+  it('cada extremo funciona por su cuenta', async () => {
+    expect(await nombres('?maxPrice=10')).toEqual(['A 5', 'B 10']);
+    expect(await nombres('?minPrice=20')).toEqual(['D 20', 'E 25']);
+  });
+
+  it('un rango invertido devuelve vacío, no un error', async () => {
+    // La SPA no lo permite (los topes se bloquean entre sí), pero la URL se puede escribir a mano.
+    expect(await nombres('?minPrice=20&maxPrice=10')).toEqual([]);
+  });
+
+  it('un precio no numérico es 400, no un filtro silenciosamente ignorado', async () => {
+    await request(app.getHttpServer()).get('/api/catalog/products?minPrice=barato').expect(400);
+    await request(app.getHttpServer()).get('/api/catalog/products?minPrice=-1').expect(400);
+  });
+
+  /**
+   * El motivo de que el filtro viva en el `WHERE` exterior y no en el servicio: paginando, la
+   * segunda página tiene que continuar donde acabó la primera. Filtrar después del `LIMIT` daría
+   * páginas de tamaño irregular y saltos.
+   */
+  it('la paginación cuenta sobre lo filtrado, no sobre el catálogo entero', async () => {
+    const p1 = await request(app.getHttpServer())
+      .get('/api/catalog/products?minPrice=10&maxPrice=20&sort=precio-asc&limit=2&offset=0')
+      .expect(200);
+    const p2 = await request(app.getHttpServer())
+      .get('/api/catalog/products?minPrice=10&maxPrice=20&sort=precio-asc&limit=2&offset=2')
+      .expect(200);
+    expect(p1.body.items.map((i: { name: string }) => i.name)).toEqual(['B 10', 'C 15']);
+    expect(p2.body.items.map((i: { name: string }) => i.name)).toEqual(['D 20']);
+  });
+
+  it('convive con el resto de filtros del mismo WHERE exterior', async () => {
+    // `onlyDeals` vive en ese mismo sitio: los dos tienen que componerse, no pisarse.
+    const res = await request(app.getHttpServer())
+      .get('/api/catalog/products?minPrice=10&maxPrice=20&onlyDeals=true')
+      .expect(200);
+    // Ninguno es oferta real (un solo punto de precio, sin histórico que lo respalde).
+    expect(res.body.items).toEqual([]);
+    expect(await nombres('?minPrice=10&maxPrice=20&category=camisetas')).toEqual([
+      'B 10',
+      'C 15',
+      'D 20',
+    ]);
+  });
+
+  it('el precio no llega a las facetas: son 400 igual que inStock y onlyDeals', async () => {
+    // Misma frontera de coste que el resto de filtros de precio (ver `CatalogFilterDto`).
+    await request(app.getHttpServer()).get('/api/catalog/facets?minPrice=10').expect(400);
+    await request(app.getHttpServer()).get('/api/catalog/facets?maxPrice=10').expect(400);
+  });
+});
