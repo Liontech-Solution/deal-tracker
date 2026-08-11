@@ -12,7 +12,8 @@
       "Bash(curl -s https://dealtracker-qa.liontechsolution.com/*)",
       "Bash(.claude/skills/validar-qa/scripts/qa-sql.sh *)",
       "Bash(.claude/skills/validar-qa/scripts/qa-estado.sh *)",
-      "Bash(.claude/skills/validar-qa/scripts/qa-token.sh)"
+      "Bash(.claude/skills/validar-qa/scripts/qa-token.sh)",
+      "WebSearch"
     ],
     "deny": [
       "Bash(.claude/skills/validar-qa/scripts/qa-sql.sh --escribir *)"

@@ -60,8 +60,14 @@ que hay compañía antes de empezar.
 empiece por `#` como encabezado.** En este ADR el texto va justificado a ~100 columnas y las
 referencias a issues (`#135`, `#64`) son constantes, así que es fácil que el ajuste de línea deje
 una al principio de una línea — y entonces sale como sección falsa en medio del índice, que es lo
-primero que se consulta para orientarse. Pasó el 03/08/2026 con dos. Se detecta con
-`grep -n "^#" .claude/adr/<proyecto>.md` y se arregla reajustando la línea, sin tocar el contenido.
+primero que se consulta para orientarse. Pasó el 03/08/2026 con dos, y **otra vez el 11/08/2026** al añadir una
+sección. Se arregla reajustando la línea, sin tocar el contenido, y el grep va **antes** de
+republicar y no después — si no, te toca un segundo commit y una segunda publicación para arreglar
+lo que costaba un vistazo:
+
+```bash
+grep -n "^#[0-9]" .claude/adr/<proyecto>.md   # antes de construir el args-file
+```
 
 **Ojo: `sections` no prueba nada en un ADR sin subsecciones.** El de
 `k3s-local-apps-manifests` es una lista de viñetas dentro de `## PATTERNS`, así que `--mode sections`
