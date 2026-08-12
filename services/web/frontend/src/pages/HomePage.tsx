@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthProvider';
 import { HonestyBadge } from '../components/Badges';
-import { ArrowRightIcon, CheckIcon, SearchIcon } from '../components/icons';
+import { ArrowRightIcon, CheckIcon, ClockIcon, SearchIcon } from '../components/icons';
 import { ProductCard } from '../components/ProductCard';
 import { ErrorState, ProductGridSkeleton } from '../components/States';
 import { useToast } from '../components/Toast';
@@ -177,7 +177,12 @@ export function HomePage() {
       {/* explicador honestidad */}
       <div className="dt-two" style={{ marginTop: 40, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-xl)', padding: 30, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, alignItems: 'center' }}>
         <div>
-          <div className="serif" style={{ fontSize: 26, fontWeight: 600, marginBottom: 10 }}>Dos etiquetas, cero confusión</div>
+          {/* Tres estados, no dos (#332). El tercero —cuando no ponemos etiqueta— es hoy con
+              diferencia el más frecuente: en prod son 15.968 prendas frente a 335 ofertas reales y
+              ninguna acusación, porque acusar exige 90 días de histórico y la serie es más joven.
+              Explicar aquí solo dos etiquetas dejaba sin contar justo lo que el usuario más va a
+              ver, y prometía un badge que hasta noviembre no existe. */}
+          <div className="serif" style={{ fontSize: 26, fontWeight: 600, marginBottom: 10 }}>Dos etiquetas, y cuándo no ponemos ninguna</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <span style={{ flex: 'none', marginTop: 2 }}><HonestyBadge kind="real" /></span>
@@ -189,6 +194,33 @@ export function HomePage() {
               <span style={{ flex: 'none', marginTop: 2 }}><HonestyBadge kind="suspicious" /></span>
               <div style={{ fontSize: 14.5, color: 'var(--text-muted)' }}>
                 <strong style={{ color: 'var(--text)' }}>Precio inflado:</strong> el precio tachado está hinchado respecto al histórico. El “descuento” no es real.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span
+                style={{
+                  flex: 'none',
+                  marginTop: 2,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  borderRadius: 999,
+                  padding: '4px 9px',
+                  fontSize: 11.5,
+                  fontWeight: 800,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <ClockIcon size={12} />
+                Sin etiqueta
+              </span>
+              <div style={{ fontSize: 14.5, color: 'var(--text-muted)' }}>
+                <strong style={{ color: 'var(--text)' }}>Cuando no lo sabemos, no opinamos:</strong> si acabamos de
+                empezar a seguir una prenda, su tachado no lo podemos ni confirmar ni desmentir, así que no la
+                etiquetamos. La ficha te dice cuántos días llevamos mirándola.
               </div>
             </div>
           </div>
