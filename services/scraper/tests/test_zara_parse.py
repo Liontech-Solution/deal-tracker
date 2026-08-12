@@ -10,7 +10,7 @@ import httpx
 
 from scraper.config import Config
 from scraper.ingest import _discount_pct
-from scraper.stores.base import ScrapedImage
+from scraper.stores.base import ScrapedImage, ScrapeScope
 from scraper.stores.zara import (
     CATEGORIES,
     CategoryConfig,
@@ -18,6 +18,7 @@ from scraper.stores.zara import (
     parse_category_tree,
     parse_detail_product,
     parse_listing_entries,
+    parse_listing_leftovers,
 )
 
 from .conftest import load_fixture
@@ -30,6 +31,8 @@ _CAT = next(
     if c.section == "zapateria" and c.gender == "niña" and c.category == "zapatos"
 )
 _DOMAIN = {"gender": _CAT.gender, "section": _CAT.section, "category": _CAT.category}
+# Los ámbitos que la tienda declara, que es lo que `list_catalog()` le pasa al residuo.
+_DECLARADOS = [ScrapeScope(c.gender, c.section, c.category) for c in CATEGORIES]
 # Hoja de ropa (niña / pantalones) para comprobar que el parsing común también la cubre.
 _CAT_ROPA = next(
     c
@@ -142,6 +145,108 @@ def _senales_por_id(listing: dict) -> dict[str, tuple[str, str]]:
 
     walk(listing)
     return senales
+
+
+def test_el_residuo_del_lookbook_que_es_prenda_del_brief_se_recoge() -> None:
+    """El residuo que ninguna otra hoja publica se rescata con la familia de la tienda (#289).
+
+    La hoja es la real de `CHANDAL` de niño (2622124), que es de donde salieron los 44 productos
+    que la pasada tiraba en cada vuelta: Zara solo los publica ahí, así que descartarlos los dejaba
+    fuera del catálogo para siempre aunque siguieran a la venta.
+    """
+    listing = load_fixture("zara_category_2622124_conjuntos.json")
+    hoja = next(c for c in CATEGORIES if c.category_id == 2622124)
+
+    conjuntos = {e.retailer_product_id: e for e in parse_listing_entries(listing, hoja)}
+    residuo = {
+        e.retailer_product_id: e for e in parse_listing_leftovers(listing, hoja, _DECLARADOS)
+    }
+
+    # El conjunto de verdad sigue siendo `conjuntos` y NO se duplica en el residuo.
+    assert conjuntos["545888980"].category == "conjuntos"
+    assert "545888980" not in residuo
+
+    # La prenda suelta entra por la familia que la tienda le pone, no por su título.
+    assert residuo["545470437"].category == "pantalones"  # familia PANTALON
+    assert residuo["545852572"].category == "sudaderas"  # familia JERSEY, titulada «SUDADERA …»
+    assert residuo["545470437"].gender == hoja.gender
+    assert residuo["545470437"].section == hoja.section
+
+    # Y lo que no es del brief o no es producto se sigue descartando, que es la mitad conservadora.
+    assert "579615420" not in residuo, "CHAQUETA es abrigo: fuera del brief"
+    assert "9911278428" not in residuo, "el nodo LOOK del lookbook no es un producto"
+
+
+def test_el_residuo_no_inventa_un_ambito_que_la_tienda_no_recorre() -> None:
+    """La familia decide categoría y la hoja decide género: juntas pueden inventar una pareja.
+
+    `PETO` va a `vestidos` —lo decidió la hoja `PETOS | MONOS`— pero en Zara `vestidos` solo existe
+    para niña y unisex, así que un peto en el lookbook de NIÑO daría `niño/ropa/vestidos`, que
+    `scopes()` no devuelve nunca. Y un ámbito que no está en `scopes()` no entra en `safe_scopes`:
+    el producto no se podría dar de baja jamás, ni desapareciendo de la tienda.
+    """
+    peto_de_nino = {
+        "productGroups": [
+            {
+                "elements": [
+                    {
+                        "commercialComponents": [
+                            {
+                                "seo": {"discernProductId": 999000111},
+                                "familyName": "PETO",
+                                "name": "PETO SARGA",
+                                "detail": {"colors": [{"id": "800", "price": 2595}]},
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+    lookbook_nino = next(c for c in CATEGORIES if c.gender == "niño" and c.category == "conjuntos")
+    assert lookbook_nino.filtro is not None
+
+    assert ScrapeScope("niño", "ropa", "vestidos") not in _DECLARADOS, "premisa del test"
+    assert parse_listing_leftovers(peto_de_nino, lookbook_nino, _DECLARADOS) == []
+
+    # Y el mismo peto en una hoja cuyo género SÍ declara `vestidos` sí entra: lo que descarta es la
+    # pareja imposible, no la familia.
+    lookbook_unisex = next(
+        c for c in CATEGORIES if c.gender == "unisex" and c.category == "conjuntos"
+    )
+    recogido = parse_listing_leftovers(peto_de_nino, lookbook_unisex, _DECLARADOS)
+    assert [e.category for e in recogido] == ["vestidos"]
+
+
+def test_el_residuo_no_se_recoge_en_una_hoja_sin_filtro() -> None:
+    """Sin `filtro` no hay lookbook ni residuo: la hoja entera es su categoría."""
+    listing = load_fixture("zara_category_2427327.json")
+    assert parse_listing_leftovers(listing, _CAT_ROPA, _DECLARADOS) == []
+
+
+def test_el_residuo_solo_entra_si_ninguna_hoja_lo_reclama() -> None:
+    """La demora es lo que impide que el arreglo re-etiquete nada (#289).
+
+    Se recorre el catálogo como `list_catalog()`: hojas primero, residuo al final. Un producto que
+    aparece en la hoja de conjuntos Y en la de pantalones tiene que conservar la categoría que le
+    dio su hoja, porque para cuando se mira el residuo ya está en `emitted`.
+    """
+    listing = load_fixture("zara_category_2427327.json")  # trae PANTALON de sobra
+    cat_conjuntos = next(c for c in CATEGORIES if c.category == "conjuntos")
+    lookbook = CategoryConfig(2427327, "niña", "ropa", "conjuntos", filtro=cat_conjuntos.filtro)
+
+    emitted: dict[str, str] = {}
+    for entry in parse_listing_entries(listing, lookbook):  # el lookbook va DELANTE
+        emitted.setdefault(entry.retailer_product_id, entry.category)
+    for entry in parse_listing_entries(listing, _CAT_ROPA):  # su hoja de verdad
+        emitted.setdefault(entry.retailer_product_id, entry.category)
+    sobrantes = [
+        e
+        for e in parse_listing_leftovers(listing, lookbook, _DECLARADOS)
+        if e.retailer_product_id not in emitted
+    ]
+
+    assert not sobrantes, "aquí toda prenda tiene su hoja: el residuo no debe añadir nada"
 
 
 def test_parse_listing_entries_ropa_extrae_seccion_y_categoria() -> None:
