@@ -75,6 +75,7 @@ en casi todos los casos; ahora no, porque sin ella no hay catálogo que recorrer
 | U29 | Variante con menos de dos puntos | mensaje «Aún no hay suficiente histórico», no una gráfica vacía ni un error |
 | U30 | «Ver en \<tienda\>» | abre la ficha real de la tienda, `noopener noreferrer`. Una URL rota es **P1** por tienda |
 | U31 | Campana de la tarjeta del catálogo | ~~placeholder conocido~~ **cableada desde #301**: abre el mismo `FollowModal` que la ficha, con alcance de **producto entero** (desde la rejilla no hay talla ni color elegidos), y **sin navegar** a la ficha — la tarjeta entera navega, así que el clic de la campana no puede arrastrarte. Que no haga nada, o que te lleve a la ficha, es un fallo **P1 nuevo**, no un conocido: sería la regresión de #301 |
+| U31b | Confirmar ese modal con «Crear aviso» | **crea el interés de verdad**: un `POST /api/interests` en `browser_network_requests` (no basta el toast), y la prenda aparece en `/seguimientos` con alcance de producto. Es la mitad que #301 pidió verificar y que ninguna validación había ejercido desde la **tarjeta**. Bórralo después, como todo lo que escribas |
 
 ## U4 · Seguir una prenda
 

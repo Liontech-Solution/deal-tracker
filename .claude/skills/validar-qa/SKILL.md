@@ -274,3 +274,11 @@ alguien a depurar el sitio equivocado.
 **No arreglar lo que encuentres.** Esto es una validación, no una sesión de trabajo. Se documenta,
 se abre issue y se decide después. Un arreglo a mitad de validación invalida lo ya medido y deja QA
 en un estado que nadie ha visto entero.
+
+**Y no transcribas lo que el código ya fija.** Es la lección de #343, donde siete expectativas
+caducaron a la vez: la copia del bot está clavada por dos specs, el tipo de la respuesta del
+catálogo vive en `catalog.types.ts`, y el catálogo de casos las había **copiado a mano**, así que
+envejecieron sin que nada lo delatara — una de ellas llegó a dar por buena una regresión. Cuando el
+valor lo fija el código, **el caso cita el símbolo y su fichero** además del valor, para que quien
+lo lea pueda contrastarlo en diez segundos en vez de creérselo. Un caso que no se puede contrastar
+contra nada es un caso que va a caducar en silencio.
