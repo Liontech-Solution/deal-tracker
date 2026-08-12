@@ -70,7 +70,7 @@ Anota el nombre del job: lo necesitas al final.
 Lanza los dos subagentes a la vez; ninguno toca el navegador:
 
 - `validador-qa-datos` — catálogo `casos-datos.md`, D1–D14.
-- `validador-qa-api` — catálogo `casos-api.md`, A1–A51.
+- `validador-qa-api` — catálogo `casos-api.md`, A1–A54.
 
 ## Fase 3 · Interfaz
 
@@ -135,15 +135,47 @@ barefoot colado en el catálogo por defecto · alta o baja de interés que no fu
 sin aplicar · los tres tags de imagen descuadrados · una tienda con la última pasada `failed`, en
 `running` colgada, o sin ninguna pasada · drift entre la versión pedida y la desplegada · caída de
 más del 30 % en las cifras de una tienda respecto al informe anterior · un `✖` **sin marca** del
-vigía · un «oferta real» sobre un PVP inflado.
+vigía · un «oferta real» sobre un PVP inflado · **una combinación de filtros que el propio panel
+ofrece por encima de 10 s**.
 
 **P1 — no bloquea, pero se abre issue.** `errors > 0` en una pasada `success` · hoja de categoría
 retirada · aviso de ritmo del vigía · `✖ [cobertura]` del vigía · error en la consola del navegador ·
-faceta que no devuelve resultados · regresión de UX no crítica · `ValueError: Tienda desconocida`
+faceta que no devuelve resultados · **una combinación de filtros del panel entre 3 s y 10 s** ·
+regresión de UX no crítica · `ValueError: Tienda desconocida`
 (que es P1 **de proceso**: la tienda está en `main` pero el `release-qa` aún no la ha promovido, no
 está rota).
 
 **P2 — se anota y ya.** Cosmético · `⚠ [estacional]` del vigía.
+
+### La latencia del catálogo
+
+Este criterio lo trae la validación de **v0.3.0** (12/08/2026), y **rige a partir de la siguiente**:
+v0.3.0 se validó con el listón anterior, que no medía latencia, y salió **APTO** con #342 abierta.
+Quien lea esto y vea esa issue viva no está ante una promoción mal dada, sino ante el hallazgo que
+escribió la regla.
+
+Lo que la motiva: la épica #308 prometía «el catálogo deja de tardar 24 s y **los filtros se pueden
+usar de verdad**», y la validación encontró el catálogo sin filtros en 1,8 s pero
+`color=negro&retailer=hm` en **27 s** — la misma espera que la versión existía para quitar, escondida
+detrás de una combinación normal de filtros. No lo cazó ningún frente porque **ningún caso medía
+tiempos**; salió de comprobar a mano la promesa titular de la épica. Si una versión promete
+rendimiento, mídelo aunque no haya caso que lo pida.
+
+**Qué se mide:** combinaciones que el panel de filtros **ofrece de verdad** (no URLs inventadas), al
+menos una con dos ejes sobre la tienda de catálogo más grande, que es donde se ve. Hoy eso es H&M o
+Zara.
+
+**Cómo se mide, que es la parte que se falla:** en **ventana tranquila y con control**. Los frentes
+de datos y API machacan la misma API y la misma base, y QA es de **una sola réplica**: midiendo con
+subagentes en marcha salen 45 s donde luego hay 23 s, y sobre eso se escribe un P0 falso. Lanza un
+`sin filtros` **antes y después** de la tanda; si el control se mueve, la medida no vale y se repite.
+
+```bash
+TOKEN=$(.claude/skills/validar-qa/scripts/qa-token.sh)
+B=https://dealtracker-qa.liontechsolution.com/api/catalog/products
+curl -s -o /dev/null -w '%{time_total}s\n' -H "Authorization: Bearer $TOKEN" "$B"
+curl -s -o /dev/null -w '%{time_total}s\n' -H "Authorization: Bearer $TOKEN" "$B?color=negro&retailer=hm"
+```
 
 ### El vigía
 

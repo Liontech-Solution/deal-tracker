@@ -46,6 +46,7 @@ Keycloak de por medio, se comporta como dice el código.
 | A11 | `GET /catalog/products?onlyDeals=true` | todos con `honesty = 'real'` y descuento > 0. El filtro va en SQL **antes** del LIMIT: una página con menos de 20 ítems teniendo más ofertas en la base delataría lo contrario |
 | A12 | `GET /catalog/products?inStock=true` | todos con `anyInStock = true` |
 | A13 | `GET /catalog/products?parametroInventado=1` | **400** (`forbidNonWhitelisted`). Que devuelva 200 ignorándolo es **P1**: los filtros mal escritos pasarían inadvertidos |
+| A54 | **Tiempos.** `sin filtros` · `color=<familia>` · `retailer=<la tienda más grande>` · y las **dos combinadas**, cada una ×3 | ninguna por encima de **10 s** (**P0**) ni entre 3 y 10 s (**P1**) — ver «La latencia del catálogo» en `SKILL.md`. Va **en ventana tranquila**, con un `sin filtros` de control antes y después: si el control se mueve, la medida no vale. Con los otros frentes en marcha salen 45 s donde hay 23 s, y eso es un P0 falso |
 
 ## Las reglas que solo se ven desde fuera
 

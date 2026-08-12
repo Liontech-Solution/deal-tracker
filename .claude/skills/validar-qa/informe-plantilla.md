@@ -29,7 +29,7 @@ qué frente falta y por qué.>
 | Frente | Casos | ✔ | ✖ | No ejercidos |
 |--------|------:|--:|--:|-------------:|
 | Interfaz (U1–U50)  | | | | |
-| API (A1–A51)       | | | | |
+| API (A1–A54)       | | | | |
 | Datos (D1–D14)     | | | | |
 | Vigía              | | | | |
 | Telegram (manual)  | | | | |
