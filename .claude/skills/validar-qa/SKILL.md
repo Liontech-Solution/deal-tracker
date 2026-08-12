@@ -100,7 +100,8 @@ El canje del `/start` y la llegada del aviso necesitan a una persona con la app 
 ✋ CHECKPOINT MANUAL — Telegram
 
 1. Abre este enlace desde tu Telegram: https://t.me/<bot>?start=<token>
-2. El bot debe responder: "✅ …ya estás vinculado"
+2. El bot debe responder, literal:
+   "✅ ¡Listo! Te avisaré por aquí cuando bajen de precio las prendas que sigues."
 3. La pestaña /ajustes debe pasar sola a "@<usuario>" en menos de 4 s, sin recargar
 
 ¿Qué ves?

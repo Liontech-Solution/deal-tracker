@@ -43,7 +43,7 @@ en casi todos los casos; ahora no, porque sin ella no hay catálogo que recorrer
 | U7 | Escribir en el buscador y enviar | navega a `/catalogo?q=…` con el término aplicado |
 | U8 | Pulsar una sugerencia (`botas`) | misma navegación con ese término |
 | U9 | Tarjeta «Ropa» y tarjeta «Zapatería» | `/catalogo?section=ropa` y `?section=zapateria`, con resultados |
-| U10 | Botón «Empieza a seguir prendas» | hoy solo lanza un toast: es un placeholder conocido. Repórtalo **P1** sin dramatizar, y **no** lo cuentes como fallo nuevo cada pasada |
+| U10 | Botón «Empieza a seguir prendas» | ~~solo lanza un toast, placeholder conocido~~ **ya no lo es**: con sesión lleva a `/catalogo`, y sin ella lanza el login de Keycloak (`HomePage.tsx`). El toast solo es alcanzable con Keycloak **desactivado**, o sea en `dev` y nunca en QA. Aquí, que estamos en el bloque con sesión (ver U5), lo que se exige es la navegación al catálogo; un toast es **P1** de verdad, no un conocido |
 
 ## U2 · Catálogo
 
@@ -74,7 +74,7 @@ en casi todos los casos; ahora no, porque sin ella no hay catálogo que recorrer
 | U28 | Gráfica de histórico | línea de precio, PVP discontinuo, punto de mínimo, y tooltip con precio y fecha en `es-ES` al pasar por encima |
 | U29 | Variante con menos de dos puntos | mensaje «Aún no hay suficiente histórico», no una gráfica vacía ni un error |
 | U30 | «Ver en \<tienda\>» | abre la ficha real de la tienda, `noopener noreferrer`. Una URL rota es **P1** por tienda |
-| U31 | Campana de la tarjeta del catálogo | hoy es placeholder incluso con sesión: **P1** conocido, igual que U10 |
+| U31 | Campana de la tarjeta del catálogo | ~~placeholder conocido~~ **cableada desde #301**: abre el mismo `FollowModal` que la ficha, con alcance de **producto entero** (desde la rejilla no hay talla ni color elegidos), y **sin navegar** a la ficha — la tarjeta entera navega, así que el clic de la campana no puede arrastrarte. Que no haga nada, o que te lleve a la ficha, es un fallo **P1 nuevo**, no un conocido: sería la regresión de #301 |
 
 ## U4 · Seguir una prenda
 

@@ -36,7 +36,7 @@ Keycloak de por medio, se comporta como dice el código.
 
 | # | Petición | Se espera |
 |---|---|---|
-| A4 | `GET /catalog/products` | 200, exactamente **20** ítems (el límite por defecto) y `total` > 0 |
+| A4 | `GET /catalog/products` | 200, exactamente **20** ítems (el límite por defecto), más `limit` y `offset`. **No hay `total`, y no es un fallo**: `ProductListResult` (`src/catalog/catalog.types.ts`) nunca lo ha declarado y la SPA no lo consume — este caso lo exigió hasta v0.3.0 y produjo un hallazgo fantasma en cuatro validaciones seguidas. Si algún día hace falta paginar de verdad, será contrato nuevo y se pide entonces |
 | A5 | Cada ítem de A4 | `id`, `name`, `retailer`, `priceFrom` > 0 e `imageUrl` no nula. Un catálogo sin fotos es **P0** |
 | A6 | `GET /catalog/products?limit=1&offset=0` vs `offset=1` | ids distintos: la paginación pagina de verdad |
 | A7 | `GET /catalog/products?limit=0` y `?limit=101` | **400** las dos (rango 1–100) |
@@ -107,7 +107,7 @@ bórralos todos al terminar, incluso si el frente aborta a medias.
 | # | Petición | Se espera |
 |---|---|---|
 | A39 | `POST /interests` con `{}` | **400**: exige al menos una señal (producto, variante, tienda o filtro) |
-| A40 | `POST /interests` con un `color` sin canónica (p. ej. `"nosoyuncolor"`) | **400**: suscribirse a un color que no canoniza equivale a suscribirse a todos |
+| A40 | `POST /interests` con un `color` sin canónica: **`"999"`** | **400**: suscribirse a un color que no canoniza equivale a suscribirse a todos. **Ojo al ejemplo, que hasta v0.3.0 estaba mal elegido**: `color_canon` solo devuelve NULL para cadenas **puramente numéricas** (migración `0016`, #51), así que un `"nosoyuncolor"` canoniza a sí mismo y responde 201 — la regla se cumple, pero ese valor no la ejercita. Si lo pruebas, bórralo |
 | A41 | `POST /interests` con `minDiscountPct: 101` / `windowDays: 0` / `compareBase: "otra"` | **400** los tres |
 | A42 | `POST /interests` con `{"variantId": <id>, "minDiscountPct": 20}` | 201 con id. Guárdalo |
 | A43 | `GET /interests` | contiene el de A42, enriquecido con `retailerName`, `productName` y `variantLabel` (`"Talla 24 · rojo"`). Un `variantLabel` con la talla sin canonizar es **P1** |
@@ -120,7 +120,7 @@ bórralos todos al terminar, incluso si el frente aborta a medias.
 | # | Petición | Se espera |
 |---|---|---|
 | A47 | `GET /settings/telegram` | 200 con `linked`, `telegramUsername`, `linkedAt`, `pendingLink` |
-| A48 | `POST /settings/telegram/link` | 200 con un deep-link `https://t.me/<bot>?start=<token>`. Un **503** significa que a QA le falta `TELEGRAM_BOT_USERNAME` — **P0**, porque nadie puede vincularse |
+| A48 | `POST /settings/telegram/link` | **201** (no 200: el endpoint no anota `@HttpCode` y crear un token es una creación, igual que A42) con un deep-link `https://t.me/<bot>?start=<token>`. Un **503** significa que a QA le falta `TELEGRAM_BOT_USERNAME` — **P0**, porque nadie puede vincularse |
 | A49 | `GET /settings/telegram` justo después | `pendingLink` a true |
 | A50 | `POST /settings/telegram/link` otra vez | token **distinto**: re-pedir sobrescribe |
 | A51 | `DELETE /settings/telegram` dos veces seguidas | **204** las dos: es idempotente |
