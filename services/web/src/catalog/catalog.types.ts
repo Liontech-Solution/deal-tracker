@@ -79,6 +79,13 @@ export interface VariantWithPrice {
    * tallas de la ficha. `null` cuando la variante no tiene ni talla ni color.
    */
   variantLabel: string | null;
+  /**
+   * Días enteros que llevamos observando esta variante. Existe para que la ficha de una prenda
+   * `unverified` pueda decir «llevamos N días siguiéndola» en vez de acusar a la tienda de inflar
+   * un tachado que todavía no podemos desmentir (#332). No sale en el listado: la tarjeta no lo
+   * pinta, y la superficie de la API se queda en lo que alguien consume.
+   */
+  trackedDays: number;
   /** Veredicto de descuento honesto de esta variante (misma regla que el aviso). */
   honesty: HonestyVerdict;
 }

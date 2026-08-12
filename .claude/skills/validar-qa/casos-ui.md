@@ -43,6 +43,7 @@ en casi todos los casos; ahora no, porque sin ella no hay catálogo que recorrer
 | U7 | Escribir en el buscador y enviar | navega a `/catalogo?q=…` con el término aplicado |
 | U8 | Pulsar una sugerencia (`botas`) | misma navegación con ese término |
 | U9 | Tarjeta «Ropa» y tarjeta «Zapatería» | `/catalogo?section=ropa` y `?section=zapateria`, con resultados |
+| U10b | Panel «Dos etiquetas, y cuándo no ponemos ninguna» | enumera **tres** estados —«Oferta real», «Precio inflado» y «Sin etiqueta»— y son los mismos que el catálogo puede enseñar hoy. Es el caso que faltaba: hasta #332 este panel no lo ejercía nadie, y explicaba dos etiquetas cuando los estados ya eran tres, con el ausente siendo el mayoritario (en prod, 15.968 prendas sin etiqueta frente a 335 ofertas reales). Que la home describa un estado que el producto ya no tiene —o se calle uno que sí— es **P1**: es la promesa de honestidad explicada mal, y se pudre en silencio igual que se pudrió U10 |
 | U10 | Botón «Empieza a seguir prendas» | ~~solo lanza un toast, placeholder conocido~~ **ya no lo es**: con sesión lleva a `/catalogo`, y sin ella lanza el login de Keycloak (`HomePage.tsx`). El toast solo es alcanzable con Keycloak **desactivado**, o sea en `dev` y nunca en QA. Aquí, que estamos en el bloque con sesión (ver U5), lo que se exige es la navegación al catálogo; un toast es **P1** de verdad, no un conocido |
 
 ## U2 · Catálogo
@@ -70,6 +71,8 @@ en casi todos los casos; ahora no, porque sin ella no hay catálogo que recorrer
 | U24 | Cambiar de referencia de color | cambian **foto y precio a la vez**, y la miniatura vuelve a la primera. Que cambie la foto y no el precio es **P0**: enseña un precio que no es el de lo que se ve |
 | U25 | Producto con dos referencias del **mismo** nombre de color (caso H&M) | se distinguen con «· 2ª referencia», no aparecen como duplicado indistinguible |
 | U26 | Badge de honestidad | coherente con el descuento mostrado; un «oferta real» sobre un PVP inflado es **P0** — es justo el fraude que el producto existe para detectar |
+| U26b | Prenda descubierta **ya rebajada** (la tienda enseña tachado y nunca la hemos visto más cara) | **no** lleva badge «Precio inflado», y la ficha dice «Descuento sin confirmar: llevamos N días siguiéndola…» sin acusar a nadie. Un «Precio inflado» aquí es **P0**: es afirmar un fraude que no hemos comprobado (#332) |
+| U26c | Ausencia total de badges «Precio inflado» en el catálogo | **es lo esperado, no un hallazgo.** Desde #332 acusar exige 90 días de histórico cubierto, y la serie más antigua de prod arranca el 07/08/2026: hasta **~05/11/2026** (qa ~22/10/2026) no puede haber ni uno. Reportarlo como regresión es un P0 inventado. Lo que sí hay que comprobar es que esas prendas salen como «Descuento sin confirmar» y no como si no pasara nada |
 | U27 | Badge de stock | `stock` / `agotado` / `descatalogado` según el dato |
 | U28 | Gráfica de histórico | línea de precio, PVP discontinuo, punto de mínimo, y tooltip con precio y fecha en `es-ES` al pasar por encima |
 | U29 | Variante con menos de dos puntos | mensaje «Aún no hay suficiente histórico», no una gráfica vacía ni un error |

@@ -7,6 +7,7 @@ import { ProductImage } from './ProductImage';
 import type { ProductListItem } from '../api/types';
 import { useSeguirPrenda } from '../auth/useSeguirPrenda';
 import { discountInt, eurStr } from '../lib/format';
+import { llevaBadge } from '../lib/honesty';
 
 export function ProductCard({ p }: { p: ProductListItem }) {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ export function ProductCard({ p }: { p: ProductListItem }) {
     >
       <div style={{ position: 'relative' }}>
         <ProductImage src={p.imageUrl} alt={p.name} section={p.section} width={563} />
-        {honesty !== 'none' && (
+        {llevaBadge(honesty) && (
           <div style={{ position: 'absolute', top: 10, left: 10 }}>
             <HonestyBadge kind={honesty} />
           </div>

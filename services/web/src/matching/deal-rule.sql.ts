@@ -9,9 +9,18 @@
  * Contrato: `isRealDealSql(...)` debe ser cierto exactamente cuando
  * `classifyHonesty({ ...mismos valores, minDiscountPct: 0, compareBase: 'recent_min' }) === 'real'`.
  * La etiqueta que llega al usuario la sigue calculando el TS — aquí solo se filtra y se ordena — y
- * un test de paridad en `test/catalog.e2e.spec.ts` compara ambos lados sobre el mismo catálogo para
- * que no se separen sin que nadie se entere. Mismo trato que `database/schema.ts` frente a
- * `db/migrations`: espejo declarado, con una prueba que lo vigila.
+ * dos tests lo vigilan: el de paridad extremo a extremo de `test/catalog.e2e.spec.ts` y el de
+ * propiedades de `test/deal-rule-paridad.spec.ts`, que compara los dos lados fila a fila sobre
+ * histórico generado en vez de sobre cuatro productos sembrados a mano (#228). Mismo trato que
+ * `database/schema.ts` frente a `db/migrations`: espejo declarado, con una prueba que lo vigila.
+ *
+ * **El umbral de evidencia de #332 no vive aquí, y no es un olvido.** Solo condiciona el veredicto
+ * `suspicious`, que este fichero no calcula: aquí únicamente se decide `real` (para `onlyDeals` y
+ * `sort=ofertas`) y el descuento honesto con el que se ordena. Y `real` no puede verse afectado por
+ * ese umbral, porque ya implica `max_observed > price`: si el máximo observado no supera al precio
+ * actual, tampoco lo supera `recent_min` —que es un mínimo sobre las mismas observaciones— y la
+ * condición A cae antes. `deal-rule-paridad.spec.ts` fija esa implicación como invariante, para que
+ * el día que alguien mueva `real` se entere de que arrastra la acusación.
  *
  * Si tocas `deal-rule.ts`, toca este fichero en el mismo commit.
  */

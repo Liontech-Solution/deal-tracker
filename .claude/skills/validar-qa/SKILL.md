@@ -136,8 +136,14 @@ barefoot colado en el catálogo por defecto · alta o baja de interés que no fu
 sin aplicar · los tres tags de imagen descuadrados · una tienda con la última pasada `failed`, en
 `running` colgada, o sin ninguna pasada · drift entre la versión pedida y la desplegada · caída de
 más del 30 % en las cifras de una tienda respecto al informe anterior · un `✖` **sin marca** del
-vigía · un «oferta real» sobre un PVP inflado · **una combinación de filtros que el propio panel
-ofrece por encima de 10 s**.
+vigía · un «oferta real» sobre un PVP inflado · **una acusación de «Precio inflado» sobre una prenda
+con menos de 90 días de histórico** (#332: es afirmar un fraude sin haberlo comprobado, y el error
+simétrico del anterior) · **una combinación de filtros que el propio panel ofrece por encima de
+10 s**.
+
+> Ojo con el simétrico de esto, que es un falso rojo fácil: **que no aparezca ni un solo badge
+> «Precio inflado» es lo esperado**, no una regresión. Acusar exige 90 días cubiertos y la serie de
+> QA arranca el 24/07/2026, así que hasta ~22/10/2026 no puede haber ninguno. Ver U26b/U26c.
 
 **P1 — no bloquea, pero se abre issue.** `errors > 0` en una pasada `success` · hoja de categoría
 retirada · aviso de ritmo del vigía · `✖ [cobertura]` del vigía · error en la consola del navegador ·

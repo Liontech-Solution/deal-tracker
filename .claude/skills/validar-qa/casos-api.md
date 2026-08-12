@@ -80,6 +80,9 @@ Keycloak de por medio, se comporta como dice el código.
 | A29 | `GET /catalog/products/abc` | **400** (`ParseIntPipe`) |
 | A30 | `GET /catalog/products/999999999` | **404** |
 | A31 | `variants[]` de A28 | ninguna repetida por `(size, color, url)`: la ficha colapsa lo que la tienda duplica (#108). Contrasta con D6 |
+| A31b | `honesty` de cada ítem de A4 y de cada variante de A28 | uno de `real` / `suspicious` / `unverified` / `none`. Un valor fuera de la unión rompe el badge de la SPA en silencio |
+| A31c | Variantes de A28 con `honesty = 'unverified'` | traen `trackedDays` ≥ 0. Es el número que la ficha enseña en «llevamos N días siguiéndola», así que un `undefined` aquí sale impreso en la interfaz (#332) |
+| A31d | Cualquier variante con `honesty = 'suspicious'` | su `trackedDays` ≥ 90. Acusar con menos histórico es la regresión de #332 y es **P0** — mientras la serie de QA no llegue a esa edad (~22/10/2026), lo esperado es que no haya ninguna |
 | A32 | `GET /catalog/variants/<id>/price-history` | 200 y `scraped_at` **ascendente** |
 | A33 | `GET /catalog/variants/999999999/price-history` | **404** |
 | A34 | Un producto con varias referencias del mismo color | cada entrada de `images[]` trae su `color` y su `variantUrl`, y el `colorRepr` del listado se corresponde con la foto de `imageUrl` |

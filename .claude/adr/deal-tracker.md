@@ -2817,6 +2817,44 @@ Dos detalles del diseño que se decidieron aquí y conviene no revertir por desc
   resuelva `/api/config`, el token sería `null` todavía y la primera carga daría 401 con sesión
   válida. Por eso la rama `!ready` del wrapper no es cosmética.
 
+### Callar y acusar son decisiones asimétricas, y `max_observed` no significa lo que su nombre dice (#332)
+
+`max_observed` es «lo más caro que hemos visto la prenda **desde que la descubrimos**», no «lo que
+ha costado jamás». Las dos cosas convergen con el tiempo, y hasta que convergen la diferencia es
+justo lo que separa un hallazgo de una acusación infundada.
+
+El aviso de Telegram y el badge del catálogo **compartían regla a propósito** —`classifyHonesty`
+deriva de `evaluateDeal` para que no digan cosas distintas de la misma prenda— y ahí se coló el
+error: son asimétricos. Ante la duda, el aviso **calla**, y eso es correcto porque el coste es un
+aviso perdido. El catálogo reutilizaba ese mismo «ante la duda» como si fuera «ante la duda,
+acusa». Medido en prod el 13/08/2026: **15.928 acusaciones de «Precio inflado» apoyadas en una
+media de 2,27 días de observación** (máximo 4,08), el 99,7 % sobre prendas que nunca habíamos visto
+por encima de su precio actual.
+
+**El umbral no se pudo calibrar con nuestra propia serie, y el motivo es estructural.** El
+histórico más largo de cualquier variante del proyecto era de **17,3 días**, y las subidas de
+precio —el único suceso capaz de sustentar la acusación— le ocurren al **0,03-0,1 %** de las
+variantes (37 de 127.567 en dev, 178 de 166.655 en qa). No hay de dónde deducirlo mirando el dato.
+Sale del **calendario comercial**: las rebajas corren ~2 meses, así que para haber visto la prenda
+fuera de la suya hay que superar los 60 días; con 90 los dos extremos de la ventana no pueden caer
+en la misma temporada (7 ene + 90 = 7 abr; 1 jul + 90 = 29 sep), y eso hace innecesario un mínimo
+de observaciones aparte. Se reutiliza `HONESTY_WINDOW_DAYS`, que ya era la ventana de `recent_min`.
+
+Tres consecuencias que no son evidentes:
+
+- **`real` no puede verse afectado por el umbral, y está demostrado**: ya implica
+  `max_observed > price`, porque `recent_min <= max_observed` —uno es un MIN y otro un MAX sobre
+  las mismas observaciones— y la condición A cae antes. Por eso `evaluateDeal`, `deal-rule.sql.ts`,
+  `onlyDeals` y `sort=ofertas` quedaron intactos. La implicación se apoya en ese invariante **de
+  los datos**, no de la regla: si la CTE `stats` dejara de cumplirlo, se cae con ella.
+- **El estado que más se ve no es ninguno de los dos que había.** `unverified` es hoy 15.968 de
+  16.303 veredictos no vacíos en prod, frente a 335 `real` y 0 acusaciones. Cualquier interfaz que
+  explique «dos etiquetas» está describiendo la minoría.
+- **El camino de la acusación no es ejercitable en ningún entorno hasta ~05/11/2026** (qa
+  ~22/10/2026), porque ninguna serie llega a 90 días. Su única cobertura hasta entonces son tests
+  unitarios, y la **ausencia** de badges «Precio inflado» es el estado esperado — declarado así en
+  `/validar-qa` (U26b, U26c, A31d) para que la validación no abra un P0 inventado.
+
 ### El aviso no se puede provocar a voluntad: hace falta una bajada real, y el tachado no sirve
 
 Ejercer el camino del aviso de punta a punta (#122) es caro por un motivo que no es técnico: **el
@@ -2828,11 +2866,21 @@ con `--refresh-all` (lefties 9.867 filas de precio nuevas, hm 46.659):
 |---|---|
 | `--refresh-all` para fabricar el lote | `_record_price` escribe fila por cada variante cuyo detalle se pide, **sin comparar precios**, así que da `prior_points` a todo el catálogo — pero el precio es el mismo: `price < max_observado` salió **0 de 63.948** |
 | Bajar `min_discount_pct` a 0 | Con `compare_base='recent_min'` quien corta es la condición A (*precio < mínimo reciente*), no el umbral |
-| Apoyarse en el tachado de la tienda | `honestListPrice` devuelve el **máximo observado** cuando el tachado supera ese máximo en más del 3 %, así que el descuento sale 0. Los **304 tachados de Lefties de ese día estaban inflados los 304** |
+| Apoyarse en el tachado de la tienda | `honestListPrice` devuelve el **máximo observado** cuando el tachado supera ese máximo en más del 3 %, así que el descuento sale 0. Pasó con los **304 tachados de Lefties de ese día, los 304** |
 | Escribir `price_history` a mano | Probaría el envío, no que una pasada real produce el lote — que es justo lo que la issue pedía |
 
 O sea que la regla de honestidad, funcionando bien, **es también lo que impide validar el aviso con
-una tienda que finge rebajas**: rechazó 304 descuentos falsos en una tarde. El camino que sí
+una tienda cuyo tachado no podemos corroborar**: rechazó 304 descuentos en una tarde.
+
+> **Ojo con leer esos 304 como 304 mentiras de la tienda.** Aquí decía «rechazó 304 descuentos
+> falsos», y es más de lo que el dato aguanta: los 304 son `precio 3,99 · PVP 4,99 ·
+> max_observed 3,99`, o sea el patrón de una prenda **descubierta ya rebajada**, donde el máximo
+> observado es su propio precio de rebaja porque no la habíamos visto antes. Que el tachado sea
+> falso es una hipótesis que no se comprobó, no un hallazgo (#332). Como argumento de por qué no se
+> puede fabricar un lote de avisos vale igual —el descuento honesto sale 0 en los dos casos—, que
+> es para lo que está esta tabla.
+
+El camino que sí
 funciona es una tienda con movimiento real de precios y un histórico de más de un punto — Zara, con
 3 pasadas, dio 31 candidatos → 13 ofertas → **13 avisos entregados**, el primer envío real de
 Telegram del proyecto. H&M no sirve como banco de pruebas del tachado: **0 de 46.659 filas** lo
