@@ -168,7 +168,9 @@ Zara.
 
 **Cómo se mide, que es la parte que se falla:** en **ventana tranquila y con control**. Los frentes
 de datos y API machacan la misma API y la misma base, y QA es de **una sola réplica**: midiendo con
-subagentes en marcha salen 45 s donde luego hay 23 s, y sobre eso se escribe un P0 falso. Lanza un
+subagentes en marcha la lectura llega a doblarse —en la validación de v0.3.0 salieron **45 s donde
+luego había 23 s**— y sobre eso se escribe un P0 falso. La proporción es la lección; esos segundos
+son de aquella medida y no describen el sistema de hoy. Lanza un
 `sin filtros` **antes y después** de la tanda; si el control se mueve, la medida no vale y se repite.
 
 ```bash
