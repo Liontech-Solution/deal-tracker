@@ -31,7 +31,7 @@ from __future__ import annotations
 import random
 import re
 import time
-from collections.abc import Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -431,7 +431,11 @@ def _familia_base(family_name: Any) -> str:
     return familia.removesuffix(" BEBE").strip()
 
 
-def parse_listing_leftovers(listing: dict[str, Any], cat: CategoryConfig) -> list[ListingEntry]:
+def parse_listing_leftovers(
+    listing: dict[str, Any],
+    cat: CategoryConfig,
+    declarados: Collection[ScrapeScope],
+) -> list[ListingEntry]:
     """El residuo de una hoja-lookbook que SÍ es prenda del brief, para rescatarlo si nadie lo pide.
 
     Lo emite `list_catalog()` **al final de la pasada** y solo para los ids que ninguna hoja haya
@@ -449,9 +453,18 @@ def parse_listing_leftovers(listing: dict[str, Any], cat: CategoryConfig) -> lis
     La categoría la decide la **familia** de la tienda (`_FAMILIA_RESIDUAL`) y no el título, que es
     lo que ya hacen las hojas: `punto | crochet` es `sudaderas` mande lo que mande el nombre de cada
     prenda. La familia que no esté en la tabla se sigue descartando.
+
+    `declarados` son los ámbitos que la tienda recorre (`scopes()`), y filtrar por ellos **no es
+    una comprobación de más**: la familia decide la categoría y la hoja decide el género, así que
+    juntas pueden fabricar una pareja que `CATEGORIES` no declara. El caso concreto es `PETO` en
+    una hoja-lookbook de niño, que daría `niño/ropa/vestidos` — y en Zara `vestidos` solo existe
+    para niña y unisex. Y un ámbito que `scopes()` no devuelve **nunca entra en `safe_scopes`**
+    (`ingest.py`), o sea que un producto ahí no se podría dar de baja jamás, ni desapareciendo de
+    la tienda. Lo que no case se descarta, que es como estaba antes de este arreglo.
     """
     if cat.filtro is None:
         return []
+    permitidos = {(s.gender, s.section, s.category) for s in declarados}
     entries: list[ListingEntry] = []
     seen: set[str] = set()
     for node in _iter_product_nodes(listing):
@@ -462,7 +475,7 @@ def parse_listing_leftovers(listing: dict[str, Any], cat: CategoryConfig) -> lis
         if cat.filtro.acepta(str(node.get("familyName") or ""), str(node.get("name") or "")):
             continue  # es conjunto: ya lo emitió `parse_listing_entries`
         categoria = _FAMILIA_RESIDUAL.get(_familia_base(node.get("familyName")))
-        if categoria is None:
+        if categoria is None or (cat.gender, cat.section, categoria) not in permitidos:
             continue
         entries.append(
             ListingEntry(
@@ -676,6 +689,7 @@ class ZaraStore:
         # (#289). Va aparte y no en el bucle porque las hojas de conjunto van DELANTE: en el
         # momento de leerlas todavía no se sabe si su pantalón entrará por la hoja de pantalones.
         sobrantes: list[ListingEntry] = []
+        declarados = list(self.scopes())
         with self._client() as client:
             for cat in self._categories:
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
@@ -693,7 +707,7 @@ class ZaraStore:
                 # Ver `ScanReport.filtro_vacio()`.
                 if cat.filtro is not None and not entradas:
                     self._scan.filtro_vacio(scope, str(cat.category_id))
-                sobrantes.extend(parse_listing_leftovers(listing, cat))
+                sobrantes.extend(parse_listing_leftovers(listing, cat, declarados))
                 for entry in entradas:
                     if entry.retailer_product_id not in emitted:
                         emitted.add(entry.retailer_product_id)

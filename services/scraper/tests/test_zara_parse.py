@@ -10,7 +10,7 @@ import httpx
 
 from scraper.config import Config
 from scraper.ingest import _discount_pct
-from scraper.stores.base import ScrapedImage
+from scraper.stores.base import ScrapedImage, ScrapeScope
 from scraper.stores.zara import (
     CATEGORIES,
     CategoryConfig,
@@ -31,6 +31,8 @@ _CAT = next(
     if c.section == "zapateria" and c.gender == "niña" and c.category == "zapatos"
 )
 _DOMAIN = {"gender": _CAT.gender, "section": _CAT.section, "category": _CAT.category}
+# Los ámbitos que la tienda declara, que es lo que `list_catalog()` le pasa al residuo.
+_DECLARADOS = [ScrapeScope(c.gender, c.section, c.category) for c in CATEGORIES]
 # Hoja de ropa (niña / pantalones) para comprobar que el parsing común también la cubre.
 _CAT_ROPA = next(
     c
@@ -156,7 +158,9 @@ def test_el_residuo_del_lookbook_que_es_prenda_del_brief_se_recoge() -> None:
     hoja = next(c for c in CATEGORIES if c.category_id == 2622124)
 
     conjuntos = {e.retailer_product_id: e for e in parse_listing_entries(listing, hoja)}
-    residuo = {e.retailer_product_id: e for e in parse_listing_leftovers(listing, hoja)}
+    residuo = {
+        e.retailer_product_id: e for e in parse_listing_leftovers(listing, hoja, _DECLARADOS)
+    }
 
     # El conjunto de verdad sigue siendo `conjuntos` y NO se duplica en el residuo.
     assert conjuntos["545888980"].category == "conjuntos"
@@ -173,10 +177,51 @@ def test_el_residuo_del_lookbook_que_es_prenda_del_brief_se_recoge() -> None:
     assert "9911278428" not in residuo, "el nodo LOOK del lookbook no es un producto"
 
 
+def test_el_residuo_no_inventa_un_ambito_que_la_tienda_no_recorre() -> None:
+    """La familia decide categoría y la hoja decide género: juntas pueden inventar una pareja.
+
+    `PETO` va a `vestidos` —lo decidió la hoja `PETOS | MONOS`— pero en Zara `vestidos` solo existe
+    para niña y unisex, así que un peto en el lookbook de NIÑO daría `niño/ropa/vestidos`, que
+    `scopes()` no devuelve nunca. Y un ámbito que no está en `scopes()` no entra en `safe_scopes`:
+    el producto no se podría dar de baja jamás, ni desapareciendo de la tienda.
+    """
+    peto_de_nino = {
+        "productGroups": [
+            {
+                "elements": [
+                    {
+                        "commercialComponents": [
+                            {
+                                "seo": {"discernProductId": 999000111},
+                                "familyName": "PETO",
+                                "name": "PETO SARGA",
+                                "detail": {"colors": [{"id": "800", "price": 2595}]},
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+    lookbook_nino = next(c for c in CATEGORIES if c.gender == "niño" and c.category == "conjuntos")
+    assert lookbook_nino.filtro is not None
+
+    assert ScrapeScope("niño", "ropa", "vestidos") not in _DECLARADOS, "premisa del test"
+    assert parse_listing_leftovers(peto_de_nino, lookbook_nino, _DECLARADOS) == []
+
+    # Y el mismo peto en una hoja cuyo género SÍ declara `vestidos` sí entra: lo que descarta es la
+    # pareja imposible, no la familia.
+    lookbook_unisex = next(
+        c for c in CATEGORIES if c.gender == "unisex" and c.category == "conjuntos"
+    )
+    recogido = parse_listing_leftovers(peto_de_nino, lookbook_unisex, _DECLARADOS)
+    assert [e.category for e in recogido] == ["vestidos"]
+
+
 def test_el_residuo_no_se_recoge_en_una_hoja_sin_filtro() -> None:
     """Sin `filtro` no hay lookbook ni residuo: la hoja entera es su categoría."""
     listing = load_fixture("zara_category_2427327.json")
-    assert parse_listing_leftovers(listing, _CAT_ROPA) == []
+    assert parse_listing_leftovers(listing, _CAT_ROPA, _DECLARADOS) == []
 
 
 def test_el_residuo_solo_entra_si_ninguna_hoja_lo_reclama() -> None:
@@ -197,7 +242,7 @@ def test_el_residuo_solo_entra_si_ninguna_hoja_lo_reclama() -> None:
         emitted.setdefault(entry.retailer_product_id, entry.category)
     sobrantes = [
         e
-        for e in parse_listing_leftovers(listing, lookbook)
+        for e in parse_listing_leftovers(listing, lookbook, _DECLARADOS)
         if e.retailer_product_id not in emitted
     ]
 
