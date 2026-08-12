@@ -295,20 +295,61 @@ mundo. Es justo el punto ciego que obliga a que el frente de UI se ejerza en un 
 **Y ese Keycloak no lo gobierna ninguno de los dos repos de este proyecto.** Vive en un tercero —
 `open-liontechsolution/toolsuite-platform-gitops`, path `apps/security/keycloak`, chart `keycloakx`,
 desplegado en `security-dev/keycloak-dev-0`—, así que el contrato de dos repos que describe este ADR
-tiene un tercer vértice del que depende todo el login. Y ahí el realm y sus clients **no están
-declarados en ninguna parte**: el StatefulSet arranca con `start --hostname-strict=false
---proxy-headers=xforwarded`, sin `--import-realm`, y el README de ese chart deja escrito que la
-configuración de realms es trabajo futuro. Existe solo en la Postgres de Keycloak.
+tiene un tercer vértice del que depende todo el login. Es **una sola instancia para los tres
+entornos**: lo que se separa es el realm, no el servidor, así que si esa instancia cae, cae también
+el login de producción. Está aceptado a cambio de no desplegar un Keycloak más.
 
-De ahí salen dos consecuencias que **invierten el reflejo que vale para deal-tracker**. La primera:
-aquí ArgoCD no revierte nada — la Application `keycloak-local-dev` no tiene bloque `automated`, así
-que un cambio por `kcadm.sh` persiste y sobrevive al reinicio del pod, al contrario que en
-deal-tracker, donde `selfHeal: true` deshace cualquier `kubectl patch`. Conviene saberlo antes de
-buscar el fichero que no existe. La segunda, peor: **nada en git delata una regresión de esa
-config**. El Web Origins roto se arregló con un solo `kcadm.sh update` el 06/08/2026, pero puede
-volver mañana sin aparecer en ningún diff, y lo único que lo cazaría es el frente de UI de
-`/validar-qa` en un navegador. Declararlo en git es
-`open-liontechsolution/toolsuite-platform-gitops#49`.
+**Y desde el 12/08/2026 el realm SÍ está declarado en git, lo que invierte lo que este ADR decía
+aquí.** Hasta entonces la configuración de realms y clients existía solo en la Postgres de Keycloak
+—el StatefulSet arranca sin `--import-realm`— y la conclusión era que «nada en git delata una
+regresión de esa config». Ya no: `apps/security/keycloak/realms/*.yaml` los declara y
+**keycloak-config-cli** los aplica por partida doble, con un Job `PostSync` en cada sync y un
+**CronJob nocturno a las 04:00** (toolsuite `#49` y `#50`, las dos cerradas). Ese CronJob corre con
+`cache.enabled: false` a propósito: por defecto config-cli cachea un checksum del fichero y se
+saltaría la aplicación cuando el fichero no ha cambiado, que es justo el caso de un cambio hecho a
+mano en la consola. Con la caché apagada, **la reconciliación revierte de verdad**. El Web Origins
+roto de #219 ya no puede volver en silencio.
+
+Lo que **no** cambia de arriba: QA sigue autenticándose contra el realm de dev. Lo que sí, y hay que
+tenerlo presente al leer el párrafo de #219: **producción estrenó realm propio**,
+`deal-tracker-prod`, con su client `deal-tracker-web` (mismo nombre, otro realm, no colisionan). Ese
+era el punto de la #50 — compartiendo realm, el fallo que tumbó QA se habría llevado por delante
+producción. El contrato con este repo son dos valores del SealedSecret de `overlays/prod`:
+`KEYCLOAK_ISSUER_URL=https://keycloak-dev.liontechsolution.com/realms/deal-tracker-prod` y
+`KEYCLOAK_AUDIENCE=deal-tracker-web`. Si el nombre del realm o del client cambia allí, aquí deja de
+validar ningún token.
+
+**No hay roles, y conviene saberlo antes de buscarlos.** La autorización del backend es
+`issuer` + `aud` + que el token traiga `sub`, y nada más: no hay `RolesGuard`, ni `@Roles`, ni una
+lectura de `realm_access`/`resource_access` en todo `services/web/src` — `KeycloakClaims` solo
+declara `sub`, `email`, `name` y `preferred_username`. El realm de producción tampoco tiene ningún
+rol propio, solo los tres que Keycloak crea solo. **El scoping de los datos de usuario es por
+`app_user.id`**, no por rol. Así que dar de alta a alguien no lleva paso de roles, y añadir uno en
+Keycloak esperando que cambie algo no cambiaría nada.
+
+**Los usuarios son la excepción declarativa, y por la razón contraria a la intuitiva.** No se
+declaran en `realms/`: la razón conocida es que config-cli no sabe borrarlos (`UserImportService`
+registra «Purging users isn't supported» incluso con `users: []`), pero la de peso es que **ese
+mismo CronJob de las 04:00 que hace segura la config del realm haría insostenible la baja de un
+usuario** — volvería a habilitar cada noche a quien se hubiera deshabilitado. Se gestionan con
+`scripts/keycloak-user.sh` de aquel repo (contraseña temporal + `UPDATE_PASSWORD` forzado; la baja
+deshabilita en vez de borrar, porque el `sub` es la clave de `app_user` y borrarlo dejaría huérfanas
+sus filas de `interest` y `notification`). El porqué completo, en su `docs/KEYCLOAK_USERS.md`.
+
+**Y un alta no crea usuario en la aplicación.** `JwtStrategy.validate()` aprovisiona la fila de
+`app_user` **en la primera petición autenticada**, no al crear el usuario ni al iniciar sesión en
+Keycloak. Medido el 12/08/2026: el realm de producción tenía dos usuarios —ambos con
+`UPDATE_PASSWORD` pendiente, o sea sin haber completado nunca el primer acceso— y `app_user` en
+`deal_tracker_prod` estaba **vacío**. Si hay que comprobar que un alta llegó a su destino, el sitio
+es esa tabla y no Keycloak.
+
+Para verificar una credencial sin navegador, el client `deal-tracker-web` no sirve: lleva
+`directAccessGrantsEnabled: false` a propósito (solo PKCE). El `admin-cli` del propio realm sí
+admite `password` grant, y sus dos errores **no significan lo mismo** — `invalid_grant: Account is
+not fully set up` dice que la contraseña **es correcta** y que lo que bloquea el token es el
+`UPDATE_PASSWORD` pendiente, mientras que `Invalid user credentials` dice que no vale. El primero es
+el resultado esperado de un alta recién hecha, y es la única forma de probar sin navegador que la
+credencial se acepta y que el cambio forzoso se está ejerciendo.
 
 **El arm64 solo se compila en `main`, y eso es deliberado.** El cluster son Raspberry Pi, así que
 la variante arm64 es obligatoria para desplegar; pero emularla con QEMU en cada PR costaba ~9 min
