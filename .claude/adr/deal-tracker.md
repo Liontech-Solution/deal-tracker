@@ -2362,6 +2362,41 @@ en la Postgres desechable, una petición, y del log salen el SQL y sus parámetr
 de verdad importa al mover algo fuera del `LIMIT`: que la subconsulta corra con **`loops` = tamaño de
 la página** y no una vez por producto, porque entre la agregación y el `LIMIT` hay un nodo `Sort`.
 
+**Corrección medida el 12/08/2026: «el catálogo filtrado va a 1 s» ya no es cierto para el color
+(#342).** La frase de arriba —que con un filtro puesto el conjunto colapsa y el sort sale gratis— se
+escribió con el filtro de color siendo `color_canon`. Desde que #291 lo mudó a **familia**, hay
+combinaciones que cuestan **más que el catálogo entero**. Medido contra QA bajo `v0.3.0`, con control
+sin filtros antes y después de cada tanda:
+
+| consulta | tiempo | items |
+|---|---:|---:|
+| sin filtros (control) | 1,85 / 1,80 s | 20 |
+| `color=azul` | 1,13 / 1,17 / 1,19 s | 20 |
+| `retailer=zara` | 1,36 / 1,32 s | 20 |
+| `section=ropa&retailer=zara` | 1,25 / 1,46 s | 20 |
+| `gender=niña&retailer=zara` | 2,02 / 1,37 s | 20 |
+| **`color=azul&size=1 mes`** | **5,02 / 4,92 / 5,02 s** | 8 |
+| **`color=azul&retailer=zara`** | **23,25 / 23,57 / 23,16 s** | 20 |
+| **`color=negro&retailer=hm`** | **27,05 / 27,64 s** | 20 |
+
+Tres cosas que acotan el fallo y que conviene no volver a derivar: **es el color** —`section` y
+`gender` combinados con la misma tienda se quedan en ~1,3 s—, **escala con el tamaño del catálogo de
+la tienda** —`color=azul&retailer=cacles` son 1,55 s— y **la consulta más selectiva es la más lenta**
+(8 ítems, 5 s), que es justo lo contrario de lo que predice el modelo de coste constante de #314.
+
+La sospecha, sin confirmar, la da la propia tabla del apartado de #329: **una familia de color no es
+un predicado selectivo**. Tres familias tocan 36.530 filas, contra las 4.723 de cinco tallas. Un
+`ANY` plano e indexable sobre 36.000 filas sigue siendo indexable y sigue siendo caro cuando encima
+hay que unirlo con otro eje, y el `Bitmap Index Scan` de 7,13 ms mide **el predicado**, no el plan
+completo. Falta el `EXPLAIN ANALYZE` de la consulta que ejecuta el servicio con los dos predicados
+puestos — sacada del driver, no escrita a mano, por la lección de método de este mismo apartado.
+
+**Y una trampa de medición que casi mete un P0 falso en un informe:** las primeras medidas dieron
+**45 s** donde luego había 23. QA corre con **una sola réplica**, y esa tanda se lanzó con los
+frentes de datos y API de `/validar-qa` machacando la misma API y la misma base. Cualquier número de
+latencia de QA sin un control `sin filtros` antes y después no vale: no distingue una regresión de la
+carga del que mide.
+
 ### La faceta describe la vista, y cruzarla tiene una frontera de coste declarada (#292, #291)
 
 `getFacets()` es lo que llena el panel de filtros, y hasta la v0.3.0 solo se acotaba por `barefoot`,
