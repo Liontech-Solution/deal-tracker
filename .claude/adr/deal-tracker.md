@@ -1748,6 +1748,67 @@ publicando lo que llevaba. Subir el deadline sin subir el plazo desperdicia el m
 debajo del plazo devuelve la muerte muda. La red de seguridad es el plazo; el deadline es lo que
 pasa si la red falla.
 
+### Descartar el residuo de una hoja da por hecho que hay otra puerta, y a veces no la hay (#289, #200)
+
+`FiltroDeHoja` con `resto=None` existe porque el residuo de una hoja que reagrupa **no es una
+categoría** (#192, sección de arriba). De ahí se siguió, sin medirlo, que descartarlo era gratis:
+«lo que no casa ya entra por su propia hoja o el brief lo deja fuera». Esa disyuntiva tiene un
+tercer caso, y es el que se comió 44 prendas.
+
+Medido en Zara el 13/08/2026 pidiendo las 62 hojas mapeadas: la tienda publica **4490 ids** y la
+pasada emitía **4417**. Los 73 de diferencia salen **solo** en una hoja-lookbook. Desglosados por la
+familia que declara la tienda, **44 son prenda del brief** (30 pantalones, 8 sudaderas, 4 vestidos,
+1 camiseta, 1 ropa-interior); los otros 29 sí se descartan con razón — 18 están fuera del brief
+(gorro, cazadora, chaqueta) y 11 son los nodos `LOOK`, que ni son producto ni traen nombre.
+
+**La consecuencia no es perder catálogo, es perderlo en silencio y para siempre.** Un producto que
+solo publica una hoja filtrada no se emite nunca, así que su `last_seen_at` se congela el día que se
+ingirió y ya no vuelve a moverse. No se da de baja —la confirmación activa lo encuentra vivo y
+`_rescue` le pone la racha a cero en cada pasada—, o sea que se queda en el catálogo enseñando un
+precio que nadie vuelve a comprobar. Ninguna métrica lo delata: la hoja responde 200, `filtro_vacio`
+no salta porque el filtro sí casó con algo, y el `ScanReport` cuenta hojas, no productos.
+
+La cura tiene una propiedad que hay que conservar si alguien la reescribe: **el residuo se emite al
+final de la pasada, no en su hoja**. Las hojas-lookbook van DELANTE a propósito, así que en el
+momento de leerlas todavía no se sabe si su pantalón entrará luego por la hoja de pantalones.
+Demorarlo hasta que `emitted` está completo es lo que hace el arreglo puramente aditivo: 4417 →
+4461 productos, **0 re-etiquetados**. Emitirlo en su hoja habría movido de categoría a los que sí
+tienen puerta propia, que es exactamente lo que #200 quería evitar.
+
+Y la trampa que encontró el revisor, que es la que no se ve leyendo el cambio: **la familia decide
+la categoría y la hoja decide el género, así que juntas pueden fabricar un ámbito que la tienda no
+recorre**. Un `PETO` (que va a `vestidos`, decisión heredada de la hoja `PETOS | MONOS`) en el
+lookbook de niño da `niño/ropa/vestidos`, y en Zara `vestidos` solo existe para niña y unisex. Eso
+importa porque `store.scopes()` es la **única** fuente de `safe_scopes` en `ingest.py`: una fila en
+un ámbito no declarado no entra jamás en `_advance_missing`, `_delist` ni `_confirm_candidates`, o
+sea que **no se puede dar de baja nunca**, ni desapareciendo la tienda entera. Ni siquiera
+`unscanned_scopes` lo vería, porque compara ámbitos declarados contra recorridos, no contra los que
+de verdad salen en `entries`. Cualquier mecanismo que derive el ámbito de dos fuentes distintas
+tiene que validarlo contra `scopes()` antes de emitir.
+
+Vale para cualquier tienda con hojas que reagrupan, no solo Zara: hoy las tienen también Sfera, H&M
+y C&A. Lo que cambia por tienda es si el residuo tiene otra puerta, y eso **se mide, no se supone**
+— es el mismo error de método que #192 documenta un nivel más arriba.
+
+### Una hoja puede estar viva y vacía, y eso no lo veía nadie (#289)
+
+Zara sirvió el 13/08/2026 **200 con cero productos** en dos de sus 62 hojas (`2427530` y `2427980`,
+las de `ropa interior | calcetines`). El sondeo semanal las daba sanas porque `check_leaves()` solo
+miraba el código HTTP, y la pasada tampoco decía nada: `filtro_vacio()` solo cubre las hojas que
+llevan filtro. Es el mismo punto ciego que en H&M obligó a inventar el canario, un escalón más
+abajo — allí la hoja muerta devuelve contenido plausible; aquí devuelve contenido vacío.
+
+El efecto se ve en el reparto de prendas congeladas, y **solo si se normaliza**: en crudo manda
+`pantalones` (28 + 19 de 95), pero dividido por el tamaño de cada ámbito el peor con diferencia es
+`niña/ropa-interior` con **7,0 %** (14 de 201) frente al 4,8 % de `niño/pantalones` y el 0,6 % de
+`niña/camisetas`. El ranking crudo señalaba la categoría más grande; la que tenía la hoja rota era
+otra.
+
+Lo que se publica ahora es el número de productos en el detalle de `LeafHealth`, como ya hacía
+Sfera. **El veredicto sigue siendo `True` a propósito**: una hoja vacía de verdad existe —Zara vacía
+y rellena categorías con la campaña— y darla por muerta convertiría el vigía en un generador de
+falsos positivos semanales, que es justo lo que no puede ser.
+
 ### El cuello de las tiendas de navegador era el `limits.cpu` del pod (#160, #258, #259)
 
 La degradación del 07/08 —Hipercor ×2,6, Sfera ×4,1 en parseo, **las dos de Chromium y ninguna de
