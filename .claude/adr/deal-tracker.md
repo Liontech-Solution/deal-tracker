@@ -2425,12 +2425,19 @@ Tres cosas que acotan el fallo y que conviene no volver a derivar: **es el color
 la tienda** —`color=azul&retailer=cacles` son 1,55 s— y **la consulta más selectiva es la más lenta**
 (8 ítems, 5 s), que es justo lo contrario de lo que predice el modelo de coste constante de #314.
 
-La sospecha, sin confirmar, la da la propia tabla del apartado de #329: **una familia de color no es
-un predicado selectivo**. Tres familias tocan 36.530 filas, contra las 4.723 de cinco tallas. Un
-`ANY` plano e indexable sobre 36.000 filas sigue siendo indexable y sigue siendo caro cuando encima
-hay que unirlo con otro eje, y el `Bitmap Index Scan` de 7,13 ms mide **el predicado**, no el plan
-completo. Falta el `EXPLAIN ANALYZE` de la consulta que ejecuta el servicio con los dos predicados
-puestos — sacada del driver, no escrita a mano, por la lección de método de este mismo apartado.
+~~La sospecha, sin confirmar, la da la propia tabla del apartado de #329: una familia de color no es
+un predicado selectivo.~~ **Desmentida el 12/08/2026 con el `EXPLAIN ANALYZE` que este párrafo
+pedía.** No era la selectividad del predicado: era que `color_family()` estaba declarada sin `COST`,
+así que el planificador la creía gratis y prefería comprobar el color **fila a fila** sobre los
+productos de la tienda antes que entrar por su índice. Con el coste declarado (migración `0030`), la
+misma consulta pasa de 23.698 ms a **1.127 ms**, o sea que **«el catálogo filtrado va a 1 s» vuelve a
+ser cierto**, también para el color. El detalle, los números por llamada de las tres funciones y lo
+que hay que llevarse a la siguiente, en el apartado *«Declarar la forma del predicado no basta si la
+función miente sobre lo que cuesta»*.
+
+Lo que sí queda en pie de esa sospecha, porque es un dato y no una hipótesis: tres familias de color
+tocan 36.530 filas contra las 4.723 de cinco tallas, y el `Bitmap Index Scan` de 7,13 ms mide **el
+predicado**, no el plan completo. Esa segunda frase es la lección de método que sobrevive.
 
 **Y una trampa de medición que casi mete un P0 falso en un informe:** las primeras medidas dieron
 **45 s** donde luego había 23. QA corre con **una sola réplica**, y esa tanda se lanzó con los
@@ -2543,6 +2550,74 @@ Dos trampas que costaron tiempo y no se deducen leyendo el código:
   recién restaurada de `pg_dump` no tiene estadísticas hasta que se le pasa `ANALYZE`, ni
   necesariamente todos los índices —el `CREATE INDEX` de `color_family` falla durante la restauración
   por orden de dependencias—. Las dos cosas juntas producen un falso negativo muy convincente.
+
+**Y una corrección que llegó después: la forma correcta conserva el índice, pero no obliga a usarlo.**
+Todo lo de arriba sigue siendo cierto y sigue siendo obligatorio — y aun así no bastó. Las medidas de
+este apartado son todas de **un solo predicado**, y con dos el planificador abandonó el índice igual.
+Lo cuenta el apartado siguiente.
+
+### Declarar la forma del predicado no basta si la función miente sobre lo que cuesta (#342)
+
+Es la segunda mitad de la lección anterior, y costó 23 segundos por petición en producción durante
+una versión entera.
+
+El apartado de arriba deja escrito que `ejeMultiple()` conserva `ix_variant_color_family` porque el
+plegado va en un `ARRAY(SELECT ...)` no correlado. Es verdad, está medido, y no cambia. Lo que no
+dice —porque cuando se escribió solo se había medido con un filtro— es que **conservar el índice no
+es lo mismo que usarlo**. Medido contra `deal_tracker_qa` (12/08/2026) con la consulta que ejecuta
+`listProducts()`, volcada del servicio y no escrita a mano:
+
+| | tiempo |
+|---|---:|
+| sin filtros | 1.932 ms |
+| `color=azul` | 1.285 ms |
+| `retailer=zara` | 1.368 ms |
+| **`color=azul` + `retailer=zara`** | **23.698 ms** |
+
+La consulta **más selectiva** era la más lenta, que es lo que descarta que sea el suelo del catálogo
+(coste constante de agregar todo antes del `LIMIT`, el apartado de #307). El nodo culpable:
+
+```
+->  Index Scan using ix_variant_product on variant v
+        (actual time=8.139..10.476 rows=2 loops=4271)
+      Index Cond: (product_id = p.id)
+      Filter: (color_family(color) = ANY ($6))
+```
+
+4.271 vueltas —los productos vivos de la tienda— × 10,5 ms = 44,7 s de CPU entre dos workers. Con el
+segundo predicado, al planificador le sale más barato recorrer los productos de la tienda y
+comprobar el color **fila a fila** que entrar por el índice del color.
+
+**La causa es que una función SQL sin `COST` declarado vale 100 unidades de `cpu_operator_cost`, o
+sea 0,25 — del orden de un par de comparaciones.** Lo que cuestan de verdad, medido sobre 20.000
+variantes:
+
+| función | por llamada | veces lo que el planificador supone |
+|---|---:|---:|
+| `color_family` | **0,50 ms** | ~2.000× |
+| `size_canon` | 0,095 ms | ~40× |
+| `color_canon` | 0,008 ms | en línea |
+
+`color_family` sale 65 veces más cara que la función sobre la que se apila, porque son ~20 regexes
+encadenados **sobre** el resultado de `color_canon`. El planificador no tiene forma de saberlo.
+
+La `0030` lo arregla con una línea —`ALTER FUNCTION color_family(text) COST 10000`— y el filtro
+combinado pasa a **1.127 ms**, por debajo del catálogo sin filtros. El valor se eligió midiendo, no
+por criterio: con `COST 1000` el caso malo también se arregla pero `color=azul` solo empeora ~250 ms;
+con 10.000 no empeora ninguno. `COST` no cambia lo que la función devuelve, así que —al revés de lo
+que exige la cabecera de la 0029 para cualquier cambio de *cuerpo*— **no invalida el índice por
+expresión y no hace falta `REINDEX`**; comprobado con el `relfilenode` intacto y `indisvalid = t`.
+
+Tres cosas que se llevan a cualquier función futura de este tipo:
+
+- **Toda función que se apile sobre otra nace con su `COST` medido.** El patrón `color_canon` →
+  `color_family` se repite en #325 con `size_canon` → `size_band`, y ahí la trampa está esperando
+  igual. Medir es un `EXPLAIN (ANALYZE, TIMING OFF)` de un `count()` sobre la columna: dos minutos.
+- **Un índice por expresión no es una garantía, es una opción que el planificador puede rechazar.**
+  Y lo rechaza en silencio: no hay error, solo una consulta 20 veces más lenta cuando alguien combina
+  dos filtros.
+- **Medir con un solo filtro no dice nada sobre dos.** Es el error de método que dejó pasar esto: el
+  apartado de #329 midió con un predicado y dio el asunto por cerrado.
 
 ### Un plan de Postgres medido en el portátil no predice el del cluster (#292)
 
