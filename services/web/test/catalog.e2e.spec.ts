@@ -201,9 +201,24 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
     // Precio inflado: el precio actual NO es un mínimo reciente (ya estuvo a 15 €) y la tienda
     // enseña un tachado de 49,99 € con un 64 % -> descuento que no podemos corroborar, y a la vez
     // el mayor `discount_pct` declarado del catálogo: el caso que el orden tiene que degradar.
+    //
+    // El punto de hace 120 días es lo que da derecho a ACUSAR (#332): sin él llevaríamos tres días
+    // mirando y "nunca ha costado 49,99 €" no sería una afirmación nuestra. El de hace 3 días hace
+    // falta aparte, porque `recent_min` solo mira la ventana de 90 días y sin nada dentro de ella
+    // el veredicto sería `none` por falta de histórico, no por prudencia.
     await seedProduct(r.id, 'Precio inflado', [
+      { price: 15, list: 15, daysAgo: 120 },
       { price: 15, list: 15, daysAgo: 3 },
       { price: 18, list: 49.99, daysAgo: 0, discount: 64 },
+    ]);
+    // Sin corroborar: descubierta YA rebajada, y desde entonces no se ha movido. Lo más caro que la
+    // hemos visto es su propio precio de rebaja, así que el tachado de 17,99 € puede ser verdad o
+    // mentira y no tenemos con qué distinguirlo (#332). Antes esto se etiquetaba «Precio inflado».
+    // Declara un 50 %, por debajo del 64 % de 'Precio inflado': así el caso de `sort=descuento`
+    // sigue midiendo lo que medía —quién declara el mayor descuento— y no lo desplaza este.
+    await seedProduct(r.id, 'Sin corroborar', [
+      { price: 8.99, list: 17.99, daysAgo: 2, discount: 50 },
+      { price: 8.99, list: 17.99, daysAgo: 0, discount: 50 },
     ]);
     // Recién visto: una sola observación, ya rebajada -> sin histórico no afirmamos nada.
     await seedProduct(r.id, 'Recién visto', [{ price: 12, list: 30, daysAgo: 0, discount: 60 }]);
@@ -228,8 +243,26 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
     );
     expect(byName.get('Oferta real')).toBe('real');
     expect(byName.get('Precio inflado')).toBe('suspicious');
+    // Los dos veredictos que NO acusan, y que son cosas distintas (#332): en «Sin corroborar» hay
+    // tachado y no podemos desmentirlo; en «Recién visto» no hay ni con qué empezar.
+    expect(byName.get('Sin corroborar')).toBe('unverified');
     expect(byName.get('Recién visto')).toBe('none');
     expect(byName.get('Sin rebaja')).toBe('none');
+  });
+
+  /**
+   * La regresión de #332 en su forma más directa: durante meses, una prenda descubierta ya
+   * rebajada acababa acusada de precio inflado a la segunda pasada. Si alguien afloja el umbral,
+   * esto rompe antes de que el catálogo vuelva a afirmar lo que no sabe.
+   */
+  it('una prenda descubierta ya rebajada nunca se etiqueta «Precio inflado»', async () => {
+    const res = await request(app.getHttpServer()).get('/api/catalog/products').expect(200);
+    const sinCorroborar = res.body.items.find(
+      (i: { name: string }) => i.name === 'Sin corroborar',
+    );
+
+    expect(sinCorroborar.honesty).not.toBe('suspicious');
+    expect(sinCorroborar.honesty).toBe('unverified');
   });
 
   /**
@@ -260,7 +293,7 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
     const res = await request(app.getHttpServer())
       .get('/api/catalog/products?onlyDeals=false')
       .expect(200);
-    expect(res.body.items).toHaveLength(4);
+    expect(res.body.items).toHaveLength(5);
   });
 
   it('sort=ofertas antepone la oferta real al mayor descuento declarado por la tienda', async () => {

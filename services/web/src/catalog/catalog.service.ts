@@ -203,17 +203,28 @@ export class CatalogService {
                  WHERE h.scraped_at >= l.scraped_at - make_interval(days => ${HONESTY_WINDOW_DAYS})
                ) AS recent_min,
                MAX(h.price) AS max_observed,
-               COUNT(*)     AS prior_points
+               COUNT(*)     AS prior_points,
+               -- Días que llevamos observando la variante, de su primera observación a la última.
+               -- Es lo que separa "el tachado está inflado" de "no lo puedo corroborar todavía"
+               -- (#332): max_observed no es lo que la prenda ha costado jamás, es lo más caro que
+               -- la hemos visto DESDE QUE LA DESCUBRIMOS, así que en una prenda descubierta ya
+               -- rebajada vale su propio precio de rebaja y acusar con él es afirmar lo que no
+               -- sabemos. El umbral y su porqué, en HONESTY_EVIDENCE_DAYS (deal-rule.ts).
+               --
+               -- l.scraped_at entra en el GROUP BY por esto, no por capricho: es la referencia
+               -- contra la que se mide, y ya venía fijada por variante desde la CTE latest.
+               EXTRACT(EPOCH FROM l.scraped_at - MIN(h.scraped_at)) / 86400 AS tracked_days
         FROM latest l
         JOIN price_history h ON h.variant_id = l.variant_id AND h.scraped_at < l.scraped_at
-        GROUP BY l.variant_id
+        GROUP BY l.variant_id, l.scraped_at
       ),
       matched AS (
         SELECT p.id, p.retailer_id, r.slug AS retailer_slug, r.name AS retailer_name,
                p.retailer_product_id, p.name, p.gender, p.section, p.category, p.barefoot, p.url,
                p.image_url,
                v.id AS variant_id, v.color, l.price, l.list_price, l.discount_pct, l.in_stock,
-               s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points
+               s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points,
+               COALESCE(s.tracked_days, 0) AS tracked_days
         FROM product p
         JOIN retailer r ON r.id = p.retailer_id
         JOIN variant v ON v.product_id = p.id AND v.delisted_at IS NULL
@@ -265,6 +276,7 @@ export class CatalogService {
                (array_agg(recent_min ORDER BY in_stock DESC, price ASC))[1] AS recent_min_repr,
                (array_agg(max_observed ORDER BY in_stock DESC, price ASC))[1] AS max_observed_repr,
                (array_agg(prior_points ORDER BY in_stock DESC, price ASC))[1] AS prior_points_repr,
+               (array_agg(tracked_days ORDER BY in_stock DESC, price ASC))[1] AS tracked_days_repr,
                -- ...y su COLOR, para que la foto de la tarjeta sea la de ese mismo color y no la de
                -- otro cualquiera: el precio cuelga de la variante (talla+color), así que enseñar la
                -- foto del "primer color" junto al precio de la variante más barata puede mezclar.
@@ -368,6 +380,7 @@ export class CatalogService {
         recentMin: (row.recent_min_repr as string | null) ?? null,
         maxObserved: (row.max_observed_repr as string | null) ?? null,
         priorPoints: Number(row.prior_points_repr ?? 0),
+        trackedDays: Number(row.tracked_days_repr ?? 0),
         minDiscountPct: 0,
         compareBase: 'recent_min',
       }),
@@ -441,10 +454,14 @@ export class CatalogService {
                  WHERE h.scraped_at >= l.scraped_at - make_interval(days => ${HONESTY_WINDOW_DAYS})
                ) AS recent_min,
                MAX(h.price) AS max_observed,
-               COUNT(*)     AS prior_points
+               COUNT(*)     AS prior_points,
+               -- Mismo tracked_days que el listado, y por el mismo motivo (#332): aquí además se
+               -- devuelve al cliente, porque la ficha de una prenda "unverified" dice cuántos días
+               -- llevamos siguiéndola en vez de acusar a la tienda.
+               EXTRACT(EPOCH FROM l.scraped_at - MIN(h.scraped_at)) / 86400 AS tracked_days
         FROM latest l
         JOIN price_history h ON h.variant_id = l.variant_id AND h.scraped_at < l.scraped_at
-        GROUP BY l.variant_id
+        GROUP BY l.variant_id, l.scraped_at
       ),
       -- Una fila por PRENDA COMPRABLE, no por variante (#108). Lefties, H&M e Hipercor publican
       -- la misma talla y color con dos SKU distintos: los dos son reales y estables, así que
@@ -478,7 +495,8 @@ export class CatalogService {
       SELECT v.id, v.retailer_variant_id, v.size, size_canon(v.size) AS size_canon,
              v.color, v.sku, v.url, v.delisted_at,
              l.price, l.list_price, l.discount_pct, g.in_stock, l.scraped_at,
-             s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points
+             s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points,
+             COALESCE(s.tracked_days, 0) AS tracked_days
       FROM prenda g
       JOIN variant v ON v.id = g.variant_id
       LEFT JOIN latest l ON l.variant_id = v.id
@@ -515,12 +533,16 @@ export class CatalogService {
         (row.size_canon as string | null) ?? null,
         (row.color as string | null) ?? null,
       ),
+      // Días que llevamos siguiendo esta prenda. Solo sale en la ficha —la tarjeta no lo pinta—, y
+      // está para que el texto de una `unverified` diga lo que sabemos en vez de acusar (#332).
+      trackedDays: Math.floor(Number(row.tracked_days ?? 0)),
       honesty: classifyHonesty({
         price: (row.price as string | null) ?? null,
         listPrice: (row.list_price as string | null) ?? null,
         recentMin: (row.recent_min as string | null) ?? null,
         maxObserved: (row.max_observed as string | null) ?? null,
         priorPoints: Number(row.prior_points ?? 0),
+        trackedDays: Number(row.tracked_days ?? 0),
         minDiscountPct: 0,
         compareBase: 'recent_min',
       }),

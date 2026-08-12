@@ -3,8 +3,14 @@
  * Los precios llegan como string (dinero exacto, sin float): se formatean/parsean en `lib/format`.
  */
 
-/** Veredicto de descuento honesto (espejo de `HonestyVerdict` del backend). Lo calcula el catálogo. */
-export type Honesty = 'real' | 'suspicious' | 'none';
+/**
+ * Veredicto de descuento honesto (espejo de `HonestyVerdict` del backend). Lo calcula el catálogo.
+ *
+ * `unverified` es el que hay que tratar con cuidado (#332): significa «la tienda enseña un tachado,
+ * no es una bajada real, y **no podemos corroborar** que esté inflado». No es una acusación
+ * suavizada — es la ausencia de prueba, y se pinta sin badge y sin culpar a nadie.
+ */
+export type Honesty = 'real' | 'suspicious' | 'unverified' | 'none';
 
 export interface ProductListItem {
   id: number;
@@ -73,6 +79,8 @@ export interface VariantWithPrice {
    * de la tienda — que es lo que pinta el selector de tallas.
    */
   variantLabel: string | null;
+  /** Días enteros que llevamos observando esta variante. Solo lo trae la ficha (#332). */
+  trackedDays: number;
   honesty: Honesty;
 }
 

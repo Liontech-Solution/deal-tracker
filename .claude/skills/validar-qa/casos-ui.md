@@ -70,6 +70,8 @@ en casi todos los casos; ahora no, porque sin ella no hay catálogo que recorrer
 | U24 | Cambiar de referencia de color | cambian **foto y precio a la vez**, y la miniatura vuelve a la primera. Que cambie la foto y no el precio es **P0**: enseña un precio que no es el de lo que se ve |
 | U25 | Producto con dos referencias del **mismo** nombre de color (caso H&M) | se distinguen con «· 2ª referencia», no aparecen como duplicado indistinguible |
 | U26 | Badge de honestidad | coherente con el descuento mostrado; un «oferta real» sobre un PVP inflado es **P0** — es justo el fraude que el producto existe para detectar |
+| U26b | Prenda descubierta **ya rebajada** (la tienda enseña tachado y nunca la hemos visto más cara) | **no** lleva badge «Precio inflado», y la ficha dice «Descuento sin confirmar: llevamos N días siguiéndola…» sin acusar a nadie. Un «Precio inflado» aquí es **P0**: es afirmar un fraude que no hemos comprobado (#332) |
+| U26c | Ausencia total de badges «Precio inflado» en el catálogo | **es lo esperado, no un hallazgo.** Desde #332 acusar exige 90 días de histórico cubierto, y la serie más antigua de prod arranca el 07/08/2026: hasta **~05/11/2026** (qa ~22/10/2026) no puede haber ni uno. Reportarlo como regresión es un P0 inventado. Lo que sí hay que comprobar es que esas prendas salen como «Descuento sin confirmar» y no como si no pasara nada |
 | U27 | Badge de stock | `stock` / `agotado` / `descatalogado` según el dato |
 | U28 | Gráfica de histórico | línea de precio, PVP discontinuo, punto de mínimo, y tooltip con precio y fecha en `es-ES` al pasar por encima |
 | U29 | Variante con menos de dos puntos | mensaje «Aún no hay suficiente histórico», no una gráfica vacía ni un error |

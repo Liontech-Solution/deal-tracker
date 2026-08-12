@@ -73,6 +73,13 @@ export const AlertIcon = (p: P) => (
     <path d="M12 9v5M12 17.2v.1" />
   </Icon>
 );
+/** Reloj: «llevamos N días siguiendo esta prenda». Ni alerta ni visto bueno — todavía no sabemos. */
+export const ClockIcon = (p: P) => (
+  <Icon {...p} sw={p.sw ?? 2.2}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3.2 1.9" />
+  </Icon>
+);
 export const CloseIcon = (p: P) => (
   <Icon {...p} sw={p.sw ?? 2.4}>
     <path d="M6 6l12 12M18 6L6 18" />
