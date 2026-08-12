@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 299671df-4011-4d32-b2b1-df4fc0d7fa27
-  modified: 2026-08-11T10:13:09.398Z
+  modified: 2026-08-12T22:58:33.619Z
 ---
 
 Trabajando dentro de un worktree, el clasificador de comandos rechaza cosas que fuera pasan, con el
@@ -39,3 +39,13 @@ la forma del comando. Dos que cuestan varios intentos si no se sabe:
 con `tar: Cannot open: Read-only file system` — ni siquiera en `/tmp`. Las consultas largas contra
 `deal_tracker_qa` van con `psql -c "..."` en **una sola línea**, que sí admite sentencias grandes
 (probado con un `CASE` de 20 ramas). Ver [[verificar-en-cluster-dev]] para el resto del camino.
+
+**Ojo con plegar a una línea un SQL que lleve comentarios `--`.** Es la consecuencia no evidente de
+lo anterior: la plantilla de `listProducts()` tiene 58 comentarios `--` dentro, y al colapsar los
+saltos de línea el primero comenta **el resto de la consulta**. Postgres no dice «hay un
+comentario»: responde `syntax error at end of input` señalando el final del texto, que parece un
+paréntesis sin cerrar y manda a buscar al sitio equivocado. Hay que quitarlos **antes** de plegar,
+línea a línea sobre el texto multilínea (`l.replace(/--.*$/, '')`); hacerlo después, sobre el texto
+ya en una línea, borra la consulta entera desde el primer `--`. Se comprueba en un segundo con un
+`EXPLAIN` sin `ANALYZE`, que parsea y planifica sin ejecutar nada.
+Ver [[volcar-el-sql-que-ejecuta-el-servicio]].
