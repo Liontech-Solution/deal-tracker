@@ -1,0 +1,1005 @@
+{
+ "productGroups": [
+  {
+   "type": "grid",
+   "elements": [
+    {
+     "commercialComponents": [
+      {
+       "id": 9911278428,
+       "reference": "M9911278428",
+       "type": "Bundle",
+       "kind": "Marketing",
+       "xmedia": [],
+       "name": "",
+       "description": "",
+       "section": 0,
+       "detail": {
+        "reference": "M9911278428",
+        "displayReference": "9911/278",
+        "colors": [
+         {
+          "id": "",
+          "productId": 9911278428,
+          "name": "",
+          "stylingId": "0",
+          "xmedia": [
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "other",
+            "path": "/assets/public/b5c6/08e4/0b474f90b445/0b8c0db1aaf5/",
+            "name": "4ffe186c4986ddfdd5a0491aaeafe24e",
+            "width": 2048,
+            "height": 3341,
+            "timestamp": "1785403341297",
+            "allowedScreens": [
+             "large"
+            ],
+            "extraInfo": {
+             "isDarkModeCompatible": false,
+             "assetId": "b5c608e40b474f90b4450b8c0db1aaf5"
+            },
+            "layers": [
+             {
+              "datatype": "xmedia",
+              "set": 2,
+              "type": "image",
+              "kind": "other",
+              "path": "/assets/public/b5c6/08e4/0b474f90b445/0b8c0db1aaf5/",
+              "name": "4ffe186c4986ddfdd5a0491aaeafe24e",
+              "width": 2048,
+              "height": 3341,
+              "timestamp": "1785403341297",
+              "allowedScreens": [
+               "large",
+               "small"
+              ],
+              "extraInfo": {
+               "isDarkModeCompatible": false,
+               "assetId": "b5c608e40b474f90b4450b8c0db1aaf5"
+              },
+              "url": "https://static.zara.net/assets/public/b5c6/08e4/0b474f90b445/0b8c0db1aaf5/4ffe186c4986ddfdd5a0491aaeafe24e/4ffe186c4986ddfdd5a0491aaeafe24e.jpg?ts=1785403341297&w={width}",
+              "metaUrl": "https://static.zara.net/assets/public/b5c6/08e4/0b474f90b445/0b8c0db1aaf5/meta.json?ts=1785403356395"
+             },
+             {
+              "datatype": "xmedia",
+              "set": 2,
+              "type": "vector",
+              "kind": "other",
+              "path": "/assets/public/f5b4/a7f8/9e11468db59c/524a7d9f517f/",
+              "name": "2ccf6ae73a78ac71acad361cca5646b0",
+              "timestamp": "1783956411340",
+              "allowedScreens": [
+               "large",
+               "small"
+              ],
+              "extraInfo": {
+               "isDarkModeCompatible": false,
+               "assetId": "f5b4a7f89e11468db59c524a7d9f517f"
+              },
+              "url": "https://static.zara.net/assets/public/f5b4/a7f8/9e11468db59c/524a7d9f517f/2ccf6ae73a78ac71acad361cca5646b0.svg?ts=1783956411340"
+             }
+            ],
+            "metaUrl": "https://static.zara.net/assets/public/b5c6/08e4/0b474f90b445/0b8c0db1aaf5/meta.json?ts=1785403356395",
+            "regions": [
+             {
+              "area": {
+               "x1": 0,
+               "y1": 0,
+               "x2": 100,
+               "y2": 100
+              },
+              "link": {
+               "datatype": "categoryLink",
+               "id": 2428290,
+               "categoryId": 2428290,
+               "code": "",
+               "seoKeyword": "kids-boy-packs-total-look",
+               "type": "category",
+               "seoId": ""
+              },
+              "areaLink": {
+               "url": "https://www.zara.com/es/es/kids-boy-packs-total-look-c2428290.html",
+               "queryParams": ""
+              },
+              "showIcon": false
+             }
+            ]
+           }
+          ],
+          "extraInfo": {},
+          "canonicalReference": "9911278428"
+         }
+        ]
+       },
+       "seo": {
+        "keyword": "",
+        "seoProductId": "",
+        "discernProductId": 9911278428,
+        "irrelevant": true
+       },
+       "tagTypes": [],
+       "marketingMetaInfo": {
+        "type": "banner",
+        "isDivider": false,
+        "isSticky": false,
+        "mappingInfo": [
+         {
+          "xmediaName": "4ffe186c4986ddfdd5a0491aaeafe24e",
+          "regions": [
+           {
+            "area": {
+             "x1": 0,
+             "y1": 0,
+             "x2": 100,
+             "y2": 100
+            },
+            "link": {
+             "datatype": "categoryLink",
+             "id": 2428290,
+             "categoryId": 2428290,
+             "code": "",
+             "seoKeyword": "kids-boy-packs-total-look",
+             "type": "category",
+             "seoId": ""
+            },
+            "areaLink": {
+             "url": "https://www.zara.com/es/es/kids-boy-packs-total-look-c2428290.html",
+             "queryParams": ""
+            },
+            "showIcon": false
+           }
+          ]
+         }
+        ],
+        "showLinksIcon": false
+       },
+       "extraInfo": {
+        "isDivider": false,
+        "highlightPrice": false,
+        "hideProductInfo": false,
+        "isAddToCartInGridDisabled": true,
+        "duplicateReference": false
+       },
+       "availableColors": [],
+       "displayInfo": {
+        "hiddenInZooms": [
+         "ZOOM2",
+         "ZOOM3"
+        ]
+       },
+       "isPinned": true,
+       "gridPosition": 1,
+       "zoomedGridPosition": 1,
+       "preservedBlockPosition": 1,
+       "athleticzPosition": 1,
+       "productTag": [],
+       "isBannerWithoutLink": false,
+       "basicInfoMissing": true,
+       "omitProductInfo": false,
+       "colorList": "",
+       "isDivider": false,
+       "hasXmediaDouble": false,
+       "showExtraImageOnHover": false,
+       "showAvailability": false,
+       "priceUnavailable": true,
+       "isOnSale": false
+      }
+     ]
+    },
+    {
+     "commercialComponents": [
+      {
+       "id": 579615420,
+       "reference": "04745672-I2026",
+       "type": "Product",
+       "kind": "Wear",
+       "brand": {
+        "brandId": 1,
+        "brandGroupId": 1,
+        "brandGroupCode": "zara"
+       },
+       "xmedia": [],
+       "name": "CHAQUETA SPORTY VIVO CONTRASTE",
+       "description": "",
+       "price": 2295,
+       "section": 3,
+       "sectionName": "KID",
+       "familyName": "CHAQUETA",
+       "subfamilyName": "NIÑO-FELPA",
+       "detail": {
+        "reference": "04745672-I2026",
+        "displayReference": "4745/672",
+        "colors": [
+         {
+          "id": "716",
+          "productId": 579615420,
+          "name": "Marrón oscuro",
+          "stylingId": "300",
+          "outfitId": "STYLES-BOY",
+          "xmedia": [
+           {
+            "datatype": "xmedia",
+            "set": 302,
+            "type": "image",
+            "kind": "full",
+            "path": "/assets/public/c4f1/75ab/df354b16bd46/2d3bdc56765e/04745672716-p",
+            "name": "04745672716-p",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1785836974541",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "p",
+             "assetId": "c4f175abdf354b16bd462d3bdc56765e",
+             "deliveryUrl": "https://static.zara.net/assets/public/c4f1/75ab/df354b16bd46/2d3bdc56765e/04745672716-p/04745672716-p.jpg?ts=1785836974541",
+             "deliveryPath": "/assets/public/c4f1/75ab/df354b16bd46/2d3bdc56765e/04745672716-p/04745672716-p.jpg?ts=1785836974541"
+            },
+            "url": "https://static.zara.net/assets/public/c4f1/75ab/df354b16bd46/2d3bdc56765e/04745672716-p/04745672716-p.jpg?ts=1785836974541&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/c4f1/75ab/df354b16bd46/2d3bdc56765e/meta.json?ts=1785836974546"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 302,
+            "type": "image",
+            "kind": "other",
+            "path": "/assets/public/a672/0ebd/b5be4d2fbcd3/6cd3ed7d9996/04745672716-a1",
+            "name": "04745672716-a1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1785836974640",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "a1",
+             "assetId": "a6720ebdb5be4d2fbcd36cd3ed7d9996",
+             "deliveryUrl": "https://static.zara.net/assets/public/a672/0ebd/b5be4d2fbcd3/6cd3ed7d9996/04745672716-a1/04745672716-a1.jpg?ts=1785836974640",
+             "deliveryPath": "/assets/public/a672/0ebd/b5be4d2fbcd3/6cd3ed7d9996/04745672716-a1/04745672716-a1.jpg?ts=1785836974640"
+            },
+            "url": "https://static.zara.net/assets/public/a672/0ebd/b5be4d2fbcd3/6cd3ed7d9996/04745672716-a1/04745672716-a1.jpg?ts=1785836974640&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/a672/0ebd/b5be4d2fbcd3/6cd3ed7d9996/meta.json?ts=1785836974646"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 302,
+            "type": "image",
+            "kind": "full",
+            "path": "/assets/public/c4f1/75ab/df354b16bd46/2d3bdc56765e/04745672716-p",
+            "name": "04745672716-p",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1785836974541",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "p",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "c4f175abdf354b16bd462d3bdc56765e",
+             "deliveryUrl": "https://static.zara.net/assets/public/c4f1/75ab/df354b16bd46/2d3bdc56765e/04745672716-p/04745672716-p.jpg?ts=1785836974541",
+             "deliveryPath": "/assets/public/c4f1/75ab/df354b16bd46/2d3bdc56765e/04745672716-p/04745672716-p.jpg?ts=1785836974541"
+            },
+            "url": "https://static.zara.net/assets/public/c4f1/75ab/df354b16bd46/2d3bdc56765e/04745672716-p/04745672716-p.jpg?ts=1785836974541&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/c4f1/75ab/df354b16bd46/2d3bdc56765e/meta.json?ts=1785836974546"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 302,
+            "type": "image",
+            "kind": "other",
+            "path": "/assets/public/be8b/dfbe/4ab8450aabd1/0aca40fd0571/04745672716-f1",
+            "name": "04745672716-f1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1785489643568",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "f1",
+             "availableZooms": [
+              "ZOOM3"
+             ],
+             "assetId": "be8bdfbe4ab8450aabd10aca40fd0571",
+             "deliveryUrl": "https://static.zara.net/assets/public/be8b/dfbe/4ab8450aabd1/0aca40fd0571/04745672716-f1/04745672716-f1.jpg?ts=1785489643568",
+             "deliveryPath": "/assets/public/be8b/dfbe/4ab8450aabd1/0aca40fd0571/04745672716-f1/04745672716-f1.jpg?ts=1785489643568"
+            },
+            "url": "https://static.zara.net/assets/public/be8b/dfbe/4ab8450aabd1/0aca40fd0571/04745672716-f1/04745672716-f1.jpg?ts=1785489643568&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/be8b/dfbe/4ab8450aabd1/0aca40fd0571/meta.json?ts=1785489645060"
+           }
+          ],
+          "pdpMedia": {
+           "datatype": "xmedia",
+           "set": 302,
+           "type": "image",
+           "kind": "other",
+           "path": "/assets/public/be8b/dfbe/4ab8450aabd1/0aca40fd0571/04745672716-f1",
+           "name": "04745672716-f1",
+           "width": 2048,
+           "height": 3072,
+           "timestamp": "1785489643568",
+           "allowedScreens": [
+            "small",
+            "large"
+           ],
+           "extraInfo": {
+            "originalName": "f1",
+            "assetId": "be8bdfbe4ab8450aabd10aca40fd0571",
+            "deliveryUrl": "https://static.zara.net/assets/public/be8b/dfbe/4ab8450aabd1/0aca40fd0571/04745672716-f1/04745672716-f1.jpg?ts=1785489643568",
+            "deliveryPath": "/assets/public/be8b/dfbe/4ab8450aabd1/0aca40fd0571/04745672716-f1/04745672716-f1.jpg?ts=1785489643568"
+           },
+           "url": "https://static.zara.net/assets/public/be8b/dfbe/4ab8450aabd1/0aca40fd0571/04745672716-f1/04745672716-f1.jpg?ts=1785489643568&w={width}",
+           "metaUrl": "https://static.zara.net/assets/public/be8b/dfbe/4ab8450aabd1/0aca40fd0571/meta.json?ts=1785489645060"
+          },
+          "price": 2295,
+          "availability": "in_stock",
+          "reference": "C04745672716300-I2026",
+          "extraInfo": {
+           "highlightPrice": false
+          },
+          "canonicalReference": "04745672716-I2026"
+         }
+        ]
+       },
+       "seo": {
+        "keyword": "chaqueta-sporty-vivo-contraste",
+        "seoProductId": "04745672",
+        "discernProductId": 579615420
+       },
+       "availability": "in_stock",
+       "tagTypes": [
+        {
+         "displayName": "NEW",
+         "type": "NEW"
+        }
+       ],
+       "extraInfo": {
+        "highlightPrice": false,
+        "hideProductInfo": false,
+        "duplicateReference": false
+       },
+       "availableColors": [
+        {
+         "colorName": "Marrón oscuro",
+         "hexColor": "#493B37"
+        }
+       ],
+       "gridPosition": 1,
+       "zoomedGridPosition": 5,
+       "preservedBlockPosition": 5,
+       "athleticzPosition": 5,
+       "productTag": [
+        "NEW"
+       ],
+       "colorList": "",
+       "isDivider": false,
+       "hasXmediaDouble": false,
+       "showExtraImageOnHover": false,
+       "showAvailability": false,
+       "priceUnavailable": false
+      }
+     ]
+    },
+    {
+     "commercialComponents": [
+      {
+       "id": 545470437,
+       "reference": "04745671-I2026",
+       "type": "Product",
+       "kind": "Wear",
+       "brand": {
+        "brandId": 1,
+        "brandGroupId": 1,
+        "brandGroupCode": "zara"
+       },
+       "xmedia": [],
+       "name": "PANTALÓN SPORTY VIVO CONTRASTE",
+       "description": "",
+       "price": 1795,
+       "section": 3,
+       "sectionName": "KID",
+       "familyName": "PANTALON",
+       "subfamilyName": "NIÑO-FELPA",
+       "detail": {
+        "reference": "04745671-I2026",
+        "displayReference": "4745/671",
+        "colors": [
+         {
+          "id": "716",
+          "productId": 545470437,
+          "name": "Marrón oscuro",
+          "stylingId": "0",
+          "outfitId": "BASESTYLE",
+          "xmedia": [
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/92c9/5ebc/42ee4376ad8f/f3a6a022ffe6/04745671716-e1",
+            "name": "04745671716-e1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1785489642722",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e1",
+             "assetId": "92c95ebc42ee4376ad8ff3a6a022ffe6",
+             "deliveryUrl": "https://static.zara.net/assets/public/92c9/5ebc/42ee4376ad8f/f3a6a022ffe6/04745671716-e1/04745671716-e1.jpg?ts=1785489642722",
+             "deliveryPath": "/assets/public/92c9/5ebc/42ee4376ad8f/f3a6a022ffe6/04745671716-e1/04745671716-e1.jpg?ts=1785489642722"
+            },
+            "url": "https://static.zara.net/assets/public/92c9/5ebc/42ee4376ad8f/f3a6a022ffe6/04745671716-e1/04745671716-e1.jpg?ts=1785489642722&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/92c9/5ebc/42ee4376ad8f/f3a6a022ffe6/meta.json?ts=1785489644115"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/8e8c/e7c9/a99a4e69b14d/38ee9c9dbdba/04745671716-e2",
+            "name": "04745671716-e2",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1785489642725",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e2",
+             "assetId": "8e8ce7c9a99a4e69b14d38ee9c9dbdba",
+             "deliveryUrl": "https://static.zara.net/assets/public/8e8c/e7c9/a99a4e69b14d/38ee9c9dbdba/04745671716-e2/04745671716-e2.jpg?ts=1785489642725",
+             "deliveryPath": "/assets/public/8e8c/e7c9/a99a4e69b14d/38ee9c9dbdba/04745671716-e2/04745671716-e2.jpg?ts=1785489642725"
+            },
+            "url": "https://static.zara.net/assets/public/8e8c/e7c9/a99a4e69b14d/38ee9c9dbdba/04745671716-e2/04745671716-e2.jpg?ts=1785489642725&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/8e8c/e7c9/a99a4e69b14d/38ee9c9dbdba/meta.json?ts=1785489644214"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/92c9/5ebc/42ee4376ad8f/f3a6a022ffe6/04745671716-e1",
+            "name": "04745671716-e1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1785489642722",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e1",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "92c95ebc42ee4376ad8ff3a6a022ffe6",
+             "deliveryUrl": "https://static.zara.net/assets/public/92c9/5ebc/42ee4376ad8f/f3a6a022ffe6/04745671716-e1/04745671716-e1.jpg?ts=1785489642722",
+             "deliveryPath": "/assets/public/92c9/5ebc/42ee4376ad8f/f3a6a022ffe6/04745671716-e1/04745671716-e1.jpg?ts=1785489642722"
+            },
+            "url": "https://static.zara.net/assets/public/92c9/5ebc/42ee4376ad8f/f3a6a022ffe6/04745671716-e1/04745671716-e1.jpg?ts=1785489642722&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/92c9/5ebc/42ee4376ad8f/f3a6a022ffe6/meta.json?ts=1785489644115"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "other",
+            "path": "/assets/public/5255/2ecb/4738431c8341/2d0696102b9f/04745671716-f1",
+            "name": "04745671716-f1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1785489642741",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "f1",
+             "availableZooms": [
+              "ZOOM3"
+             ],
+             "assetId": "52552ecb4738431c83412d0696102b9f",
+             "deliveryUrl": "https://static.zara.net/assets/public/5255/2ecb/4738431c8341/2d0696102b9f/04745671716-f1/04745671716-f1.jpg?ts=1785489642741",
+             "deliveryPath": "/assets/public/5255/2ecb/4738431c8341/2d0696102b9f/04745671716-f1/04745671716-f1.jpg?ts=1785489642741"
+            },
+            "url": "https://static.zara.net/assets/public/5255/2ecb/4738431c8341/2d0696102b9f/04745671716-f1/04745671716-f1.jpg?ts=1785489642741&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/5255/2ecb/4738431c8341/2d0696102b9f/meta.json?ts=1785489644025"
+           }
+          ],
+          "pdpMedia": {
+           "datatype": "xmedia",
+           "set": 2,
+           "type": "image",
+           "kind": "other",
+           "path": "/assets/public/5255/2ecb/4738431c8341/2d0696102b9f/04745671716-f1",
+           "name": "04745671716-f1",
+           "width": 2048,
+           "height": 3072,
+           "timestamp": "1785489642741",
+           "allowedScreens": [
+            "small",
+            "large"
+           ],
+           "extraInfo": {
+            "originalName": "f1",
+            "assetId": "52552ecb4738431c83412d0696102b9f",
+            "deliveryUrl": "https://static.zara.net/assets/public/5255/2ecb/4738431c8341/2d0696102b9f/04745671716-f1/04745671716-f1.jpg?ts=1785489642741",
+            "deliveryPath": "/assets/public/5255/2ecb/4738431c8341/2d0696102b9f/04745671716-f1/04745671716-f1.jpg?ts=1785489642741"
+           },
+           "url": "https://static.zara.net/assets/public/5255/2ecb/4738431c8341/2d0696102b9f/04745671716-f1/04745671716-f1.jpg?ts=1785489642741&w={width}",
+           "metaUrl": "https://static.zara.net/assets/public/5255/2ecb/4738431c8341/2d0696102b9f/meta.json?ts=1785489644025"
+          },
+          "price": 1795,
+          "availability": "in_stock",
+          "reference": "C04745671716000-I2026",
+          "extraInfo": {
+           "highlightPrice": false
+          },
+          "canonicalReference": "04745671716-I2026"
+         }
+        ]
+       },
+       "seo": {
+        "keyword": "pantalon-sporty-vivo-contraste",
+        "seoProductId": "04745671",
+        "discernProductId": 545470437
+       },
+       "availability": "in_stock",
+       "tagTypes": [
+        {
+         "displayName": "NEW",
+         "type": "NEW"
+        }
+       ],
+       "extraInfo": {
+        "highlightPrice": false,
+        "hideProductInfo": false,
+        "duplicateReference": false
+       },
+       "availableColors": [
+        {
+         "colorName": "Marrón oscuro",
+         "hexColor": "#574944"
+        }
+       ],
+       "gridPosition": 3,
+       "zoomedGridPosition": 7,
+       "preservedBlockPosition": 7,
+       "athleticzPosition": 7,
+       "productTag": [
+        "NEW"
+       ],
+       "colorList": "",
+       "isDivider": false,
+       "hasXmediaDouble": false,
+       "showExtraImageOnHover": false,
+       "showAvailability": false,
+       "priceUnavailable": false
+      }
+     ]
+    },
+    {
+     "commercialComponents": [
+      {
+       "id": 545852572,
+       "reference": "00039676-I2026",
+       "type": "Product",
+       "kind": "Wear",
+       "brand": {
+        "brandId": 1,
+        "brandGroupId": 1,
+        "brandGroupCode": "zara"
+       },
+       "xmedia": [],
+       "name": "SUDADERA CREMALLERA CAPUCHA",
+       "description": "",
+       "price": 1595,
+       "section": 3,
+       "sectionName": "KID",
+       "familyName": "JERSEY",
+       "subfamilyName": "NIÑO-FELPA",
+       "detail": {
+        "reference": "00039676-I2026",
+        "displayReference": "0039/676",
+        "colors": [
+         {
+          "id": "803",
+          "productId": 545852572,
+          "name": "Gris vigoré",
+          "stylingId": "0",
+          "outfitId": "BASESTYLE",
+          "xmedia": [
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/201c/a967/bcad4991905a/c6edc183a62c/00039676803-e1",
+            "name": "00039676803-e1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1783411995195",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e1",
+             "assetId": "201ca967bcad4991905ac6edc183a62c",
+             "deliveryUrl": "https://static.zara.net/assets/public/201c/a967/bcad4991905a/c6edc183a62c/00039676803-e1/00039676803-e1.jpg?ts=1783411995195",
+             "deliveryPath": "/assets/public/201c/a967/bcad4991905a/c6edc183a62c/00039676803-e1/00039676803-e1.jpg?ts=1783411995195"
+            },
+            "url": "https://static.zara.net/assets/public/201c/a967/bcad4991905a/c6edc183a62c/00039676803-e1/00039676803-e1.jpg?ts=1783411995195&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/201c/a967/bcad4991905a/c6edc183a62c/meta.json?ts=1783411996483"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/0d52/d876/2a3d4c049a22/7462c5ba6c50/00039676803-e2",
+            "name": "00039676803-e2",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1783411995243",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e2",
+             "assetId": "0d52d8762a3d4c049a227462c5ba6c50",
+             "deliveryUrl": "https://static.zara.net/assets/public/0d52/d876/2a3d4c049a22/7462c5ba6c50/00039676803-e2/00039676803-e2.jpg?ts=1783411995243",
+             "deliveryPath": "/assets/public/0d52/d876/2a3d4c049a22/7462c5ba6c50/00039676803-e2/00039676803-e2.jpg?ts=1783411995243"
+            },
+            "url": "https://static.zara.net/assets/public/0d52/d876/2a3d4c049a22/7462c5ba6c50/00039676803-e2/00039676803-e2.jpg?ts=1783411995243&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/0d52/d876/2a3d4c049a22/7462c5ba6c50/meta.json?ts=1783411996719"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/201c/a967/bcad4991905a/c6edc183a62c/00039676803-e1",
+            "name": "00039676803-e1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1783411995195",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e1",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "201ca967bcad4991905ac6edc183a62c",
+             "deliveryUrl": "https://static.zara.net/assets/public/201c/a967/bcad4991905a/c6edc183a62c/00039676803-e1/00039676803-e1.jpg?ts=1783411995195",
+             "deliveryPath": "/assets/public/201c/a967/bcad4991905a/c6edc183a62c/00039676803-e1/00039676803-e1.jpg?ts=1783411995195"
+            },
+            "url": "https://static.zara.net/assets/public/201c/a967/bcad4991905a/c6edc183a62c/00039676803-e1/00039676803-e1.jpg?ts=1783411995195&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/201c/a967/bcad4991905a/c6edc183a62c/meta.json?ts=1783411996483"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "other",
+            "path": "/assets/public/e1bc/af7d/37d94929a2d7/2a303dbeacaf/00039676803-f1",
+            "name": "00039676803-f1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1783411995192",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "f1",
+             "availableZooms": [
+              "ZOOM3"
+             ],
+             "assetId": "e1bcaf7d37d94929a2d72a303dbeacaf",
+             "deliveryUrl": "https://static.zara.net/assets/public/e1bc/af7d/37d94929a2d7/2a303dbeacaf/00039676803-f1/00039676803-f1.jpg?ts=1783411995192",
+             "deliveryPath": "/assets/public/e1bc/af7d/37d94929a2d7/2a303dbeacaf/00039676803-f1/00039676803-f1.jpg?ts=1783411995192"
+            },
+            "url": "https://static.zara.net/assets/public/e1bc/af7d/37d94929a2d7/2a303dbeacaf/00039676803-f1/00039676803-f1.jpg?ts=1783411995192&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/e1bc/af7d/37d94929a2d7/2a303dbeacaf/meta.json?ts=1783411996557"
+           }
+          ],
+          "pdpMedia": {
+           "datatype": "xmedia",
+           "set": 2,
+           "type": "image",
+           "kind": "other",
+           "path": "/assets/public/e1bc/af7d/37d94929a2d7/2a303dbeacaf/00039676803-f1",
+           "name": "00039676803-f1",
+           "width": 2048,
+           "height": 3072,
+           "timestamp": "1783411995192",
+           "allowedScreens": [
+            "small",
+            "large"
+           ],
+           "extraInfo": {
+            "originalName": "f1",
+            "assetId": "e1bcaf7d37d94929a2d72a303dbeacaf",
+            "deliveryUrl": "https://static.zara.net/assets/public/e1bc/af7d/37d94929a2d7/2a303dbeacaf/00039676803-f1/00039676803-f1.jpg?ts=1783411995192",
+            "deliveryPath": "/assets/public/e1bc/af7d/37d94929a2d7/2a303dbeacaf/00039676803-f1/00039676803-f1.jpg?ts=1783411995192"
+           },
+           "url": "https://static.zara.net/assets/public/e1bc/af7d/37d94929a2d7/2a303dbeacaf/00039676803-f1/00039676803-f1.jpg?ts=1783411995192&w={width}",
+           "metaUrl": "https://static.zara.net/assets/public/e1bc/af7d/37d94929a2d7/2a303dbeacaf/meta.json?ts=1783411996557"
+          },
+          "price": 1595,
+          "availability": "in_stock",
+          "reference": "C00039676803000-I2026",
+          "extraInfo": {
+           "highlightPrice": false
+          },
+          "canonicalReference": "00039676803-I2026"
+         }
+        ]
+       },
+       "seo": {
+        "keyword": "sudadera-cremallera-capucha",
+        "seoProductId": "00039676",
+        "discernProductId": 545852572
+       },
+       "availability": "in_stock",
+       "tagTypes": [
+        {
+         "displayName": "PERSONALIZABLE",
+         "type": "EDITED"
+        }
+       ],
+       "extraInfo": {
+        "highlightPrice": false,
+        "hideProductInfo": false,
+        "duplicateReference": false
+       },
+       "availableColors": [
+        {
+         "colorName": "Gris vigoré",
+         "hexColor": "#B4B4B4"
+        },
+        {
+         "colorName": "Marino",
+         "hexColor": "#191821"
+        }
+       ],
+       "colorInfo": {
+        "mainColorHexCode": "#B4B4B4",
+        "numAdditionalColors": 1,
+        "shouldUseColorcutInColorLabel": false
+       },
+       "gridPosition": 1,
+       "zoomedGridPosition": 8,
+       "preservedBlockPosition": 8,
+       "athleticzPosition": 8,
+       "productTag": [
+        "PERSONALIZABLE"
+       ],
+       "colorList": "",
+       "isDivider": false,
+       "hasXmediaDouble": false,
+       "showExtraImageOnHover": false,
+       "showAvailability": false,
+       "priceUnavailable": false
+      }
+     ]
+    },
+    {
+     "commercialComponents": [
+      {
+       "id": 545888980,
+       "reference": "03854736-I2026",
+       "type": "Product",
+       "kind": "Wear",
+       "brand": {
+        "brandId": 1,
+        "brandGroupId": 1,
+        "brandGroupCode": "zara"
+       },
+       "xmedia": [],
+       "name": "CONJUNTO FELPA SUDADERA Y PANTALÓN FELPA BANDAS",
+       "description": "",
+       "price": 2295,
+       "section": 3,
+       "sectionName": "KID",
+       "familyName": "CONJUNTO",
+       "subfamilyName": "NIÑO-FELPA",
+       "detail": {
+        "reference": "03854736-I2026",
+        "displayReference": "3854/736",
+        "colors": [
+         {
+          "id": "500",
+          "productId": 545888980,
+          "name": "Verde",
+          "stylingId": "0",
+          "outfitId": "BASESTYLE",
+          "xmedia": [
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/5aff/853a/34614e228e85/13895af9c189/03854736500-e1",
+            "name": "03854736500-e1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1783064410206",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e1",
+             "assetId": "5aff853a34614e228e8513895af9c189",
+             "deliveryUrl": "https://static.zara.net/assets/public/5aff/853a/34614e228e85/13895af9c189/03854736500-e1/03854736500-e1.jpg?ts=1783064410206",
+             "deliveryPath": "/assets/public/5aff/853a/34614e228e85/13895af9c189/03854736500-e1/03854736500-e1.jpg?ts=1783064410206"
+            },
+            "url": "https://static.zara.net/assets/public/5aff/853a/34614e228e85/13895af9c189/03854736500-e1/03854736500-e1.jpg?ts=1783064410206&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/5aff/853a/34614e228e85/13895af9c189/meta.json?ts=1783064411495"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/0526/e904/5bdc4bd5b669/fa9fda2ac349/03854736500-e2",
+            "name": "03854736500-e2",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1783064409640",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e2",
+             "assetId": "0526e9045bdc4bd5b669fa9fda2ac349",
+             "deliveryUrl": "https://static.zara.net/assets/public/0526/e904/5bdc4bd5b669/fa9fda2ac349/03854736500-e2/03854736500-e2.jpg?ts=1783064409640",
+             "deliveryPath": "/assets/public/0526/e904/5bdc4bd5b669/fa9fda2ac349/03854736500-e2/03854736500-e2.jpg?ts=1783064409640"
+            },
+            "url": "https://static.zara.net/assets/public/0526/e904/5bdc4bd5b669/fa9fda2ac349/03854736500-e2/03854736500-e2.jpg?ts=1783064409640&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/0526/e904/5bdc4bd5b669/fa9fda2ac349/meta.json?ts=1783064411127"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/5aff/853a/34614e228e85/13895af9c189/03854736500-e1",
+            "name": "03854736500-e1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1783064410206",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e1",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "5aff853a34614e228e8513895af9c189",
+             "deliveryUrl": "https://static.zara.net/assets/public/5aff/853a/34614e228e85/13895af9c189/03854736500-e1/03854736500-e1.jpg?ts=1783064410206",
+             "deliveryPath": "/assets/public/5aff/853a/34614e228e85/13895af9c189/03854736500-e1/03854736500-e1.jpg?ts=1783064410206"
+            },
+            "url": "https://static.zara.net/assets/public/5aff/853a/34614e228e85/13895af9c189/03854736500-e1/03854736500-e1.jpg?ts=1783064410206&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/5aff/853a/34614e228e85/13895af9c189/meta.json?ts=1783064411495"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "other",
+            "path": "/assets/public/a642/91fc/8f624532a244/b1052b3b1629/03854736500-f1",
+            "name": "03854736500-f1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1783064410601",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "f1",
+             "availableZooms": [
+              "ZOOM3"
+             ],
+             "assetId": "a64291fc8f624532a244b1052b3b1629",
+             "deliveryUrl": "https://static.zara.net/assets/public/a642/91fc/8f624532a244/b1052b3b1629/03854736500-f1/03854736500-f1.jpg?ts=1783064410601",
+             "deliveryPath": "/assets/public/a642/91fc/8f624532a244/b1052b3b1629/03854736500-f1/03854736500-f1.jpg?ts=1783064410601"
+            },
+            "url": "https://static.zara.net/assets/public/a642/91fc/8f624532a244/b1052b3b1629/03854736500-f1/03854736500-f1.jpg?ts=1783064410601&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/a642/91fc/8f624532a244/b1052b3b1629/meta.json?ts=1783064411667"
+           }
+          ],
+          "pdpMedia": {
+           "datatype": "xmedia",
+           "set": 2,
+           "type": "image",
+           "kind": "other",
+           "path": "/assets/public/a642/91fc/8f624532a244/b1052b3b1629/03854736500-f1",
+           "name": "03854736500-f1",
+           "width": 2048,
+           "height": 3072,
+           "timestamp": "1783064410601",
+           "allowedScreens": [
+            "small",
+            "large"
+           ],
+           "extraInfo": {
+            "originalName": "f1",
+            "assetId": "a64291fc8f624532a244b1052b3b1629",
+            "deliveryUrl": "https://static.zara.net/assets/public/a642/91fc/8f624532a244/b1052b3b1629/03854736500-f1/03854736500-f1.jpg?ts=1783064410601",
+            "deliveryPath": "/assets/public/a642/91fc/8f624532a244/b1052b3b1629/03854736500-f1/03854736500-f1.jpg?ts=1783064410601"
+           },
+           "url": "https://static.zara.net/assets/public/a642/91fc/8f624532a244/b1052b3b1629/03854736500-f1/03854736500-f1.jpg?ts=1783064410601&w={width}",
+           "metaUrl": "https://static.zara.net/assets/public/a642/91fc/8f624532a244/b1052b3b1629/meta.json?ts=1783064411667"
+          },
+          "price": 2295,
+          "availability": "in_stock",
+          "reference": "C03854736500000-I2026",
+          "extraInfo": {
+           "highlightPrice": false
+          },
+          "canonicalReference": "03854736500-I2026"
+         }
+        ]
+       },
+       "seo": {
+        "keyword": "conjunto-felpa-sudadera-y-pantalon%C2%A0felpa-bandas",
+        "seoProductId": "03854736",
+        "discernProductId": 545888980
+       },
+       "availability": "in_stock",
+       "tagTypes": [],
+       "extraInfo": {
+        "highlightPrice": false,
+        "hideProductInfo": false,
+        "duplicateReference": false
+       },
+       "availableColors": [
+        {
+         "colorName": "Verde",
+         "hexColor": "#334841"
+        }
+       ],
+       "gridPosition": 1,
+       "zoomedGridPosition": 37,
+       "preservedBlockPosition": 37,
+       "athleticzPosition": 37,
+       "productTag": [],
+       "colorList": "",
+       "isDivider": false,
+       "hasXmediaDouble": false,
+       "showExtraImageOnHover": false,
+       "showAvailability": false,
+       "priceUnavailable": false
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

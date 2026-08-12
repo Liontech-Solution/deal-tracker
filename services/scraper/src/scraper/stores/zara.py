@@ -351,6 +351,10 @@ def parse_listing_entries(listing: dict[str, Any], cat: CategoryConfig) -> list[
     otros productos son prendas sueltas que ya entran por su propia hoja o que el brief deja fuera.
     Descartarlos aquí y no más adelante importa por el dedup de `list_catalog()`: un producto no
     emitido no ocupa su hueco en `emitted`, así que sigue pudiendo entrar por la hoja que le toca.
+
+    Ojo a la disyuntiva de ese primer párrafo, que es la que #289 midió y resultó incompleta: hay
+    una tercera población, la que **no entra por ninguna otra hoja y tampoco está fuera del brief**.
+    Para esa existe `parse_listing_leftovers()`, que la recoge al final de la pasada.
     """
     entries: list[ListingEntry] = []
     seen: set[str] = set()
@@ -370,6 +374,96 @@ def parse_listing_entries(listing: dict[str, Any], cat: CategoryConfig) -> list[
             if resuelta is None:
                 continue
             categoria = resuelta
+        entries.append(
+            ListingEntry(
+                retailer_product_id=pid,
+                signature=_listing_signature(node),
+                gender=cat.gender,
+                section=cat.section,
+                category=categoria,
+            )
+        )
+    return entries
+
+
+# La taxonomía de la tienda (`familyName`) traducida a nuestro vocabulario, SOLO para el residuo de
+# las hojas-lookbook que no reclama ninguna otra hoja (ver `parse_listing_leftovers`). No es un
+# mapeo general de Zara: es la lista corta de familias que #289 midió en ese residuo, y cada destino
+# repite una decisión que ya está tomada más arriba en este mismo fichero, no una nueva.
+#
+# Medido el 13/08/2026 sobre las cuatro hojas con filtro: de los 73 productos que la pasada tiraba y
+# nadie más publicaba, 44 son prenda del brief y entran por aquí:
+#
+#   pantalones     30  PANTALON 22 · PANTALON BEBE 3 · LEGGINGS BEBE 3 · BERMUDA 1 · BERMUDA BEBE 1
+#   sudaderas       8  JERSEY 4 · JERSEY BEBE 4      (igual que las hojas `punto | crochet`)
+#   vestidos        4  PELELE BEBE 2 · FALDA BEBE 1 · PETO BEBE 1
+#   camisetas       1  CAMISETA
+#   ropa-interior   1  BODY BEBE                     (igual que la hoja `BODIES`, 2428124)
+#
+# Los otros 29 se siguen descartando y esa es la respuesta correcta: 18 están fuera del brief
+# (GORRO BEBE 12, PRENDA EXT.BEBE 3, CHAQUETA 2, CHAQUETA BEBE 1 — gorro es accesorio y cazadora y
+# chaqueta son abrigo, las dos ya declaradas fuera arriba) y 11 no son producto, sino los nodos
+# `LOOK` del propio lookbook, que ni traen familia ni traen nombre.
+#
+# `PETO BEBE` va a `vestidos` y no a `pantalones` a propósito: es exactamente lo que ya decidió la
+# hoja `PETOS | MONOS` (2428227) unas líneas más arriba, y ser coherente DENTRO de la tienda es el
+# criterio que aquella nota fijó.
+#
+# Lo que NO está aquí se descarta. Es a propósito y es la mitad conservadora del arreglo: una
+# familia nueva de Zara no entra al catálogo por defecto, aparece como residuo sin reclamar y se
+# decide a mano, que es como se decidieron estas.
+_FAMILIA_RESIDUAL: dict[str, str] = {
+    "PANTALON": "pantalones",
+    "LEGGINGS": "pantalones",
+    "BERMUDA": "pantalones",
+    "JERSEY": "sudaderas",
+    "PELELE": "vestidos",
+    "FALDA": "vestidos",
+    "PETO": "vestidos",
+    "CAMISETA": "camisetas",
+    "BODY": "ropa-interior",
+}
+
+
+def _familia_base(family_name: Any) -> str:
+    """`PANTALON BEBE` -> `PANTALON`. Zara sufija la familia con el rango de edad, no la cambia."""
+    familia = str(family_name or "").strip().upper()
+    return familia.removesuffix(" BEBE").strip()
+
+
+def parse_listing_leftovers(listing: dict[str, Any], cat: CategoryConfig) -> list[ListingEntry]:
+    """El residuo de una hoja-lookbook que SÍ es prenda del brief, para rescatarlo si nadie lo pide.
+
+    Lo emite `list_catalog()` **al final de la pasada** y solo para los ids que ninguna hoja haya
+    reclamado ya. Esa demora es la clave de que el arreglo no pueda re-etiquetar nada: un producto
+    que entra por su propia hoja ya está en `emitted` cuando esto se mira, así que conserva su
+    categoría y su género de siempre. Lo único que cambia es que deja de perderse lo que no tenía
+    ninguna otra puerta.
+
+    Por qué hacía falta (#289): las hojas de conjunto van DELANTE y lo que su filtro descarta se
+    tiraba con el argumento de que «ya entra por su propia hoja o está fuera del brief». Medido el
+    13/08/2026, eso es falso para 44 prendas: Zara solo las publica bajo `CHÁNDAL`/`CONJUNTOS`, así
+    que la pasada las descartaba en cada vuelta, no volvían a verse y se quedaban en el catálogo con
+    `last_seen_at` congelado, vivas y sin que nadie las reclamara — el síntoma que abrió la issue.
+
+    La categoría la decide la **familia** de la tienda (`_FAMILIA_RESIDUAL`) y no el título, que es
+    lo que ya hacen las hojas: `punto | crochet` es `sudaderas` mande lo que mande el nombre de cada
+    prenda. La familia que no esté en la tabla se sigue descartando.
+    """
+    if cat.filtro is None:
+        return []
+    entries: list[ListingEntry] = []
+    seen: set[str] = set()
+    for node in _iter_product_nodes(listing):
+        pid = str(node["seo"]["discernProductId"])
+        if pid in seen:
+            continue
+        seen.add(pid)
+        if cat.filtro.acepta(str(node.get("familyName") or ""), str(node.get("name") or "")):
+            continue  # es conjunto: ya lo emitió `parse_listing_entries`
+        categoria = _FAMILIA_RESIDUAL.get(_familia_base(node.get("familyName")))
+        if categoria is None:
+            continue
         entries.append(
             ListingEntry(
                 retailer_product_id=pid,
@@ -578,6 +672,10 @@ class ZaraStore:
     def list_catalog(self) -> Iterable[ListingEntry]:
         self._scan = ScanReport()
         emitted: set[str] = set()  # dedup entre categorías dentro de la misma ejecución
+        # Residuo de las hojas-lookbook, que se emite al final y solo si nadie lo ha reclamado
+        # (#289). Va aparte y no en el bucle porque las hojas de conjunto van DELANTE: en el
+        # momento de leerlas todavía no se sabe si su pantalón entrará por la hoja de pantalones.
+        sobrantes: list[ListingEntry] = []
         with self._client() as client:
             for cat in self._categories:
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
@@ -595,10 +693,17 @@ class ZaraStore:
                 # Ver `ScanReport.filtro_vacio()`.
                 if cat.filtro is not None and not entradas:
                     self._scan.filtro_vacio(scope, str(cat.category_id))
+                sobrantes.extend(parse_listing_leftovers(listing, cat))
                 for entry in entradas:
                     if entry.retailer_product_id not in emitted:
                         emitted.add(entry.retailer_product_id)
                         yield entry
+        # Lo que solo publica una hoja-lookbook, ya sin riesgo de quitarle el hueco a nadie: a
+        # estas alturas `emitted` tiene todo lo que reclamaron las hojas. Ver la función.
+        for entry in sobrantes:
+            if entry.retailer_product_id not in emitted:
+                emitted.add(entry.retailer_product_id)
+                yield entry
 
     def scan_report(self) -> ScanReport:
         """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""
@@ -656,13 +761,25 @@ class ZaraStore:
         Pide el mismo listado que la pasada: Zara no tiene un endpoint más barato para preguntar
         "¿existe esta categoría?", y el árbol de `/categories` no sirve porque el id retirado
         simplemente deja de estar en él sin decir cuál lo sustituye.
+
+        **Y dice cuántos productos trae, que es la mitad que faltaba** (#289). Una hoja puede
+        responder 200 y estar vacía, y hasta ahora eso era indistinguible de una hoja sana: el
+        veredicto solo miraba el código HTTP. Medido el 13/08/2026, dos de las 62 estaban así
+        —`2427530` y `2427980`, las dos de `ropa interior | calcetines`— y nadie lo había visto, ni
+        la pasada ni el vigía del jueves. Es el mismo punto ciego que en H&M obligó a inventar el
+        canario, un escalón más abajo.
+
+        El veredicto **sigue siendo `True`**: una hoja vacía de verdad existe (Zara vacía y rellena
+        categorías con la campaña) y darla por muerta produciría el falso positivo semanal que el
+        vigía existe para no dar. Lo que cambia es que el número viaja en el detalle, que es lo que
+        se lee cuando se va a mirar. Sfera ya lo publicaba así.
         """
         with self._client() as client:
             for cat in self._categories:
                 scope = ScrapeScope(cat.gender, cat.section, cat.category)
                 leaf = str(cat.category_id)
                 try:
-                    self._get_json(client, _CATEGORY_URL.format(cat_id=cat.category_id))
+                    listing = self._get_json(client, _CATEGORY_URL.format(cat_id=cat.category_id))
                 except httpx.HTTPStatusError as exc:
                     status = exc.response.status_code
                     alive = False if status in GONE_STATUS else None
@@ -670,7 +787,10 @@ class ZaraStore:
                 except (httpx.TransportError, ValueError) as exc:
                     yield LeafHealth(scope, leaf, None, type(exc).__name__)
                 else:
-                    yield LeafHealth(scope, leaf, True, "HTTP 200")
+                    cuantos = len(
+                        {str(n["seo"]["discernProductId"]) for n in _iter_product_nodes(listing)}
+                    )
+                    yield LeafHealth(scope, leaf, True, f"HTTP 200, {cuantos} productos")
 
     def _probe_one(self, client: httpx.Client, product_id: str) -> bool | None:
         """¿Sigue a la venta? True/False; None si la tienda no da una respuesta utilizable."""
