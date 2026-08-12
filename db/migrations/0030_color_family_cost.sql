@@ -1,0 +1,103 @@
+-- El coste declarado de `color_family()`, que hasta ahora era el de por defecto (issue #342).
+--
+-- No cambia ni una fila ni el cuerpo de ninguna función: cambia lo que el **planificador** cree que
+-- cuesta llamarla. Suena a detalle y era la diferencia entre 1,1 s y 23,7 s.
+--
+--
+-- ── EL SÍNTOMA ──
+--
+-- El filtro de color es barato solo y carísimo acompañado. Medido contra `deal_tracker_qa` con la
+-- consulta que ejecuta `listProducts()` (no una escrita a mano — la lección de método de #307),
+-- 12/08/2026, `EXPLAIN (ANALYZE, BUFFERS)` en el pod de la CNPG:
+--
+--     sin filtros                    1.932 ms
+--     color=azul                     1.285 ms
+--     retailer=zara                  1.368 ms
+--     color=azul & retailer=zara    23.698 ms      <-- x20
+--     color=negro & retailer=hm    ~27.000 ms
+--
+-- O sea que la consulta MÁS selectiva era la más lenta, que es lo que descartó desde el principio
+-- que fuera el suelo de #314 (coste constante de agregar el catálogo entero).
+--
+--
+-- ── LA CAUSA, Y POR QUÉ NO ERA NINGUNA DE LAS DOS SOSPECHAS ESCRITAS ──
+--
+-- La sospecha del cuerpo de #342 era que filtrar por familia se expandiera a un `IN (...)` grande y
+-- perdiera el índice. No es eso: con un solo predicado el plan usa `ix_variant_color_family` y
+-- tarda 1,3 s, tal como midió #329 (3 familias -> 7,13 ms en el `Bitmap Index Scan`). La forma no
+-- correlada de `ejeMultiple()` hace su trabajo.
+--
+-- Tampoco era un *nested loop* contra la CTE materializada `latest`, que es la otra sospecha
+-- razonable dado lo que ya midió #307 (correlar contra `latest` costaba 603 ms por página).
+--
+-- El nodo culpable, del plan de la consulta con los dos predicados:
+--
+--     ->  Index Scan using ix_variant_product on variant v
+--             (actual time=8.139..10.476 rows=2 loops=4271)
+--           Index Cond: (product_id = p.id)
+--           Filter: (color_family(color) = ANY ($6))
+--           Rows Removed by Filter: 8
+--
+-- 4.271 vueltas (los productos vivos de Zara) x 10,5 ms = 44,7 s de CPU repartidos entre 2 workers
+-- paralelos, que son los 22,4 s de los 23,7 totales. **`ix_variant_color_family` no se usa**: al
+-- añadir el segundo predicado el planificador prefiere recorrer los productos de la tienda y
+-- comprobar el color fila a fila, y ahí la función se evalúa ~10 veces por producto.
+--
+-- Prefiere ese plan porque cree que llamar a la función es gratis. Una función SQL sin `COST`
+-- declarado vale **100 unidades de `cpu_operator_cost`** = 0,25, que es del orden de un par de
+-- comparaciones. Lo que cuesta de verdad, medido sobre 20.000 variantes de `deal_tracker_qa`:
+--
+--     color_family    10.023 ms / 20.000  =  0,50 ms por llamada   (~2.000 veces lo que cree)
+--     size_canon       1.899 ms / 20.000  =  0,095 ms por llamada
+--     color_canon        155 ms / 20.000  =  0,008 ms por llamada
+--
+-- `color_family` es cara por lo que es —~20 regexes encadenados SOBRE el resultado de
+-- `color_canon`, ver la 0029—, así que sale 65 veces más cara que la función sobre la que se apila.
+-- El planificador no tiene forma de saberlo: hay que decírselo.
+--
+--
+-- ── POR QUÉ 10.000 ──
+--
+-- `COST` se expresa en unidades de `cpu_operator_cost` (0,0025 por defecto), así que el valor fiel a
+-- los 0,50 ms medidos sería de seis cifras. No se pone el valor "verdadero" sino el que produce
+-- buenos planes en los casos que el panel ofrece de verdad, que es lo único comprobable. Medido:
+--
+--                            color+tienda        solo color
+--     COST por defecto        23.698 ms           1.285 ms
+--     COST 1000                1.144 ms           1.501 ms
+--     COST 10000               1.127 ms           1.216 ms   <--
+--
+-- Con 1.000 el caso malo ya está arreglado, pero el de solo color empeora ~250 ms respecto al
+-- control (1.171-1.285 ms en dos medidas). Con 10.000 no empeora ninguno y el caso malo queda algo
+-- mejor. Entre dos valores que arreglan lo mismo, se elige el que no pague peaje en ningún sitio.
+--
+--
+-- ── LO QUE ESTA MIGRACIÓN NO NECESITA, Y CONVIENE DECIRLO ──
+--
+-- **No hace falta `REINDEX INDEX ix_variant_color_family`.** La 0029 deja esa obligación por escrito
+-- a «cualquier migración futura que añada vocabulario a `color_family`», porque el índice guarda los
+-- valores YA calculados y cambiarle el cuerpo lo deja obsoleto en silencio. Aquí **el cuerpo no se
+-- toca**: `COST` es un atributo de planificación, no cambia lo que la función devuelve para ninguna
+-- entrada, así que los valores almacenados siguen siendo válidos. Es justo al revés de lo que avisa
+-- la 0029, y por eso se dice aquí: quien lea las dos seguidas se lo va a preguntar.
+--
+-- **No toca el esquema.** Ninguna tabla, ninguna columna, ningún índice. `schema.ts` no tiene nada
+-- que reflejar, porque el espejo Drizzle refleja tablas y no atributos de función.
+--
+-- **Es idempotente**, como exigen los dos aplicadores (el scraper con `--migrate` y el web con
+-- `pnpm migrate`): `ALTER FUNCTION ... COST` deja el mismo estado se aplique una vez o diez.
+--
+--
+-- ── LO QUE ESTO NO ARREGLA ──
+--
+-- `size_canon` sale a 0,095 ms por llamada, que también es ~40 veces lo que el planificador supone.
+-- Hoy no se le nota porque el filtro de talla no tiene un segundo predicado que empuje al mismo mal
+-- plan, pero **#325 va a apilar `size_band` ENCIMA de `size_canon`** igual que `color_family` se
+-- apila sobre `color_canon` — o sea, la receta exacta de esta issue. Queda aquí escrito y anotado en
+-- #325: la función nueva nace con su `COST` declarado y medido, no después de que alguien pierda una
+-- tarde.
+--
+-- Y no arregla #327: que la FACETA de color cueste 1,4 s no es un plan malo, es que enumerar las
+-- familias obliga a evaluar la función sobre ~2.695 colores distintos, y eso es trabajo real. Esta
+-- migración no le quita ni una llamada. Son dos problemas distintos con la misma función detrás.
+ALTER FUNCTION color_family(text) COST 10000;
