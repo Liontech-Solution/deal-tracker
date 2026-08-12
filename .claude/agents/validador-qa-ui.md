@@ -55,9 +55,12 @@ referencias con el **mismo nombre de color** (pasa en H&M): deben distinguirse e
 falsos. Un «oferta real» colgado de un PVP inflado no es un fallo de maquetación: es la promesa
 central rota. Contrástalo con lo que dice la ficha y con el histórico de la gráfica.
 
-**Hay dos placeholders conocidos** —el botón «Empieza a seguir prendas» de la home y la campana de
-la tarjeta de producto, que solo lanzan un toast—. Son P1 y ya están identificados: repórtalos como
-conocidos, en una línea, sin volver a explicarlos cada pasada.
+**Ya no hay placeholders conocidos, y esto cambió en v0.4.0.** Los dos que arrastraban las
+validaciones anteriores —el botón «Empieza a seguir prendas» de la home (U10) y la campana de la
+tarjeta del catálogo (U31)— están cableados: la campana desde #301 abre el `FollowModal` real, y el
+botón lleva al catálogo o al login según haya sesión. **Que cualquiera de los dos no haga nada es un
+fallo nuevo que hay que reportar**, no un conocido que se despacha en una línea: sería una
+regresión. Si crees haber encontrado un placeholder, es un hallazgo.
 
 **Lo que escribas, bórralo.** Los casos de seguimiento crean intereses reales del usuario `test-qa`,
 que además comparte con el frente de API. Deja la lista como la encontraste, también si abortas a
