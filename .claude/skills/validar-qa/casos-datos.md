@@ -448,3 +448,66 @@ Frente al bloque `## Cifras` del informe anterior en `.claude/qa-reports/`:
 - Subida brusca inexplicable → **P1**: suele ser duplicación de identificadores.
 - Si no hay informe anterior, dilo: la primera pasada **no puede** detectar regresión, y fingir que
   sí es peor que reconocerlo.
+
+## D15 · Prendas vivas que ninguna pasada ve (#289)
+
+El complemento de D9, y mira justo lo contrario: D9 vigila lo que **se da de baja**; esto vigila lo
+que **nunca** se da de baja y tampoco se vuelve a ver. Una prenda así no está descatalogada, así que
+sigue contando como activa, pero no recibe puntos nuevos: no se puede seguir, no se puede notificar
+y su gráfica se congela. Hoy no lo mira nadie, y desde #261 tampoco sale ya en `errors`.
+
+```sql
+SELECT r.slug,
+       count(*) FILTER (WHERE p.last_seen_at < now() - interval '14 days') AS atrapados,
+       count(*) AS vivos,
+       round(100.0 * count(*) FILTER (WHERE p.last_seen_at < now() - interval '14 days')
+             / nullif(count(*), 0), 1) AS pct,
+       max(date_trunc('day', now() - p.last_seen_at))::text AS mas_viejo
+  FROM product p JOIN retailer r ON r.id = p.retailer_id
+ WHERE p.delisted_at IS NULL
+ GROUP BY r.slug ORDER BY atrapados DESC;
+```
+
+**Catorce días son dos pasadas perdidas**, no dos días: en QA las tiendas corren **semanalmente**.
+Con la ventana de 7 días de D9 la mitad de la tabla sería ruido de calendario.
+
+**`missing_streak` es la columna equivocada, y hay que decirlo** porque es la que cualquiera elegiría
+al «mejorar» esta consulta. `_rescue()` (`ingest.py`) la pone a **cero** cada vez que un sondeo
+confirma que la prenda sigue viva, que es exactamente lo que le pasa a esta población: medido en QA
+el 13/08/2026, 29 prendas de Zara llevaban 20 días sin verse **con la racha a 0**. La columna que no
+miente es `last_seen_at`.
+
+### Línea base conocida — no es un hallazgo nuevo cada semana
+
+Zara y Sfera tienen población medida y con issue propia (**#356**, las hojas de rebajas sin mapear;
+**#357**, las prendas que la tienda no lista en ninguna hoja). Medido en QA el 13/08/2026:
+
+| tienda | atrapados | vivos | pct |
+|--------|-----------|-------|-----|
+| zara   | 95        | 4454  | 2,1 |
+| sfera  | 58        | 864   | 6,7 |
+| las otras siete | 0 | —   | 0,0 |
+
+Que **siete de nueve estén a cero** es lo que convierte esto en vigilancia útil: no es un achaque
+general del mecanismo de bajas, es algo que le pasa a dos tiendas concretas. Lo que se vigila es el
+**cambio**, no el número absoluto:
+
+- Una tienda que estaba a **0 y desarrolla población** → **P1**. Es cobertura de catálogo que se
+  pierde en silencio, y ninguna otra comprobación la ve.
+- Zara o Sfera creciendo de forma marcada sobre esta línea base → **P1**.
+- Que Zara baje ~44 tras la v0.4.0 es **lo esperado**, no una anomalía: es el residuo del lookbook
+  que arregló el PR #355. Ese mismo arreglo sube su catálogo de 4417 a 4461 en D14.
+
+No es **P0**: no corrompe datos ni tumba la validación. Hace visible una pérdida de cobertura que
+hoy no mide nadie.
+
+### El coste que no se ve en esta tabla
+
+Estas prendas **gastan presupuesto de sondeo en cada pasada**. Son candidatas a baja permanentes:
+suben de racha, se sondean, salen vivas, se rescatan a 0, y vuelta a empezar. Con
+`SCRAPER_DELIST_PROBE_MAX=50`, la última pasada de Zara en QA (10/08/2026) mandó **50 sondeos —el
+tope—, dejó 134 candidatas sin sondear y encontró 0 bajas reales**. La serie está en
+`scrape_run.probes_sent` / `probes_over_cap`, el instrumento que dejó #261; su síntoma en el resumen
+de la pasada es el `confirmación activa: N sondeos` que ya lee D3. Si `probes_over_cap` crece a la
+vez que esta tabla, la lectura es que las bajas de verdad se están quedando sin presupuesto detrás
+de una cola de prendas que siguen vivas. Va a **#357**.

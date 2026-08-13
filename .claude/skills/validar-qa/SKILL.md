@@ -69,7 +69,7 @@ Anota el nombre del job: lo necesitas al final.
 
 Lanza los dos subagentes a la vez; ninguno toca el navegador:
 
-- `validador-qa-datos` — catálogo `casos-datos.md`, D1–D14.
+- `validador-qa-datos` — catálogo `casos-datos.md`, D1–D15.
 - `validador-qa-api` — catálogo `casos-api.md`, A1–A54.
 
 ## Fase 3 · Interfaz
