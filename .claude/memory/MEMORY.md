@@ -1,5 +1,6 @@
 - [kubeconfig-location](kubeconfig-location.md) — kubeconfig en `~/.kube/k3slocal.yaml` (symlink desde `config`); dos equipos, sin `argocd` CLI
-- [comandos-en-worktree-aislado](comandos-en-worktree-aislado.md) — en un worktree el prefijo `VAR=valor` se rechaza (usa `env`), y el pod de la CNPG está en solo lectura: el SQL largo va en un `-c` de una línea
+- [comandos-en-worktree-aislado](comandos-en-worktree-aislado.md) — en un worktree el prefijo `VAR=valor` se rechaza y `env` tampoco vale si el comando lleva flags (`pytest -q`): script en el scratchpad; y el pod de la CNPG está en solo lectura: el SQL largo va en un `-c` de una línea, quitándole antes los comentarios `--`
+- [volcar-el-sql-que-ejecuta-el-servicio](volcar-el-sql-que-ejecuta-el-servicio.md) — para un `EXPLAIN` fiel, sacar el SQL del propio servicio con un `db` de pega y `PgDialect`, con los parámetros en línea
 - [memoria-en-repo](memoria-en-repo.md) — la memoria se versiona en `.claude/memory/`; cada equipo necesita el symlink desde `~/.claude`
 - [qa-test-user](qa-test-user.md) — user de prueba `test-qa` en QA; `python3 .claude/qa-login.py` da un token para probar la API
 - [mcp-sin-npx-pnpm](mcp-sin-npx-pnpm.md) — evita npx; MCP por binario global de pnpm o venv dedicado en `~/.local/share/mcp` (sin pipx ni sudo); no `pnpm setup`
@@ -22,4 +23,5 @@
 - [keycloak-admin-desde-el-pod](keycloak-admin-desde-el-pod.md) — no saques el secret de admin: `kcadm.sh` se autentica dentro del pod con las env que ya trae por `envFrom`, y ahí ArgoCD no revierte
 - [gh-pr-merge-auto-no-espera](gh-pr-merge-auto-no-espera.md) — aquí los checks no son obligatorios: `--auto` mergea al instante con el CI encolado; mira `statusCheckRollup`, no `gh pr checks`
 - [saber-que-dispara-un-merge](saber-que-dispara-un-merge.md) — comprueba qué CI dispara el cambio antes de mergear: los workflows filtran por `paths` y un PR de solo documentación sale con **0 checks**, sin imagen ni bump
-- [escrituras-contra-prod-las-pide-el-usuario](escrituras-contra-prod-las-pide-el-usuario.md) — el clasificador bloquea `create job` contra prod y el `gh pr merge` de los manifiestos: se piden al usuario con `!`, las lecturas sí pasan
+- [escrituras-contra-prod-las-pide-el-usuario](escrituras-contra-prod-las-pide-el-usuario.md) — el clasificador bloquea `create job` contra prod y el `gh pr merge` de los repos de GitOps (manifiestos **y** toolsuite): se piden al usuario con `!`, las lecturas sí pasan
+- [token-de-prod-lo-dispara-el-usuario](token-de-prod-lo-dispara-el-usuario.md) — no hay `qa-token.sh` de prod y el token dura 300 s: el comando lo lanza el usuario con `!`, quitando el `Bearer` que ya trae pegado

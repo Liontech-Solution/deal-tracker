@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: 7b3fc60e-45f5-4c57-9ef4-c06e6a29669e
-  modified: 2026-08-08T21:57:10.972Z
+  modified: 2026-08-12T23:59:00.000Z
 ---
 
 Las acciones que **escriben** en producción o que la despliegan las bloquea el clasificador de auto
@@ -13,7 +13,10 @@ mode, aunque el resto de la sesión vaya con permisos. Medido el 08/08/2026 y am
 
 - `kubectl -n deal-tracker-prod create job ... --from=cronjob/...` (la sesión anterior de #278 chocó
   con lo mismo y dejó la casilla sin hacer por eso).
-- `gh pr merge` en `k3s-local-apps-manifests`, que es el que llega a prod por ArgoCD.
+- `gh pr merge` en los repos de GitOps: `k3s-local-apps-manifests` **y también
+  `toolsuite-platform-gitops`** (medido el 12/08/2026 en su PR #59, que solo añadía un script y
+  documentación). El criterio del clasificador parece ser el repo, no lo que cambia el PR: el
+  `gh pr merge` de un PR de `deal-tracker` sí pasa. En los de GitOps ni lo intentes dos veces.
 - `gh release edit <tag> --prerelease=false`, el paso con el que `/validar-qa` asciende una release
   al dar **APTO** (medido el 12/08/2026 en la validación de v0.3.0). Aquí el bloqueo alcanza
   **también a la lectura**: `gh release view` cae igual, así que ni siquiera puedes comprobar el

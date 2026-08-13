@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: 31501bb9-0b33-4106-9061-4e31b18a2197
-  modified: 2026-08-04T22:12:33.921Z
+  modified: 2026-08-12T23:59:00.000Z
 ---
 
 `manage_adr(mode='update')` **reemplaza el ADR completo** con lo que le pases en `content`: no
@@ -78,3 +78,11 @@ comparar los recuentos con los del fichero. Dos trampas medidas el 08/08/2026: e
 ADR entero **en una sola línea JSON**, así que `grep -c` cuenta 1 pase lo que pase y hay que usar
 `grep -o`; y los backticks del markdown están dentro del texto, así que un patrón como
 `"OnFailure borra"` no casa con `` `OnFailure` borra ``.
+
+**Y para comprobar que el grafo tiene TU versión, no uses `--mode get` con `sections`.** El filtro no
+filtra: el 12/08/2026 pedirle tres secciones del ADR de deal-tracker devolvió el documento entero
+(245757 caracteres) y reventó el límite de tokens de la herramienta. La comprobación barata es
+volcar `--mode get` a un fichero y buscar dentro **una frase que hayas escrito hoy** y otra que
+hayas **quitado** — las dos, porque encontrar la nueva no prueba que la vieja se fuera. Y con
+`grep -o … | wc -l`, no `grep -c`: la salida es una única línea JSON gigante y `-c` cuenta líneas,
+así que siempre dirá 1.
