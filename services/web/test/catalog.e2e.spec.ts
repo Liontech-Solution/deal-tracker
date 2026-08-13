@@ -598,8 +598,12 @@ describe.skipIf(!TEST_DB)('talla canónica · faceta y filtro (e2e)', () => {
 
   it('ofrece la misma talla física UNA sola vez', async () => {
     // Los rangos de pie se intercalan con los números sueltos por su extremo inferior.
+    // ZAPATERÍA NO SE PLIEGA A BANDAS (#325): la talla es un número de pie, y plegarla daría un
+    // filtro que no filtra lo que dice. Aquí sigue mandando `size_canon`, igual que antes.
     expect((await facetas('?section=zapateria')).sizes).toEqual(['20-21', '26', '48-51']);
-    expect((await facetas('?section=ropa')).sizes).toEqual(['11-12 años', '36-38']);
+    // ROPA sí: '11-12 años' es la banda de 11 (extremo bajo del rango) y el calcetín '36-38' no
+    // tiene edad, así que cae en la banda de los números.
+    expect((await facetas('?section=ropa')).sizes).toEqual(['11 años', 'Por número']);
   });
 
   /**
@@ -609,10 +613,13 @@ describe.skipIf(!TEST_DB)('talla canónica · faceta y filtro (e2e)', () => {
   it('no etiqueta como edad un rango de número de pie (#64)', async () => {
     const zapateria = (await facetas('?section=zapateria')).sizes;
     expect(zapateria.filter((s) => s.includes('años'))).toEqual([]);
-    // Y el calcetín es ROPA: aquí la única etiqueta de edad es la de la camiseta.
+    // Y el calcetín es ROPA: aquí la única etiqueta de edad es la de la camiseta. Con las bandas
+    // de #325 esto se cumple MÁS que antes, no menos: el calcetín ya no es un chip numérico suelto
+    // entre edades, es 'Por número' — que es justo lo que #64 pedía, dicho con todas las letras.
     expect((await facetas('?section=ropa')).sizes.filter((s) => s.includes('años'))).toEqual([
-      '11-12 años',
+      '11 años',
     ]);
+    expect((await facetas('?section=ropa')).sizes).toContain('Por número');
   });
 
   it('acota las tallas a la sección que se está mirando', async () => {

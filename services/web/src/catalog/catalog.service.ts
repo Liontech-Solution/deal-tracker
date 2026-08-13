@@ -22,6 +22,9 @@ import type { BarefootFilter, ProductQueryDto } from './dto/product-query.dto';
 /** Sección donde la marca barefoot aplica. En el resto (`ropa`) la columna es NULL. */
 const SECCION_CALZADO = 'zapateria';
 
+/** La sección cuyas tallas se pliegan a bandas de edad (#325). Ver `plegadoTalla`. */
+const SECCION_ROPA = 'ropa';
+
 /**
  * Condición SQL del filtro barefoot (#30), con `alias` como alias de la tabla `product`.
  *
@@ -63,13 +66,17 @@ export const TAG_DEPORTIVA = 'deportiva';
  * Condición de un eje **multiseleccionable** (#329): `columna = ANY(<lo pedido>)`, o sea unión.
  *
  * `plegado` es la función de la base con la que hay que normalizar lo que llega por la query string
- * —`size_canon` o `color_family`— para que siga comparándose contra lo mismo que la columna, y para
+ * —`size_band` o `color_family`— para que siga comparándose contra lo mismo que la columna, y para
  * que los enlaces guardados con el texto crudo sigan encontrando. `null` cuando no hay que plegar
  * nada, que es el caso del slug de tienda.
  *
+ * Que el plegado se aplique TAMBIÉN a lo que llega por la URL es lo que hace que un enlace viejo
+ * siga funcionando: `?size=4-5 años` se pliega a la banda `4 años` y encuentra, en vez de devolver
+ * vacío porque ya nadie guarda esa cadena.
+ *
  * **La forma importa, no es indiferente.** El `ARRAY(SELECT ...)` es una subconsulta NO correlada:
  * Postgres la resuelve una vez como InitPlan y deja delante un `= ANY(<array constante>)`, que sigue
- * apoyándose en los índices por expresión `ix_variant_size_canon` (0014) e `ix_variant_color_family`
+ * apoyándose en los índices por expresión `ix_variant_size_band` (0033) e `ix_variant_color_family`
  * (0029). Plegar dentro del `ANY` fila a fila los perdería, y lo que eso cuesta ya está medido en
  * #307: la misma consulta pasó de 1,4 ms a 1 s.
  *
@@ -79,7 +86,7 @@ export const TAG_DEPORTIVA = 'deportiva';
 export function ejeMultiple(
   valores: string[] | null | undefined,
   columna: SQL,
-  plegado: 'size_canon' | 'color_family' | null,
+  plegado: 'size_canon' | 'size_band' | 'color_family' | null,
 ): SQL {
   if (!valores?.length) return sql`true`;
   // `ARRAY[$1, $2, ...]` y no un solo parámetro de tipo array: en una plantilla `sql` de Drizzle un
@@ -93,6 +100,22 @@ export function ejeMultiple(
     ? sql`ARRAY(SELECT ${sql.raw(plegado)}(x) FROM unnest(${lista}) AS x)`
     : lista;
   return sql`${columna} = ANY(${buscados})`;
+}
+
+/**
+ * Con qué se pliega la talla, según la sección que se esté mirando (#325).
+ *
+ * **Las bandas de edad son de `ropa` y solo de `ropa`.** En `zapateria` la talla es un número de
+ * pie: plegar un 26 a una banda de edad no ofrecería un filtro más corto sino uno que no filtra lo
+ * que dice —y de paso resucitaría el chip «48-51 años» que #64 vino a quitar—. Ahí se sigue
+ * ofreciendo la canónica, que ya es corta (76 etiquetas, y son todas del mismo vocabulario).
+ *
+ * Sin sección elegida también se queda en la canónica: la lista es la unión de dos vocabularios que
+ * no se pueden comparar, y plegar la mitad haría el revoltijo peor, no mejor. La SPA no ofrece
+ * tallas en ese estado (ver `FacetQueryDto`), así que es un caso de API, no de pantalla.
+ */
+function plegadoTalla(section: string | null): 'size_band' | 'size_canon' {
+  return section === SECCION_ROPA ? 'size_band' : 'size_canon';
 }
 
 /**
@@ -242,7 +265,7 @@ export class CatalogService {
           -- Esta igualdad es la que justifica el índice por expresión de la migración 0014: sin él,
           -- la función se evalúa una vez por variante y esta consulta pasa de 1,4 ms a 1 segundo
           -- (medido sobre una copia de dev con 33.311 variantes).
-          AND ${ejeMultiple(size, sql`size_canon(v.size)`, 'size_canon')}
+          AND ${ejeMultiple(size, sql`${sql.raw(plegadoTalla(section))}(v.size)`, plegadoTalla(section))}
           -- Color por FAMILIA (#291, migración 0029), no por color canónico. El panel ofrecía 2.859
           -- chips —el 85,2 % compuestos tipo 'amarillo claro/bluey'— y en un móvil eso es
           -- inservible; ahora ofrece las ~19 familias que deja color_family.
@@ -329,7 +352,7 @@ export class CatalogService {
                WHERE v2.product_id = scored.id
                  AND v2.delisted_at IS NULL
                  AND EXISTS (SELECT 1 FROM price_history ph WHERE ph.variant_id = v2.id)
-                 AND ${ejeMultiple(size, sql`size_canon(v2.size)`, 'size_canon')}
+                 AND ${ejeMultiple(size, sql`${sql.raw(plegadoTalla(section))}(v2.size)`, plegadoTalla(section))}
                  -- Por FAMILIA, igual que el WHERE de matched (#326). Se quedó en color_canon
                  -- cuando #291 movió el filtro a color_family, y eso hacía que un producto que el
                  -- catálogo devuelve por la familia 'azul' declarase CERO prendas comprables si
@@ -706,7 +729,8 @@ export class CatalogService {
       const a = sql.raw(alias);
       const cs: SQL[] = [];
       if (size?.length && excepto !== 'size') {
-        cs.push(ejeMultiple(size, sql`size_canon(${a}.size)`, 'size_canon'));
+        const pliegue = plegadoTalla(section);
+        cs.push(ejeMultiple(size, sql`${sql.raw(pliegue)}(${a}.size)`, pliegue));
       }
       if (color?.length && excepto !== 'color') {
         cs.push(ejeMultiple(color, sql`color_family(${a}.color)`, 'color_family'));
@@ -787,19 +811,36 @@ export class CatalogService {
     };
 
     /**
-     * Tallas: valores CANÓNICOS distintos entre variantes vivas de productos activos, ordenados por
-     * talla y no alfabéticamente (así el desplegable no pone '19' entre '11-12 años' y '2 años').
+     * Tallas: **BANDAS DE EDAD** distintas entre variantes vivas de productos activos (#325),
+     * ordenadas por talla y no alfabéticamente (así el desplegable no pone '19' entre '11-12 años'
+     * y '2 años').
      *
-     * Es la mitad visible de #43: la faceta ofrecía la misma talla física hasta cuatro veces, y el
-     * chip que se elegía aquí es el que luego se guarda en `interest.size`, así que un chip por talla
-     * física es también lo que hace que el aviso pueda casar con cualquier tienda.
+     * Devolvía la talla CANÓNICA, y eran **181 chips** en `ropa` —cinco vocabularios mezclados,
+     * porque cada tienda mide a su manera—. `size_band` (migración 0033) los pliega a **21**:
+     * 18 bandas de edad más `Por número`, `Por letra` y `Otras`.
+     *
+     * Es el mismo movimiento que #291 hizo con el color, y por el mismo motivo: el filtro tiene que
+     * **filtrar de verdad**, así que la banda vive en la base y no en el frontend.
+     *
+     * Las tres que no son edad salen al final **sin ordenarlas a mano**: `size_sort` (0014) manda al
+     * 9999 lo que no lleva número, que es exactamente para lo que lo dejó escrito.
+     *
+     * ⚠️ Lo que el chip significa YA NO es lo que se guarda al seguir una prenda. El chip es una
+     * banda; `interest.size` sigue siendo la talla canónica exacta, igual que `interest.color` se
+     * quedó en el color canónico cuando el filtro pasó a familias (0029). Es la misma asimetría
+     * deliberada: el filtro existe para encontrar, el aviso para no mentir.
      */
     const pickSizes = async (): Promise<string[]> => {
-      // `crudas` deduplica el TEXTO de la tienda antes de canonicalizar. Medido sobre la copia de
-      // dev (33.311 variantes): canonicalizar fila a fila tarda 866 ms y así 13 ms, porque la
-      // función pasa de ~32.000 llamadas a las ~70 formas distintas que existen de verdad. En el
-      // cluster, que son Raspberry Pi, esa diferencia es la que decide si el panel de filtros abre
-      // al instante o no.
+      // `crudas` deduplica el TEXTO de la tienda antes de plegar. Medido sobre la copia de
+      // dev (33.311 variantes): plegar fila a fila tarda 866 ms y así 13 ms, porque la función
+      // pasa de ~32.000 llamadas a las ~70 formas distintas que existen de verdad. En el cluster,
+      // que son Raspberry Pi, esa diferencia es la que decide si el panel de filtros abre al
+      // instante o no.
+      //
+      // Importa MÁS desde #325, no menos: `size_band` llama a `size_canon` por dentro, así que
+      // cada evaluación cuesta las dos. Por eso la CTE se queda donde estaba en vez de plegar
+      // sobre la columna — que es lo contrario de lo que hizo `pickColors` en #327, y la
+      // diferencia es que allí la familia está materializada y aquí la banda no.
       //
       // El ORDER BY va fuera porque Postgres exige que sus expresiones estén en la lista del
       // SELECT DISTINCT, y `size_sort(...)` no pinta como chip.
@@ -816,7 +857,7 @@ export class CatalogService {
             AND v.delisted_at IS NULL AND p.delisted_at IS NULL
             AND ${donde('size', 'v')}
         )
-        SELECT value FROM (SELECT DISTINCT size_canon(cruda) AS value FROM crudas) t
+        SELECT value FROM (SELECT DISTINCT ${sql.raw(plegadoTalla(section))}(cruda) AS value FROM crudas) t
         ORDER BY size_sort(value), value
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => String(r.value));
