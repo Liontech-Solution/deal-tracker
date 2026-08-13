@@ -40,12 +40,41 @@ Verificado el 04/08/2026 mirando el proceso, los sockets y el catálogo, no la d
 > arranque está más abajo. Y `pip install pgserver` / `postgresql-wheel` no son la salida: ninguno
 > tiene distribución para esta plataforma.
 
-### El contenedor `dt-pg` es un resto, no el servidor
+### El contenedor `dt-pg`: ya NO es un resto — comprueba cuál de los dos está vivo
 
-`docker` **sí** está instalado (29.7.1) y `docker ps -a` enseña un contenedor **`dt-pg`
-(`postgres:16-alpine`)**, creado el 27/07/2026 y en `Exited (0)` desde el 31/07. **No sirve nada**:
-quien atiende el 5432 es el proceso de espacio de usuario de arriba. Verlo ahí y concluir «aquí la
-Postgres va en Docker» es el error simétrico del `command -v`, y lleva a levantar un segundo
+> ⚠️ **Corregido el 13/08/2026 (#314).** Lo que decía este apartado —que `dt-pg` es un resto parado y
+> que quien atiende el 5432 es el proceso de espacio de usuario— **estaba invertido ese día**:
+>
+> | | 04/08/2026 | 13/08/2026 |
+> |---|---|---|
+> | `dt-pg` (`postgres:16-alpine`) | `Exited (0)` | **`Up`, atendiendo el 5432** |
+> | instalación de usuario (PG 18.4) | atendiendo | **parada** (`pg_isready -h /tmp` → sin respuesta) |
+>
+> O sea que **ninguna de las dos afirmaciones es estable**: lo único que vale es mirarlo. Dos
+> comandos, y ninguno es `command -v`:
+>
+> ```bash
+> docker ps --format '{{.Names}} | {{.Image}} | {{.Ports}} | {{.Status}}'
+> LD_LIBRARY_PATH=~/.local/share/pgsql-local/usr/lib \
+>   ~/.local/share/pgsql-local/usr/bin/pg_isready -h /tmp
+> ```
+>
+> Tres diferencias que muerden si eliges el camino suponiendo que es el otro:
+>
+> - **`dt-pg` pide contraseña**: `postgres://dealtracker:dealtracker@127.0.0.1:5432/<base>`. La
+>   instalación de usuario va con `trust` y sin contraseña, así que una URL copiada de este fichero
+>   falla con `password authentication failed` y parece un problema de permisos.
+> - **`dt-pg` es Postgres 16, la misma que el cluster**; la de usuario es 18.4. Para probar una
+>   migración o un plan, 16 es el banco de pruebas bueno.
+> - **El rol es `dealtracker`, y `postgres` no existe** ahí dentro: `psql -U postgres` falla con
+>   `role "postgres" does not exist`. Dentro del contenedor se entra con
+>   `docker exec dt-pg psql -U dealtracker -d <base>`.
+>
+> Las bases fijas (`deal_tracker_test`, `deal_tracker_ctype_c`) estaban en **las dos**, así que
+> encontrarlas no distingue cuál es el servidor vivo.
+
+`docker` **sí** está instalado (29.7.1). Verlo y concluir «aquí la Postgres va en Docker» —o lo
+contrario— sin mirar el estado es el error simétrico del `command -v`, y lleva a levantar un segundo
 servidor que chocaría de puerto con el bueno.
 
 Tampoco es el del camino que probó **#149** (04/08/2026), que levantaba un `postgres:16` desechable
