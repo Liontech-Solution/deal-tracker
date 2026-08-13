@@ -793,56 +793,42 @@ export class CatalogService {
      * compuestos tipo 'amarillo claro/bluey'—. En un móvil eso no es un filtro, que es literalmente
      * lo que reportó #291. `color_family` (migración 0029) los pliega a **19 familias**.
      *
-     * Misma estructura que `pickSizes` y por la misma medida: `crudas` deduplica el TEXTO de la
-     * tienda ANTES de plegar, así la función se llama una vez por forma distinta y no una por
-     * variante. Aquí importa más que en la talla: `color_family` son ~20 regexes encadenados sobre
-     * el resultado de `color_canon`, bastante más cara que la propia `color_canon`.
+     * **No llama a `color_family`: lee `variant.color_family_cache`** (migración 0031, #327), que
+     * es una columna generada que escribe Postgres. Esta consulta era la cara del panel —las seis
+     * facetas van en `Promise.all`, así que el endpoint cuesta lo que la más lenta, y desde #292 se
+     * pide en cada cambio de filtro—. Medido contra `deal_tracker_qa` el 13/08/2026 con el SQL de
+     * este mismo servicio:
      *
-     * El `IS NOT NULL` se comprueba sobre `value` **ya calculado** y no llamando otra vez a
-     * `color_family(cruda)`, que es como estaba: era una segunda llamada por cada forma distinta a
-     * cambio de nada. No es defensivo, y tapa dos casos: el nombre que son solo dígitos, que ya
-     * negaba `color_canon` (#51, migración 0016), y lo que no encaja en ninguna familia —7 valores
-     * en QA, entre ellos códigos como '1-114' y literales como 'default'—. Sin él, ese NULL
-     * llegaría a la SPA como el chip literal `"null"`.
+     *     calculando la familia (3.312 formas crudas a ~0,5 ms)     1.667 ms
+     *     leyendo la columna generada                                 140 ms      <-- x12
      *
-     * ⚠️ **AQUÍ NO VA UN `AS MATERIALIZED`, y conviene saber por qué antes de "arreglarlo".**
-     * Postgres puede empujar el filtro de fuera por debajo del DISTINCT y evaluar `color_family`
-     * por variante en vez de por forma distinta —la misma trampa que la 0014 documentó para la
-     * talla—, y la valla lo impide. Pero **si lo hace o no depende de la máquina**, así que ponerla
-     * arregla un entorno y estropea el otro. Medido el 11/08/2026 con los mismos datos (127.567
-     * variantes, 2.695 formas crudas de color en `ropa`), en milisegundos:
+     * Y desapareció con ello la CTE `crudas`, que existía para deduplicar el texto de la tienda
+     * **antes** de plegar y así llamar a la función una vez por forma distinta y no una por
+     * variante. `pickSizes` la conserva porque allí sigue haciendo falta: `size_canon` no está
+     * materializada (todavía — ver #325, que apila `size_band` encima y hereda este problema).
      *
-     *                            portátil (PG 16.14)      dev, CNPG (PG 16.4)
-     *     sin filtros                    560                     1.415
-     *     sin filtros + valla          1.090                     2.658
-     *     con categoría y género       4.035                       454
-     *     con cat. y género + valla      339                       818
+     * Con la CTE se fue también la nota sobre `AS MATERIALIZED`, que ya no aplica aquí porque no
+     * hay CTE que vallar. La lección sigue viva en la 0029 y en el ADR, y en `pickSizes`, que sí
+     * tiene la forma que la provocaba: **la valla arregla una máquina y estropea la otra**, porque
+     * el push-down depende del plan que elija cada planificador. No se reintenta.
      *
-     * En el portátil el planificador elige un Nested Loop y mete `color_family(color)` dentro del
-     * Index Scan: 21.536 llamadas en vez de 794. En dev elige un Hash Join y no le pasa. O sea que
-     * los 4 s **no son reproducibles donde el código corre de verdad**, y la valla, que allí los
-     * arreglaría, es en dev un 80 % más lenta en los dos casos. Se va sin valla a propósito.
-     *
-     * Lo que sí está claro es que esta faceta es la cara del panel (1,4 s en dev sin filtros, y el
-     * resto de facetas juntas no llegan a 100 ms). Si alguna vez hay que bajarla, el camino no es
-     * pelearse con el planificador sino no calcular la familia en tiempo de consulta.
+     * El `IS NOT NULL` va sobre la columna y no es defensivo: tapa dos casos reales: el nombre que
+     * son solo dígitos, que ya negaba `color_canon` (#51, migración 0016), y lo que no encaja en
+     * ninguna familia —7 valores en QA, entre ellos códigos como '1-114' y literales como
+     * 'default'—. Sin él, ese NULL llegaría a la SPA como el chip literal `"null"`.
      *
      * El orden alfabético basta —a diferencia de la talla, es el que se espera de una lista de
      * colores—, así que aquí no hace falta el equivalente de `size_sort`.
      */
     const pickColors = async (): Promise<string[]> => {
       const rows = (await this.db.execute(sql`
-        WITH crudas AS (
-          SELECT DISTINCT v.color AS cruda
-          FROM variant v
-          JOIN product p ON p.id = v.product_id
-          JOIN retailer r ON r.id = p.retailer_id
-          WHERE v.color IS NOT NULL
-            AND v.delisted_at IS NULL AND p.delisted_at IS NULL
-            AND ${donde('color', 'v')}
-        )
-        SELECT value FROM (SELECT DISTINCT color_family(cruda) AS value FROM crudas) t
-        WHERE value IS NOT NULL
+        SELECT DISTINCT v.color_family_cache AS value
+        FROM variant v
+        JOIN product p ON p.id = v.product_id
+        JOIN retailer r ON r.id = p.retailer_id
+        WHERE v.color_family_cache IS NOT NULL
+          AND v.delisted_at IS NULL AND p.delisted_at IS NULL
+          AND ${donde('color', 'v')}
         ORDER BY value
       `)) as unknown as Record<string, unknown>[];
       return rows.map((r) => String(r.value));
