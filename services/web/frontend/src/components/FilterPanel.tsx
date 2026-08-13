@@ -88,17 +88,6 @@ const SECCIONES: Array<{ value: string; label: string }> = [
 ];
 
 /**
- * A partir de cuántos chips de talla se sugiere acotar por tienda.
- *
- * No es un número redondo por gusto: en `ropa` sin nada más filtrado son **165** tallas, y elegir
- * tienda las deja entre 12 (Sfera) y 57 (H&M) porque cada una publica su propio vocabulario —unas
- * en años, otras en altura en centímetros, otras en letras—. Con una categoría puesta ya bajan a
- * ~82, que sigue siendo mucho. Por debajo de este umbral la lista se recorre sin ayuda y el aviso
- * solo sería ruido.
- */
-const TALLAS_PARA_SUGERIR_TIENDA = 40;
-
-/**
  * Rango de precio: barra de dos topes + los dos campos, sobre el mismo estado (#290).
  *
  * Los dos controles no son redundancia: la barra sirve para explorar («enséñame lo barato») y los
@@ -352,13 +341,6 @@ export function FilterPanel({ facets, value, onChange }: Props) {
                 <Chip key={s} label={s} selected={value.size.includes(s)} onClick={() => toggleMulti('size', s)} />
               ))}
             </div>
-            {facets.sizes.length > TALLAS_PARA_SUGERIR_TIENDA && !value.retailer.length ? (
-              <div style={{ fontSize: 12.5, color: 'var(--text-faint)', marginTop: 10, lineHeight: 1.45 }}>
-                Son {facets.sizes.length} tallas porque cada tienda mide a su manera: unas por edad,
-                otras por altura en cm y otras por letras. Elige una <strong>tienda</strong> arriba
-                y se quedan las suyas.
-              </div>
-            ) : null}
           </>
         ) : (
           <div style={{ fontSize: 12.5, color: 'var(--text-faint)', lineHeight: 1.45 }}>
