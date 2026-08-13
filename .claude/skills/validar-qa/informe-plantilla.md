@@ -30,7 +30,7 @@ qué frente falta y por qué.>
 |--------|------:|--:|--:|-------------:|
 | Interfaz (U1–U50)  | | | | |
 | API (A1–A54)       | | | | |
-| Datos (D1–D14)     | | | | |
+| Datos (D1–D15)     | | | | |
 | Vigía              | | | | |
 | Telegram (manual)  | | | | |
 

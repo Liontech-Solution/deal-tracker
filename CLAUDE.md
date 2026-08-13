@@ -148,6 +148,14 @@ drift silently: the SQL migrations, `services/web/src/database/schema.ts`, and t
 `ingest.py`. The `revisor-contrato-esquema` subagent exists for exactly that — use it on any change
 touching `db/migrations/**` or `schema.ts`.
 
+**The honesty rule is mirrored too, and the mirror is load-bearing.** `classifyHonesty()` in
+`services/web/src/matching/deal-rule.ts` labels the card, but filtering (`onlyDeals`) and sorting
+(`sort=ofertas`) have to decide **before the `LIMIT`**, so `deal-rule.sql.ts` reimplements it in SQL.
+The two go **in the same commit** — `INFLATED_LIST_MARGIN = 1.03` is a literal on the SQL side, so a
+change to one compiles fine and lies. `test/deal-rule-paridad.spec.ts` catches a divergence after the
+fact; the `revisor-espejo-honestidad` subagent catches it before, and is what you use on any change
+touching either file, their consumers in `catalog.service.ts`, or its `stats` CTEs.
+
 **Migrations have two appliers, both idempotent**: the scraper (`--migrate`) and the web
 (`pnpm migrate` / `node dist/database/migrate.js`, which runs as an initContainer in the cluster).
 Neither owns them.
