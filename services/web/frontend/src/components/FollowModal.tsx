@@ -14,6 +14,15 @@ export interface FollowTarget {
   /** Variante seleccionada (si la hay): permite acotar el aviso a esa talla/color. */
   variantId?: number;
   variantLabel?: string | null;
+  /**
+   * Las OTRAS medidas que la tienda publica bajo la misma etiqueta de talla (#331). Cuando H&M
+   * vende '0-1 meses (44 cm)' y '0-1 meses (50 cm)', el interés se guarda por la talla canónica
+   * —'0-1 meses'— así que cubre las dos, y el usuario tiene derecho a saberlo ANTES de seguirla.
+   *
+   * Decirlo es mejor que fingir una precisión que no hay: la alternativa era guardar la variante
+   * exacta, y eso rompe que el aviso case la misma talla en otra tienda (#223).
+   */
+  otrasMedidas?: string[];
 }
 
 interface FollowModalProps {
@@ -145,6 +154,19 @@ export function FollowModal({ open, onClose, target }: FollowModalProps) {
                 title={`Solo esta variante`}
                 sub={target.variantLabel ?? 'Talla/color seleccionados'}
               />
+              {onlyVariant && target.otrasMedidas?.length ? (
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    color: 'var(--text-faint)',
+                    lineHeight: 1.45,
+                    padding: '0 2px',
+                  }}
+                >
+                  Esta tienda publica {target.otrasMedidas.length + 1} medidas con esta misma
+                  talla ({target.otrasMedidas.join(', ')} y la elegida). Te avisaremos de todas.
+                </div>
+              ) : null}
               <ScopeOption
                 selected={!onlyVariant}
                 onClick={() => setOnlyVariant(false)}
