@@ -98,6 +98,12 @@ class Config:
     # `retailer_id`), así que un lock que no se consigue en 30 s no es tráfico, es una huérfana.
     # `0` lo desactiva y devuelve la espera infinita.
     lock_timeout: float = 30.0
+    # Segundos que se espera el advisory lock que serializa las migraciones (#298). Es OTRA espera
+    # y por eso es otra variable: la de arriba acota la contención por filas, y 30 s bastan porque
+    # ahí una espera larga ya es una huérfana. Aquí quien retiene el lock está aplicando
+    # migraciones legítimamente, y algunas obligan a un `REINDEX` que no cabe en 30 s. `0` lo
+    # desactiva y espera lo que haga falta.
+    migration_lock_wait: float = 300.0
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
@@ -135,6 +141,7 @@ class Config:
             progress_every_seconds=float(env.get("SCRAPER_PROGRESS_EVERY_SECONDS", "300")),
             log_level=env.get("SCRAPER_LOG_LEVEL", "INFO"),
             lock_timeout=float(env.get("SCRAPER_LOCK_TIMEOUT", "30")),
+            migration_lock_wait=float(env.get("SCRAPER_MIGRATION_LOCK_WAIT", "300")),
         )
 
 

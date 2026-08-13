@@ -2134,7 +2134,9 @@ conexión nueva —la que falló se queda con la transacción abortada— y escr
 **no es lentitud**, con el `pid`, el estado y cuánto lleva en transacción quien retiene las filas.
 Va como parámetro de la conexión y no como un `SET` posterior para que cubra lo primero que se
 ejecuta, y alcanza a toda la sesión a propósito, **migraciones incluidas**: un `ALTER TABLE`
-esperando su `ACCESS EXCLUSIVE` detrás de una pasada viva es este mismo fallo con peor cara. Dos
+esperando su `ACCESS EXCLUSIVE` detrás de una pasada viva es este mismo fallo con peor cara. (Con
+una excepción acotada desde #298, en la sección siguiente: la espera por el lock que serializa los
+dos migradores es otra cosa y usa su propio valor, puesto con `SET LOCAL` para no pisar este.) Dos
 consecuencias medidas: una pasada bloqueada tarda **~2× el timeout** en morir, porque
 `_record_failed_run` vuelve a chocar con el mismo lock al dejar constancia; y el vigía se beneficia
 sin tocarlo, porque `Historial` ya se degradaba ante cualquier excepción y ahora lo hace en 30 s en
@@ -2147,6 +2149,64 @@ abierta—, así que nuestras pasadas legítimas están `idle in transaction` du
 36 s medidos en Zara (3957 entradas, 05/08/2026) y minutos en las tiendas lentas. Elegido corto,
 ese timeout mataría pasadas buenas; el valor tendría que salir de medir el listado más largo, no de
 la intuición.
+
+### Dos migradores comparten `schema_migrations` a propósito, y por eso comparten un lock (#298)
+
+Que cualquiera de los dos servicios pueda arrancar el esquema es el contrato, no un accidente: el
+scraper migra con `--migrate` en cada pasada y el web lo hace en un initContainer en cada rollout.
+La consecuencia es que **hay dos migradores corriendo solos en el cluster**, en prod los nueve
+CronJobs en la banda 21:00 → 00:45 UTC más el web en cada despliegue.
+
+Los dos tenían el mismo fallo de forma: leen el conjunto de aplicadas **antes** del bucle, así que
+dos que arranquen a la vez ven la misma lista de pendientes e intentan aplicar el mismo fichero. No
+es corrupción —`version` es `TEXT PRIMARY KEY` y cada fichero va en transacción con su `INSERT`, así
+que el perdedor revierte limpio— pero **el perdedor falla**, y el fallo aparece lejos de la causa:
+si es el initContainer, el pod no arranca y la promoción parece rota; si es un CronJob, esa tienda
+se queda sin pasada. Reproducido el 13/08/2026 con el código previo: de dos migradores concurrentes
+sobre una pendiente, **uno muere**, y ni siquiera por la clave primaria sino con un `UniqueViolation`
+sobre `pg_type_typname_nsp_index` — el `CREATE TABLE` de la propia migración. La ventana solo existe
+en el primer arranque tras un release **con migraciones nuevas**, que es exactamente lo que trae
+cada versión.
+
+Se cierra con un `pg_advisory_lock` tomado **antes de leer las aplicadas**, no alrededor del bucle:
+envolver solo la escritura deja intacta la decisión, que es donde está el fallo. Cuatro cosas que no
+son obvias y que costó medir:
+
+- **El identificador vive por duplicado y nada del lenguaje lo ata.** `LOCK_MIGRACIONES = 1685351783`
+  (`0x64746d67`, ASCII `dtmg`) está literal en `migrate.py` y en `migrate.ts`. Si alguien cambia uno,
+  cada migrador se serializa consigo mismo, los dos servicios funcionan, los tests de concurrencia de
+  cada lado pasan — y la carrera sigue abierta sin que nada lo diga. Lo único que lo sostiene es un
+  test de paridad que lee los dos ficheros, y está deliberadamente **fuera** del gate de
+  `TEST_DATABASE_URL`: es la comprobación que no puede depender del gate que más se salta.
+- **Los advisory locks son por BASE DE DATOS, no por cluster** (verificado: `pg_locks.database` trae
+  el OID y la misma clave se toma sin esperar desde otra base de la misma instancia). Es lo que hace
+  que esto sea seguro en la CNPG compartida: `deal_tracker`, `deal_tracker_qa` y `deal_tracker_prod`
+  no se estorban entre sí, y los cuatro proyectos ajenos que viven ahí ni se enteran.
+- **La espera es otra distinta de la de #169, y tiene que serlo.** `SCRAPER_MIGRATION_LOCK_WAIT` /
+  `WEB_MIGRATION_LOCK_WAIT`, 300 s por defecto contra los 30 s de `SCRAPER_LOCK_TIMEOUT`. Allí una
+  espera larga ya es una huérfana; aquí quien retiene está aplicando el esquema legítimamente, y hay
+  migraciones que obligan a un `REINDEX` (0014, 0029) que no cabe en 30 s — apretarlo haría fallar
+  initContainers por una migración lenta y normal. Se pone con `set_config(..., is_local => true)`
+  —o sea `SET LOCAL`— dentro de una transacción que se cierra en el acto: el valor revierte solo en
+  el `commit` y el lock, que es de **sesión**, sobrevive. Un `SET` a secas dejaría la pasada entera
+  corriendo con 300 s de espera por fila y devolvería el fallo mudo de #169 sin ruido.
+- **Quien retiene el lock puede ser invisible para el diagnóstico de #169.** Un advisory lock es de
+  sesión, así que su dueño está `idle` y sin transacción abierta buena parte del tiempo — y
+  `transacciones_abiertas()` filtra por `xact_start IS NOT NULL`. Medido contra un retenedor `idle`:
+  aquella consulta devuelve `[]` y habría escrito «reintentar debería bastar», lo contrario de la
+  verdad. De ahí `db.retenedores_del_lock()`, que va por `pg_locks`, y un mensaje propio en `run.py`
+  que nombra la variable correcta.
+
+Y una trampa de la librería, porque volverá a morder a quien toque `sql.reserve()`: en `postgres`
+3.4.9 **el objeto reservado NO tiene `.begin()` en tiempo de ejecución** —`begin` solo se le asigna
+al pool—, aunque los tipos declaren `ReservedSql extends Sql` con ese método. Compila y revienta en
+producción. La transacción por fichero va con `begin`/`commit`/`rollback` explícitos por `unsafe`.
+Reservar la conexión no es opcional: un lock de sesión vive en SU backend, y hasta ahora que el
+migrador del web usara una sola era un accidente del `max: 1`.
+
+**Lo que el lock NO arregla**, y hay que saberlo antes de necesitarlo: `CREATE INDEX CONCURRENTLY`
+no puede ir dentro de una transacción, así que una migración que lo use se sale de la red que hace
+que el perdedor revierta limpio. Hoy ninguna lo usa; el día que haga falta, esto se replantea.
 
 ### Una ficha que no se puede leer se convierte en una baja falsa dos pasadas después
 
