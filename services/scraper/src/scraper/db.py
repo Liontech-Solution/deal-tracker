@@ -73,3 +73,49 @@ def transacciones_abiertas(config: Config) -> list[SesionAbierta]:
             (_MAX_QUERY,),
         )
         return [SesionAbierta(pid, state, edad, query) for pid, state, edad, query in cur]
+
+
+@dataclass(frozen=True)
+class RetenedorDeLock:
+    """Una sesión ajena que sostiene un advisory lock nuestro."""
+
+    pid: int
+    state: str
+    en_ese_estado: str  # ya formateado por Postgres (p.ej. "00:00:12")
+    query: str
+
+    def __str__(self) -> str:
+        return f"pid {self.pid} · {self.state} · {self.en_ese_estado} así · {self.query}"
+
+
+def retenedores_del_lock(config: Config, clave: int) -> list[RetenedorDeLock]:
+    """Quién sostiene el advisory lock `clave` sobre esta base (#298).
+
+    No lo cubre `transacciones_abiertas()` y por eso existe aparte: un advisory lock es de SESIÓN,
+    así que quien lo retiene puede estar perfectamente `idle` y sin transacción abierta — y aquella
+    consulta filtra por `xact_start IS NOT NULL`. Preguntarle a ella por este fallo devolvería
+    «no queda ninguna transacción abierta», que es lo contrario de lo que pasa.
+
+    Se ordena por `state_change` para que el más antiguo salga primero, que es el candidato a
+    migrador colgado. Mismo contrato que su hermana: información de apoyo, el que llama se traga
+    cualquier fallo.
+    """
+    with psycopg.connect(config.database_url, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT a.pid,
+                   a.state,
+                   to_char(now() - a.state_change, 'HH24:MI:SS') AS en_ese_estado,
+                   left(coalesce(a.query, ''), %s)               AS query
+              FROM pg_locks l
+              JOIN pg_stat_activity a ON a.pid = l.pid
+             WHERE l.locktype = 'advisory'
+               AND l.objid = %s
+               AND l.granted
+               AND l.database = (SELECT oid FROM pg_database WHERE datname = current_database())
+               AND a.pid <> pg_backend_pid()
+             ORDER BY a.state_change
+            """,
+            (_MAX_QUERY, clave),
+        )
+        return [RetenedorDeLock(pid, state, edad, query) for pid, state, edad, query in cur]

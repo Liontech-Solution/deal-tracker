@@ -23,7 +23,7 @@ import psycopg
 from . import db
 from .config import Config, load_dotenv
 from .ingest import CatalogScanAborted, ingest
-from .migrate import apply_migrations
+from .migrate import LOCK_MIGRACIONES, apply_migrations
 from .stores.base import (
     BaseStore,
     CategoryNode,
@@ -309,6 +309,39 @@ def _mensaje_bloqueo(config: Config) -> str:
     return "\n".join(lineas)
 
 
+def _mensaje_lock_migraciones(config: Config) -> str:
+    """Explica que la espera agotada fue la del lock de migraciones, no la de las filas (#298).
+
+    Tiene mensaje propio y no una rama del de #169 porque las dos esperas son distintas cosas con
+    variables distintas: allí quien estorba es una transacción huérfana sobre las filas, aquí es el
+    otro migrador —el initContainer del web o el CronJob de otra tienda— aplicando el esquema.
+    Reutilizar aquel texto nombraría la variable equivocada y mandaría a mirar donde no es.
+    """
+    lineas = [
+        f"✖ pasada abortada: no se pudo tomar el lock de migraciones en "
+        f"{config.migration_lock_wait:g}s (SCRAPER_MIGRATION_LOCK_WAIT).",
+        "  Otro migrador (el initContainer del web, o el CronJob de otra tienda) lo tiene tomado.",
+    ]
+    try:
+        retenedores = db.retenedores_del_lock(config, LOCK_MIGRACIONES)
+    except Exception as exc:  # pragma: no cover - el diagnóstico es de apoyo
+        lineas.append(f"  (no se ha podido consultar pg_locks: {exc})")
+        return "\n".join(lineas)
+    if retenedores:
+        lineas.append("  Lo retiene:")
+        lineas.extend(f"    {r}" for r in retenedores)
+        lineas.append(
+            "  Si sigue ahí y no está aplicando nada, es un migrador muerto cuyo backend Postgres "
+            "aún no ha soltado: comprobar que el pod ya no existe antes de terminarlo."
+        )
+    else:
+        lineas.append(
+            "  Ya no lo retiene nadie: ha soltado entre el fallo y esta consulta. "
+            "Reintentar debería bastar."
+        )
+    return "\n".join(lineas)
+
+
 def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     args = _parse_args(argv)
@@ -332,7 +365,13 @@ def main(argv: list[str] | None = None) -> int:
     with db.connect(config) as conn:
         try:
             if args.migrate:
-                applied = apply_migrations(conn)
+                # Captura propia y más cerrada que la de abajo: las dos son `LockNotAvailable`,
+                # pero solo aquí se sabe que la espera agotada fue la del lock de migraciones.
+                try:
+                    applied = apply_migrations(conn, lock_wait=config.migration_lock_wait)
+                except psycopg.errors.LockNotAvailable:
+                    print(_mensaje_lock_migraciones(config), file=sys.stderr)
+                    return 1
                 if applied:
                     print(f"migraciones aplicadas: {', '.join(applied)}")
             result = ingest(
