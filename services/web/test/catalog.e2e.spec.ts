@@ -1695,3 +1695,120 @@ describe.skipIf(!TEST_DB)('rango de precio (#290)', () => {
     await request(app.getHttpServer()).get('/api/catalog/facets?maxPrice=10').expect(400);
   });
 });
+
+/**
+ * Dos medidas bajo la misma etiqueta de talla (#331).
+ *
+ * El caso real: H&M publica en recien nacido '0-1 meses (44 cm)' y '0-1 meses (50 cm)', que son dos
+ * prendas distintas, y `size_canon` las funde. Hipercor tiene el mismo defecto con otra sintaxis
+ * (' - Medida N cm') y ADEMAS el caso contrario, en el que el sufijo solo repite la misma talla.
+ *
+ * Lo que se prueba aqui es la REGLA que los separa, que es la unica parte que no puede vivir en
+ * `size_canon`: una funcion escalar ve una cadena suelta, y la diferencia esta en el conjunto de
+ * variantes del producto. Medido el 13/08/2026: con la regla, 22 fichas del catalogo crecen y
+ * ninguna mas de +2 chips; partiendo por el texto crudo eran 27 fichas y hasta +7.
+ */
+describe.skipIf(!TEST_DB)('dos medidas bajo una misma talla . ficha (e2e)', () => {
+  let sql: postgres.Sql;
+  let app: INestApplication;
+
+  async function seedTallas(
+    retailerId: number,
+    nombre: string,
+    tallas: string[],
+  ): Promise<number> {
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${retailerId}, ${nombre}, ${nombre}, 'niña', 'ropa', 'camisetas', 'si',
+              ${'https://x/' + nombre})
+      RETURNING id`;
+    for (const [i, talla] of tallas.entries()) {
+      // MISMA url en todas: es el caso que hoy las colapsa en un solo chip y esconde una.
+      const [v] = await sql<{ id: number }[]>`
+        INSERT INTO variant (product_id, retailer_variant_id, size, color, sku, url)
+        VALUES (${p.id}, ${nombre + '-' + i}, ${talla}, 'BLANCO', ${nombre + '-sku-' + i},
+                ${'https://x/' + nombre})
+        RETURNING id`;
+      await sql`
+        INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+        VALUES (${v.id}, 9.99, 19.99, 50, true, now())`;
+    }
+    return Number(p.id);
+  }
+
+  const etiquetas = async (id: number): Promise<string[]> => {
+    const res = await request(app.getHttpServer())
+      .get(`/api/catalog/products/${id}`)
+      .expect(200);
+    return (res.body.variants as { sizeLabel: string | null }[])
+      .map((v) => v.sizeLabel)
+      .filter((x): x is string => !!x)
+      .sort();
+  };
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  it('DOS chips cuando la tienda publica dos medidas distintas: es el caso de H&M', async () => {
+    const [r] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('hm', 'H&M', 'https://hm.com') RETURNING id`;
+    const id = await seedTallas(r.id, 'HM-RN', [
+      '0-1 meses (44 cm)',
+      '0-1 meses (50 cm)',
+      '1-2 meses (56 cm)',
+    ]);
+    // La medida sale SOLO en las dos que la necesitan para poder elegir.
+    expect(await etiquetas(id)).toEqual([
+      '0-1 meses \u00b7 44 cm',
+      '0-1 meses \u00b7 50 cm',
+      '1-2 meses',
+    ]);
+  });
+
+  it('UN chip cuando el sufijo solo repite la talla: es el caso de Hipercor', async () => {
+    // Sin esta mitad, la ficha del «Pack 5 slips» pasaba de 7 chips a 14 (medido en qa).
+    const [r] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('hipercor', 'Hipercor', 'https://hipercor.es') RETURNING id`;
+    const id = await seedTallas(r.id, 'HC-SLIPS', [
+      '9-10 años',
+      '9-10 años - Medida 128 cm',
+      '11-12 años',
+      '11-12 años - Medida 140 cm',
+    ]);
+    expect(await etiquetas(id)).toEqual(['11-12 años', '9-10 años']);
+  });
+
+  it('UN chip cuando solo cambia la caja de las letras', async () => {
+    const [r] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('hipercor2', 'Hipercor 2', 'https://hipercor.es/2') RETURNING id`;
+    const id = await seedTallas(r.id, 'HC-CAJA', ['12 Meses', '12 meses', '18 meses']);
+    expect(await etiquetas(id)).toEqual(['12 meses', '18 meses']);
+  });
+
+  it('la talla CRUDA y la CANONICA no se mueven: son la clave y lo que se guarda al seguir', async () => {
+    // Es lo que impide que este cambio toque `interest.size` ni el casado del aviso: la etiqueta
+    // es un rotulo y nada mas. Si algun dia `sizeCanon` empezara a traer los cm, esto se cae.
+    const [r] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('hm2', 'H&M 2', 'https://hm.com/2') RETURNING id`;
+    const id = await seedTallas(r.id, 'HM-RN2', ['0-1 meses (44 cm)', '0-1 meses (50 cm)']);
+    const res = await request(app.getHttpServer())
+      .get(`/api/catalog/products/${id}`)
+      .expect(200);
+    const vs = res.body.variants as { size: string; sizeCanon: string; sizeLabel: string }[];
+    expect(vs.map((v) => v.size).sort()).toEqual(['0-1 meses (44 cm)', '0-1 meses (50 cm)']);
+    expect(vs.map((v) => v.sizeCanon)).toEqual(['0-1 meses', '0-1 meses']);
+  });
+});

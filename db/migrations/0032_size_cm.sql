@@ -1,0 +1,101 @@
+-- La medida en centímetros que algunas tiendas cuelgan de la talla: `size_cm(text)` (issue #331).
+--
+-- ⚠️ **ESTA MIGRACIÓN NO TOCA `size_canon`.** Merece decirse lo primero, porque #331 nació pidiendo
+-- exactamente eso —«¿la altura en cm entra en la canónica?»— y la respuesta, medida, es **no**.
+-- Añade una función nueva **al lado**, que no la sustituye ni cambia lo que la canónica devuelve
+-- para ninguna entrada. Ningún índice queda obsoleto y **no hace falta `REINDEX`**.
+--
+--
+-- ── EL PROBLEMA, Y POR QUÉ NO ERA EL QUE LA ISSUE DESCRIBÍA ──
+--
+-- `size_canon` borra el paréntesis (0024, a propósito: `26 (16,3 cm)` y `26` son la misma talla de
+-- pie). Pero H&M publica en su rango de recién nacido
+--
+--     0-1 meses (44 cm)        0-1 meses (50 cm)
+--
+-- y 44 y 50 son **dos alturas distintas**, no dos formas de decir lo mismo. La canónica las funde.
+--
+-- El cuerpo de #331 daba el alcance por cerrado: «9 productos, solo `hm`; ninguna otra tienda
+-- publica dos medidas bajo una misma etiqueta de edad». Medido el 13/08/2026 contra
+-- `deal_tracker_qa` y `deal_tracker` (idéntico en las dos), **no es así**:
+--
+--     hm        0-1 meses     20 productos    '0-1 meses (44 cm)'  |  '0-1 meses (50 cm)'
+--     hipercor  3 meses        2 productos    '3 meses - Medida 62 cm'  |  '3 meses/6 meses - Medida 68 cm'
+--     hipercor  9 meses        2 productos    '9 meses - Medida 74 cm'  |  '9 meses/12 meses - Medida 80 cm'
+--
+-- Hipercor no usa paréntesis sino ` - Medida N cm`, así que una búsqueda por `(` no lo ve. Son dos
+-- tiendas, no una.
+--
+-- Y hay **tres** casos mezclados bajo el mismo síntoma, no uno:
+--
+--     1. GRAFÍA          '12 Meses'    | '12 meses'                        -> plegar es correcto
+--     2. SUFIJO QUE      '9-10 años'   | '9-10 años - Medida 128 cm'       -> plegar es correcto
+--        REPITE                                                              (la 0024, a propósito)
+--     3. SUFIJO QUE      '3 meses - Medida 62 cm'                          -> plegar es EL DEFECTO
+--        DISCRIMINA      | '3 meses/6 meses - Medida 68 cm'
+--
+--
+-- ── POR QUÉ LA REGLA QUE PEDÍA #331 NO EXISTE COMO FUNCIÓN ESCALAR ──
+--
+-- La issue proponía «distinguir el paréntesis que repite del que añade». No se puede desde
+-- `size_canon(text)`, porque **la diferencia no está en la cadena sino en el par**:
+--
+--     en el caso 2, una de las dos formas NO trae medida y la otra sí;
+--     en el caso 3, LAS DOS traen medida y difieren.
+--
+-- «Las dos traen medida» es una propiedad del conjunto, y una función escalar ve una cadena sola.
+-- Una regla del tipo «si hay cm, va a la canónica» parte también el caso 2 y refragmenta lo que la
+-- 0024 vino a juntar — medido: la ficha del «Pack 5 slips» de Hipercor pasaría de 7 chips a 14.
+--
+-- Por eso esto no es una canónica nueva sino un **extractor**: devuelve el número, y quien tiene el
+-- contexto —la consulta de la ficha, que mira todas las variantes de UN producto— decide con él.
+--
+--
+-- ── LA REGLA QUE SÍ, Y LO QUE CUESTA ──
+--
+-- «Dentro de un producto, una canónica se parte en dos chips **solo si tiene dos o más medidas en
+-- cm distintas**.» Medido sobre los 16.504 productos con talla de `deal_tracker_qa`:
+--
+--                                    agrupando por talla CRUDA      con esta regla
+--     fichas que crecen                        27                        22
+--     peor crecimiento en una ficha            +7                        +2
+--     media de chips por ficha               6,30 -> 6,30              6,30 -> 6,30
+--     máximo de chips                          22                        22
+--
+-- Y los 22 son exactamente los que tienen que crecer: 20 de H&M (+1) y 2 de Hipercor (+2). Ni un
+-- chip de más en ningún otro producto del catálogo.
+--
+--
+-- ── LO QUE `size_cm` NO ES ──
+--
+-- **No es la talla ni la ordena.** `size_sort` (0014) sigue siendo quien ordena, y no cambia.
+-- **No entra en ningún índice**, así que no arrastra la obligación de `REINDEX` de la 0014/0015/0029.
+-- **No la usa el matching**: qué avisos disparan no cambia ni una fila. Lo único que cambia es
+-- cómo se ROTULA lo que ya se avisaba.
+--
+-- `IMMUTABLE STRICT PARALLEL SAFE` como las demás funciones del esquema, y con su `COST` declarado
+-- desde el primer día, que es la lección que la 0030 dejó escrita: una función SQL sin `COST` vale
+-- 100 unidades de `cpu_operator_cost` y el planificador se lo cree. Esta es mucho más barata que
+-- `color_family` —un solo `substring` con una expresión regular, sin cadena de plegados debajo—,
+-- así que no lleva las 10.000 de aquella, pero tampoco se queda con el 0,25 de por defecto.
+CREATE OR REPLACE FUNCTION size_cm(size text) RETURNS integer
+    LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE COST 500
+    AS $$
+    -- Cubre las dos formas medidas en el catálogo: el paréntesis de H&M y Zara —'0-1 meses (44 cm)',
+    -- '2 años (92 cm)'— y el sufijo de Hipercor —'3 meses - Medida 62 cm'—.
+    --
+    -- El decimal entra en el grupo A PROPÓSITO, aunque luego se tire. Sin él, '26 (16,3 cm)'
+    -- devolvía **3**: la expresión se quedaba con los dígitos pegados a 'cm', que son los de la
+    -- parte decimal. No cambiaba ninguna decisión —en zapatería cada talla tiene canónica propia,
+    -- así que nunca hay dos medidas bajo una misma— pero es la clase de valor equivocado que
+    -- alguien reutiliza dentro de un año creyendo que dice centímetros.
+    --
+    -- La coma es la separación decimal de Cacles ('16,3') y el punto la de Zara ('11.6'), así que
+    -- se admiten las dos y se normaliza a punto antes del cast.
+    --
+    -- Devuelve NULL cuando la tienda no publica medida, y ese NULL es la mitad de la regla: es lo
+    -- que impide partir '9-10 años' de '9-10 años - Medida 128 cm'.
+    SELECT floor(
+             replace(substring(size FROM '([0-9]+(?:[.,][0-9]+)?)[[:space:]]*cm'), ',', '.')::numeric
+           )::integer;
+$$;

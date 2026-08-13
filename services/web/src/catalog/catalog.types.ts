@@ -63,6 +63,20 @@ export interface VariantWithPrice {
    * un padre elige.
    */
   sizeCanon: string | null;
+  /**
+   * Lo que el selector de tallas **enseña** (#331). Es `sizeCanon`, y solo cuando este producto
+   * publica dos tallas físicas distintas bajo la misma etiqueta de edad, con la medida detrás:
+   *
+   *     0-1 meses · 44 cm      0-1 meses · 50 cm       (H&M, 20 productos)
+   *     3 meses · 62 cm        3 meses · 68 cm         (Hipercor, 2 productos)
+   *     11-12 años                                     (todos los demás: la canónica sola)
+   *
+   * No sustituye a `size`, que sigue siendo el texto de la tienda y **la clave** con la que la SPA
+   * selecciona una talla; ni a `sizeCanon`, que es lo que se guarda en `interest.size`. Esto es
+   * solo el rótulo, y existe porque los dos anteriores fallan al rotular: la canónica sola tapaba
+   * una de las dos medidas, y la cruda sacaba `3 meses/6 meses - Medida 68 cm` en un chip.
+   */
+  sizeLabel: string | null;
   color: string | null;
   sku: string | null;
   url: string | null;

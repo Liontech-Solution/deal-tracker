@@ -247,6 +247,21 @@ export class MatchingService {
              -- comprable (#108). Las canónicas salen de la base, que es donde vive la única
              -- definición de "misma talla" y "mismo color" que usa también el WHERE de arriba.
              b.product_id, size_canon(b.size) AS size_canon, color_canon(b.color) AS color_canon,
+             -- Cómo se NOMBRA la talla en el aviso (#331). Igual que en la ficha: la canónica, y
+             -- la medida en cm detrás solo si este producto publica dos tallas físicas bajo la
+             -- misma etiqueta. Sin esto el aviso decía 'Talla 0-1 meses' para las dos prendas de
+             -- H&M y el usuario no podía saber cuál había bajado hasta abrir la tienda.
+             --
+             -- Va en la lista del SELECT y NO en el WHERE, a propósito y conviene decirlo: esto
+             -- no puede cambiar QUÉ avisos se disparan, solo cómo se rotulan los que ya salían.
+             CASE WHEN size_cm(b.size) IS NOT NULL AND (
+                    SELECT count(DISTINCT size_cm(v2.size)) FROM variant v2
+                     WHERE v2.product_id = b.product_id AND v2.delisted_at IS NULL
+                       AND size_canon(v2.size) IS NOT DISTINCT FROM size_canon(b.size)
+                  ) > 1
+                  THEN size_canon(b.size) || ' · ' || size_cm(b.size) || ' cm'
+                  ELSE size_canon(b.size)
+             END AS size_label,
              b.product_name, b.product_url, b.retailer_name,
              st.recent_min, st.max_observed, st.prior_points
       FROM batch b
@@ -299,6 +314,7 @@ export class MatchingService {
       color: r.color,
       productId: Number(r.product_id),
       sizeCanon: r.size_canon,
+      sizeLabel: r.size_label,
       colorCanon: r.color_canon,
       productName: r.product_name,
       productUrl: r.product_url,
@@ -468,6 +484,7 @@ interface RawCandidate {
   color: string | null;
   product_id: string | number;
   size_canon: string | null;
+  size_label: string | null;
   color_canon: string | null;
   product_name: string;
   product_url: string | null;

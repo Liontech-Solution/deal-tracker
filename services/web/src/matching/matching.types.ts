@@ -27,6 +27,14 @@ export interface CandidateRow {
    */
   productId: number;
   sizeCanon: string | null;
+  /**
+   * Cómo se nombra la talla en el aviso (#331): la canónica, más la medida en cm cuando este
+   * producto publica dos tallas físicas bajo la misma etiqueta ('0-1 meses · 44 cm'). Es la misma
+   * etiqueta que enseña el selector de la ficha, para que el usuario reconozca la prenda.
+   *
+   * No participa en el casado: `sizeCanon` sigue siendo lo que compara el WHERE.
+   */
+  sizeLabel: string | null;
   colorCanon: string | null;
 
   productName: string;

@@ -14,7 +14,14 @@ import { ProductImage } from '../components/ProductImage';
 import { ProductGridSkeleton, ErrorState } from '../components/States';
 import { colorHex } from '../lib/colors';
 import { capitalize, etiquetaVariante } from '../lib/format';
-import { available, countAvailableSizes, distinctSizes, sizeAvailable } from '../lib/variants';
+import {
+  available,
+  countAvailableSizes,
+  distinctSizes,
+  otherMeasures,
+  sizeAvailable,
+  sizeLabels,
+} from '../lib/variants';
 
 function stockOf(v: VariantWithPrice): Stock {
   if (v.delisted) return 'descatalogado';
@@ -86,6 +93,9 @@ export function ProductPage() {
 
   const variants = useMemo(() => product?.variants ?? [], [product]);
   const sizes = useMemo(() => distinctSizes(variants), [variants]);
+  // El rótulo de cada chip (#331). La clave sigue siendo la talla cruda; esto solo cambia lo que
+  // se pinta encima.
+  const etiquetas = useMemo(() => sizeLabels(variants), [variants]);
   // Cuántas de esas tallas se pueden comprar de verdad, que es lo que rotula el selector (#224).
   const sizesDisponibles = useMemo(() => countAvailableSizes(variants), [variants]);
   const refs = useMemo(() => colorRefs(variants), [variants]);
@@ -267,7 +277,7 @@ export function ProductPage() {
                         opacity: dis ? 0.6 : 1,
                       }}
                     >
-                      {s}
+                      {etiquetas.get(s) ?? s}
                     </button>
                   );
                 })}
@@ -390,6 +400,10 @@ export function ProductPage() {
           // `sizeCanon` es la misma canónica que usa el backend, así que la talla no se mueve; lo
           // único que cambia es la caja del color, que es de lo que va #297.
           variantLabel: etiquetaVariante(current?.sizeCanon ?? null, current?.color ?? null),
+          // Lo que el interés va a cubrir de más, dicho antes de seguirlo (#331). La etiqueta
+          // de arriba sigue siendo la CANÓNICA a propósito: es lo que se guarda de verdad, y
+          // confirmar '0-1 meses · 44 cm' prometería una precisión que el aviso no tiene.
+          otrasMedidas: otherMeasures(variants, size),
         }}
       />
     </section>

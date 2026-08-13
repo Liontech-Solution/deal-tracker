@@ -147,10 +147,15 @@ function dealLine(deal: Deal, enlazar: boolean): string {
   const url = row.productUrl;
   const title =
     enlazar && url && url.length <= URL_MAX ? `<a href="${escapeHtml(url)}">${name}</a>` : name;
-  // La talla CANÓNICA (#223): el aviso tiene que nombrar la variante igual que la web, y la web
-  // la nombra por `size_canon`. La canónica ya viene en la fila —la calcula la base en el mismo
-  // SELECT de `findCandidates`, con la misma función—, así que esto no cuesta ninguna consulta.
-  const label = variantLabel(row.sizeCanon, row.color);
+  // El aviso tiene que nombrar la variante **igual que la web**, y esa es toda la regla (#223).
+  // Lo que la web enseña en el selector de tallas es `sizeLabel` (#331): la canónica, más la
+  // medida en cm cuando el producto publica dos tallas físicas bajo la misma etiqueta. Con la
+  // canónica sola, las dos prendas de recién nacido de H&M —44 cm y 50 cm— mandaban el mismo
+  // 'Talla 0-1 meses' y el usuario no podía saber cuál había bajado sin abrir la tienda.
+  //
+  // Sigue sin costar ninguna consulta: lo calcula la base en el mismo SELECT de `findCandidates`.
+  // Y sigue sin ser lo que casa el interés, que es `sizeCanon`: esto solo rotula.
+  const label = variantLabel(row.sizeLabel ?? row.sizeCanon, row.color);
 
   const parts = [`• ${title} — ${escapeHtml(recorta(row.retailerName, RETAILER_MAX))}`];
   if (label) parts.push(`  ${escapeHtml(recorta(label, LABEL_MAX))}`);

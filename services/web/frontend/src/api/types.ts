@@ -63,6 +63,12 @@ export interface VariantWithPrice {
    * `etiquetaVariante()` (#297); `size` sigue siendo lo que rotula el selector de la ficha.
    */
   sizeCanon: string | null;
+  /**
+   * Lo que ROTULA el chip del selector (#331): la canónica, con la medida en cm detrás solo cuando
+   * este producto publica dos tallas físicas bajo la misma etiqueta ('0-1 meses · 44 cm'). No es la
+   * clave —esa sigue siendo `size`— ni lo que se guarda al seguir la prenda —esa es `sizeCanon`—.
+   */
+  sizeLabel: string | null;
   color: string | null;
   sku: string | null;
   url: string | null;

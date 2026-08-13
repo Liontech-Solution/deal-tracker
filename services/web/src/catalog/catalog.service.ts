@@ -480,6 +480,25 @@ export class CatalogService {
       -- caigan juntos.
       --
       -- La baja también parte el grupo: una cara dada de baja no debe absorber a una viva.
+      --
+      -- Cuántas medidas en cm DISTINTAS publica la tienda bajo cada talla canónica de este
+      -- producto (#331). Es la mitad que size_canon no puede saber: la función ve una cadena
+      -- suelta, y aquí la diferencia está en el conjunto.
+      --
+      --     '9-10 años' | '9-10 años - Medida 128 cm'   -> {128}     n=1  -> MISMA talla
+      --     '12 Meses'  | '12 meses'                    -> {}        n=0  -> MISMA talla
+      --     '3 meses - Medida 62 cm'
+      --       | '3 meses/6 meses - Medida 68 cm'        -> {62,68}   n=2  -> DOS tallas
+      --
+      -- count(DISTINCT ...) ignora los NULL, y ESO es la regla: que una de las dos formas no
+      -- traiga medida es justo lo que dice que no discrimina. Sin ese detalle, partir por el texto
+      -- crudo llevaba la ficha del «Pack 5 slips» de Hipercor de 7 chips a 14 (medido).
+      medidas AS (
+        SELECT size_canon(v.size) AS canon, count(DISTINCT size_cm(v.size)) AS n
+        FROM variant v
+        WHERE v.product_id = ${id} AND v.delisted_at IS NULL
+        GROUP BY size_canon(v.size)
+      ),
       prenda AS (
         SELECT (array_agg(v.id ORDER BY l.in_stock DESC NULLS LAST, l.price ASC NULLS LAST, v.id))[1]
                  AS variant_id,
@@ -488,11 +507,23 @@ export class CatalogService {
                BOOL_OR(l.in_stock) AS in_stock
         FROM variant v
         LEFT JOIN latest l ON l.variant_id = v.id
+        LEFT JOIN medidas m ON m.canon IS NOT DISTINCT FROM size_canon(v.size)
         WHERE v.product_id = ${id}
-        GROUP BY size_canon(v.size), color_canon(v.color), coalesce(v.url, ''),
+        GROUP BY size_canon(v.size),
+                 -- Solo cuando de verdad hay dos medidas: si no, el CASE da NULL para todas las
+                 -- filas del grupo y la clave queda exactamente como estaba.
+                 CASE WHEN m.n > 1 THEN size_cm(v.size) END,
+                 color_canon(v.color), coalesce(v.url, ''),
                  (v.delisted_at IS NULL)
       )
       SELECT v.id, v.retailer_variant_id, v.size, size_canon(v.size) AS size_canon,
+             -- Lo que rotula el chip (#331). La canónica, y la medida SOLO cuando este producto
+             -- publica dos bajo la misma etiqueta — que es cuando el padre la necesita para
+             -- elegir. En los otros 16.482 productos del catálogo sale la canónica sola.
+             CASE WHEN m.n > 1 AND size_cm(v.size) IS NOT NULL
+                  THEN size_canon(v.size) || ' · ' || size_cm(v.size) || ' cm'
+                  ELSE size_canon(v.size)
+             END AS size_label,
              v.color, v.sku, v.url, v.delisted_at,
              l.price, l.list_price, l.discount_pct, g.in_stock, l.scraped_at,
              s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points,
@@ -501,6 +532,7 @@ export class CatalogService {
       JOIN variant v ON v.id = g.variant_id
       LEFT JOIN latest l ON l.variant_id = v.id
       LEFT JOIN stats s ON s.variant_id = v.id
+      LEFT JOIN medidas m ON m.canon IS NOT DISTINCT FROM size_canon(v.size)
       ORDER BY v.id
     `)) as unknown as Record<string, unknown>[];
 
@@ -515,6 +547,10 @@ export class CatalogService {
       // Ya se calculaba aquí abajo para `variantLabel`; desde #297 sale también como campo propio,
       // porque la SPA compone la etiqueta por su cuenta para capitalizar el color.
       sizeCanon: (row.size_canon as string | null) ?? null,
+      // Lo que se ENSEÑA (#331): la canónica, más la medida en cm solo si este producto publica
+      // dos tallas físicas bajo la misma etiqueta. `size` sigue siendo la clave con la que la SPA
+      // selecciona, y `sizeCanon` lo que se guarda en el interés; esto es solo el rótulo.
+      sizeLabel: (row.size_label as string | null) ?? null,
       color: (row.color as string | null) ?? null,
       sku: (row.sku as string | null) ?? null,
       url: (row.url as string | null) ?? null,
