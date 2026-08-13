@@ -6,6 +6,7 @@ import type postgres from 'postgres';
 import {
   makeApp,
   makeSql,
+  refrescarAgregado,
   resetSchema,
   seedCatalog,
   SEED_IMAGE_URL,
@@ -22,6 +23,9 @@ describe.skipIf(!TEST_DB)('catálogo (e2e)', () => {
     sql = makeSql();
     await resetSchema(sql);
     ids = await seedCatalog(sql);
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 
@@ -228,6 +232,9 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
       { price: 25, list: null, daysAgo: 0 },
     ]);
 
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 
@@ -358,6 +365,9 @@ describe.skipIf(!TEST_DB)('galería por color · coherencia foto↔precio (e2e)'
              (${p.id}, 'Rosa', 1, ${ROSA_1}),
              (${p.id}, 'Negro', 0, ${NEGRO_0})`;
 
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 
@@ -443,6 +453,9 @@ describe.skipIf(!TEST_DB)('foco barefoot · qué enseña el catálogo por defect
     // Ropa: la marca es NULL porque la pregunta no aplica. Debe verse SIEMPRE.
     await seedProduct(r.id, 'Camiseta', 'ropa', 'camisetas', null);
 
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 
@@ -576,6 +589,9 @@ describe.skipIf(!TEST_DB)('talla canónica · faceta y filtro (e2e)', () => {
     await seedTalla(cacles.id, 'Botita Cacles', 'zapateria', 'barefoot', 'si', '20 /21');
     await seedTalla(cacles.id, 'Calcetín Cacles', 'ropa', 'ropa-interior', 'si', '36-38');
 
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 
@@ -774,6 +790,9 @@ describe.skipIf(!TEST_DB)('color canónico · faceta, filtro y foto (e2e)', () =
       INSERT INTO product_image (product_id, color, position, url)
       VALUES (${idMudo}, '771', 0, ${FOTO_MUDA})`;
 
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 
@@ -901,6 +920,9 @@ describe.skipIf(!TEST_DB)('familias de color · catálogo (e2e)', () => {
       INSERT INTO product_image (product_id, color, position, url)
       VALUES (${idMarino}, 'AZUL MARINO', 0, ${FOTO_MARINO})`;
 
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 
@@ -998,6 +1020,9 @@ describe.skipIf(!TEST_DB)('género unisex · catálogo (e2e)', () => {
     await seedGenero(r.id, 'Sandalia unisex', 'unisex');
     await seedGenero(r.id, 'Sandalia de niña', 'niña');
     await seedGenero(r.id, 'Sandalia de niño', 'niño');
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 
@@ -1113,6 +1138,9 @@ describe.skipIf(!TEST_DB)('dos SKU para la misma prenda · ficha y recuento (e2e
       [false, true],
     );
 
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 
@@ -1332,6 +1360,9 @@ describe.skipIf(!TEST_DB)('eje transversal · ropa deportiva (e2e)', () => {
     await seedProduct(r.id, 'Pantalón de vestir', 'ropa', 'pantalones', []);
     await seedProduct(r.id, 'Vestido', 'ropa', 'vestidos', []);
 
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 
@@ -1466,6 +1497,9 @@ describe.skipIf(!TEST_DB)('facetas cruzadas con los filtros activos (#292)', () 
     // Zapatería, para que la sección siga teniendo dos valores que ofrecer.
     await seed(sfera.id, 'Bota niña', 'zapateria', 'barefoot', 'niña', '26', 'negro');
 
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 
@@ -1632,6 +1666,9 @@ describe.skipIf(!TEST_DB)('rango de precio (#290)', () => {
     await seedPrecio(zara.id, 'C 15', '15.00');
     await seedPrecio(zara.id, 'D 20', '20.00');
     await seedPrecio(zara.id, 'E 25', '25.00');
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 
@@ -1757,6 +1794,9 @@ describe.skipIf(!TEST_DB)('dos medidas bajo una misma talla . ficha (e2e)', () =
   beforeAll(async () => {
     sql = makeSql();
     await resetSchema(sql);
+    // El agregado por producto que lee el catálogo lo puebla la ingesta (0035, #314), y aquí se
+    // siembra a mano: sin esto el listado no vería NADA. Ver `refrescarAgregado` en helpers.
+    await refrescarAgregado(sql);
     app = await makeApp();
   });
 

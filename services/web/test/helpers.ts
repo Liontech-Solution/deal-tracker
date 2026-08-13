@@ -76,9 +76,24 @@ export async function resetSchema(sql: postgres.Sql): Promise<void> {
   // lote vacío sin que nada lo explicase.
   await sql.unsafe(`
     TRUNCATE notification, interest, app_user, job_state, matching_scanned_run,
-             price_history, product_image, variant, product, scrape_run, retailer
+             price_history, product_image, variant, product_agg, product, scrape_run, retailer
     RESTART IDENTITY CASCADE
   `);
+}
+
+/**
+ * Repuebla `product_agg`, el agregado por producto que lee el catálogo (migración 0035, #314).
+ *
+ * **Hay que llamarlo en todo spec que siembre catálogo a mano y luego lea el listado.** En
+ * producción lo hace `ingest.py` al final de cada pasada, que es el único sitio donde se escribe
+ * `price_history`; un test que inserta filas por su cuenta se salta ese paso, y el catálogo le
+ * devolverá menos productos de los que sembró —o ninguno— sin ningún error de por medio.
+ *
+ * Se nota enseguida (el spec se pone en rojo con listas vacías), pero cuesta un rato entender por
+ * qué si no se sabe que esto existe. Va después de TODA la siembra, no en medio.
+ */
+export async function refrescarAgregado(sql: postgres.Sql): Promise<void> {
+  await sql`SELECT refresh_product_agg()`;
 }
 
 export interface SeedIds {

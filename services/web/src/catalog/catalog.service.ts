@@ -174,7 +174,17 @@ function fold(expr: SQL): SQL {
 export class CatalogService {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  async listProducts(q: ProductQueryDto): Promise<ProductListResult> {
+  /**
+   * `forzarAgregadoVivo` es una **costura de test**, no una opción de producto: obliga a agregar en
+   * tiempo de consulta aunque no haya filtro de variante. Existe porque los dos caminos de la 0035
+   * tienen que devolver lo mismo, y la única forma de comprobarlo es ejecutarlos los dos sobre los
+   * mismos datos — que es lo que hace `catalog-agregado-paridad.spec.ts`. El controlador nunca lo
+   * pasa.
+   */
+  async listProducts(
+    q: ProductQueryDto,
+    { forzarAgregadoVivo = false }: { forzarAgregadoVivo?: boolean } = {},
+  ): Promise<ProductListResult> {
     const gender = q.gender ?? null;
     const section = q.section ?? null;
     const category = q.category ?? null;
@@ -213,8 +223,39 @@ export class CatalogService {
       'descuento': sql`max_discount DESC NULLS LAST, id`,
     }[q.sort];
 
-    const rows = await this.db.execute(sql`
-      WITH latest AS (
+    // Los tres filtros **de variante**. Todo lo demás —género, sección, categoría, tienda,
+    // búsqueda, barefoot, deportiva, activeOnly— es **de producto**, y por eso se puede aplicar
+    // igual de bien sobre un agregado ya hecho. Esa distinción es la que hace posible la 0035:
+    // el agregado por producto solo vale mientras no se filtre por debajo del producto.
+    //
+    // `length` y no `!== null` para casar con `ejeMultiple`, que trata el array vacío como "sin
+    // filtro": si no, un `?size=` vacío mandaría al camino lento a no filtrar nada.
+    const filtroDeVariante =
+      forzarAgregadoVivo || Boolean(size?.length) || Boolean(color?.length) || inStock !== null;
+
+    // Los filtros de producto se montan **una sola vez** y los usan los dos caminos. No es estilo:
+    // es lo que impide que se bifurquen, que es el riesgo que se asume al tener dos caminos.
+    const filtrosDeProducto = sql`
+          ${generoCondition(sql`${gender}::text`, sql.raw('p.gender'))}
+          AND (${section}::text IS NULL OR p.section = ${section})
+          AND (${category}::text IS NULL OR p.category = ${category})
+          AND ${ejeMultiple(retailer, sql`r.slug`, null)}
+          AND (${q.activeOnly} = false OR p.delisted_at IS NULL)
+          AND ${search}
+          AND ${barefootCondition(q.barefoot, 'p')}
+          AND ${tagCondition(q.deportiva ? TAG_DEPORTIVA : undefined, 'p')}`;
+
+    // Las mismas columnas y los mismos nombres en los dos caminos: `scored` y el SELECT de fuera
+    // leen de `agg` sin saber cuál de los dos la ha producido.
+    const columnasDeProducto = sql`p.id, p.retailer_id, r.slug AS retailer_slug,
+               r.name AS retailer_name, p.retailer_product_id, p.name, p.gender, p.section,
+               p.category, p.barefoot, p.url, p.image_url`;
+
+    // ── Camino de siempre: agregar las variantes vivas en tiempo de consulta ──
+    // Es el que se usa cuando hay un filtro de variante puesto. Ahí no duele: el filtro colapsa el
+    // conjunto a unos cientos de filas antes de agregarlo.
+    const agregadoVivo = sql`
+      latest AS (
         SELECT DISTINCT ON (ph.variant_id)
           ph.variant_id, ph.price, ph.list_price, ph.discount_pct, ph.in_stock, ph.scraped_at
         FROM price_history ph
@@ -253,10 +294,7 @@ export class CatalogService {
         JOIN variant v ON v.product_id = p.id AND v.delisted_at IS NULL
         JOIN latest l ON l.variant_id = v.id
         LEFT JOIN stats s ON s.variant_id = v.id
-        WHERE ${generoCondition(sql`${gender}::text`, sql.raw('p.gender'))}
-          AND (${section}::text IS NULL OR p.section = ${section})
-          AND (${category}::text IS NULL OR p.category = ${category})
-          AND ${ejeMultiple(retailer, sql`r.slug`, null)}
+        WHERE ${filtrosDeProducto}
           -- Talla canónica (#43): variant.size guarda el texto de la tienda, donde la misma talla
           -- aparece como '26', '26 (16,3 cm)' y '26 (16.3 cm)'. Se canonicaliza también lo que llega
           -- por query string, así que los enlaces antiguos con la talla cruda siguen vivos.
@@ -281,34 +319,67 @@ export class CatalogService {
           -- distintas). Y es lo que justifica el índice ix_variant_color_family.
           AND ${ejeMultiple(color, sql`color_family(v.color)`, 'color_family')}
           AND (${inStock}::boolean IS NULL OR l.in_stock = ${inStock})
-          AND (${q.activeOnly} = false OR p.delisted_at IS NULL)
-          AND ${search}
-          AND ${barefootCondition(q.barefoot, 'p')}
-          AND ${tagCondition(q.deportiva ? TAG_DEPORTIVA : undefined, 'p')}
       ),
       agg AS (
         SELECT id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
                name, gender, section, category, barefoot, url, image_url,
+               -- El variant_id del final de cada ORDER BY es un DESEMPATE, y no es cosmético
+               -- (#314). "in_stock DESC, price ASC" no ordena del todo: un producto con varias
+               -- variantes al mismo precio y mismo stock deja el [1] a merced de lo que el
+               -- ejecutor entregue primero. O sea que la tarjeta podía enseñar un color y una foto
+               -- distintos entre dos peticiones idénticas, sin que nada cambiara en la base.
+               --
+               -- Se vio al contrastar este camino con el agregado de la 0035 sobre los 16.517
+               -- productos de QA: coincidían todos los agregados deterministas (price_from,
+               -- list_from, discount_from, price_repr, any_in_stock, variant_count) y discrepaban
+               -- 2.393 color_repr, 316 recent_min y 12 is_real_deal — todos empates. Con el
+               -- desempate puesto, los dos caminos coinciden fila a fila.
                MIN(price) AS price_from,
                MAX(discount_pct) AS max_discount,
-               (array_agg(list_price ORDER BY in_stock DESC, price ASC))[1] AS list_from,
-               (array_agg(discount_pct ORDER BY in_stock DESC, price ASC))[1] AS discount_from,
+               (array_agg(list_price ORDER BY in_stock DESC, price ASC, variant_id))[1] AS list_from,
+               (array_agg(discount_pct ORDER BY in_stock DESC, price ASC, variant_id))[1] AS discount_from,
                -- Estadísticos de la MISMA variante "mejor oferta" que list_from/discount_from,
                -- para clasificar la honestidad de la oferta que se muestra en la tarjeta.
-               (array_agg(price ORDER BY in_stock DESC, price ASC))[1] AS price_repr,
-               (array_agg(recent_min ORDER BY in_stock DESC, price ASC))[1] AS recent_min_repr,
-               (array_agg(max_observed ORDER BY in_stock DESC, price ASC))[1] AS max_observed_repr,
-               (array_agg(prior_points ORDER BY in_stock DESC, price ASC))[1] AS prior_points_repr,
-               (array_agg(tracked_days ORDER BY in_stock DESC, price ASC))[1] AS tracked_days_repr,
+               (array_agg(price ORDER BY in_stock DESC, price ASC, variant_id))[1] AS price_repr,
+               (array_agg(recent_min ORDER BY in_stock DESC, price ASC, variant_id))[1] AS recent_min_repr,
+               (array_agg(max_observed ORDER BY in_stock DESC, price ASC, variant_id))[1] AS max_observed_repr,
+               (array_agg(prior_points ORDER BY in_stock DESC, price ASC, variant_id))[1] AS prior_points_repr,
+               (array_agg(tracked_days ORDER BY in_stock DESC, price ASC, variant_id))[1] AS tracked_days_repr,
                -- ...y su COLOR, para que la foto de la tarjeta sea la de ese mismo color y no la de
                -- otro cualquiera: el precio cuelga de la variante (talla+color), así que enseñar la
                -- foto del "primer color" junto al precio de la variante más barata puede mezclar.
-               (array_agg(color ORDER BY in_stock DESC, price ASC))[1] AS color_repr,
+               (array_agg(color ORDER BY in_stock DESC, price ASC, variant_id))[1] AS color_repr,
                BOOL_OR(in_stock) AS any_in_stock
         FROM matched
         GROUP BY id, retailer_id, retailer_slug, retailer_name, retailer_product_id,
                  name, gender, section, category, barefoot, url, image_url
-      ),
+      )`;
+
+    // ── Camino precomputado: leer el agregado que ya dejó hecho la ingesta (0035, #314) ──
+    //
+    // Mismas columnas, mismos nombres, calculadas por `refresh_product_agg()` con el espejo exacto
+    // de las cuatro CTE de arriba. Lo que se ahorra es agregar el catálogo entero antes del LIMIT:
+    // ~16.000 filas ya hechas en vez de 163.509 por ordenar y agrupar en cada petición.
+    //
+    // Un producto sin variantes vivas con histórico no tiene fila aquí, que es exactamente lo que
+    // le pasaba en el camino de siempre: los JOIN lo dejaban fuera. La ausencia significa lo mismo.
+    const agregadoPrecomputado = sql`
+      agg AS (
+        -- El MISMO orden de columnas que el camino de siempre, no solo los mismos nombres: es lo
+        -- que permite contrastar los dos caminos con un EXCEPT, que es como se ha verificado esto
+        -- contra los 16.517 productos de QA.
+        SELECT ${columnasDeProducto},
+               pa.price_from, pa.max_discount, pa.list_from, pa.discount_from,
+               pa.price_repr, pa.recent_min_repr, pa.max_observed_repr, pa.prior_points_repr,
+               pa.tracked_days_repr, pa.color_repr, pa.any_in_stock
+        FROM product p
+        JOIN retailer r ON r.id = p.retailer_id
+        JOIN product_agg pa ON pa.product_id = p.id
+        WHERE ${filtrosDeProducto}
+      )`;
+
+    const rows = await this.db.execute(sql`
+      WITH ${filtroDeVariante ? agregadoVivo : agregadoPrecomputado},
       -- La honestidad se decide sobre las columnas *_repr, que solo existen tras el GROUP BY, así
       -- que va en su propia CTE: desde aquí ya se puede filtrar y ordenar por ella antes del
       -- LIMIT, que es justo lo que el TypeScript, evaluado sobre la página ya recortada, no puede.
