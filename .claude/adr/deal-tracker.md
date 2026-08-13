@@ -2493,6 +2493,114 @@ prod el 11/08/2026, ~1,2 s con el `Sort` por `product_id` derramando 8,7 MB a di
 que eligen la variante representativa. Bajar de ahí no es un índice: pide un agregado por producto
 materializado, que es #314.
 
+**Resuelto el 13/08/2026 con la migración `0035` (#314), y de camino se corrigió la cifra de
+arriba.** Ese «~1,2 s» se midió cuando prod tenía 16.010 productos; el mismo `EXPLAIN` el 13/08 daba
+**~1,9 s**. O sea que el suelo no solo crece con el catálogo: crecía más rápido de lo que la propia
+issue creía, y el hueco hasta el criterio de hecho («por debajo de 1 s») era de ~900 ms, no de 250.
+
+Antes del agregado se descartaron las dos salidas baratas, las dos con medida:
+
+- **`work_mem` no llega, y el derrame nunca fue el problema.** Es `context=user`, así que se puede
+  subir **solo para las conexiones del web** (`postgres(url, { connection: { work_mem: … } })`) sin
+  tocar el servidor que comparten otros cuatro proyectos ni pasar por el tercer repo — el bloqueo
+  que #314 daba por hecho no existía. Pero quitar el derrame entero (`external merge` →
+  `quicksort`, 18,4 MB) solo baja de 1.890 a 1.513 ms en prod: **~380 ms, un 20 %**. El coste es CPU
+  de ordenar y agregar 163.509 filas; el disco era la parte de esa CPU que además pasaba por disco.
+- **El índice que la issue proponía crear ya existía** (`ix_variant_product`, desde la 0008). El
+  planificador lo ignora porque el `Sort` no es sobre `variant` sino sobre el resultado del join
+  variante ⋈ `latest` ⋈ `stats`, y **ningún índice de tabla pre-ordena el resultado de un join**.
+
+La forma elegida sigue el precedente de la `0031`: **lo escribe Postgres, no `ingest.py`**. Una tabla
+`product_agg` y una función `refresh_product_agg(retailer_id)`, las dos declaradas en la migración;
+el scraper solo añade `SELECT refresh_product_agg(%s)` al final de la pasada, dentro de su
+transacción ya atómica. La 0031 pudo usar una columna `GENERATED`, que aquí no vale porque el
+agregado cruza filas — pero el argumento de fondo es el mismo y aquí pesa más: si lo escribiera el
+scraper, tendría que aprenderse la **ventana de honestidad de 90 días**, o sea un tercer espejo de la
+regla que #228 pelea por no duplicar. Por eso `product_agg` guarda los **estadísticos** y no el
+veredicto: `is_real_deal` lo sigue calculando `deal-rule.sql.ts`, ahora sobre ~16.000 filas ya
+agregadas en vez de sobre 163.509 sin agregar.
+
+**El corte que hace correcto precomputarlo** es que solo tres filtros del catálogo son *de variante*
+—`size`, `color`, `inStock`—; el resto son *de producto* y se aplican igual de bien sobre el agregado
+ya hecho. `listProducts()` lee la tabla cuando los tres son nulos y cae al camino de siempre cuando
+alguno está puesto. Y no se queda rancio con el reloj porque `recent_min` se mide contra
+`l.scraped_at` —la última observación de la propia variante— y no contra `now()`: solo cambia cuando
+cambia `price_history`, que tiene **un único escritor**.
+
+| | QA | prod | dev (HTTP, desplegado) |
+|---|---:|---:|---:|
+| antes | 2.205 / 2.170 / 2.302 ms | 1.912 / 1.811 / 1.888 ms | — |
+| solo `work_mem = 32MB` | 1.814 / 1.735 / 1.797 ms | 1.513 / 1.500 / 1.526 ms | — |
+| **con `product_agg`** | **81 / 69 / 74 ms** | — | **85-92 ms** (14.733 productos) |
+
+Lo que cuesta al escribir, medido contra los datos reales de dev: **1,2 s el refresco de Zara**
+(2.778 productos / 31.359 variantes), 94 ms el de Sfera, 3,5 s el completo que solo hace el relleno
+de la migración. Sobre una pasada de Zara en estado estable (~1m35s) es un **1,3 %**.
+
+Dos consecuencias que no son evidentes y conviene tener escritas:
+
+- **El agregado es una caché, y una caché desactualizada devuelve menos filas SIN dar síntoma.** En
+  producción el estado no es alcanzable (la migración rellena al desplegar, cada pasada refresca al
+  final, y solo `ingest.py` escribe `price_history`), pero **un test que siembre catálogo a mano sí
+  lo alcanza**: 43 specs se pusieron en rojo hasta añadirles el refresco. De ahí
+  `refrescarAgregado()` en los helpers. El día que aparezca un segundo escritor de `price_history`,
+  tendrá que llamar al refresco.
+- **`inStock` es un mal colapsador**, al revés que talla y color. El diseño se apoya en que un
+  filtro de variante reduce el conjunto antes de agregarlo, y eso vale para talla y color; pero
+  `inStock=true` casa con casi todas las variantes, así que ese camino paga la agregación casi
+  entera (~1,1 s en dev con 14.733 productos). No es una regresión —antes costaba lo mismo— y **no
+  se puede resolver con este agregado**, porque filtrar por stock cambia cuál es la variante
+  representativa y con ella `price_from` y la honestidad.
+
+### `array_agg(... ORDER BY …)[1]` elige a suertes si el orden no desempata (#314)
+
+El patrón con el que el listado elige la «variante representativa» —la que pone precio, color y foto
+en la tarjeta— era `(array_agg(x ORDER BY in_stock DESC, price ASC))[1]`. Ese orden **no es total**:
+un producto con varias variantes al mismo precio y mismo estado de stock deja el `[1]` a merced de lo
+que el ejecutor entregue primero. O sea que **la tarjeta podía enseñar un color y una foto distintos
+entre dos peticiones idénticas**, sin que nada cambiara en la base y sin que ningún test lo viera.
+
+Llevaba ahí desde que existe el listado y no lo destapó una revisión, sino **contrastar dos
+implementaciones del mismo agregado** sobre datos reales: `EXCEPT ALL` entre el camino vivo y el
+precomputado sobre los 16.517 productos de QA. Coincidían todos los agregados deterministas
+(`price_from`, `list_from`, `discount_from`, `price_repr`, `any_in_stock`, `variant_count`) y
+discrepaban **2.393 `color_repr`, 316 `recent_min`, 312 `max_observed` y 12 `is_real_deal`** — todos
+empates. Con `variant_id` como último criterio en los dos lados, 0 diferencias en ambos sentidos.
+
+La lección que se lleva a cualquier otro sitio del esquema: **un `ORDER BY` dentro de un agregado
+necesita un desempate único, o el resultado no es una función de los datos**. Y la de método, más
+cara: un seed pequeño **no** puede cazar esto. Quitando el desempate del servicio, los 19 casos de
+paridad del spec seguían en verde, porque con pocas filas Postgres elige el mismo plan en los dos
+caminos y coincide por casualidad. Lo que sí lo caza es un test sobre la **forma** del SQL (que los
+dos lados sigan llevando el desempate), y por eso `catalog-agregado-paridad.spec.ts` lleva uno
+además de la comparación por datos.
+
+### Para volcar la consulta del servicio no hace falta `log_statement` (#314)
+
+El apartado anterior dice —y sigue siendo cierto— que hay que medir **la consulta que ejecuta el
+servicio**, no una escrita a mano. La vía que describía era `log_statement` en una Postgres
+desechable. Hay una más barata y sin base de datos: `new CatalogService(fakeDb)` con un `db` de pega
+cuyo `execute(q)` captura la plantilla, y `new PgDialect().sqlToQuery(captured)`, que devuelve el
+texto con `$1..$n` y sus parámetros. Un spec de usar y tirar en `services/web/test/` lo escribe a un
+fichero; vitest ya está montado con SWC, así que no hace falta runner de TS.
+
+Tres detalles sin los cuales el volcado no sirve: los parámetros hay que **meterlos en línea** (con
+`$1` sueltos el planificador puede elegir un *generic plan* que no es el que sufre el usuario);
+hay que **quitar los comentarios `--` antes** de plegar a una línea, o el primero comenta el resto y
+Postgres responde `syntax error at end of input` señalando al final del texto; y conviene
+comprobarlo con un `EXPLAIN` sin `ANALYZE`, que parsea y planifica sin ejecutar.
+
+De paso, esto permite algo que evita tocar un entorno para medirlo: **aplicar una migración dentro de
+una transacción que termina en `ROLLBACK`**. Así se midió la `0035` contra QA y se contrastó la
+paridad sobre sus 16.517 productos sin dejar nada — QA se quedó en la `0029`, comprobado después. Es
+una tabla nueva, así que no hay contención con nadie y las lecturas van por MVCC.
+
+**Y una fuente de ruido que descoloca cualquier medida de latencia: las estadísticas rancias.** Tras
+la pasada de verificación en dev, `variant` llevaba **58.326 modificaciones sin analizar desde 9 días
+antes** y el autovacuum no había llegado. Con esas estadísticas, el catálogo sin filtros daba 190-255
+ms y el caso `inStock` 2,2-2,4 s; un `ANALYZE variant` los dejó en 85-92 ms y 1,1-1,5 s. Antes de
+atribuir una latencia al código, mirar `pg_stat_user_tables.n_mod_since_analyze`.
+
 Encima de ese suelo se pueden apilar costes que **sí** son evitables, y hay uno resuelto que fija la
 convención. `variant_count` —el «N tallas» de la tarjeta, el contador de prendas comprables de #108—
 vivía dentro del `GROUP BY` como `COUNT(DISTINCT ROW(size_canon, color_canon, url))`, y para
