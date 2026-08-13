@@ -2740,6 +2740,85 @@ Tres cosas que se llevan a cualquier función futura de este tipo:
 - **Medir con un solo filtro no dice nada sobre dos.** Es el error de método que dejó pasar esto: el
   apartado de #329 midió con un predicado y dio el asunto por cerrado.
 
+### Una función SQL re-evalúa su valor una vez por cada sitio donde lo nombra (#325)
+
+El piso de abajo de la lección de #342, y el más caro de los dos. Allí el planificador no sabía lo
+que costaba llamar a la función; aquí **la función se impide a sí misma desaparecer**.
+
+`size_band` pliega las tallas a bandas de edad apilándose sobre `size_canon`, igual que
+`color_family` sobre `color_canon`. Escrita como todas las demás del esquema —`LANGUAGE sql`, un
+`SELECT` con el resultado de `size_canon` en un `FROM`— costaba **6,89 ms por llamada**. Medido
+sobre 20.000 evaluaciones (13/08/2026, Postgres 16, el método de la 0030):
+
+    size_canon sola                                     1.546 ms / 20.000  =  0,077 ms
+    una función SQL con DOS referencias al resultado    11.207 ms / 20.000  =  0,56  ms      x7
+    size_band en SQL (~10 referencias)                 137.590 ms / 20.000  =  6,89  ms      x90
+    size_band con la valla `OFFSET 0`                    6.239 ms / 20.000  =  0,31  ms
+    size_band en plpgsql, con variable                   1.884 ms / 20.000  =  0,094 ms
+
+**La causa no es el `WITH`.** Fue la primera hipótesis —una CTE impide el *inline*— y es falsa:
+quitarla no cambió nada, y el experimento que aisló el coste lo dejó claro. Lo que pasa es que al
+hacer *inline* de una función SQL, Postgres **sustituye el cuerpo en el sitio de la llamada**, y
+entonces cada referencia textual al valor se convierte en una evaluación entera. `size_band` nombra
+su `s` unas diez veces —los cinco brazos del CASE de meses, los dos del final, el número—, así que
+ejecutaba `size_canon` diez veces por talla.
+
+`plpgsql` lo arregla por lo que parece un detalle de lenguaje y no lo es: **no se inlinea, y una
+variable es una variable**. `size_canon` se evalúa una vez y las diez referencias son diez lecturas
+de memoria. Sale en 0,094 ms contra los 0,077 de `size_canon` sola, o sea el suelo teórico.
+
+**Lo que estaba en juego no era la consulta sino el ÍNDICE, y esa es la parte que no se ve venir.**
+A 6,89 ms por llamada, `CREATE INDEX` sobre las 163.143 variantes vivas de prod son **~19 minutos**
+con la tabla en `ACCESS EXCLUSIVE`. A 0,094 son 15 segundos. Una función que solo se llamara desde
+la faceta habría pasado desapercibida —70 llamadas tras deduplicar—; en cuanto entra en un índice
+por expresión, el coste por llamada se multiplica por el catálogo entero.
+
+Consecuencias que se llevan a cualquier función futura del esquema:
+
+- **Si una función del esquema nombra su valor intermedio más de dos veces, va en `plpgsql`.** La
+  regla de estilo «todas son `LANGUAGE sql`» era buena mientras las funciones eran de un solo brazo.
+- **La valla `OFFSET 0` también sirve** (0,31 ms) y deja la función en SQL, pero sigue siendo 4× el
+  suelo y es un truco que el siguiente lector quita «limpiando», y entonces el coste vuelve sin que
+  nada falle. plpgsql no se puede deshacer por accidente.
+- **Esto probablemente aplica a `color_family` (0029)**, que nombra su `seg` una vez por brazo del
+  CASE —unos veinte—. Los 0,50 ms/llamada que midió la 0030 y atribuyó a «~20 regex encadenados»
+  pueden ser esto en realidad. No se ha comprobado y no urge, porque #327 la materializó en columna
+  generada y ya no se llama por consulta; pero si alguna vez se revive el camino de calcularla, ese
+  es el primer sitio donde mirar.
+- **El método que lo encontró es reproducible y cuesta dos minutos**: `EXPLAIN (ANALYZE, TIMING OFF)`
+  de un `count(f(t))` sobre 20.000 filas generadas, comparado contra la función de debajo. Sin esa
+  comparación, 6,89 ms parece «lo que cuesta plegar una talla».
+
+### Los contadores de uso de un índice no miden nada en un entorno sin tráfico (#317)
+
+`ix_variant_color_canon` se quedó sin consumidor cuando #291 mudó el filtro de color a familias, y
+la issue pedía confirmarlo de la forma obvia: mirar `idx_scan` en `pg_stat_user_indexes` **dos veces
+separadas en el tiempo**, porque el contador es acumulado. Se hizo, con 2 h 13 min de separación
+sobre `deal_tracker_prod`:
+
+    índice                     09:24:39   11:37:09   delta
+    ix_variant_color_canon     12         12         0
+    ix_variant_color_family     6          6         0
+    ix_variant_size_canon      10         10         0
+
+**Y no concluye nada.** El delta es 0 en los tres, incluido el del filtro vivo. La ventana no mide
+desuso: mide que nadie consultó el catálogo — que es lo esperable desde que #309 lo cerró tras
+sesión y prod tiene un usuario aprovisionado a propósito. Un delta de 0 aquí solo probaría algo si
+en la misma ventana el otro hubiera subido.
+
+Lo que sí decide es el **plan**, que es reproducible y no depende del tráfico: `EXPLAIN` de cada
+llamante que queda, **más un control positivo** con el patrón para el que se creó el índice. El
+control es la mitad que no se puede omitir: sin él, «el índice no aparece» podría ser una manía del
+planificador en vez de la ausencia de consumidor. Con él queda demostrado que el índice funciona,
+que se elige en cuanto alguien pide su patrón, y que ninguno de los tres llamantes se lo pide
+—`matching` lo evalúa como `Filter` fila a fila sobre la CTE de la pasada, el alta de intereses no
+toca tabla, y la ficha agrupa dentro de un solo `product_id`—.
+
+La generalización, que aplica a cualquier medida futura sobre prod: **este proyecto tiene un entorno
+de producción sin usuarios a propósito**, así que toda métrica que dependa de tráfico real (contadores
+de índice, caché, latencia observada) es inútil ahí. Lo que se puede medir en prod es lo estructural
+—planes, tamaños, conteos— y lo que hace la ingesta, que sí corre a diario.
+
 ### Un plan de Postgres medido en el portátil no predice el del cluster (#292)
 
 Es la vuelta de tuerca a la lección de método de #307 —«mide la consulta que ejecuta el servicio, no
