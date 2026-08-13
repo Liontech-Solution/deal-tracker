@@ -184,3 +184,48 @@ describe.each(BASES_CANON)('color canónico · $nombre', ({ url }) => {
     expect(await canon('MARRÓN')).not.toBe(await canon('MARRON'));
   });
 });
+
+/**
+ * El índice que se retiró, y la función que NO (migración 0034; issue #317).
+ *
+ * `ix_variant_color_canon` (0015) era parcial por `delisted_at IS NULL` sobre `color_canon(color)`,
+ * así que solo podía servir a una igualdad sobre todas las variantes vivas — el filtro de color del
+ * catálogo, que #291 se llevó a `color_family`. Comprobado con `EXPLAIN` contra prod: los tres
+ * llamantes que quedan (matching, alta de intereses y la ficha) no piden ese patrón, y un control
+ * positivo demuestra que el índice se elegía en cuanto alguien sí lo pedía.
+ *
+ * Este spec fija la mitad que importa para no romper nada: **lo que muere es el índice, no la
+ * función**. Si alguien confundiera las dos cosas, el matching dejaría de casar colores y el aviso
+ * de Telegram se rompería en silencio.
+ */
+describe.each(BASES_CANON)('índice retirado de color_canon · $nombre', ({ url }) => {
+  let sql: postgres.Sql;
+
+  beforeAll(async () => {
+    sql = makeSqlAt(url);
+    await runMigrations(sql);
+  });
+
+  afterAll(async () => {
+    await sql.end();
+  });
+
+  it('ix_variant_color_canon ya no existe', async () => {
+    const filas = await sql<{ indexname: string }[]>`
+      SELECT indexname FROM pg_indexes WHERE indexname = 'ix_variant_color_canon'`;
+    expect(filas).toHaveLength(0);
+  });
+
+  it('pero el de familias SÍ, que es el que usa el filtro de hoy', async () => {
+    // Si esto se cayera junto con el otro, el filtro de color del catálogo pasaría de 3,4 ms a
+    // 14 s (medido en la 0029) sin que ningún test lo dijera.
+    const filas = await sql<{ indexname: string }[]>`
+      SELECT indexname FROM pg_indexes WHERE indexname = 'ix_variant_color_family'`;
+    expect(filas).toHaveLength(1);
+  });
+
+  it('y color_canon sigue viva: la usan el matching, los intereses y la ficha', async () => {
+    const [row] = await sql<{ v: string }[]>`SELECT color_canon('AZUL MARINO') AS v`;
+    expect(row.v).toBe('azul marino');
+  });
+});

@@ -1,0 +1,79 @@
+-- Se retira `ix_variant_color_canon`, que se quedó sin consumidor (issue #317).
+--
+-- Lo dejó anotado la propia 0029 al crear `ix_variant_color_family`, y aquello no era una sospecha
+-- sino un hecho estructural: el índice de la 0015 es **parcial por `delisted_at IS NULL`** y está
+-- sobre `color_canon(color)`, así que solo puede servir a **una igualdad evaluada sobre todas las
+-- variantes vivas**. Ese query era exactamente el filtro de color del catálogo, y #291 se lo llevó
+-- a `color_family`.
+--
+-- **`color_canon` NO se toca y sigue muy viva**: la usan el matching, el alta de intereses y la
+-- ficha. Lo que muere es el índice, no la función.
+--
+--
+-- ── LA PRUEBA, Y POR QUÉ NO ES LA QUE PEDÍA EL CUERPO DE LA ISSUE ──
+--
+-- #317 pedía mirar `idx_scan` sobre `deal_tracker_prod` **dos veces separadas en el tiempo**, porque
+-- el contador es acumulado. Se hizo, el 13/08/2026, con 2 h 13 min de separación:
+--
+--     índice                     09:24:39      11:37:09     delta
+--     ix_variant_color_canon     12            12           0
+--     ix_variant_color_family     6             6           0
+--     ix_variant_size_canon      10            10           0
+--
+-- **Y no concluye nada.** El delta es 0 en los tres, incluido `ix_variant_color_family`, que es el
+-- índice del filtro VIVO. O sea que la ventana no mide desuso: mide que nadie consultó el catálogo,
+-- que es lo esperable desde que #309 lo cerró tras sesión y prod tiene un usuario aprovisionado a
+-- propósito. Un delta de 0 aquí solo probaría algo si en la misma ventana el otro hubiera subido.
+--
+-- Lo que sí decide es el **plan**, que es reproducible y no depende del tráfico. `EXPLAIN` contra
+-- `deal_tracker_prod`, con los tres llamantes que quedan y **dos controles**:
+--
+--     CONTROL POSITIVO — el patrón para el que se creó (el filtro viejo del catálogo):
+--       -> Index Scan using ix_variant_color_canon on variant v
+--            Index Cond: (color_canon(color) = 'azul marino'::text)
+--
+--     CONTROL — el filtro de hoy, el que #291 se llevó:
+--       -> Index Scan using ix_variant_color_family on variant v
+--
+--     matching.service.ts — color_canon sobre las filas de la pasada, sin `delisted_at`:
+--       -> Index Scan using variant_pkey on variant v
+--            Filter: (color_canon(color) = 'azul marino'::text)      <-- fila a fila
+--
+--     interests.service.ts — `SELECT color_canon($1)` sin tabla:
+--       (ningún nodo de acceso: no hay tabla que recorrer)
+--
+--     catalog.service.ts, getProduct — agrupa dentro de UN solo product_id:
+--       -> Index Scan using variant_product_id_retailer_variant_id_key on variant v
+--            Index Cond: (product_id = $0)                           <-- por producto, no por color
+--
+-- **El control positivo es lo que cierra el argumento.** Sin él, «no aparece» podría ser una manía
+-- del planificador. Con él queda claro que el índice funciona, que se elige en cuanto alguien pide
+-- su patrón, y que ninguno de los tres llamantes se lo pide.
+--
+--
+-- ── POR QUÉ BORRARLO Y NO DEJARLO COMO LEGADO CONSCIENTE ──
+--
+-- Las dos salidas estaban sobre la mesa en el cuerpo de #317. Se borra por tres motivos, en orden:
+--
+-- 1. Un índice que nadie lee **desinforma**: el siguiente que mire los índices de `variant` va a
+--    suponer que hay un camino de acceso por color canónico y va a planificar con él.
+-- 2. Cuesta escritura en cada `INSERT`/`UPDATE` de variante, y el scraper reescribe el catálogo
+--    entero todos los días en las nueve tiendas. Es poco (`color_canon` son 0,008 ms/llamada,
+--    medido en la 0030), pero es todos los días y a cambio de nada.
+-- 3. Y **es barato de revertir**, que es lo que quita el miedo: son 3.400 kB y reconstruirlo sobre
+--    las 163.143 variantes vivas de prod son segundos. La vuelta atrás es literalmente la línea que
+--    creó la 0015:
+--
+--        CREATE INDEX ix_variant_color_canon ON variant (color_canon(color))
+--            WHERE delisted_at IS NULL;
+--
+--
+-- ⚠️ ── QUIÉN LO QUERRÍA DE VUELTA, QUE ES LA TERCERA CASILLA DE #317 ──
+--
+-- La **«segunda vuelta» opcional de #291**: que el chip de familia se despliegue en sus colores
+-- concretos. Eso volvería a filtrar por color específico sobre todas las variantes vivas, o sea
+-- exactamente el patrón del control positivo de arriba, y querría este índice otra vez.
+--
+-- No está planificada ni tiene issue propia hoy. Si se hace, **recrear el índice es parte de ese
+-- trabajo**, y esta cabecera es donde está escrito por qué y con qué línea.
+DROP INDEX ix_variant_color_canon;
