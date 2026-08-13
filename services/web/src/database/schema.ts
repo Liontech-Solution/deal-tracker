@@ -9,7 +9,7 @@
  * Reparto: `retailer/product/variant/price_history/scrape_run/vigia_run` los escribe el scraper
  * (aquí solo se leen); `app_user/interest/notification` son propiedad del servicio web.
  */
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -119,6 +119,17 @@ export const variant = pgTable(
     retailerVariantId: text('retailer_variant_id').notNull(),
     size: text('size'),
     color: text('color'),
+    /**
+     * Familia de color ya calculada (0031, #327). **La escribe Postgres**, no el scraper ni el
+     * web: es `GENERATED ALWAYS AS (color_family(color)) STORED`, así que aquí es de solo lectura
+     * y ningún `INSERT`/`UPDATE` puede darle valor.
+     *
+     * Existe porque enumerar las familias para la faceta obligaba a evaluar `color_family` sobre
+     * 3.312 formas crudas (1,67 s; 140 ms leyendo la columna).
+     */
+    colorFamilyCache: text('color_family_cache').generatedAlwaysAs(
+      sql`color_family(color)`,
+    ),
     sku: text('sku'),
     url: text('url'),
     firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),

@@ -1,0 +1,120 @@
+-- La familia de color, ya calculada: `variant.color_family_cache` (issue #327).
+--
+-- La 0029 dejó `color_family()` y su índice, y la 0030 le declaró el `COST` que el planificador no
+-- podía adivinar. Las dos arreglaron el **filtro**. Esta arregla la **faceta**, que es otro
+-- problema con la misma función detrás y que ninguna de las dos toca.
+--
+--
+-- ── EL SÍNTOMA ──
+--
+-- `getFacets()` lanza las seis facetas en `Promise.all`, así que el endpoint cuesta lo que la más
+-- lenta. Y desde #292 las facetas se cruzan, o sea que ese endpoint se pide en **cada cambio de
+-- filtro**. Medido el 13/08/2026 contra `deal_tracker_qa` —con la 0030 YA aplicada—, sección
+-- `ropa` y sin filtros, con el SQL sacado del propio servicio y `EXPLAIN (ANALYZE, BUFFERS)`:
+--
+--     colors        1.658 / 1.668 / 1.672 ms     <-- el endpoint entero
+--     sizes           229 / 243 ms
+--     categories       14 /  20 ms
+--     retailers        16 /  17 ms
+--
+--
+-- ── POR QUÉ NO LO ARREGLÓ LA 0030 ──
+--
+-- Porque no es un plan malo: es trabajo real. La consulta ya está montada para llamar a la función
+-- una vez por **forma cruda distinta** y no una por variante —la CTE `crudas` deduplica el texto de
+-- la tienda antes de plegar—, y aun así son 3.312 formas crudas a ~0,5 ms. Declararle el coste al
+-- planificador no le quita ni una llamada; el cierre de #342 ya lo dejó dicho y la medida lo
+-- confirma.
+--
+--
+-- ── CUÁNTO DE ESOS 1,67 s ES EVALUAR LA FUNCIÓN ──
+--
+-- Medido en la misma máquina y con los mismos datos, materializando la familia en una tabla
+-- TEMPORAL (que muere con la sesión y no toca el esquema), con su índice parcial y `ANALYZE`, y
+-- pasándole el SQL que emite el servicio DESPUÉS de este cambio:
+--
+--                                              antes            después
+--     sin filtros                            1.667 ms         137 / 136 / 138 ms      x12
+--     categoría + género                     1.987 ms          71 /  65 ms            x29
+--     tienda (zara)                              —             70 /  68 ms
+--
+--     cota baja: index-only sobre la familia, SIN los joins       72 ms
+--
+-- O sea que **~1,53 s de los 1,67 s son la función** y el resto de la consulta —los dos joins y el
+-- `DISTINCT`— cuesta 137 ms.
+--
+-- La fila del medio merece un vistazo: **acotar por categoría y género hacía la faceta MÁS lenta**
+-- (1.987 ms contra 1.667 ms sin filtros), que es el mismo patrón contraintuitivo que #342 encontró
+-- en el listado. Aquí la causa es otra —no un plan malo, sino que el filtro no reduce el número de
+-- formas crudas distintas lo bastante como para compensar el trabajo extra— pero conviene saber que
+-- la faceta no se abarataba sola al filtrar.
+--
+-- Y descarta de paso la opción barata que el cuerpo de #327 pedía medir y nadie había medido: un
+-- `DISTINCT` apoyado en `ix_variant_color_family` da 72 ms **sin los joins**, pero la faceta los
+-- necesita para acotar por sección y por los demás ejes activos. 72 ms es una cota inalcanzable,
+-- no una alternativa.
+--
+--
+-- ── POR QUÉ UNA COLUMNA GENERADA, Y NO LAS DOS OPCIONES QUE PROPONÍA LA ISSUE ──
+--
+-- El cuerpo de #327 planteaba una columna escrita por el scraper o una tabla de vocabulario
+-- `color_familia(cruda, familia)` poblada en la ingesta. Las dos **cruzan el contrato
+-- scraper -> web**: obligan a `ingest.py` a saber lo que hoy solo sabe el esquema, y a que el día
+-- que cambie el vocabulario haya que coordinar dos servicios.
+--
+-- Una columna `GENERATED ALWAYS AS ... STORED` la escribe **Postgres**. No toca `ingest.py`, no
+-- toca el `UPSERT` de variante, y no hay forma de que se quede a medias: el valor no puede
+-- divergir del `color` de su propia fila porque no lo escribe nadie. `color_family` es `IMMUTABLE`
+-- (0029), que es justo el requisito que Postgres exige para una columna generada.
+--
+--
+-- ── LO QUE ESTA MIGRACIÓN CUESTA, DICHO ANTES DE QUE SORPRENDA ──
+--
+-- `ADD COLUMN ... GENERATED ... STORED` **reescribe la tabla entera** y toma `ACCESS EXCLUSIVE`
+-- mientras dura. Son 166.655 variantes en QA y 163.143 vivas en prod: segundos, no minutos, pero
+-- es un momento en que nadie lee `variant`. Va sola en su migración a propósito, para que ese rato
+-- no se sume al de ninguna otra.
+--
+--
+-- ⚠️ ── LA OBLIGACIÓN QUE ESTA COLUMNA HEREDA, Y QUE ES UN PISO MÁS ALTA QUE LA DE LA 0029 ──
+--
+-- La 0029 avisa: «cualquier migración futura que añada vocabulario a `color_family` tiene que
+-- terminar con `REINDEX INDEX ix_variant_color_family`», porque el índice guarda los valores YA
+-- calculados. Con esta columna eso **ya no basta**: los valores viven además en la tabla, y
+-- Postgres NO regenera una columna generada porque cambie el cuerpo de la función. Quedaría
+-- mintiendo en silencio, que es exactamente el fallo que la 0029 describe pero peor, porque el
+-- índice se puede reconstruir y una columna hay que reescribirla.
+--
+-- Así que a partir de aquí, toda migración que toque el cuerpo de `color_family()` tiene que
+-- terminar con las dos cosas:
+--
+--     ALTER TABLE variant ALTER COLUMN color_family_cache DROP EXPRESSION;
+--     ALTER TABLE variant ALTER COLUMN color_family_cache
+--         SET EXPRESSION AS (color_family(color));   -- PG 17+
+--
+-- o, en la Postgres 16 del cluster, que no tiene `SET EXPRESSION`:
+--
+--     ALTER TABLE variant DROP COLUMN color_family_cache;
+--     ALTER TABLE variant ADD COLUMN color_family_cache text
+--         GENERATED ALWAYS AS (color_family(color)) STORED;
+--
+-- Es caro y es a propósito que esté escrito aquí: el vocabulario del color cambia cada vez que
+-- entra una tienda nueva, así que esto va a pasar.
+--
+--
+-- ── LO QUE NO SE TOCA, Y POR QUÉ ──
+--
+-- **El filtro sigue por `color_family(v.color)` y `ix_variant_color_family` se queda.** Ese camino
+-- lo midió y lo arregló #342 hace un día (23.698 ms -> 1.127 ms con el `COST`), y moverlo a la
+-- columna sería reabrir un P0 recién cerrado a cambio de nada demostrado. Cuando alguien quiera
+-- hacerlo, lo que hay que medir es el caso de #342 —`color` + tienda grande— y no el de aquí.
+--
+-- **`color_canon` y `color_family` no cambian de cuerpo**, así que ningún índice existente queda
+-- obsoleto y esta migración NO necesita `REINDEX`.
+ALTER TABLE variant ADD COLUMN color_family_cache text
+    GENERATED ALWAYS AS (color_family(color)) STORED;
+
+-- Parcial por `delisted_at IS NULL`, como la 0012, la 0014, la 0015 y la 0029: es el otro filtro
+-- que llevan todas las lecturas del catálogo. Sirve al `DISTINCT` de la faceta.
+CREATE INDEX ix_variant_color_family_cache ON variant (color_family_cache)
+    WHERE delisted_at IS NULL;
