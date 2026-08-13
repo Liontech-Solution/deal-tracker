@@ -139,6 +139,41 @@ export const variant = pgTable(
   (t) => [unique().on(t.productId, t.retailerVariantId)],
 );
 
+/**
+ * Agregado por producto que lee el catálogo (migración 0035, #314).
+ *
+ * **La escribe Postgres, no el scraper ni el web**: la puebla `refresh_product_agg(retailer_id)`,
+ * que `ingest.py` invoca al final de cada pasada dentro de su propia transacción. Aquí es de solo
+ * lectura — ningún `INSERT`/`UPDATE` del web debe tocarla.
+ *
+ * Existe porque ordenar el catálogo por `price_from` / `is_real_deal` / `honest_discount` obliga a
+ * agregar TODAS las variantes vivas antes del `LIMIT`: 1,9 s por petición en prod, 69 ms leyendo
+ * esta tabla.
+ *
+ * No guarda el veredicto de honestidad, solo los estadísticos con los que se calcula: meterlo aquí
+ * sería un tercer espejo de la regla de `deal-rule.ts` (ver #228).
+ */
+export const productAgg = pgTable('product_agg', {
+  productId: bigint('product_id', { mode: 'number' })
+    .primaryKey()
+    .references(() => product.id, { onDelete: 'cascade' }),
+  retailerId: bigint('retailer_id', { mode: 'number' })
+    .notNull()
+    .references(() => retailer.id),
+  priceFrom: numeric('price_from', { precision: 10, scale: 2 }),
+  listFrom: numeric('list_from', { precision: 10, scale: 2 }),
+  discountFrom: numeric('discount_from', { precision: 5, scale: 2 }),
+  maxDiscount: numeric('max_discount', { precision: 5, scale: 2 }),
+  anyInStock: boolean('any_in_stock'),
+  priceRepr: numeric('price_repr', { precision: 10, scale: 2 }),
+  recentMinRepr: numeric('recent_min_repr', { precision: 10, scale: 2 }),
+  maxObservedRepr: numeric('max_observed_repr', { precision: 10, scale: 2 }),
+  priorPointsRepr: bigint('prior_points_repr', { mode: 'number' }),
+  trackedDaysRepr: numeric('tracked_days_repr'),
+  colorRepr: text('color_repr'),
+  refreshedAt: timestamp('refreshed_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const priceHistory = pgTable('price_history', {
   id: bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
   variantId: bigint('variant_id', { mode: 'number' })
@@ -303,6 +338,7 @@ export const schema = {
   productImage,
   productTag,
   variant,
+  productAgg,
   priceHistory,
   appUser,
   interest,

@@ -503,6 +503,20 @@ def _stale_refreshes(
     return {product_id for _, product_id in stale[:refresh_max]}
 
 
+def _refresh_product_agg(cur: psycopg.Cursor, retailer_id: int) -> int:
+    """Repuebla el agregado por producto que lee el catálogo (migración 0035, #314).
+
+    Va **después de las bajas** y no antes: `_delist()` y `_rescue()` mueven `variant.delisted_at`,
+    que es justo lo que decide qué variantes entran en el agregado. Y va dentro de la transacción
+    de la pasada, que ya es atómica, así que una pasada que revierte deja el agregado como estaba.
+
+    Aquí no se sabe QUÉ agrega ni con qué ventana: eso vive entero en la función SQL, para no
+    abrirle a este servicio la regla de honestidad que ya tiene dos espejos (#228).
+    """
+    cur.execute("SELECT refresh_product_agg(%s)", (retailer_id,))
+    return _scalar_int(cur)
+
+
 def _barefoot_counts(cur: psycopg.Cursor, retailer_id: int) -> dict[str, int]:
     """Reparto si/no/desconocido del calzado activo de la tienda (informe de #30).
 
@@ -1251,6 +1265,10 @@ def ingest(
             # Después de las bajas: así el recuento que se publica ya excluye lo retirado en esta
             # misma pasada y es el que se puede comparar con lo que enseña el catálogo.
             tag_counts = _reconcile_tags(cur, retailer_id, tags)
+            # Se registra el recuento a propósito: un agregado que deja de poblarse no da ningún
+            # síntoma en el catálogo —sirve lo de la pasada anterior— y ésta es la única señal.
+            agg_rows = _refresh_product_agg(cur, retailer_id)
+            _LOG.info("product_agg refrescado: %d productos", agg_rows)
         conn.commit()
         return IngestResult(
             scrape_run_id=run_id,

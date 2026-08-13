@@ -5,7 +5,13 @@ import type postgres from 'postgres';
 import { CatalogService } from '../src/catalog/catalog.service';
 import { ProductQueryDto } from '../src/catalog/dto/product-query.dto';
 import { schema } from '../src/database/schema';
-import { BASES_CANON, saltarSiNoHayBase, makeSqlAt, resetSchema } from './helpers';
+import {
+  BASES_CANON,
+  saltarSiNoHayBase,
+  makeSqlAt,
+  refrescarAgregado,
+  resetSchema,
+} from './helpers';
 
 /**
  * El plegado de la búsqueda por texto (`fold()` en `catalog.service.ts`), contra las dos bases.
@@ -69,6 +75,7 @@ describe.each(BASES_CANON)('plegado de la búsqueda · $nombre', ({ url }) => {
         INSERT INTO price_history (variant_id, price, in_stock, scraped_at)
         VALUES (${v.id}, 19.99, true, now())`;
     }
+    await refrescarAgregado(sql);
   });
 
   afterAll(async () => {

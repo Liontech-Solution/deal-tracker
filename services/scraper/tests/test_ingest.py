@@ -2077,3 +2077,66 @@ def test_una_tienda_sin_ejes_no_toca_la_tabla(db_conn: Any) -> None:
 
     assert _etiquetas(db_conn) == set()
     assert result.tag_counts == {}
+
+
+def _precio_agregado(conn: Any, retailer_product_id: str) -> Any:
+    return _scalar(
+        conn,
+        """
+        SELECT pa.price_from FROM product_agg pa
+        JOIN product p ON p.id = pa.product_id
+        WHERE p.retailer_product_id = %s
+        """,
+        (retailer_product_id,),
+    )
+
+
+def test_la_pasada_deja_al_dia_el_agregado_del_catalogo(db_conn: Any) -> None:
+    """La pasada repuebla `product_agg`, que es de donde lee el catálogo (0035, #314).
+
+    Sin esto el web serviría el agregado de la pasada anterior **sin dar ningún síntoma**: no hay
+    error ni fila que falte, solo precios viejos. Por eso se comprueba aquí, en el único sitio que
+    escribe `price_history`, y no solo desde el web.
+    """
+    store = FakeStore(
+        [
+            _product("A", "Bailarina", [_variant("A-1", "39.95"), _variant("A-2", "20.00")]),
+            _product("B", "Botín", [_variant("B-1", "45.00")]),
+        ],
+        signatures={"A": "a1", "B": "b1"},
+    )
+
+    ingest(db_conn, store, run_ts=T1)
+
+    # Una fila por producto vivo con precio, y el precio de su variante más barata.
+    assert _scalar(db_conn, "SELECT count(*) FROM product_agg") == 2
+    assert _precio_agregado(db_conn, "A") == Decimal("20.00")
+
+    # Segunda pasada: A se abarata y B desaparece del listado.
+    store2 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95"), _variant("A-2", "9.99")])],
+        signatures={"A": "a2"},
+    )
+    ingest(db_conn, store2, run_ts=T2, delist_min_misses=1)
+
+    assert _precio_agregado(db_conn, "A") == Decimal("9.99")
+    # B se ha dado de baja, así que sale del agregado: el refresco va DESPUÉS de las bajas
+    # justo para esto, porque son ellas las que deciden qué variantes siguen vivas.
+    assert _precio_agregado(db_conn, "B") is None
+
+
+def test_el_agregado_se_refresca_por_tienda_y_no_arrastra_a_las_demas(db_conn: Any) -> None:
+    """El refresco es POR TIENDA, que es lo que permite que nueve CronJobs no se pisen."""
+    zara = FakeStore([_product("A", "Bailarina", [_variant("A-1", "39.95")])], {"A": "a1"})
+    sfera = FakeStore([_product("S", "Botín", [_variant("S-1", "45.00")])], {"S": "s1"})
+    sfera.slug = "sfera"  # type: ignore[misc]
+    sfera.name = "Sfera"  # type: ignore[misc]
+
+    ingest(db_conn, zara, run_ts=T1)
+    ingest(db_conn, sfera, run_ts=T1)
+    assert _scalar(db_conn, "SELECT count(*) FROM product_agg") == 2
+
+    # Otra pasada de Zara: la fila de Sfera sigue en pie y con su precio.
+    ingest(db_conn, zara, run_ts=T2)
+    assert _scalar(db_conn, "SELECT count(*) FROM product_agg") == 2
+    assert _precio_agregado(db_conn, "S") == Decimal("45.00")
