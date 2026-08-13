@@ -3163,6 +3163,21 @@ Tres consecuencias que no son evidentes:
   unitarios, y la **ausencia** de badges «Precio inflado» es el estado esperado — declarado así en
   `/validar-qa` (U26b, U26c, A31d) para que la validación no abra un P0 inventado.
 
+**La red que sostiene todo esto tiene un agujero medido, y es asimétrico.** El espejo
+`deal-rule.ts` ↔ `deal-rule.sql.ts` lo vigila `test/deal-rule-paridad.spec.ts` (#228): 1.200 casos,
+el producto cartesiano de los valores interesantes de las cinco entradas, comparados fila a fila.
+Medido el 13/08/2026 ejerciendo el subagente `revisor-espejo-honestidad` contra una divergencia
+deliberada, **cero** de esos 1.200 caen en la franja `(M×1.03, M×1.05]`: el valor elegido como borde,
+`30.90`, es exactamente `30.00 × 1.03` y la comparación es estricta, así que el cartesiano fija el
+lado `≤` del umbral y **nada por encima**. Consecuencia: mover `INFLATED_LIST_MARGIN` *hacia arriba*
+en un solo lado es invisible para el test. Y el daño no es donde se esperaría — el filtro
+`onlyDeals` aguanta, por la misma implicación del primer punto, pero `honestDiscountSql` deja de ser
+espejo de `DealVerdict.discountPct` y `sort=ofertas` **ordena** con un descuento inflado (19,35 %
+frente al 16,67 % que muestra la etiqueta, con máximo 30,00 / tachado 31,00 / precio 25,00). Es
+justo la razón de que el subagente exista además del test: el test caza la divergencia después, el
+subagente la caza antes. Cerrar el agujero es un tachado en la franja nueva (p. ej. `31.00` contra
+el `30.00` de `MAXIMOS`), y sigue pendiente.
+
 ### El aviso no se puede provocar a voluntad: hace falta una bajada real, y el tachado no sirve
 
 Ejercer el camino del aviso de punta a punta (#122) es caro por un motivo que no es técnico: **el
