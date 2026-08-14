@@ -48,6 +48,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void bootstrapAuth().then(({ enabled: on, authenticated: authed }) => {
       if (cancelled) return;
       const kc = getKeycloak();
+
+      // Una sesión que muere de verdad tiene que verse (#262). `keycloak-js` llama a `clearToken()`
+      // —y con él a esto— cuando el endpoint de token responde 400 al refresco, o sea cuando el
+      // refresh token ya no vale. Sin esta línea la SPA se quedaba con el chrome de sesión iniciada
+      // y 401-eando en silencio para siempre; con ella, `RequireSession` manda a `/acceso`
+      // conservando el destino, que es la rama que ya existía y no tenía quien la alimentara.
+      if (kc) {
+        kc.onAuthLogout = () => {
+          setAuthenticated(false);
+          setUser(null);
+        };
+      }
+
       setEnabled(on);
       setAuthenticated(authed);
       const claims = kc?.tokenParsed as

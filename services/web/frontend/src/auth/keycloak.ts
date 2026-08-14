@@ -8,7 +8,8 @@
  */
 import Keycloak from 'keycloak-js';
 
-import { apiGet } from '../api/client';
+import { ApiError, apiGet } from '../api/client';
+import { obtenerToken } from './refresh';
 
 interface PublicAuthConfig {
   url: string | null;
@@ -72,13 +73,31 @@ async function doBootstrap(): Promise<AuthBootstrap> {
   }
 }
 
-/** Access token válido (lo refresca si le quedan <30 s). `null` si no hay sesión. */
+/**
+ * Access token válido (lo refresca si le quedan <30 s). `null` **solo** si no hay sesión: ese es el
+ * caso en que la petición anónima es la correcta (`/config` durante el arranque, y el catálogo allí
+ * donde no hay realm).
+ *
+ * Si hay sesión y aun así no se consigue token, esto **lanza** en vez de devolver `null` (#262).
+ * Devolver `null` hacía que `authHeaders()` omitiera la cabecera y la petición saliera anónima
+ * contra un endpoint que exige sesión: un 401 garantizado, escrito en la consola por la pila de red
+ * del navegador —donde el código de la app no puede silenciarlo— y que se curaba solo al siguiente
+ * ciclo. Lanzando, la petición condenada no llega a salir: `apiGet`/`apiSend` rechazan antes del
+ * `fetch`, y el `retry: 1` que el `QueryClient` ya trae le da su segunda oportunidad.
+ *
+ * La sesión muerta de verdad no se enmascara: sale por la misma puerta que un 401 real y, además,
+ * `AuthProvider` la ve por `onAuthLogout` y `RequireSession` manda a `/acceso`.
+ */
 export async function getFreshToken(): Promise<string | null> {
-  if (!kc?.authenticated) return null;
-  try {
-    await kc.updateToken(30);
-    return kc.token ?? null;
-  } catch {
-    return null;
+  const r = await obtenerToken(kc);
+  switch (r.estado) {
+    case 'sin-sesion':
+      return null;
+    case 'token':
+      return r.token;
+    case 'sesion-muerta':
+      throw new ApiError(401, 'Tu sesión ha caducado, vuelve a iniciar sesión');
+    case 'refresco-fallido':
+      throw new ApiError(401, 'No pude renovar la sesión');
   }
 }
