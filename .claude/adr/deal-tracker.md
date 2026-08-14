@@ -106,7 +106,16 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
   `/api/health`, y el job `dist/jobs/matching.job.js` que evalúa ofertas y notifica por Telegram.
 - `services/web/src/database/schema.ts` (Drizzle) es un **espejo** del SQL, no la fuente de verdad.
   Los tres puntos — `db/migrations`, ese espejo, y el SQL crudo de `ingest.py` — pueden divergir en
-  silencio; existe el subagente `revisor-contrato-esquema` precisamente para eso.
+  silencio; existe el subagente `revisor-contrato-esquema` precisamente para eso. **El espejo
+  declara el contrato entero, no solo lo que el web consulta**: que una tabla no se lea desde aquí
+  es justo lo que hace que el día que se necesite alguien escriba una migración que ya existe. La
+  única ausencia deliberada es `schema_migrations`, que no está en `db/migrations` — la crean los
+  dos aplicadores para su propia cuenta. Y la deriva no era hipotética: el barrido mecánico del
+  14/08/2026 (#364) encontró cuatro huecos, el más viejo desde la `0001` —la tabla `scrape_run`
+  entera—, todos invisibles porque nadie los leía desde el web. Por eso el revisor ahora empieza
+  por `.claude/agents/barrido-espejo.py`, que compara el espejo contra `information_schema` columna
+  a columna en vez de fiarlo a leer: el ojo encuentra lo que va buscando, y `missing_streak` salió
+  de rebote revisando otra cosa.
 
 **Las migraciones tienen dos aplicadores, ambos idempotentes**: el scraper con `--migrate` y el web
 con `node dist/database/migrate.js` (initContainer del Deployment). Cualquiera de los dos puede
@@ -3260,20 +3269,36 @@ Tres consecuencias que no son evidentes:
   unitarios, y la **ausencia** de badges «Precio inflado» es el estado esperado — declarado así en
   `/validar-qa` (U26b, U26c, A31d) para que la validación no abra un P0 inventado.
 
-**La red que sostiene todo esto tiene un agujero medido, y es asimétrico.** El espejo
-`deal-rule.ts` ↔ `deal-rule.sql.ts` lo vigila `test/deal-rule-paridad.spec.ts` (#228): 1.200 casos,
-el producto cartesiano de los valores interesantes de las cinco entradas, comparados fila a fila.
-Medido el 13/08/2026 ejerciendo el subagente `revisor-espejo-honestidad` contra una divergencia
-deliberada, **cero** de esos 1.200 caen en la franja `(M×1.03, M×1.05]`: el valor elegido como borde,
-`30.90`, es exactamente `30.00 × 1.03` y la comparación es estricta, así que el cartesiano fija el
-lado `≤` del umbral y **nada por encima**. Consecuencia: mover `INFLATED_LIST_MARGIN` *hacia arriba*
-en un solo lado es invisible para el test. Y el daño no es donde se esperaría — el filtro
-`onlyDeals` aguanta, por la misma implicación del primer punto, pero `honestDiscountSql` deja de ser
-espejo de `DealVerdict.discountPct` y `sort=ofertas` **ordena** con un descuento inflado (19,35 %
-frente al 16,67 % que muestra la etiqueta, con máximo 30,00 / tachado 31,00 / precio 25,00). Es
-justo la razón de que el subagente exista además del test: el test caza la divergencia después, el
-subagente la caza antes. Cerrar el agujero es un tachado en la franja nueva (p. ej. `31.00` contra
-el `30.00` de `MAXIMOS`), y sigue pendiente.
+**Comparar el veredicto `real` no vigila la regla: el margen del PVP inflado es invisible por ahí,
+y no por un descuido del corpus.** El espejo `deal-rule.ts` ↔ `deal-rule.sql.ts` lo vigila
+`test/deal-rule-paridad.spec.ts` (#228) sobre el producto cartesiano de las cinco entradas. Medido
+el 13/08/2026 ejerciendo el subagente `revisor-espejo-honestidad` contra una divergencia deliberada,
+**cero** de aquellos 1.200 casos caían en la franja `(M×1.03, M×1.05]` — el borde elegido, `30.90`,
+es exactamente `30.00 × 1.03` y la comparación es estricta—, así que mover `INFLATED_LIST_MARGIN`
+*hacia arriba* en un solo lado no lo veía nadie. Al cerrarlo (#375, 14/08/2026) el corpus resultó
+ser lo de menos: con el margen a 1.05 en el SQL y a 1.03 en el TS **pasaban los 725 tests del
+servicio**, y añadir el tachado que faltaba solo hace fallar el veredicto por **dos** casos, los dos
+apoyados en filas que la base no puede producir.
+
+El motivo es estructural y conviene no volver a derivarlo: para que el margen mueva `real` hace
+falta `price ∈ [max_observed, list_price)`, y la condición A exige `price < recent_min`; como
+`recent_min` es un MIN sobre un subconjunto de las observaciones de las que `max_observed` es el MAX
+—y las `*_repr` de `product_agg` salen todas del mismo `array_agg` ordenado, o sea de la misma
+variante—, en la base `recent_min <= max_observed` siempre y las dos condiciones se contradicen.
+**Sobre datos realizables, `isRealDealSql` es insensible a `INFLATED_LIST_MARGIN`.**
+
+Lo que sí lo ve es lo que el spec no comparaba: el **PVP creíble**, donde vive el margen, y el
+**descuento honesto**, donde está el daño. Ese descuento alimenta el `ORDER BY` de `sort=ofertas`
+sobre todas las filas, no solo las `real`, así que la divergencia no se manifiesta como una etiqueta
+equivocada sino como un adelantamiento: 19,35 % frente al 16,67 % que muestra la etiqueta, con
+máximo 30,00 / tachado 31,00 / precio 25,00. Y su espejo no podía ser `DealVerdict.discountPct`, que
+se pone a 0 en cuanto falla la condición A —condición que el orden no aplica—: de ahí sale
+`honestDiscountPct()`, extraída de `evaluateDeal` para tener a qué apuntar.
+
+Desde #375 el margen ya no es dos números: `deal-rule.sql.ts` **importa** la constante y la
+interpola con `sql.raw`, no como parámetro ligado (un número de JS viaja como `float8` y
+`numeric * float8` no redondea como `numeric * numeric`). La clase de fallo desaparece en vez de
+solo detectarse, y lo que queda por vigilar es que nadie vuelva a escribir el número a mano.
 
 ### El aviso no se puede provocar a voluntad: hace falta una bajada real, y el tachado no sirve
 
