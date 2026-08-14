@@ -991,6 +991,23 @@ redirecciones**, y un 3xx se queda **fuera del mapa** en vez de contarse como vi
 retirado — la tienda no ha dicho que no exista, ha dicho que mires a otro sitio. Abstenerse solo
 retrasa una baja real; un `False` de más borra del catálogo algo que se sigue vendiendo.
 
+**Y el reverso del reverso: la tienda perdona un identificador equivocado, y entonces el 200 tampoco
+prueba que el identificador sea el bueno.** Medido en Lefties (14/08/2026, #393). Su menú tiene
+**nodos alias** —las `_VIEWALL` apuntan a su padre y las `_MENU` a la hoja de otra rama— cuyo
+`content.id` no es el uuid de una rejilla sino el **id numérico de otra categoría**.
+`grid_ids_by_category()` lo devolvía tal cual, así que la pasada pedía `…/grids/1030680609` donde la
+API espera `…/grids/d5e0b942-…`, y la tienda lo resolvía igual: mismos 21 y 25 modelos que por el
+uuid. Ocho alias de 116 hojas en el menú de niña y seis de 108 en el de bebé, y **las cuatro hojas
+`barefoot` que mapeamos son de esas**.
+
+Lo que lo hace peligroso no es la petición, que funciona, sino **cómo se vería el día que dejara de
+funcionar**: cuatro hojas dando 404 a la vez, `_hoja_comprometida()` leyéndolas como retiradas y
+`SCRAPER_SCAN_MAX_DEAD_RATIO` decidiendo sobre un dato falso. El diagnóstico manda a buscar una baja
+que no existe, que es el coste caro. La regla que se generaliza, y que cierra la familia de esta
+sección por el otro extremo: **un identificador que se deriva del propio contenido de la tienda hay
+que resolverlo hasta su forma canónica, y no dar por buena la que funciona** — verificarlo cuesta un
+test de fixture, porque el menú ya trae las dos puntas del salto.
+
 ### El árbol de categorías de una tienda no es lo que parece
 
 Dos cosas medidas sobre Zara y Sfera que se repiten y conviene dar por supuestas al mapear la
@@ -3197,9 +3214,39 @@ bloqueo, y comprobarlo «a ver si se abre» con Playwright tampoco: su Chromium 
 de pop-ups de un navegador de escritorio. Lo que sí es portable y decisivo es leer
 `navigator.userActivation.isActive` justo antes de la llamada.
 
-El mismo mecanismo es el sospechoso de #262 (un 401 aislado en el sondeo de Telegram que se cura
-solo): ese refresco implícito es una carrera que ocurre en cada petición autenticada y que nadie ve
-en el código de la llamada.
+**El 401 aislado de #262 salía de este mecanismo, pero no era una carrera** (medido el 14/08/2026
+contra `keycloak-js@26.2.4`). `getFreshToken()` colapsaba tres desenlaces en un solo `null` —«no hay
+sesión», «el refresco falló» y «la sesión está muerta»— y `authHeaders()` traduce `null` a *no mandar
+la cabecera*. Así que un refresco fallido con la sesión viva no mandaba un token caducado: mandaba la
+petición **anónima** a un endpoint que exige sesión. El 401 estaba garantizado y se curaba solo al
+ciclo siguiente, que es exactamente lo que se observó y lo que hacía parecer que la causa era una
+carrera.
+
+Dos hechos de la librería que sostienen el arreglo y que conviene no volver a deducir:
+
+- **El refresco es single-flight.** `updateToken()` encola en `#refreshQueue` y solo el primer
+  llamante sale a la red. O sea que un sondeo no atropella un refresco en curso por construcción, y
+  no hace falta protegerlo. La otra cara es que un fallo **rechaza a todos los encolados a la vez**,
+  así que un solo tropiezo puede volver anónimas varias peticiones de golpe.
+- **La sesión muerta se distingue sola, y no hay que adivinarla.** La librería solo llama a
+  `clearToken()` —que pone `authenticated` en `false`— cuando el endpoint de token responde **400**,
+  o sea cuando el refresh token ya no vale. Un fallo de red la deja declarada viva.
+
+Con esa distinción, la política es: reintentar el **refresco** una vez y forzado (`updateToken(-1)`;
+con `30` el segundo intento repite la misma comprobación de caducidad que acaba de fallar), y si no
+cuaja, **lanzar `ApiError(401)` en vez de devolver `null`**, de modo que la petición condenada no
+llegue a salir. Reintentar el refresco no es reintentar una petición que ya volvió 401: eso sigue
+propagándose intacto, que es lo que evita enmascarar una caducidad real.
+
+Y una restricción del navegador que cierra la otra mitad de la issue: **un 401 en la consola no se
+puede silenciar desde la aplicación**. Ese `Failed to load resource: … 401` lo emite la pila de red,
+no el código, así que no hay `catch` que lo tape. La única forma de que no aparezca es que la
+petición no se mande — motivo suficiente por sí solo para preferir fallar antes del `fetch`.
+
+Un defecto hermano que salió de tirar de este hilo: **nadie registraba `onAuthLogout`**, así que una
+sesión muerta de verdad dejaba la SPA con el chrome de sesión iniciada, 401-eando en silencio para
+siempre. Lo registra `AuthProvider`, y `RequireSession` —que ya sabía mandar a `/acceso` conservando
+el destino— pasa a tener quien lo alimente.
 
 ### Un control condicionado al entorno solo se puede verificar en el entorno que lo tiene (#309)
 
