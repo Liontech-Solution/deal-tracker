@@ -268,6 +268,39 @@ def test_las_hojas_de_bebe_son_hojas_con_grid_y_no_secciones() -> None:
     )
 
 
+def test_ninguna_hoja_del_menu_se_pide_por_id_numerico() -> None:
+    """Los alias del menú quedan resueltos a uuid en los dos menús capturados (#393).
+
+    Es la comprobación de fondo, y por eso mira **todas** las hojas y no solo las cuatro de
+    barefoot: el alias es una convención de este menú —las `_VIEWALL` apuntan a su padre y las
+    `_MENU` a la hoja de otra rama—, así que la regla que vale es «ningún grid es un id numérico»,
+    no una lista de excepciones que envejece con el menú.
+    """
+    for nombre, menu in (("niña", _menu()), ("bebé", _menu_bebe())):
+        grids = grid_ids_by_category(menu)
+        numericos = {cid: g for cid, g in grids.items() if g.isdigit()}
+
+        assert grids, f"premisa: la fixture de {nombre} trae hojas"
+        assert numericos == {}, (
+            f"en el menú de {nombre} estas hojas se pedirían por id de categoría y no por uuid de "
+            f"grid: {numericos}"
+        )
+
+
+def test_las_cuatro_hojas_barefoot_resuelven_al_grid_que_se_midio() -> None:
+    """Las tres que hay en fixtures, contra los uuid medidos en la tienda el 14/08/2026 (#393).
+
+    Son alias las cuatro, así que son justamente las que se pedían por el id numérico. La cuarta
+    (niño, `1030680206` -> `6a22fc1e-…`) no está aquí: su rama no la trae ninguna de las dos
+    capturas.
+    """
+    assert grid_ids_by_category(_menu())[1030680692] == "d5e0b942-2772-4bdf-b67a-7f8bba20aa9e"
+
+    bebe = grid_ids_by_category(_menu_bebe())
+    assert bebe[1030680693] == "5abb612d-2aec-4c08-abb3-e15a205d9369"
+    assert bebe[1030680207] == "c87ddae7-9d96-4719-9636-797a2552c7e8"
+
+
 def test_la_fixture_de_bebe_no_arrastra_las_ramas_que_ya_ingeriamos() -> None:
     """Es una captura de las TRES ramas de bebé, no un segundo menú entero.
 
