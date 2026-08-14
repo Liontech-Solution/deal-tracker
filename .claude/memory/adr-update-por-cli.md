@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: 31501bb9-0b33-4106-9061-4e31b18a2197
-  modified: 2026-08-14T14:21:00.003Z
+  modified: 2026-08-14T21:25:05.599Z
 ---
 
 `manage_adr(mode='update')` **reemplaza el ADR completo** con lo que le pases en `content`: no
@@ -86,6 +86,22 @@ volcar `--mode get` a un fichero y buscar dentro **una frase que hayas escrito h
 hayas **quitado** — las dos, porque encontrar la nueva no prueba que la vieja se fuera. Y con
 `grep -o … | wc -l`, no `grep -c`: la salida es una única línea JSON gigante y `-c` cuenta líneas,
 así que siempre dirá 1.
+
+**Verificar justo después de publicar NO cierra el asunto: el grafo puede volver atrás solo.** Todo
+lo de arriba protege contra publicar tú una versión vieja; el caso simétrico es que la publique
+**otra sesión encima de la tuya**, y ese llega después de tu comprobación. El 14/08/2026 publiqué mi
+sección, la verifiqué por contenido y salió bien; minutos más tarde otra sesión republicó desde un
+`main` anterior a mi merge y el grafo se quedó sin ella, **sin un solo error en ninguno de los dos
+lados**. No lo detectó ninguna comprobación: lo detectó un mensaje entre sesiones.
+
+O sea que **anunciar antes de publicar no basta cuando dos sesiones publican con minutos de
+diferencia** — para cuando el segundo empieza, el anuncio del primero ya es viejo. La regla que sí
+funciona: *el que publica segundo vuelve a bajar `main` y republica desde el fichero ya fusionado*,
+y avisa al primero de que lo ha hecho para que revalide. Si trabajas en paralelo, da por hecho que
+tu verificación caduca y **vuelve a comprobar el grafo al final del todo**, después de que las
+otras sesiones hayan cerrado. Y cuáles siguen vivas se mira con `ListAgents`, no se deduce: el
+14/08/2026 dos sesiones distintas razonaron «la otra ya habrá terminado» y las dos se equivocaron —
+«mi sesión está cerrada» no dice nada sobre las demás.
 
 **Y elige el testigo de una línea.** El JSON conserva los `\n` del markdown, así que una frase que
 en el fichero esté **partida por el salto de línea** da 0 aunque el ADR esté entero — un falso
