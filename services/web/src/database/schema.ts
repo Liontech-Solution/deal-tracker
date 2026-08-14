@@ -173,26 +173,44 @@ export const variant = pgTable(
  * No guarda el veredicto de honestidad, solo los estadísticos con los que se calcula: meterlo aquí
  * sería un tercer espejo de la regla de `deal-rule.ts` (ver #228).
  */
-export const productAgg = pgTable('product_agg', {
-  productId: bigint('product_id', { mode: 'number' })
-    .primaryKey()
-    .references(() => product.id, { onDelete: 'cascade' }),
-  retailerId: bigint('retailer_id', { mode: 'number' })
-    .notNull()
-    .references(() => retailer.id),
-  priceFrom: numeric('price_from', { precision: 10, scale: 2 }),
-  listFrom: numeric('list_from', { precision: 10, scale: 2 }),
-  discountFrom: numeric('discount_from', { precision: 5, scale: 2 }),
-  maxDiscount: numeric('max_discount', { precision: 5, scale: 2 }),
-  anyInStock: boolean('any_in_stock'),
-  priceRepr: numeric('price_repr', { precision: 10, scale: 2 }),
-  recentMinRepr: numeric('recent_min_repr', { precision: 10, scale: 2 }),
-  maxObservedRepr: numeric('max_observed_repr', { precision: 10, scale: 2 }),
-  priorPointsRepr: bigint('prior_points_repr', { mode: 'number' }),
-  trackedDaysRepr: numeric('tracked_days_repr'),
-  colorRepr: text('color_repr'),
-  refreshedAt: timestamp('refreshed_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const productAgg = pgTable(
+  'product_agg',
+  {
+    productId: bigint('product_id', { mode: 'number' })
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
+    /**
+     * De qué variantes se ha agregado (migración 0038, #371).
+     *
+     * `'todas'` son todas las vivas, que es lo que hacía la 0035. `'con_stock'` son solo las que
+     * además tienen stock en su última lectura, y **no es el mismo agregado con menos filas**:
+     * cambia cuál es la variante representativa y con ella `price_from`, `list_from` y los
+     * `*_repr` con los que se decide la honestidad.
+     *
+     * Un producto sin ninguna variante con stock no tiene fila `'con_stock'`.
+     *
+     * ⚠️ Toda lectura tiene que fijar el ámbito. Sin el predicado salen las dos filas del mismo
+     * producto y el catálogo lo duplica sin decir nada.
+     */
+    scope: text('scope').notNull(),
+    retailerId: bigint('retailer_id', { mode: 'number' })
+      .notNull()
+      .references(() => retailer.id),
+    priceFrom: numeric('price_from', { precision: 10, scale: 2 }),
+    listFrom: numeric('list_from', { precision: 10, scale: 2 }),
+    discountFrom: numeric('discount_from', { precision: 5, scale: 2 }),
+    maxDiscount: numeric('max_discount', { precision: 5, scale: 2 }),
+    anyInStock: boolean('any_in_stock'),
+    priceRepr: numeric('price_repr', { precision: 10, scale: 2 }),
+    recentMinRepr: numeric('recent_min_repr', { precision: 10, scale: 2 }),
+    maxObservedRepr: numeric('max_observed_repr', { precision: 10, scale: 2 }),
+    priorPointsRepr: bigint('prior_points_repr', { mode: 'number' }),
+    trackedDaysRepr: numeric('tracked_days_repr'),
+    colorRepr: text('color_repr'),
+    refreshedAt: timestamp('refreshed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.productId, t.scope] })],
+);
 
 /**
  * Una pasada de un scraper: qué tienda, cuánto duró, qué vio y cómo terminó (migración 0001, más

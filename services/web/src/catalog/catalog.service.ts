@@ -230,8 +230,16 @@ export class CatalogService {
     //
     // `length` y no `!== null` para casar con `ejeMultiple`, que trata el array vacío como "sin
     // filtro": si no, un `?size=` vacío mandaría al camino lento a no filtrar nada.
+    //
+    // `inStock` **ya no manda al camino vivo** (0038, #371): era el único de los tres que no
+    // colapsaba el conjunto —el 27,28 % de las variantes vivas están agotadas, así que deja pasar
+    // tres de cada cuatro— y por eso pagaba la agregación entera, ~2,1 s contra 0,18-1,07 s del
+    // resto del panel. Ahora tiene su propio ámbito precomputado.
+    //
+    // `inStock === false` («enséñame lo agotado») sí se queda aquí: no hay ámbito para eso y la SPA
+    // no lo pide (`CatalogPage` manda `inStock: filters.inStock || undefined`).
     const filtroDeVariante =
-      forzarAgregadoVivo || Boolean(size?.length) || Boolean(color?.length) || inStock !== null;
+      forzarAgregadoVivo || Boolean(size?.length) || Boolean(color?.length) || inStock === false;
 
     // Los filtros de producto se montan **una sola vez** y los usan los dos caminos. No es estilo:
     // es lo que impide que se bifurquen, que es el riesgo que se asume al tener dos caminos.
@@ -375,6 +383,10 @@ export class CatalogService {
         FROM product p
         JOIN retailer r ON r.id = p.retailer_id
         JOIN product_agg pa ON pa.product_id = p.id
+        -- El ámbito NO es opcional: product_agg tiene una fila por producto y ámbito desde la
+        -- 0038, así que sin este predicado cada producto sale dos veces. Va en el JOIN y no en el
+        -- WHERE para que no haya forma de perderlo al tocar filtrosDeProducto.
+        AND pa.scope = ${inStock === true ? 'con_stock' : 'todas'}
         WHERE ${filtrosDeProducto}
       )`;
 

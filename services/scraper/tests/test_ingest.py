@@ -2079,15 +2079,24 @@ def test_una_tienda_sin_ejes_no_toca_la_tabla(db_conn: Any) -> None:
     assert result.tag_counts == {}
 
 
-def _precio_agregado(conn: Any, retailer_product_id: str) -> Any:
+def _filas_agregado(conn: Any, scope: str = "todas") -> Any:
+    """Filas del agregado en un ámbito. Desde la 0038 (#371) hay una por producto Y ámbito."""
+    return _scalar(conn, "SELECT count(*) FROM product_agg WHERE scope = %s", (scope,))
+
+
+def _precio_agregado(conn: Any, retailer_product_id: str, scope: str = "todas") -> Any:
+    # El `scope` NO es opcional en la consulta aunque lo sea en la firma: desde la 0038 un producto
+    # tiene dos filas aquí, y sin el filtro esto devolvía la que entregase primero el planificador.
+    # Con todo en stock las dos valen lo mismo, así que la ausencia no se notaba — hasta que una
+    # variante se agote y el test empiece a fallar un día sí y otro no.
     return _scalar(
         conn,
         """
         SELECT pa.price_from FROM product_agg pa
         JOIN product p ON p.id = pa.product_id
-        WHERE p.retailer_product_id = %s
+        WHERE p.retailer_product_id = %s AND pa.scope = %s
         """,
-        (retailer_product_id,),
+        (retailer_product_id, scope),
     )
 
 
@@ -2109,8 +2118,16 @@ def test_la_pasada_deja_al_dia_el_agregado_del_catalogo(db_conn: Any) -> None:
     ingest(db_conn, store, run_ts=T1)
 
     # Una fila por producto vivo con precio, y el precio de su variante más barata.
-    assert _scalar(db_conn, "SELECT count(*) FROM product_agg") == 2
+    assert _filas_agregado(db_conn) == 2
     assert _precio_agregado(db_conn, "A") == Decimal("20.00")
+
+    # Y la pasada tiene que dejar poblados LOS DOS ámbitos de la 0038 (#371), no solo el ancho:
+    # el catálogo lee `con_stock` en cuanto alguien filtra por disponibilidad, y si la ingesta se
+    # dejara ese ámbito sin repoblar el filtro devolvería el agregado de la pasada anterior sin
+    # dar ningún síntoma — que es el mismo fallo que este test vino a cubrir para `todas`.
+    # Las variantes de la fixture van todas con stock, así que aquí los dos ámbitos coinciden.
+    assert _filas_agregado(db_conn, "con_stock") == 2
+    assert _precio_agregado(db_conn, "A", "con_stock") == Decimal("20.00")
 
     # Segunda pasada: A se abarata y B desaparece del listado.
     store2 = FakeStore(
@@ -2134,9 +2151,12 @@ def test_el_agregado_se_refresca_por_tienda_y_no_arrastra_a_las_demas(db_conn: A
 
     ingest(db_conn, zara, run_ts=T1)
     ingest(db_conn, sfera, run_ts=T1)
-    assert _scalar(db_conn, "SELECT count(*) FROM product_agg") == 2
+    assert _filas_agregado(db_conn) == 2
 
     # Otra pasada de Zara: la fila de Sfera sigue en pie y con su precio.
     ingest(db_conn, zara, run_ts=T2)
-    assert _scalar(db_conn, "SELECT count(*) FROM product_agg") == 2
+    assert _filas_agregado(db_conn) == 2
+    # El borrado del refresco parcial es por tienda y NO por ámbito: si se llevara por delante el
+    # `con_stock` de Sfera, esto lo vería y el `todas` de arriba no.
+    assert _filas_agregado(db_conn, "con_stock") == 2
     assert _precio_agregado(db_conn, "S") == Decimal("45.00")

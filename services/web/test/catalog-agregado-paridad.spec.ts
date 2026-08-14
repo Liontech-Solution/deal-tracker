@@ -16,7 +16,14 @@ import { makeSql, resetSchema, TEST_DB } from './helpers';
  *  - **precomputado** — leer `product_agg`, que dejó hecho `refresh_product_agg()` en la ingesta.
  *    Es el que se usa mientras no haya filtro de variante, o sea el caso ancho y el que tardaba.
  *  - **vivo** — agregar las variantes en tiempo de consulta, como se ha hecho siempre. Se usa en
- *    cuanto entra un filtro de `size`, `color` o `inStock`.
+ *    cuanto entra un filtro de `size` o de `color`.
+ *
+ * Desde la 0038 (#371) `inStock=true` **también va por el precomputado**, leyendo el ámbito
+ * `'con_stock'` en vez del `'todas'`. Eso mete un segundo agregado en la misma tabla, y con él dos
+ * formas nuevas de romper esto que antes no existían: que el ámbito se calcule mal (y entonces el
+ * precomputado y el vivo dejan de coincidir **solo** con el filtro puesto) y que alguna lectura se
+ * olvide del predicado de `scope` (y entonces cada producto sale dos veces). Los casos de abajo
+ * cubren las dos.
  *
  * Los dos tienen que devolver **exactamente lo mismo**, y nada en el compilador lo garantiza: son
  * dos SQL en dos ficheros distintos, uno en `catalog.service.ts` y otro dentro de la función de
@@ -95,6 +102,20 @@ describe.skipIf(!TEST_DB)('paridad entre el agregado precomputado y el vivo (#31
     ['orden descuento', (q) => (q.sort = 'descuento')],
     ['segunda página', (q) => ((q.limit = 2), (q.offset = 2))],
     ['incluyendo retirados', (q) => (q.activeOnly = false)],
+    // Los de la 0038 (#371): `inStock` ya no es un filtro de variante, así que el precomputado
+    // tiene que saber contestarlo desde el ámbito 'con_stock'.
+    ['solo en stock', (q) => (q.inStock = true)],
+    ['solo en stock + solo ofertas', (q) => ((q.inStock = true), (q.onlyDeals = true))],
+    ['solo en stock, orden precio-asc', (q) => ((q.inStock = true), (q.sort = 'precio-asc'))],
+    // Justo lo que pide la portada para «las ofertas de hoy» (`HomePage.tsx`), que era quien
+    // pagaba los ~2,1 s en cada carga sin que nadie pulsara el interruptor.
+    [
+      'la consulta de la portada',
+      (q) => ((q.inStock = true), (q.onlyDeals = true), (q.sort = 'ofertas')),
+    ],
+    // `inStock=false` NO tiene ámbito y se queda en el camino vivo a propósito: aquí lo que se
+    // comprueba es que sigue contestando lo mismo que antes.
+    ['solo agotados', (q) => (q.inStock = false)],
   ];
 
   it.each(casos)('devuelve lo mismo por los dos caminos: %s', async (_nombre, ajusta) => {
@@ -167,6 +188,56 @@ describe.skipIf(!TEST_DB)('paridad entre el agregado precomputado y el vivo (#31
     const { precomputado, vivo } = await ambos((q) => (q.q = 'fantasma'));
     expect(precomputado.items).toHaveLength(0);
     expect(vivo.items).toHaveLength(0);
+  });
+
+  // ── Los tres de la 0038 (#371) ──
+
+  it('filtrar por stock cambia la variante representativa, y en los dos caminos igual', async () => {
+    // Z-AGOTADA tiene la barata (10,00, verde) agotada y la cara (40,00, negro) comprable. Si el
+    // ámbito 'con_stock' fuera el mismo agregado con menos filas, esto pasaría igual; solo pasa si
+    // de verdad se ha vuelto a elegir la representativa.
+    const sinFiltro = await ambos((q) => (q.q = 'agotada'));
+    expect(sinFiltro.precomputado.items).toEqual(sinFiltro.vivo.items);
+    expect(sinFiltro.precomputado.items[0].priceFrom).toBe('10.00');
+    expect(sinFiltro.precomputado.items[0].colorRepr).toBe('negro');
+
+    const conFiltro = await ambos((q) => ((q.q = 'agotada'), (q.inStock = true)));
+    expect(conFiltro.precomputado.items).toEqual(conFiltro.vivo.items);
+    // La barata desaparece del agregado: el "desde" ya no puede ser un precio que no se puede pagar.
+    expect(conFiltro.precomputado.items[0].priceFrom).toBe('40.00');
+    expect(conFiltro.precomputado.items[0].colorRepr).toBe('negro');
+  });
+
+  it('un producto con todo agotado no sale con inStock, y sí sin él', async () => {
+    const sinFiltro = await ambos((q) => (q.q = 'sin stock'));
+    expect(sinFiltro.precomputado.items).toHaveLength(1);
+    expect(sinFiltro.precomputado.items).toEqual(sinFiltro.vivo.items);
+
+    const conFiltro = await ambos((q) => ((q.q = 'sin stock'), (q.inStock = true)));
+    expect(conFiltro.precomputado.items).toHaveLength(0);
+    expect(conFiltro.vivo.items).toHaveLength(0);
+  });
+
+  it('cada producto tiene una sola fila por ámbito, y el catálogo no lo duplica', async () => {
+    // La forma de la 0038 tiene un riesgo conocido: una lectura sin el predicado de `scope` saca
+    // las dos filas del mismo producto. Se comprueba por los dos lados — la tabla y el resultado.
+    const [{ n }] = await sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM (
+        SELECT product_id, scope FROM product_agg GROUP BY product_id, scope HAVING count(*) > 1
+      ) d`;
+    expect(n).toBe(0);
+
+    const ambosAmbitos = await sql<{ scope: string; n: number }[]>`
+      SELECT scope, count(*)::int AS n FROM product_agg GROUP BY scope ORDER BY scope`;
+    expect(ambosAmbitos.map((r) => r.scope)).toEqual(['con_stock', 'todas']);
+    // 'con_stock' tiene que tener MENOS filas: Z-SINSTOCK no está.
+    const todas = ambosAmbitos.find((r) => r.scope === 'todas')!.n;
+    const conStock = ambosAmbitos.find((r) => r.scope === 'con_stock')!.n;
+    expect(conStock).toBeLessThan(todas);
+
+    const { precomputado } = await ambos((q) => (q.inStock = true));
+    const ids = precomputado.items.map((i) => i.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('refrescar una sola tienda no toca las filas de las demás', async () => {
@@ -283,4 +354,24 @@ async function sembrar(sql: postgres.Sql): Promise<void> {
   const s1 = await variante(otra, 'S-1-24-marron', '24', 'marrón');
   await precio(s1, '40.00', '80.00', 4);
   await precio(s1, '35.00', '80.00', 0);
+
+  // 7. AGOTADA LA BARATA: el caso que separa los dos ámbitos de la 0038 (#371). La variante más
+  //    barata está agotada, así que el agregado 'todas' y el 'con_stock' tienen que diferir en
+  //    `price_from` Y en la variante representativa (`color_repr`). Sin este producto el seed
+  //    pasaría igual con un segundo ámbito mal construido, porque el de arriba (Z-NORMAL) tiene
+  //    agotada la CARA, que no cambia quién representa.
+  const agotada = await producto(zara.id, 'Z-AGOTADA', 'Botas agotada la barata');
+  const a1 = await variante(agotada, 'Z-AGOTADA-24-verde', '24', 'verde');
+  const a2 = await variante(agotada, 'Z-AGOTADA-25-negro', '25', 'negro');
+  await precio(a1, '30.00', '60.00', 4);
+  await precio(a1, '10.00', '60.00', 0, false); // la más barata, y sin stock
+  await precio(a2, '50.00', '60.00', 4);
+  await precio(a2, '40.00', '60.00', 0); // más cara, pero comprable
+
+  // 8. TODO AGOTADO: ninguna variante con stock. No tiene fila en el ámbito 'con_stock', así que
+  //    con `inStock=true` no debe salir por ninguno de los dos caminos.
+  const sinStock = await producto(zara.id, 'Z-SINSTOCK', 'Botas sin stock');
+  const ss1 = await variante(sinStock, 'Z-SINSTOCK-24-coral', '24', 'coral');
+  await precio(ss1, '20.00', '40.00', 3);
+  await precio(ss1, '18.00', '40.00', 0, false);
 }
