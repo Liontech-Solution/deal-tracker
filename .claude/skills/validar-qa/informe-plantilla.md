@@ -17,6 +17,7 @@ Sustituye todo lo que va entre `<>`. Borra esta cabecera al copiar.
 |---|---|
 | Validado el | <fecha> |
 | Imágenes | web `<tag>` · scraper `<tag>` · matching `<tag>` |
+| Procedencia del dato | <«las 9 tiendas y el matching, escritos por `<tag>`» \| «n tiendas con dato de `<tag anterior>`: …» — salida de `qa-procedencia.sh`. Nunca «se supone»> |
 | ArgoCD | `<sync>` / `<health>`, revisión `<sha>` |
 | Versión anterior validada | <vX.Y.Z o «ninguna»> |
 | Modo | <completa \| rapida \| frente único> |

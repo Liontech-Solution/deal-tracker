@@ -52,6 +52,37 @@ fallados, `/api/health` y `/api/config`. Además:
   saca `git log <tag-anterior>..<tag-actual> --oneline`. Eso dirige el esfuerzo: lo que cambió se
   mira con lupa, lo demás se cubre por catálogo.
 
+### La versión desplegada no es la que escribió el dato
+
+Y hasta que no se comprueba, **no se sabe sobre qué versión habla el informe**:
+
+```bash
+.claude/skills/validar-qa/scripts/qa-procedencia.sh --rango <tag-anterior>..<tag-actual>
+```
+
+`qa-estado.sh` lee la imagen del **CronJob**, que ArgoCD sincroniza al desplegar, así que enseña la
+versión nueva desde el minuto uno. Pero las filas de `scrape_run` las escribió un **Job**, que es un
+snapshot inmutable de su disparo y conserva la imagen que hubiera entonces. Las dos cosas se parecen
+tanto que la validación de v0.3.0 dio por hecho que su bloque `## Cifras` describía su propia
+ingesta, y describía la de v0.1.9 (#378).
+
+La severidad **depende de si esta release toca el scraper**, y el script la decide solo si le pasas
+el `--rango` que acabas de sacar en el punto anterior:
+
+- **`services/scraper/` sin cambios en el rango → P1 de proceso.** El dato es de otra versión, pero
+  de la misma ingesta: se dice en el informe y se sigue. Era la coartada de v0.3.0.
+- **`services/scraper/` con cambios → P0, y no se valida el frente de datos así.** Medir el catálogo
+  contra filas que escribió el scraper anterior no prueba nada del código que va a producción.
+  El remedio es el que se aplicó a mano en v0.4.0, y el script lo imprime ya escrito:
+  `kubectl -n deal-tracker-qa create job validacion-<version>-<slug> --from=cronjob/deal-tracker-scraper-<slug>`.
+  Basta con las tiendas que el cambio toca; si toca `ingest.py` o `base.py`, son todas.
+- **`procedencia desconocida`** (el `Job` caducó: los CronJob traen `successfulJobsHistoryLimit: 3`)
+  **no es un aprobado**. Es exactamente el supuesto silencioso que esto viene a quitar: se declara
+  no cubierto y se trata como el caso anterior si la release toca el scraper.
+
+Sale en el informe siempre, conforme o no: es media línea y es lo que permite releer un informe
+viejo sabiendo de qué versión era su dato.
+
 ## Fase 1 · Disparar el vigía (solo en modo completo)
 
 ```bash
@@ -139,7 +170,8 @@ más del 30 % en las cifras de una tienda respecto al informe anterior · un `�
 vigía · un «oferta real» sobre un PVP inflado · **una acusación de «Precio inflado» sobre una prenda
 con menos de 90 días de histórico** (#332: es afirmar un fraude sin haberlo comprobado, y el error
 simétrico del anterior) · **una combinación de filtros que el propio panel ofrece por encima de
-10 s**.
+10 s** · **dato escrito por una imagen anterior cuando la release toca `services/scraper/`** (#378:
+el frente de datos estaría midiendo el scraper de la versión pasada).
 
 > Ojo con el simétrico de esto, que es un falso rojo fácil: **que no aparezca ni un solo badge
 > «Precio inflado» es lo esperado**, no una regresión. Acusar exige 90 días cubiertos y la serie de
@@ -150,7 +182,8 @@ retirada · aviso de ritmo del vigía · `✖ [cobertura]` del vigía · error e
 faceta que no devuelve resultados · **una combinación de filtros del panel entre 3 s y 10 s** ·
 regresión de UX no crítica · `ValueError: Tienda desconocida`
 (que es P1 **de proceso**: la tienda está en `main` pero el `release-qa` aún no la ha promovido, no
-está rota).
+está rota) · **dato escrito por una imagen anterior cuando la release NO toca `services/scraper/`**
+(también de proceso: el dato es viejo pero lo escribió el mismo scraper).
 
 **P2 — se anota y ya.** Cosmético · `⚠ [estacional]` del vigía.
 
