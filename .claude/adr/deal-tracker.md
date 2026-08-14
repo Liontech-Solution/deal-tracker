@@ -3667,9 +3667,16 @@ vez de con argumento: **las dos tiendas enseñan las dos cifras**. C&A la pinta 
 («El precio más bajo de los últimos 30 días: 13,49 € / Precio original 19,99 €»); Springfield la pone
 en un tooltip «Histórico de precios» —Inicial / Más bajo últimos 30 días / Actual— rotulando el
 tachado al pie como *«precio inicial de venta»*. O sea que el tachado no pretende ser la referencia
-legal, y la tienda lo dice. Detalle apuntado de camino y no ingerido: el JSON de Springfield trae una
-bandera `hideLowestPrice` que se pone a `true` justo cuando `actual == lowest`, o sea que oculta la
-línea precisamente en las prendas que llevan todo el periodo al mismo precio.
+legal, y la tienda lo dice.
+
+Detalle apuntado de camino y no ingerido, que se fue a #419: el JSON de Springfield trae una bandera
+`hideLowestPrice` que se pone a `true` cuando `actual == lowest`, o sea que **oculta la línea justo
+cuando el precio que pides ES el mínimo declarado** — el caso en el que la referencia legal coincide
+con lo que se paga y el «−75 % sobre el precio inicial» no tiene reducción detrás. Ojo con el paso
+que no se puede dar aquí: `price == min30d` es también el estado normal de una rebaja recién puesta
+(el precio de hoy es el más bajo del periodo porque acaba de bajar), así que no es acusable por sí
+solo. Distinguir las dos cosas necesita serie propia, y por eso es otra issue y no un caso más de
+esta.
 
 **Lo que sí desmiente a la tienda es el precio ACTUAL por encima de su propio mínimo declarado**:
 anuncia una rebaja y a la vez declara haber vendido esa prenda más barata dentro de esos 30 días. Son
