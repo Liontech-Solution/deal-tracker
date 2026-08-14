@@ -39,6 +39,14 @@ descarta que sea la forma del comando es que **el mismo script, byte por byte sa
 base, sí pasó contra `deal_tracker_qa`**. O sea que el disparador es la base de destino, no que
 escriba o no.
 
+**Y las ESCRITURAS por `psql` caen también contra dev y QA** (medido el 14/08/2026 en #370). Un
+`ALTER TABLE variant SET (log_autovacuum_min_duration = 0)` contra `deal_tracker` y
+`deal_tracker_qa` —idempotente, reversible con un `RESET` y la misma sentencia que iba a aplicar la
+migración— se bloqueó igual. O sea que el eje no es solo la base de destino: contra dev/QA las
+lecturas pasan y las escrituras no. Para un cambio de esquema eso no estorba, es el camino correcto
+(la migración se despliega, no se aplica a mano); pero si lo que quieres es *observar* algo en el
+entorno donde el fallo está vivo, cuenta desde el principio con pedírselo al usuario.
+
 Consecuencia práctica: si necesitas medir algo contra prod —un `EXPLAIN`, un recuento—, dalo por
 bloqueado desde el principio y prepáralo para que lo lance el usuario, en vez de gastar dos intentos
 descubriéndolo. Y como es una lectura, no hay motivo para insistir en hacerla tú: el dato es igual
