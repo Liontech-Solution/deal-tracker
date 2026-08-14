@@ -2327,13 +2327,42 @@ consecuencias medidas: una pasada bloqueada tarda **~2× el timeout** en morir, 
 sin tocarlo, porque `Historial` ya se degradaba ante cualquier excepción y ahora lo hace en 30 s en
 vez de colgar el job.
 
-Lo que **no** se hizo, y con un dato que lo desaconseja: `idle_in_transaction_session_timeout` en el
-rol de la CNPG, que atacaría la causa en vez del síntoma. **La fase 1 de la ingesta no ejecuta ningún
-SQL mientras lista el catálogo** —el bucle sobre `list_catalog()` corre dentro de la transacción ya
-abierta—, así que nuestras pasadas legítimas están `idle in transaction` durante todo el listado:
-36 s medidos en Zara (3957 entradas, 05/08/2026) y minutos en las tiendas lentas. Elegido corto,
-ese timeout mataría pasadas buenas; el valor tendría que salir de medir el listado más largo, no de
-la intuición.
+**La otra mitad —matar a la huérfana en vez de proteger a su víctima— se hizo en #210**, y no donde
+esta sección decía que iría. La idea original era `idle_in_transaction_session_timeout` en el rol de
+la CNPG; el dato que lo impide es que **CNPG no sabe declarar un GUC por rol**: el struct
+`RoleConfiguration` de `api/v1/cluster_types.go` tiene `login`, `superuser`, `connectionLimit`,
+`inRoles`, `validUntil`… y ningún campo para `ALTER ROLE ... SET`. Solo queda
+`postgresql.parameters`, que es de cluster — y esa CNPG la comparten `keycloak_dev`, `platform`,
+`tradingtool-dev` y `tradingtool-qa` además de las dos nuestras.
+
+**Así que va en la conexión, en el mismo `options` que el `lock_timeout`** (`SCRAPER_IDLE_TX_TIMEOUT`,
+3600 s; `0` lo desactiva), y eso no es un apaño por no poder ir al GitOps: **lo aplica el servidor**,
+o sea que la cuenta sigue corriendo cuando el pod ya está muerto, que es el único momento en que
+hace falta. La regla general que deja: *los ajustes de sesión de Postgres de este proyecto se
+declaran en `db.py`, no en ningún repo de manifiestos* — el de la CNPG solo sabe de roles y
+contraseñas. Cubre las sesiones que abre el scraper, las únicas con transacciones largas; una
+huérfana del web o de un `psql` a mano se queda fuera y se sigue diagnosticando por el
+`lock_timeout`.
+
+El valor sale de medir, porque **la fase 1 de la ingesta no ejecuta ningún SQL mientras lista el
+catálogo** —el bucle sobre `list_catalog()` corre dentro de la transacción ya abierta— y un tope por
+debajo del listado más largo mata pasadas buenas por construcción. Recogida la línea
+`listado: N entradas en Xs` de la vuelta completa de QA del 10/08/2026, con 2-3 muestras por tienda:
+springfield **3 s**, cacles 9 s, c-and-a 22-26 s, zara 1m, mango 1-2m, lefties 1-2m, sfera 2m, hm 2m
+y **hipercor 3m** (`duracion()` redondea al minuto: son 2m30s-3m29s). La hora de tope es margen a
+propósito — quedarse corto cuesta una pasada buena y pasarse solo cuesta que la huérfana viva un
+rato más — y **caduca sola**, porque la fase 1 de una tienda de navegador crece con su catálogo.
+
+Y el suelo **no era solo la fase 1**, aunque resultó ser el hueco dominante: lo que manda es el
+intervalo más largo entre dos sentencias SQL dentro de la transacción, y había otros dos candidatos.
+La **fase 2** escribe por ficha y va a 1,0-2,5 s/ficha; el **lote entero de `probe_alive()`** sí
+corre sin SQL entre sondeo y sondeo, hasta 50, pero cabe en los 2m13s que Sfera tarda en todo lo que
+sigue al listado. Medirlos es lo que convierte «la fase 1 es el suelo» en un dato y no en un supuesto.
+
+Una arista al leer un fallo de este tipo (#411): cuando lo que mata la pasada es la pérdida de la
+conexión, el `conn.rollback()` del `except` de `ingest()` falla también y **sustituye al error
+original**, así que en el log aparece `the connection is lost` y no la causa — y `_record_failed_run`
+no llega a correr, o sea que esa pasada no deja fila en `scrape_run`.
 
 ### Dos migradores comparten `schema_migrations` a propósito, y por eso comparten un lock (#298)
 
