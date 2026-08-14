@@ -145,6 +145,13 @@ class IngestResult:
     # —la hoja se listó— pero sacan su ámbito de las bajas igual que una caída, así que cuentan en
     # `unscanned_scopes` de abajo y hay que poder nombrarlas por el mismo motivo que a las caídas.
     empty_filter_leaves: list[str]
+    # Entradas que ha aportado el rescate del residuo (#289) y desglose por hoja (#358). Es un
+    # contador de PRODUCTO, no de hoja, y por eso no suma en `leaves_*` ni en `errors`: nada de
+    # esto es un error, es la cifra que dice si el rescate sigue vivo.
+    residual_entries: int
+    # Hojas con filtro cuyo residuo no aportó NADA. Es la mitad accionable: el total puede bajar
+    # porque la tienda publique menos, pero una hoja concreta a cero es lo que hay que ir a mirar.
+    barren_residual_leaves: list[str]
     unscanned_scopes: int  # ámbitos excluidos de las bajas por una hoja caída o un filtro vacío
     probes_sent: int  # candidatos a baja sondeados (confirmación activa)
     probes_alive: int  # el sondeo los encontró vivos: rescatados, no se dan de baja
@@ -983,6 +990,17 @@ def _success_message(
         de_mas = len(report.empty_filter_leaves) - len(nombradas)
         cola = f" +{de_mas}" if de_mas > 0 else ""
         partes.append(f"hojas sin nada que casara el filtro [{', '.join(nombradas)}{cola}]")
+    # Del residuo entra aquí SOLO la anomalía, nunca la cifra (#358). El rescate aporta decenas de
+    # prendas en todas las pasadas de Zara, así que publicar el total dejaría `message` distinto de
+    # NULL siempre — y eso rompe justo lo que lo hace útil, que la consulta sea
+    # `WHERE message IS NOT NULL` (ver la nota de `errors` unas líneas más abajo). La cifra se
+    # publica en el resumen de `run.py`, que es donde se lee una pasada sana; aquí solo llega la
+    # hoja que ha dejado de aportar, que es lo que hay que poder leer meses después.
+    if report.barren_residual_leaves:
+        nombradas = report.barren_residual_leaves[:_MAX_NAMED_LEAVES]
+        de_mas = len(report.barren_residual_leaves) - len(nombradas)
+        cola = f" +{de_mas}" if de_mas > 0 else ""
+        partes.append(f"hojas sin residuo aprovechable [{', '.join(nombradas)}{cola}]")
     if report.failed_scopes:
         ambitos = sorted(_render_scope(s) for s in report.failed_scopes)
         partes.append(f"ambitos sin bajas: {', '.join(ambitos)}")
@@ -1291,6 +1309,8 @@ def ingest(
             leaves_failed=report.leaves_failed,
             failed_leaves=sorted(report.failed_leaves),
             empty_filter_leaves=sorted(report.empty_filter_leaves),
+            residual_entries=report.residual_entries,
+            barren_residual_leaves=report.barren_residual_leaves,
             unscanned_scopes=len(declared) - len(scanned),
             probes_sent=probe.sent,
             probes_alive=probe.alive,

@@ -31,6 +31,7 @@ from __future__ import annotations
 import random
 import re
 import time
+import unicodedata
 from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
@@ -425,10 +426,59 @@ _FAMILIA_RESIDUAL: dict[str, str] = {
 }
 
 
+# Los rangos de edad que Zara sufija a la familia sin cambiarla. Medido el 14/08/2026 pidiendo las
+# 62 hojas mapeadas (4644 productos, 54 familias distintas): **el único que la tienda usa hoy es
+# `BEBE`, y siempre sin tilde**. No hay `MINI` ni `JUNIOR` ni un `BEBÉ` acentuado en ninguna
+# familia.
+#
+# `NEWBORN` también es un rango de edad y NO está aquí a propósito: Zara lo usa como familia entera
+# (`NEWBORN`, `NEWBORN TRICOT`), no como sufijo, así que recortarlo dejaría la familia en nada.
+#
+# La tupla existe para que sumar un rango sea una línea y no una reescritura: lo que #358 pedía
+# endurecer no es la lista —que se mide— sino el mecanismo, que daba por hecho un literal exacto.
+_RANGOS_DE_EDAD: tuple[str, ...] = ("BEBE",)
+
+
+def _pliega_acentos(texto: str) -> str:
+    """`PANTALÓN` -> `PANTALON`. Mismo idioma que `barefoot._normaliza`, pero en mayúsculas.
+
+    Va en mayúsculas y no en minúsculas porque la taxonomía de Zara lo está, y `_FAMILIA_RESIDUAL`
+    se teclea igual: plegar a la forma en que ya están escritas las claves evita una segunda
+    normalización en el `.get()`.
+    """
+    sin_tildes = unicodedata.normalize("NFKD", texto)
+    return "".join(c for c in sin_tildes if not unicodedata.combining(c))
+
+
 def _familia_base(family_name: Any) -> str:
-    """`PANTALON BEBE` -> `PANTALON`. Zara sufija la familia con el rango de edad, no la cambia."""
-    familia = str(family_name or "").strip().upper()
-    return familia.removesuffix(" BEBE").strip()
+    """`PANTALON BEBE` -> `PANTALON`. Zara sufija la familia con el rango de edad, no la cambia.
+
+    Nació como un `removesuffix(" BEBE")` literal, y eso era una regresión esperando a pasar
+    (#358): si Zara rotulara `PANTALÓN BEBÉ` con tildes, `_FAMILIA_RESIDUAL.get()` devolvería
+    `None`, el residuo se descartaría entero y **nadie se enteraría** — es justo el síntoma que
+    abrió #289, con `last_seen_at` congelado en prendas vivas.
+
+    Dos cosas que el literal daba por supuestas y aquí no se suponen:
+
+    - **La tilde.** Se pliegan los acentos antes de comparar, así que la rotulación acentuada entra
+      igual. Es la mitad que de verdad protege: es el cambio más probable y el más silencioso.
+    - **El espacio.** Zara no siempre separa con uno: `PRENDA EXT.BEBE` y `BRAGA/CALZONC.BEBE`
+      existen hoy y llevan punto (medidos el 14/08/2026). Vale cualquier separador no alfanumérico,
+      pero **tiene que haber uno**: sin esa condición una familia hipotética acabada en las mismas
+      letras se recortaría sola, y eso sí inventaría una categoría.
+
+    Que hoy no cambie ni un producto es el resultado correcto y está comprobado: las 54 familias
+    reales dan exactamente la misma base que antes. Esto es una red, no un arreglo.
+    """
+    familia = _pliega_acentos(str(family_name or "")).strip().upper()
+    for rango in _RANGOS_DE_EDAD:
+        if familia == rango:
+            break  # la familia ES el rango de edad, no lo lleva de sufijo (`NEWBORN`)
+        if familia.endswith(rango):
+            resto = familia[: -len(rango)]
+            if resto and not resto[-1].isalnum():
+                return resto.rstrip(" .-/").strip()
+    return familia
 
 
 def parse_listing_leftovers(
@@ -688,7 +738,13 @@ class ZaraStore:
         # Residuo de las hojas-lookbook, que se emite al final y solo si nadie lo ha reclamado
         # (#289). Va aparte y no en el bucle porque las hojas de conjunto van DELANTE: en el
         # momento de leerlas todavía no se sabe si su pantalón entrará por la hoja de pantalones.
-        sobrantes: list[ListingEntry] = []
+        # Lleva la hoja de la que salió cada sobrante, y no es decorativo: lo que hay que publicar
+        # (#358) es cuánto aporta CADA hoja, y eso solo se sabe después del cruce contra `emitted`,
+        # cuando `cat` ya no está a la vista. Sin el par, el contador solo podría dar un total.
+        sobrantes: list[tuple[str, ListingEntry]] = []
+        # Hoja con filtro -> entradas que su residuo acaba aportando (#358). Se rellena a cero en
+        # cuanto la hoja se lista y se incrementa abajo, ya con `emitted` completo.
+        residuo_por_hoja: dict[str, int] = {}
         declarados = list(self.scopes())
         with self._client() as client:
             for cat in self._categories:
@@ -707,17 +763,32 @@ class ZaraStore:
                 # Ver `ScanReport.filtro_vacio()`.
                 if cat.filtro is not None and not entradas:
                     self._scan.filtro_vacio(scope, str(cat.category_id))
-                sobrantes.extend(parse_listing_leftovers(listing, cat, declarados))
+                hoja = str(cat.category_id)
+                if cat.filtro is not None:
+                    # Se apunta la hoja ANTES de saber si aporta algo. Si solo se apuntaran las que
+                    # aportan, una hoja cuyo residuo se ha ido a cero desaparecería del informe en
+                    # vez de salir marcada — justo el silencio que #358 viene a romper.
+                    residuo_por_hoja.setdefault(hoja, 0)
+                sobrantes.extend(
+                    (hoja, e) for e in parse_listing_leftovers(listing, cat, declarados)
+                )
                 for entry in entradas:
                     if entry.retailer_product_id not in emitted:
                         emitted.add(entry.retailer_product_id)
                         yield entry
         # Lo que solo publica una hoja-lookbook, ya sin riesgo de quitarle el hueco a nadie: a
         # estas alturas `emitted` tiene todo lo que reclamaron las hojas. Ver la función.
-        for entry in sobrantes:
+        #
+        # Se cuenta aquí, y no arriba al parsear, porque lo que interesa publicar es lo que el
+        # residuo APORTA de verdad: una prenda que otra hoja ya había reclamado no la aporta este
+        # mecanismo, aunque su lookbook la traiga (#358).
+        for hoja, entry in sobrantes:
             if entry.retailer_product_id not in emitted:
                 emitted.add(entry.retailer_product_id)
+                residuo_por_hoja[hoja] += 1
                 yield entry
+        for hoja, n in residuo_por_hoja.items():
+            self._scan.residuo(hoja, n)
 
     def scan_report(self) -> ScanReport:
         """Ver `stores.base.SupportsScanReport` (válido con `list_catalog()` ya consumido)."""

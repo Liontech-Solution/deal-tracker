@@ -18,7 +18,14 @@ peticiones de esas tiendas van por aquí:
 
 Los dos últimos comparten transporte (`page.request`) y por tanto comparten una letra pequeña:
 las cookies y el fingerprint son los del navegador, pero `route()` no los intercepta, así que
-`bloquear()` y `descartar_recursos()` solo gobiernan lo que se navega.
+`descartar_recursos()` solo gobierna lo que se navega.
+
+El veto de `bloquear()` era hasta #282 la otra mitad de esa letra pequeña, y ya no lo es: la sesión
+guarda sus patrones y los dos caminos por `page.request` los comprueban a mano, sobre la URL pedida
+y sobre la final tras redirecciones. El motivo de que hiciera falta es que el veto de Hipercor no es
+una optimización sino **cumplimiento** de su `robots.txt`, y se estaba cumpliendo por construcción
+—ninguna URL nuestra cae bajo `/api`— en vez de por el filtro. Lo que no controlábamos era que
+redirigiera la tienda.
 
 Los tres reintentan **también cuando la navegación no llega a completarse** (timeout, `net::ERR_*`)
 y elevan `BrowserUnreachable` al agotar los intentos. No es un detalle: en una tienda que va por
@@ -35,6 +42,7 @@ import contextlib
 import random
 import time
 from collections.abc import Collection
+from fnmatch import fnmatch
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
 
@@ -98,6 +106,33 @@ class BrowserUnreachable(RuntimeError):
         self.url = url
 
 
+class RutaVetada(RuntimeError):
+    """La petición ha acabado en una ruta que `bloquear()` prohíbe (#282).
+
+    Tercera hermana de `BrowserHTTPError` y `BrowserUnreachable`, y con la misma razón de ser:
+    quien llama ramifica por tipo de excepción, así que esto **no puede** llegarle disfrazado de
+    fallo de red. No lo es. Es un incumplimiento del `robots.txt` de la tienda, y la respuesta
+    correcta no es reintentar ni dar la hoja por retirada, sino parar y que lo mire una persona.
+
+    Se eleva en dos momentos distintos y conviene no confundirlos:
+
+    - **Antes de pedir**, si la URL que construyó la tienda ya cae bajo un patrón vetado. Ahí sí
+      es prevención: la petición no llega a salir.
+    - **Después de pedir**, si una redirección ha llevado la petición a una ruta vetada. Ahí la
+      petición **ya se ha hecho** y no hay forma de deshacerla; lo que se garantiza es que el
+      cuerpo no se parsea, no se guarda, y que la pasada se pone roja en vez de seguir callada.
+    """
+
+    def __init__(self, url: str, patron: str, *, pedida: str | None = None) -> None:
+        detalle = f"GET {url} cae bajo el patrón vetado {patron!r}"
+        if pedida is not None and pedida != url:
+            detalle += f" (se pidió {pedida}, redirigió)"
+        super().__init__(detalle)
+        self.url = url
+        self.patron = patron
+        self.pedida = pedida if pedida is not None else url
+
+
 class BrowserSession:
     """Context manager que abre un Chromium con perfil realista y lo cierra al salir."""
 
@@ -111,6 +146,11 @@ class BrowserSession:
         # abrir el navegador y no al importar el módulo, para no romper el import perezoso que
         # documenta la cabecera: los tests de parseo no deben necesitar Playwright instalado.
         self._pw_error: type[BaseException] = Exception
+        # Patrones que `bloquear()` ha prohibido. Antes vivían SOLO dentro de la tabla de rutas de
+        # Playwright, que es lo que dejaba el veto a un lado y a nadie al otro (#282): `route()` no
+        # intercepta `page.request`, así que `pedir_html()` y `get_json()` no sabían nada de él.
+        # Teniéndolos aquí, el veto lo conoce la sesión y vale para los dos transportes.
+        self._vetados: list[str] = []
 
     def __enter__(self) -> BrowserSession:
         from playwright.sync_api import Error as PlaywrightError
@@ -193,9 +233,38 @@ class BrowserSession:
         intención: en Hipercor `/api` está vetado, y una página puede pedirlo al hidratarse sin
         que el scraper lo escriba en ninguna URL. Bloqueándolo aquí, si alguna vez el dato
         dependiera de esa ruta, la pasada se quedaría sin él —visible— en vez de colarse.
+
+        **El patrón se guarda además en la sesión**, y no es un detalle de implementación (#282):
+        `route()` solo gobierna lo que se navega, así que durante un tiempo el veto se cumplió en
+        `pedir_html()` y `get_json()` **por construcción y no por el filtro** — ninguna URL que
+        escribimos cae bajo `/api`, y una página que no se renderiza no pide nada por su cuenta.
+        Eso deja fuera el único caso que no controlamos: una redirección de la tienda. Guardándolo
+        aquí, los dos transportes comprueban lo mismo.
         """
         assert self._page is not None, "usar dentro del context manager"
+        # Primero la lista y después la ruta: así el veto queda registrado aunque `route()` falle,
+        # y —lo que importa más— un doble de `Page` que no implemente `route()` sigue pudiendo
+        # ejercer la comprobación en los tests.
+        self._vetados.append(patron)
         self._page.route(patron, lambda route: route.abort())
+
+    def _comprobar_veto(self, url: str, *, pedida: str | None = None) -> None:
+        """Eleva `RutaVetada` si `url` cae bajo alguno de los patrones de `bloquear()`.
+
+        El emparejado va con `fnmatch` de la stdlib y **no** con el conversor glob interno de
+        Playwright (`playwright._impl._helper.glob_to_regex_pattern`), que existe y haría lo mismo.
+        Es deliberado: este repo ya paga el precio de depender de un interno en `scraper/tls.py`
+        —el arreglo del 429 de Cacles se apoya en httpcore y una subida de versión lo rompe de una
+        forma que no se lee como lo que es—, y no hace falta repetirlo aquí.
+
+        Comprobados los dos sobre `**/api/**` con las URLs reales de Hipercor, **coinciden**,
+        incluido que ninguno casa `…/api` sin barra final. Esa coincidencia es la condición de que
+        esto sirva: lo que se comprueba aquí tiene que ser exactamente lo que `route()` bloquea, ni
+        más ni menos, o el veto pasaría a significar dos cosas distintas según el transporte.
+        """
+        for patron in self._vetados:
+            if fnmatch(url, patron):
+                raise RutaVetada(url, patron, pedida=pedida)
 
     def descartar_recursos(self, tipos: Collection[str]) -> None:
         """Aborta los tipos de recurso indicados (`image`, `font`, `stylesheet`, `media`…).
@@ -288,12 +357,19 @@ class BrowserSession:
         tiene que sembrar antes con un `goto()`. Es el mismo motivo por el que existe `goto()`.
 
         Ojo a lo que este camino **no** hace: `route()` no intercepta las peticiones de
-        `page.request`, así que ni `bloquear()` ni `descartar_recursos()` se aplican aquí. No es un
-        agujero en el veto del `robots.txt` —esto pide la URL que se le pasa y ninguna más, y una
-        página que no se renderiza no puede pedir nada por su cuenta—, pero conviene saberlo antes
-        de dar por hecho que un patrón bloqueado protege también a este camino.
+        `page.request`, así que `descartar_recursos()` no se aplica aquí. El veto de `bloquear()`
+        **sí**, desde #282, pero por otra vía: la sesión guarda sus patrones y aquí se comprueban a
+        mano, sobre la URL pedida y sobre `resp.url`, que es la **final** tras redirecciones.
+
+        Esa segunda comprobación es la que justifica el cambio, y conviene ser exacto sobre lo que
+        da: `page.request` sigue las redirecciones de forma transparente, así que cuando se detecta
+        que la última cayó en una ruta vetada **la petición ya se ha hecho**. Esto no la previene;
+        garantiza que su contenido no se parsea ni se guarda y que la pasada se para. Prevenirlo
+        del todo pedía `max_redirects=0`, que Playwright ofrece pero **elevando** ante cualquier
+        30x — y una canonicalización de barra final tumbaría la pasada por nada.
         """
         assert self._page is not None, "usar dentro del context manager"
+        self._comprobar_veto(url)
         retries = self._config.request_retries
         timeout_ms = self._config.browser_nav_timeout * 1000
         for attempt in range(retries + 1):
@@ -305,6 +381,9 @@ class BrowserSession:
                     raise BrowserUnreachable(url, exc) from exc
                 self._backoff(attempt)
                 continue
+            # Antes de mirar el status: si la redirección nos ha llevado a una ruta vetada, no hay
+            # respuesta que valga la pena leer, ni siquiera para reintentarla.
+            self._comprobar_veto(resp.url, pedida=url)
             if resp.status not in _RETRYABLE_STATUS or attempt == retries:
                 return resp.status, (resp.text() if resp.ok else "")
             self._backoff(attempt)
@@ -316,8 +395,15 @@ class BrowserSession:
         Un fallo de red se reintenta como un 5xx y, agotados los intentos, eleva
         `BrowserUnreachable`: es «no he podido verlo», no «ya no está», y esa distinción es la que
         impide que un timeout acabe en bajas falsas.
+
+        Comparte transporte con `pedir_html()` y por tanto comparte su veto de rutas (#282). Hoy
+        eso no cambia nada para nadie —Sfera y Lefties son las únicas que entran por aquí y ninguna
+        llama a `bloquear()`, así que su lista de vetados está vacía—, y entra igual: la asimetría
+        que la issue señala es del transporte, no de una tienda, y arreglarla solo en el camino que
+        hoy duele la dejaría esperando a la siguiente conversión.
         """
         assert self._page is not None, "usar dentro del context manager"
+        self._comprobar_veto(url)
         retries = self._config.request_retries
         timeout_ms = self._config.browser_nav_timeout * 1000
         for attempt in range(retries + 1):
@@ -329,6 +415,7 @@ class BrowserSession:
                     raise BrowserUnreachable(url, exc) from exc
                 self._backoff(attempt)
                 continue
+            self._comprobar_veto(resp.url, pedida=url)
             if resp.ok:
                 return resp.json()
             if resp.status not in _RETRYABLE_STATUS or attempt == retries:

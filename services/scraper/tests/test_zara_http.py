@@ -13,7 +13,7 @@ import pytest
 
 from scraper.config import Config
 from scraper.stores.base import ScrapeScope
-from scraper.stores.zara import CategoryConfig, ZaraStore
+from scraper.stores.zara import _SOLO_CONJUNTOS, CategoryConfig, ZaraStore
 
 # Sin esperas reales: delay y backoff a 0 -> el test es instantáneo.
 _CFG = Config(database_url="x", request_delay=0.0, request_retries=3, retry_backoff=0.0)
@@ -176,6 +176,168 @@ def test_relistar_no_acumula_hojas_del_recorrido_anterior() -> None:
     list(store.list_catalog())
 
     assert store.scan_report().leaves_total == 3
+
+
+# --- #358 El rescate del residuo tiene que decir cuánto aporta ----------------------------------
+#
+# El arreglo de #289 recupera decenas de prendas por pasada y podía dejar de hacerlo **sin que
+# nada se pusiera rojo**: la hoja sigue respondiendo 200, su filtro sigue casando —así que
+# `filtro_vacio()` no salta— y lo único que cambia es cuántos de sus productos sabemos clasificar.
+
+
+def _nodo(pid: str, familia: str, nombre: str = "") -> dict[str, Any]:
+    return {
+        "seo": {"discernProductId": pid},
+        "familyName": familia,
+        "name": nombre or familia,
+        "detail": {"colors": [{"id": "c1", "price": 1995}]},
+    }
+
+
+def _listing_de(*nodos: dict[str, Any]) -> dict[str, Any]:
+    return {"productGroups": [{"elements": list(nodos)}]}
+
+
+def _store_lookbook(listings: dict[int, dict[str, Any]], categorias: list[Any]) -> ZaraStore:
+    """Tienda con un listado a medida por hoja, para poder fabricar el residuo."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        cat_id = int(request.url.path.split("/category/")[1].split("/")[0])
+        return httpx.Response(200, json=listings[cat_id])
+
+    store = ZaraStore(_CFG, categories=categorias)
+    store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
+    return store
+
+
+# Una hoja-lookbook de conjuntos (con filtro) y la hoja propia de pantalones, en ese orden: es el
+# orden real, y es lo que hace que el residuo se emita al final y no le quite el hueco a nadie.
+_LOOKBOOK = CategoryConfig(444, "niña", "ropa", "conjuntos", filtro=_SOLO_CONJUNTOS)
+_PANTALONES = CategoryConfig(555, "niña", "ropa", "pantalones")
+
+
+def test_el_residuo_publica_cuanto_aporta_por_hoja() -> None:
+    """Dos pantalones que solo salen en el lookbook: los rescata y lo dice."""
+    store = _store_lookbook(
+        {
+            444: _listing_de(
+                _nodo("c1", "CONJUNTO"),
+                _nodo("p1", "PANTALON BEBE"),
+                _nodo("p2", "PANTALON"),
+            ),
+            555: _listing_de(_nodo("p9", "PANTALON")),
+        },
+        [_LOOKBOOK, _PANTALONES],
+    )
+
+    ids = [e.retailer_product_id for e in store.list_catalog()]
+    report = store.scan_report()
+
+    assert ids == ["c1", "p9", "p1", "p2"], "el residuo va al final, después de las hojas propias"
+    assert report.residual_by_leaf == {"444": 2}
+    assert report.residual_entries == 2
+    assert report.barren_residual_leaves == []
+
+
+def test_solo_cuenta_lo_que_el_residuo_APORTA_no_lo_que_parsea() -> None:
+    """Una prenda que ya reclamó su hoja propia no la aporta esto, aunque el lookbook la traiga.
+
+    Es la diferencia entre contar en la hoja y contar tras el cruce contra `emitted`, y es la que
+    hace que la cifra no se infle: sumar lo parseado contaría dos veces al que sale en dos sitios.
+    """
+    store = _store_lookbook(
+        {
+            444: _listing_de(_nodo("c1", "CONJUNTO"), _nodo("p9", "PANTALON")),
+            555: _listing_de(_nodo("p9", "PANTALON")),
+        },
+        [_LOOKBOOK, _PANTALONES],
+    )
+
+    list(store.list_catalog())
+
+    assert store.scan_report().residual_by_leaf == {"444": 0}
+
+
+def test_una_hoja_con_filtro_que_deja_de_aportar_sale_marcada() -> None:
+    """El modo de fallo entero de #358, en un test: Zara re-rotula y el rescate se va a cero.
+
+    `PANTALON BEBÉ` con tilde entra igual desde el endurecimiento de `_familia_base()`, así que
+    para simular la rotura hace falta una familia que de verdad no conozcamos. Lo que importa es
+    que la hoja responde 200 y su filtro SÍ casa —el conjunto entra— o sea que ninguna de las redes
+    que ya existían se enteraría.
+    """
+    store = _store_lookbook(
+        {
+            444: _listing_de(_nodo("c1", "CONJUNTO"), _nodo("x1", "PANTALONCITO DE VERANO")),
+            555: _listing_de(_nodo("p9", "PANTALON")),
+        },
+        [_LOOKBOOK, _PANTALONES],
+    )
+
+    list(store.list_catalog())
+    report = store.scan_report()
+
+    assert report.residual_by_leaf == {"444": 0}
+    assert report.barren_residual_leaves == ["444"]
+    # Y ninguna de las redes anteriores lo habría visto:
+    assert report.empty_filter_leaves == [], "el filtro casó: el conjunto entró"
+    assert (report.leaves_total, report.leaves_failed) == (2, 0)
+    assert report.failed_scopes == set(), "una hoja sin residuo NO sale de las bajas (#358)"
+
+
+def test_las_hojas_sin_filtro_no_entran_en_el_contador() -> None:
+    """Solo las hojas con `FiltroDeHoja` tienen residuo; las demás llenarían esto de ceros."""
+    store = _catalog_store({111: 200, 222: 200, 333: 200})
+
+    list(store.list_catalog())
+
+    assert store.scan_report().residual_by_leaf == {}
+    assert store.scan_report().barren_residual_leaves == []
+
+
+def test_una_hoja_con_filtro_caida_no_se_siembra_en_el_residuo() -> None:
+    """«No aportó nada» y «no se pudo ni mirar» son señales distintas y llevan a sitios distintos.
+
+    Una hoja retirada ya tiene la suya —`failed_leaves`, `dead_ratio`— y manda ir al árbol de
+    categorías a buscar el id nuevo. Colarla además en `barren_residual_leaves` mandaría a mirar
+    `_FAMILIA_RESIDUAL`, que no tiene nada que ver, y diluiría la única señal que #358 añade.
+
+    Hoy sale bien porque el `continue` de la hoja caída corta antes de la siembra. Esto lo fija:
+    subir el `setdefault` por encima del `try` es justo el refactor que lo rompería sin ruido.
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        cat_id = int(request.url.path.split("/category/")[1].split("/")[0])
+        if cat_id == 444:
+            return httpx.Response(404, text="nope")
+        return httpx.Response(200, json=_listing_de(_nodo("p9", "PANTALON")))
+
+    store = ZaraStore(_CFG, categories=[_LOOKBOOK, _PANTALONES])
+    store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
+
+    list(store.list_catalog())
+    report = store.scan_report()
+
+    assert report.residual_by_leaf == {}, "la hoja caída no se siembra"
+    assert report.barren_residual_leaves == []
+    # Y la señal que sí le toca sigue en su sitio.
+    assert report.failed_leaves == ["444"]
+    assert (report.leaves_total, report.leaves_failed) == (2, 1)
+
+
+def test_relistar_no_acumula_el_residuo_del_recorrido_anterior() -> None:
+    store = _store_lookbook(
+        {
+            444: _listing_de(_nodo("c1", "CONJUNTO"), _nodo("p1", "PANTALON")),
+            555: _listing_de(_nodo("p9", "PANTALON")),
+        },
+        [_LOOKBOOK, _PANTALONES],
+    )
+
+    list(store.list_catalog())
+    list(store.list_catalog())
+
+    assert store.scan_report().residual_by_leaf == {"444": 1}
 
 
 # --- #41 Chequeo preventivo de las hojas (`--check-categories`) -----------------------------

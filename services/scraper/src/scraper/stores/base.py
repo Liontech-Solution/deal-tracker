@@ -292,6 +292,21 @@ class ScanReport:
     # hoja respondió. Lo que comparten es la consecuencia, que su ámbito sale de las bajas — ver
     # `filtro_vacio()`.
     empty_filter_leaves: list[str] = field(default_factory=list)
+    # Cuántas entradas ha APORTADO el residuo de cada hoja con filtro (#358). Es el primer contador
+    # de PRODUCTO en un informe que hasta ahora solo contaba hojas, y existe porque el rescate de
+    # #289 podía dejar de funcionar sin que nada se pusiera rojo: la hoja sigue respondiendo 200, su
+    # filtro sigue casando —así que `filtro_vacio()` no salta— y lo único que cambia es cuántos de
+    # sus productos sabemos clasificar. El número bajaría de decenas a cero en silencio.
+    #
+    # Se anota **lo aportado, no lo parseado**: `parse_listing_leftovers()` deduplica dentro de una
+    # hoja pero no entre hojas, así que sumar lo parseado contaría dos veces al producto que sale en
+    # dos lookbooks. Lo aportado es lo que de verdad entra al catálogo, medido tras el cruce contra
+    # `emitted`.
+    #
+    # Va en un `dict` y no en un contador suelto porque el dato accionable es CUÁL hoja dejó de
+    # aportar, por el mismo motivo que `failed_leaves` nació nombrando hojas (#151, #155): «el
+    # residuo bajó a 0» no dice a qué lookbook hay que ir a mirar.
+    residual_by_leaf: dict[str, int] = field(default_factory=dict)
 
     def leaf_ok(self) -> None:
         """Registra una hoja listada con éxito."""
@@ -351,6 +366,35 @@ class ScanReport:
         """
         self.failed_scopes.add(scope)
         self.empty_filter_leaves.append(leaf)
+
+    def residuo(self, leaf: str, aportado: int) -> None:
+        """Registra cuántas entradas aportó el residuo de una hoja con filtro (#358).
+
+        Lo llama la tienda **al final de la pasada**, cuando ya se sabe qué prendas del residuo
+        nadie más había reclamado. Se anota siempre, también con `aportado=0`: el cero es el dato
+        interesante —es la forma que tiene este contador de avisar de que el rescate se ha roto— y
+        una hoja que no aparece en el `dict` no se distingue de una que aportó nada.
+
+        **No toca `failed_scopes` a propósito**, y esa es la diferencia con `filtro_vacio()`. Que
+        un lookbook no tenga residuo clasificable es un estado legítimo —puede que hoy no le quede
+        nada fuera de sus conjuntos—, así que sacar su ámbito de las bajas por eso metería falsos
+        positivos en el camino más delicado del scraper. Lo que faltaba aquí era la señal, no una
+        red nueva: se publica y lo mira una persona (#358, segunda casilla).
+
+        Tampoco cuenta como hoja ni suma en `leaves_failed`, por el mismo motivo que
+        `filtro_vacio()`: inflaría `dead_ratio` y dispararía `SCRAPER_SCAN_MAX_DEAD_RATIO`.
+        """
+        self.residual_by_leaf[leaf] = aportado
+
+    @property
+    def residual_entries(self) -> int:
+        """Total de entradas aportadas por el residuo en toda la pasada."""
+        return sum(self.residual_by_leaf.values())
+
+    @property
+    def barren_residual_leaves(self) -> list[str]:
+        """Hojas con filtro cuyo residuo no aportó nada: la señal de que el rescate se rompió."""
+        return sorted(leaf for leaf, n in self.residual_by_leaf.items() if not n)
 
     @property
     def dead_ratio(self) -> float:

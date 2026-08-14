@@ -47,6 +47,7 @@ from scraper.stores.base import DelistCandidate, ScrapeScope
 from scraper.stores.browser import BrowserUnreachable
 from scraper.stores.hipercor import (
     _MAX_FICHAS_FALLIDAS,
+    _RUTA_VETADA,
     BASE_URL,
     CATEGORIES,
     CategoryConfig,
@@ -821,6 +822,24 @@ def test_se_siembran_las_cookies_antes_de_pedir_la_primera_ficha() -> None:
     entradas = [e for e in tienda.list_catalog() if e.retailer_product_id == "A56615356"]
     assert sesion.sembrada, "la siembra va al abrir la sesión, antes de pedir nada"
     assert list(tienda.fetch_details(entradas)), "con la siembra hecha, la ficha entra"
+
+
+def test_la_pasada_veta_la_ruta_que_prohibe_el_robots_txt() -> None:
+    """El `Disallow: /api` tiene que llegar a `bloquear()`, y hasta ahora nada lo comprobaba.
+
+    `SesionFalsa` ya apuntaba los patrones en `bloqueados` desde que existe, pero ningún test los
+    miraba: se podía borrar el `bloquear(_RUTA_VETADA)` de `_preparar()` y toda la suite seguía en
+    verde. Y ese veto no es una optimización — es de dónde sale el diseño entero de este scraper,
+    que entra por las páginas SSR justo porque no puede entrar por la API.
+    """
+    cat = _VESTIDOS
+    respuestas = _respuestas_de_hoja(cat, ["hipercor_rejilla_nina_vestidos.html"])
+    tienda = _tienda(respuestas, [cat])
+    sesion = tienda._session_factory()
+
+    list(tienda.list_catalog())
+
+    assert _RUTA_VETADA in sesion.bloqueados
 
 
 def test_la_rejilla_tampoco_se_renderiza() -> None:

@@ -1576,6 +1576,63 @@ def test_el_mensaje_de_la_pasada_nombra_la_hoja_con_el_filtro_vacio() -> None:
     assert "niño/ropa/conjuntos" in mensaje
 
 
+def test_el_residuo_no_saca_el_ambito_de_las_bajas_ni_cuenta_como_hoja() -> None:
+    """La decisión conservadora de #358: una hoja sin residuo se publica, no cambia comportamiento.
+
+    Que un lookbook no tenga residuo clasificable es un estado legítimo —puede que hoy no le quede
+    nada fuera de sus conjuntos—, así que sacar su ámbito de las bajas por eso metería falsos
+    positivos en el camino más delicado del scraper. Lo que faltaba era la señal, no una red nueva.
+    """
+    report = ScanReport()
+    for _ in range(4):
+        report.leaf_ok()
+    report.residuo("2622124", 0)
+
+    assert report.barren_residual_leaves == ["2622124"]
+    assert report.residual_entries == 0
+    # Y nada más se mueve: ni bajas, ni `dead_ratio`, ni la lista de hojas caídas.
+    assert report.failed_scopes == set()
+    assert (report.leaves_total, report.leaves_failed) == (4, 0)
+    assert report.failed_leaves == []
+    assert report.dead_ratio == 0.0
+
+
+def test_el_residuo_suma_por_hojas_y_solo_marca_las_secas() -> None:
+    report = ScanReport()
+    report.residuo("2622124", 25)
+    report.residuo("2428167", 16)
+    report.residuo("2426354", 0)
+
+    assert report.residual_entries == 41
+    assert report.barren_residual_leaves == ["2426354"]
+
+
+def test_el_mensaje_nombra_la_hoja_que_ha_dejado_de_aportar_residuo() -> None:
+    """Sobrevive al reciclado del log del pod, que es donde se lee meses después (#358)."""
+    report = ScanReport()
+    report.leaf_ok()
+    report.residuo("2622124", 0)
+
+    mensaje = _success_message(report, suspicious=set())
+
+    assert mensaje is not None
+    assert "2622124" in mensaje
+
+
+def test_el_mensaje_NO_publica_la_cifra_del_residuo_cuando_todo_va_bien() -> None:
+    """El contrato que hace útil `WHERE message IS NOT NULL`, y que el residuo podía romper.
+
+    El rescate aporta decenas de prendas en TODAS las pasadas de Zara: publicar el total aquí
+    dejaría `message` distinto de NULL siempre, y entonces la consulta que sirve para encontrar las
+    pasadas con algo que contar dejaría de distinguir nada. La cifra va al resumen de `run.py`.
+    """
+    report = ScanReport()
+    report.leaf_ok()
+    report.residuo("2622124", 25)
+
+    assert _success_message(report, suspicious=set()) is None
+
+
 def test_una_tienda_que_no_colapsa_generos_no_marca_nada() -> None:
     """`tambien_unisex` es lo que distingue a las cuatro tiendas que cruzan de las otras cinco."""
     report = ScanReport()
@@ -1714,6 +1771,45 @@ def test_una_pasada_limpia_deja_el_mensaje_a_null(db_conn: Any) -> None:
 
     assert _scalar(db_conn, "SELECT message FROM scrape_run ORDER BY id DESC LIMIT 1") is None
     assert _scalar(db_conn, "SELECT status FROM scrape_run ORDER BY id DESC LIMIT 1") == "success"
+
+
+def test_la_hoja_sin_residuo_llega_hasta_scrape_run_message(db_conn: Any) -> None:
+    """De punta a punta: `ScanReport` -> `_success_message` -> la fila de la pasada (#358).
+
+    La pasada sale `success` —una hoja sin residuo no la tumba, y por eso pasaba inadvertida— así
+    que el único sitio donde queda escrito es este, que es el que sobrevive al log del pod.
+    """
+    products, sigs = _dos_ambitos()
+    ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
+
+    report = ScanReport(leaves_total=4)
+    report.residuo("2622124", 0)
+    report.residuo("2428167", 16)
+    store = ScanningFakeStore([], signatures={}, report=report, scopes=[_CAMISETAS, _ZAPATOS])
+    result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    assert _scalar(db_conn, "SELECT status FROM scrape_run ORDER BY id DESC LIMIT 1") == "success"
+    message = _scalar(db_conn, "SELECT message FROM scrape_run ORDER BY id DESC LIMIT 1")
+    assert message is not None
+    assert "2622124" in message, "la hoja seca, que es lo accionable"
+    assert "2428167" not in message, "la que aporta no ensucia el mensaje"
+    # El total sí viaja en el resultado, que es lo que imprime el resumen de `run.py`.
+    assert result.residual_entries == 16
+    assert result.barren_residual_leaves == ["2622124"]
+
+
+def test_un_residuo_sano_no_ensucia_el_mensaje_de_la_pasada(db_conn: Any) -> None:
+    """El simétrico, y el que protege el contrato: con el rescate vivo, `message` sigue NULL."""
+    products, sigs = _dos_ambitos()
+    ingest(db_conn, FakeStore(products, signatures=sigs), run_ts=T1)
+
+    report = ScanReport(leaves_total=4)
+    report.residuo("2622124", 25)
+    store = ScanningFakeStore([], signatures={}, report=report, scopes=[_CAMISETAS, _ZAPATOS])
+    result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    assert _scalar(db_conn, "SELECT message FROM scrape_run ORDER BY id DESC LIMIT 1") is None
+    assert result.residual_entries == 25
 
 
 def test_una_hoja_caida_sin_ruta_sigue_contando_aunque_no_se_pueda_nombrar(db_conn: Any) -> None:

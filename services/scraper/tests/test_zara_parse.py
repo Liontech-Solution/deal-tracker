@@ -12,9 +12,11 @@ from scraper.config import Config
 from scraper.ingest import _discount_pct
 from scraper.stores.base import ScrapedImage, ScrapeScope
 from scraper.stores.zara import (
+    _FAMILIA_RESIDUAL,
     CATEGORIES,
     CategoryConfig,
     ZaraStore,
+    _familia_base,
     parse_category_tree,
     parse_detail_product,
     parse_listing_entries,
@@ -626,3 +628,90 @@ def test_el_arbol_se_pide_una_sola_vez_por_instancia() -> None:
     list(store.mapped_leaves())
 
     assert llamadas == 1
+
+
+# --- `_familia_base()`: la red de #358 ----------------------------------------------------------
+#
+# Todo esto protege una sola cosa: que el residuo de #289 no se caiga a cero en silencio porque
+# Zara re-rotule una familia. La lista de sufijos NO se adivina — se midió el 14/08/2026 pidiendo
+# las 62 hojas mapeadas (4644 productos, 54 familias distintas) y el único que la tienda usa es
+# `BEBE`, sin tilde. Lo que se endurece es el mecanismo, que daba por hecho un literal exacto.
+
+
+def test_familia_base_sigue_recortando_el_sufijo_de_siempre() -> None:
+    assert _familia_base("PANTALON BEBE") == "PANTALON"
+    assert _familia_base("PANTALON") == "PANTALON"
+    assert _familia_base("  jersey   bebe  ") == "JERSEY"
+
+
+def test_familia_base_aguanta_la_tilde_que_hoy_no_existe() -> None:
+    """El cambio más probable y el más silencioso: `PANTALÓN BEBÉ` devolvía `None` y se perdían 48.
+
+    Hoy Zara no acentúa ninguna familia —medido—, así que esto no arregla nada: es la red. Que el
+    test pase antes de que ocurra es justo el punto.
+    """
+    assert _familia_base("PANTALÓN BEBÉ") == "PANTALON"
+    assert _familia_base("JERSEY BEBÉ") == "JERSEY"
+    assert _FAMILIA_RESIDUAL[_familia_base("PANTALÓN BEBÉ")] == "pantalones"
+
+
+def test_familia_base_no_da_por_hecho_el_espacio() -> None:
+    """Zara ya rotula sin espacio: `PRENDA EXT.BEBE` y `BRAGA/CALZONC.BEBE` existen hoy.
+
+    Las dos siguen fuera del catálogo porque su base tampoco está en `_FAMILIA_RESIDUAL` —son
+    accesorio y ropa interior de bebé, declaradas fuera— pero demuestran que el separador no
+    siempre es un espacio, y el literal viejo se lo tragaba entero.
+    """
+    assert _familia_base("PRENDA EXT.BEBE") == "PRENDA EXT"
+    assert _familia_base("BRAGA/CALZONC.BEBE") == "BRAGA/CALZONC"
+    assert _familia_base("PANTALON.BEBE") == "PANTALON"
+    assert _familia_base("PANTALON-BEBE") == "PANTALON"
+
+
+def test_familia_base_no_recorta_sin_separador_ni_cuando_la_familia_ES_el_rango() -> None:
+    """La mitad conservadora: recortar de más inventaría una categoría, que es peor que perder una.
+
+    `NEWBORN` es un rango de edad que Zara usa como familia entera (`NEWBORN`, `NEWBORN TRICOT`),
+    no como sufijo — por eso no está en `_RANGOS_DE_EDAD`. Y una familia acabada en las mismas
+    letras sin separador no se toca.
+    """
+    assert _familia_base("NEWBORN") == "NEWBORN"
+    assert _familia_base("NEWBORN TRICOT") == "NEWBORN TRICOT"
+    assert _familia_base("BEBE") == "BEBE"
+    assert _familia_base("XBEBE") == "XBEBE"
+
+
+def test_familia_base_no_mueve_ni_un_producto_de_los_de_hoy() -> None:
+    """Endurecer no puede recategorizar nada, y esto lo fija contra las familias reales medidas.
+
+    Son las 54 que devolvieron las 62 hojas el 14/08/2026. Lo que se compara es el **destino** en
+    el catálogo, no la base: `PRENDA EXT.BEBE` cambia de base y sigue descartándose igual.
+    """
+    for familia, destino in [
+        ("PANTALON", "pantalones"),
+        ("PANTALON BEBE", "pantalones"),
+        ("LEGGINGS BEBE", "pantalones"),
+        ("BERMUDA BEBE", "pantalones"),
+        ("JERSEY BEBE", "sudaderas"),
+        ("CAMISETA BEBE", "camisetas"),
+        ("PELELE BEBE", "vestidos"),
+        ("FALDA BEBE", "vestidos"),
+        ("PETO BEBE", "vestidos"),
+        ("BODY BEBE", "ropa-interior"),
+    ]:
+        assert _FAMILIA_RESIDUAL.get(_familia_base(familia)) == destino, familia
+
+    for familia in [
+        "GORRO BEBE",
+        "CHAQUETA BEBE",
+        "CAZADORA BEBE",
+        "PRENDA EXT.BEBE",
+        "BRAGA/CALZONC.BEBE",
+        "CHANDAL BEBE",
+        "VESTIDO BEBE",
+        "CAMISA BEBE",
+        "NEWBORN",
+        "BAMBAS",
+        "",
+    ]:
+        assert _FAMILIA_RESIDUAL.get(_familia_base(familia)) is None, familia
