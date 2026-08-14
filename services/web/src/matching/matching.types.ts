@@ -44,6 +44,13 @@ export interface CandidateRow {
   recentMin: string | null;
   maxObserved: string | null;
   priorPoints: number;
+  /**
+   * Mínimo de 30 días que declara la tienda (#354). Va aquí, y no solo en el catálogo como
+   * `trackedDays`, porque entra en `honestListPrice` y por tanto en el veredicto de
+   * `evaluateDeal`: el encabezado de `deal-rule.ts` prohíbe que el aviso y el catálogo digan cosas
+   * distintas de la misma prenda, y este dato mueve la referencia contra la que se mide la rebaja.
+   */
+  retailerMin30d: string | null;
 }
 
 /** Candidato ya evaluado: lo que se envía y se persiste. */

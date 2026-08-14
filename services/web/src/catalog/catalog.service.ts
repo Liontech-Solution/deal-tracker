@@ -3,7 +3,7 @@ import { sql, type SQL } from 'drizzle-orm';
 
 import { Database, DRIZZLE } from '../database/database.module';
 import { variantLabel } from '../interests/interests.service';
-import { classifyHonesty, HONESTY_WINDOW_DAYS } from '../matching/deal-rule';
+import { classifyHonesty, honestyBasis, HONESTY_WINDOW_DAYS } from '../matching/deal-rule';
 import { honestDiscountSql, isRealDealSql, type DealSqlColumns } from '../matching/deal-rule.sql';
 import { GENERO_UNISEX, generoCondition } from './gender.sql';
 import type {
@@ -129,6 +129,7 @@ const DEAL_COLUMNS: DealSqlColumns = {
   recentMin: sql`recent_min_repr`,
   maxObserved: sql`max_observed_repr`,
   priorPoints: sql`prior_points_repr`,
+  retailerMin30d: sql`retailer_min_30d_repr`,
 };
 
 /**
@@ -282,7 +283,8 @@ export class CatalogService {
     const agregadoVivo = sql`
       latest AS (
         SELECT DISTINCT ON (ph.variant_id)
-          ph.variant_id, ph.price, ph.list_price, ph.discount_pct, ph.in_stock, ph.scraped_at
+          ph.variant_id, ph.price, ph.list_price, ph.discount_pct, ph.in_stock,
+          ph.retailer_min_30d, ph.scraped_at
         FROM price_history ph
         ORDER BY ph.variant_id, ph.scraped_at DESC
       ),
@@ -312,6 +314,7 @@ export class CatalogService {
                p.retailer_product_id, p.name, p.gender, p.section, p.category, p.barefoot, p.url,
                p.image_url,
                v.id AS variant_id, v.color, l.price, l.list_price, l.discount_pct, l.in_stock,
+               l.retailer_min_30d,
                s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points,
                COALESCE(s.tracked_days, 0) AS tracked_days
         FROM product p
@@ -370,6 +373,7 @@ export class CatalogService {
                (array_agg(max_observed ORDER BY in_stock DESC, price ASC, variant_id))[1] AS max_observed_repr,
                (array_agg(prior_points ORDER BY in_stock DESC, price ASC, variant_id))[1] AS prior_points_repr,
                (array_agg(tracked_days ORDER BY in_stock DESC, price ASC, variant_id))[1] AS tracked_days_repr,
+               (array_agg(retailer_min_30d ORDER BY in_stock DESC, price ASC, variant_id))[1] AS retailer_min_30d_repr,
                -- ...y su COLOR, para que la foto de la tarjeta sea la de ese mismo color y no la de
                -- otro cualquiera: el precio cuelga de la variante (talla+color), así que enseñar la
                -- foto del "primer color" junto al precio de la variante más barata puede mezclar.
@@ -396,7 +400,7 @@ export class CatalogService {
         SELECT ${columnasDeProducto},
                pa.price_from, pa.max_discount, pa.list_from, pa.discount_from,
                pa.price_repr, pa.recent_min_repr, pa.max_observed_repr, pa.prior_points_repr,
-               pa.tracked_days_repr, pa.color_repr, pa.any_in_stock
+               pa.tracked_days_repr, pa.retailer_min_30d_repr, pa.color_repr, pa.any_in_stock
         FROM product p
         JOIN retailer r ON r.id = p.retailer_id
         JOIN product_agg pa ON pa.product_id = p.id
@@ -502,6 +506,7 @@ export class CatalogService {
         listPrice: (row.list_from as string | null) ?? null,
         recentMin: (row.recent_min_repr as string | null) ?? null,
         maxObserved: (row.max_observed_repr as string | null) ?? null,
+        retailerMin30d: (row.retailer_min_30d_repr as string | null) ?? null,
         priorPoints: Number(row.prior_points_repr ?? 0),
         trackedDays: Number(row.tracked_days_repr ?? 0),
         minDiscountPct: 0,
@@ -567,7 +572,8 @@ export class CatalogService {
     const variantRows = (await this.db.execute(sql`
       WITH latest AS (
         SELECT DISTINCT ON (ph.variant_id)
-          ph.variant_id, ph.price, ph.list_price, ph.discount_pct, ph.in_stock, ph.scraped_at
+          ph.variant_id, ph.price, ph.list_price, ph.discount_pct, ph.in_stock,
+          ph.retailer_min_30d, ph.scraped_at
         FROM price_history ph
         ORDER BY ph.variant_id, ph.scraped_at DESC
       ),
@@ -649,6 +655,7 @@ export class CatalogService {
              END AS size_label,
              v.color, v.sku, v.url, v.delisted_at,
              l.price, l.list_price, l.discount_pct, g.in_stock, l.scraped_at,
+             l.retailer_min_30d,
              s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points,
              COALESCE(s.tracked_days, 0) AS tracked_days
       FROM prenda g
@@ -659,7 +666,21 @@ export class CatalogService {
       ORDER BY v.id
     `)) as unknown as Record<string, unknown>[];
 
-    const variants: VariantWithPrice[] = variantRows.map((row) => ({
+    const variants: VariantWithPrice[] = variantRows.map((row) => {
+      // Las mismas entradas para las dos preguntas —qué veredicto y en qué se apoya—, montadas una
+      // sola vez: si se construyeran por separado podrían divergir sin que nada lo dijera.
+      const entrada = {
+        price: (row.price as string | null) ?? null,
+        listPrice: (row.list_price as string | null) ?? null,
+        recentMin: (row.recent_min as string | null) ?? null,
+        maxObserved: (row.max_observed as string | null) ?? null,
+        retailerMin30d: (row.retailer_min_30d as string | null) ?? null,
+        priorPoints: Number(row.prior_points ?? 0),
+        trackedDays: Number(row.tracked_days ?? 0),
+        minDiscountPct: 0,
+        compareBase: 'recent_min' as const,
+      };
+      return {
       id: Number(row.id),
       retailerVariantId: String(row.retailer_variant_id),
       // La talla sale CRUDA a propósito, y no es un descuido pendiente de arreglar (#248): es el
@@ -695,17 +716,14 @@ export class CatalogService {
       // Días que llevamos siguiendo esta prenda. Solo sale en la ficha —la tarjeta no lo pinta—, y
       // está para que el texto de una `unverified` diga lo que sabemos en vez de acusar (#332).
       trackedDays: Math.floor(Number(row.tracked_days ?? 0)),
-      honesty: classifyHonesty({
-        price: (row.price as string | null) ?? null,
-        listPrice: (row.list_price as string | null) ?? null,
-        recentMin: (row.recent_min as string | null) ?? null,
-        maxObserved: (row.max_observed as string | null) ?? null,
-        priorPoints: Number(row.prior_points ?? 0),
-        trackedDays: Number(row.tracked_days ?? 0),
-        minDiscountPct: 0,
-        compareBase: 'recent_min',
-      }),
-    }));
+      // El mínimo de 30 días que declara la tienda (#354). Sale a la ficha porque el texto de una
+      // acusación `declarado` lo cita —«la propia tienda dice haberla vendido a 4,24 €»—, que es lo
+      // que la convierte en una afirmación comprobable en vez de una etiqueta.
+      retailerMin30d: (row.retailer_min_30d as string | null) ?? null,
+      honesty: classifyHonesty(entrada),
+      honestyBasis: honestyBasis(entrada),
+      };
+    });
 
     // Galería completa: la ficha la filtra por el color seleccionado, para que la foto cambie a
     // la vez que el precio. `color NULLS FIRST` deja delante las fotos sin color atribuible, que

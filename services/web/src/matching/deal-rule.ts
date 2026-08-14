@@ -12,7 +12,9 @@
  *
  * El PVP honesto nunca es el precio tachado a ciegas: si la tienda declara un PVP por encima de
  * lo que la prenda ha costado jamás, ese tachado está inflado y se usa el máximo realmente
- * observado.
+ * observado. Y desde #354 hay una segunda referencia, la única que no es nuestra: el mínimo de 30
+ * días que C&A y Springfield publican por obligación de la Ómnibus, que entra como **techo** del PVP
+ * creíble y abre una vía de acusación que no necesita esperar a `HONESTY_EVIDENCE_DAYS`.
  */
 
 /**
@@ -45,6 +47,15 @@ export interface DealInput {
   recentMin: string | number | null;
   /** Máximo de las observaciones **anteriores** (todo el histórico de la variante). */
   maxObserved: string | number | null;
+  /**
+   * Mínimo de los últimos 30 días que **declara la propia tienda** por obligación de la directiva
+   * Ómnibus (`price_history.retailer_min_30d`, migración `0018`). Solo lo publican C&A y
+   * Springfield; en las otras siete es `null` y todo se comporta como antes.
+   *
+   * Es el único insumo **anterior a nuestra primera pasada** que tenemos, y por eso es lo único que
+   * acorta el apagón de acusaciones de #332 (ver `HONESTY_EVIDENCE_DAYS`).
+   */
+  retailerMin30d?: string | number | null;
   /** Cuántas observaciones anteriores hay. 0 = producto recién descubierto. */
   priorPoints: number;
   /**
@@ -74,20 +85,35 @@ export interface DealVerdict {
  * Devuelve `null` cuando no hay ninguno: sin histórico **no se cae de vuelta al precio tachado
  * de la tienda**. Ese es justo el caso que delatamos, y afirmar un "-60 %" que no podemos
  * corroborar sería repetir el engaño con nuestra voz.
+ *
+ * El mínimo declarado de 30 días entra como **techo**, nunca como referencia por sí solo (#354): si
+ * la tienda declara haber vendido la prenda a 4,24 €, ninguna referencia por encima de esa cifra es
+ * creíble, la publique quien la publique. No sustituye a `max_observed` —es un mínimo, y la
+ * acusación se apoya en un máximo— y no puede *crear* una referencia donde no la había, porque el
+ * arranque en frío se sigue resolviendo antes con `null`.
+ *
+ * Consecuencia que conviene tener presente: el techo solo puede **bajar** el PVP creíble, así que
+ * solo puede reducir el descuento honesto, nunca inventarlo. De ahí que este cambio no pueda
+ * convertir en «oferta real» nada que no lo fuera ya.
  */
 export function honestListPrice(
   listPrice: string | number | null,
   maxObserved: string | number | null,
+  retailerMin30d: string | number | null = null,
 ): number | null {
   const list = num(listPrice);
   const max = num(maxObserved);
+  const min30 = num(retailerMin30d);
 
   // Sin nada observado antes, el precio tachado no es corroborable: no hay referencia.
   if (max === null) return null;
   // Sin precio tachado, lo que la prenda llegó a costar sí es una referencia real.
-  if (list === null) return max;
   // Tachado por encima de lo que costó nunca -> inflado; vale lo realmente observado.
-  return list > max * INFLATED_LIST_MARGIN ? max : list;
+  const base = list === null ? max : list > max * INFLATED_LIST_MARGIN ? max : list;
+
+  // El techo de la propia tienda. Un `min30` de 0 o menos no hace falta descartarlo aquí: los
+  // consumidores ya exigen `honest > 0` antes de medir nada contra él.
+  return min30 !== null && min30 < base ? min30 : base;
 }
 
 /**
@@ -125,7 +151,7 @@ export function evaluateDeal(input: DealInput): DealVerdict {
   // Guarda explícita además de la que impone `honestListPrice`, para que un refactor no la pierda.
   if (input.priorPoints <= 0) return none('sin-historico');
 
-  const honest = honestListPrice(input.listPrice, input.maxObserved);
+  const honest = honestListPrice(input.listPrice, input.maxObserved, input.retailerMin30d);
   if (honest === null) return none('sin-historico');
 
   // Condición A: solo avisamos de mínimos nuevos, no de rebajas permanentes.
@@ -196,11 +222,16 @@ export type HonestyVerdict = 'real' | 'suspicious' | 'unverified' | 'none';
  * catálogo no puede reutilizar ese "ante la duda" como si fuera "ante la duda, acusa".
  */
 export function classifyHonesty(input: DealInput): HonestyVerdict {
-  // Arranque en frío: una prenda sin observaciones previas no tiene con qué corroborarse.
-  if (input.priorPoints <= 0) return 'none';
+  // La vía declarada se resuelve antes que nada porque **no depende de nuestro histórico** (#354):
+  // ver `desmentidaPorLaTienda`.
+  const declarado = desmentidaPorLaTienda(input);
+
+  // Arranque en frío: una prenda sin observaciones previas no tiene con qué corroborarse... salvo
+  // que la tienda se desmienta a sí misma, que es lo único que podemos afirmar sin haberla visto.
+  if (input.priorPoints <= 0) return declarado ? 'suspicious' : 'none';
 
   const verdict = evaluateDeal({ ...input, minDiscountPct: 0, compareBase: 'recent_min' });
-  if (verdict.reason === 'sin-historico') return 'none';
+  if (verdict.reason === 'sin-historico') return declarado ? 'suspicious' : 'none';
   if (verdict.notify) return 'real';
 
   // No es una bajada real. Si la tienda no enseña tachado, no hay nada que juzgar.
@@ -214,7 +245,63 @@ export function classifyHonesty(input: DealInput): HonestyVerdict {
   const max = num(input.maxObserved);
   const superaElMaximo = max !== null && list > max * INFLATED_LIST_MARGIN;
   const cobertura = input.trackedDays ?? 0;
-  return superaElMaximo && cobertura >= HONESTY_EVIDENCE_DAYS ? 'suspicious' : 'unverified';
+  return (superaElMaximo && cobertura >= HONESTY_EVIDENCE_DAYS) || declarado
+    ? 'suspicious'
+    : 'unverified';
+}
+
+/**
+ * La tienda se contradice con su propia voz: anuncia una rebaja **y** declara haber vendido esa
+ * misma prenda más barata dentro de los últimos 30 días (#354).
+ *
+ * **Por qué esto no necesita `HONESTY_EVIDENCE_DAYS`, y no es una excepción a #332.** El umbral de
+ * 90 días existe porque `max_observed` es *nuestra* observación y no significa nada hasta que
+ * madura. Aquí no se usa nada nuestro: la evidencia es una cifra que publica la propia tienda sobre
+ * un periodo ya ocurrido. Y no se le pide a la tienda que sea sincera, solo que sea **coherente** —
+ * la acusación es «tu cifra A contradice tu cifra B», y para eso da igual si A es cierta.
+ *
+ * Por eso también vale **en arranque en frío**: la afirmación es cierta la primera vez que vemos la
+ * prenda. Medido en QA el 14/08/2026, 104 de las 291 variantes que caen aquí son de arranque en frío
+ * — un tercio del hallazgo se perdería exigiéndoles un histórico que la afirmación no usa.
+ *
+ * **Lo que NO es esta comparación.** No es «el tachado supera el mínimo declarado»: eso le pasa al
+ * 98,7 % de las prendas con los dos datos (8.545 de 8.654 en QA) porque el tachado es el precio
+ * inicial y el mínimo es una disclosure aparte que las dos tiendas enseñan al lado — C&A en texto
+ * plano bajo el precio, Springfield en un tooltip. Acusar por ahí sería repetir #332 con otro dato.
+ * Lo que delata es el **precio actual** por encima del mínimo declarado.
+ *
+ * Comparte `INFLATED_LIST_MARGIN` con la vía observada a propósito: un concepto, una constante.
+ *
+ * Nota sobre el orden en `classifyHonesty`: esto y `real` son **excluyentes por construcción**, no
+ * por suerte de los datos. Si `price > min30 · margen`, el techo de `honestListPrice` deja el PVP
+ * creíble en `min30 < price`, así que la condición B cae y `evaluateDeal` no puede avisar.
+ */
+function desmentidaPorLaTienda(input: DealInput): boolean {
+  const price = num(input.price);
+  const list = num(input.listPrice);
+  const min30 = num(input.retailerMin30d);
+  if (price === null || min30 === null) return false;
+  // Sin tachado no hay rebaja anunciada, y sin rebaja anunciada no hay nada que desmentir: una
+  // prenda a precio normal por encima de su mínimo de hace tres semanas es sencillamente una prenda
+  // que ya no está rebajada.
+  if (list === null || list <= price) return false;
+  return price > min30 * INFLATED_LIST_MARGIN;
+}
+
+/** De dónde sale una acusación: de nuestro histórico o de lo que declara la tienda (#354). */
+export type HonestyBasis = 'observado' | 'declarado';
+
+/**
+ * En qué se apoya el veredicto `suspicious`, para que la ficha pueda decir la verdad de cada caso en
+ * vez de una sola frase que sería falsa en la mitad de ellos.
+ *
+ * `null` en todo lo que no sea una acusación. Cuando las dos vías se cumplen a la vez gana
+ * `declarado`: es la más fuerte de las dos —no depende de cuánto llevemos mirando— y es la que el
+ * texto puede sostener con una cifra concreta de la propia tienda.
+ */
+export function honestyBasis(input: DealInput): HonestyBasis | null {
+  if (classifyHonesty(input) !== 'suspicious') return null;
+  return desmentidaPorLaTienda(input) ? 'declarado' : 'observado';
 }
 
 /** `numeric` de Postgres viaja como string: parsear siempre, nunca comparar lexicográficamente. */

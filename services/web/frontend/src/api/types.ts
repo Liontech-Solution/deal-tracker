@@ -12,6 +12,17 @@
  */
 export type Honesty = 'real' | 'suspicious' | 'unverified' | 'none';
 
+/**
+ * En qué se apoya una acusación (espejo de `HonestyBasis`, #354): en nuestro histórico
+ * (`observado`) o en el mínimo de 30 días que la propia tienda publica por la directiva Ómnibus
+ * (`declarado`). `null` en todo lo que no sea `suspicious`.
+ *
+ * Lo consume el texto de la ficha, que no puede ser el mismo en los dos casos: una acusación
+ * `declarado` puede caer sobre una prenda que acabamos de descubrir, y ahí «respecto a su
+ * historial» sería mentira.
+ */
+export type HonestyBasis = 'observado' | 'declarado';
+
 export interface ProductListItem {
   id: number;
   retailerId: number;
@@ -87,7 +98,10 @@ export interface VariantWithPrice {
   variantLabel: string | null;
   /** Días enteros que llevamos observando esta variante. Solo lo trae la ficha (#332). */
   trackedDays: number;
+  /** Mínimo de 30 días declarado por la tienda (#354); `null` salvo en C&A y Springfield. */
+  retailerMin30d: string | null;
   honesty: Honesty;
+  honestyBasis: HonestyBasis | null;
 }
 
 /** Una foto de la galería, atribuida al color que retrata (`null` = sin color atribuible). */

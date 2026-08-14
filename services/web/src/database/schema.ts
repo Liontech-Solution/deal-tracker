@@ -206,6 +206,12 @@ export const productAgg = pgTable(
     maxObservedRepr: numeric('max_observed_repr', { precision: 10, scale: 2 }),
     priorPointsRepr: bigint('prior_points_repr', { mode: 'number' }),
     trackedDaysRepr: numeric('tracked_days_repr'),
+    /**
+     * El mínimo de 30 días que declara la tienda para la variante representativa (migración `0039`,
+     * #354). `NULL` en las siete tiendas que no lo publican, que es lo normal: solo lo traen C&A y
+     * Springfield.
+     */
+    retailerMin30dRepr: numeric('retailer_min_30d_repr', { precision: 10, scale: 2 }),
     colorRepr: text('color_repr'),
     refreshedAt: timestamp('refreshed_at', { withTimezone: true }).notNull().defaultNow(),
   },

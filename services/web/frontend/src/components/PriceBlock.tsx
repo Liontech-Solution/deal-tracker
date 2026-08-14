@@ -1,7 +1,7 @@
 import { HonestyBadge, StockBadge } from './Badges';
 import type { Stock } from './Badges';
 import { AlertIcon, CheckIcon, ClockIcon } from './icons';
-import type { Honesty } from '../api/types';
+import type { Honesty, HonestyBasis } from '../api/types';
 import { discountInt, eurStr } from '../lib/format';
 import { llevaBadge } from '../lib/honesty';
 
@@ -13,14 +13,30 @@ interface Props {
   honesty: Honesty;
   /** Días que llevamos observando la variante. Lo enseña el texto de `unverified` (#332). */
   trackedDays: number;
+  /** En qué se apoya la acusación, cuando la hay (#354). Cambia la frase, no el badge. */
+  honestyBasis: HonestyBasis | null;
+  /** Mínimo de 30 días declarado por la tienda. Lo CITA el texto de una acusación `declarado`. */
+  retailerMin30d: string | null;
 }
 
-export function PriceBlock({ price, listPrice, discountPct, stock, honesty, trackedDays }: Props) {
+export function PriceBlock({
+  price,
+  listPrice,
+  discountPct,
+  stock,
+  honesty,
+  trackedDays,
+  honestyBasis,
+  retailerMin30d,
+}: Props) {
   const suspicious = honesty === 'suspicious';
   const unverified = honesty === 'unverified';
   const priceStr = eurStr(price);
   const listStr = eurStr(listPrice);
   const disc = discountInt(discountPct);
+  // La cifra que cita una acusación `declarado` (#354). Si faltara —no debería: la vía declarada no
+  // puede dispararse sin ella— el texto cae al de siempre en vez de enseñar un hueco.
+  const min30Str = eurStr(retailerMin30d);
   const hasMarkdown = disc !== null && disc > 0 && listStr !== null;
 
   return (
@@ -87,7 +103,9 @@ export function PriceBlock({ price, listPrice, discountPct, stock, honesty, trac
             {unverified
               ? `Descuento sin confirmar: ${trackedDays === 0 ? 'acabamos de empezar a seguir esta prenda' : `llevamos ${trackedDays} ${trackedDays === 1 ? 'día' : 'días'} siguiéndola`} y su historial todavía no da para saber si el precio tachado es el que costaba de verdad.`
               : suspicious
-                ? 'Descuento no real: el precio tachado está inflado respecto a su historial. No ha bajado de verdad.'
+                ? honestyBasis === 'declarado' && min30Str !== null
+                  ? `Descuento no real: la propia tienda declara haber vendido esta prenda a ${min30Str} en los últimos 30 días, por debajo de lo que pides ahora. No ha bajado de verdad.`
+                  : 'Descuento no real: el precio tachado está inflado respecto a su historial. No ha bajado de verdad.'
                 : 'Rebaja honesta: es el precio más bajo de los últimos meses. Buen momento para comprar.'}
           </span>
         </div>
