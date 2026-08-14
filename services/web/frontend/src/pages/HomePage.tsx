@@ -137,11 +137,15 @@ export function HomePage() {
           { title: 'Ropa', desc: 'Pantalones, camisetas, sudaderas, vestidos y ropa interior.', section: 'ropa' },
           { title: 'Zapatería', desc: 'Calzado barefoot: botas, zapatillas y sandalias respetuosas.', section: 'zapateria' },
         ].map((hs) => (
+          // El `color` va aquí porque un <button> no lo hereda: el user-agent le impone
+          // `buttontext`, que es negro, y el título quedaba en 1,40:1 en modo oscuro (#384). Las
+          // `.btn-*` de `app.css` emparejan fondo y color solas; esta tarjeta no las usa porque no
+          // parece un botón, así que el emparejamiento se hace a mano junto al `background`.
           <button
             key={hs.section}
             onClick={() => navigate(`/catalogo?section=${hs.section}`)}
             className="card-hover"
-            style={{ textAlign: 'left', border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 'var(--r-lg)', padding: 0, overflow: 'hidden', cursor: 'pointer', display: 'flex', alignItems: 'stretch', minHeight: 150 }}
+            style={{ textAlign: 'left', border: '1px solid var(--border)', background: 'var(--surface)', color: 'inherit', borderRadius: 'var(--r-lg)', padding: 0, overflow: 'hidden', cursor: 'pointer', display: 'flex', alignItems: 'stretch', minHeight: 150 }}
           >
             <div style={{ padding: 24, flex: 1 }}>
               <div className="serif" style={{ fontSize: 27, fontWeight: 600, marginBottom: 6 }}>{hs.title}</div>
