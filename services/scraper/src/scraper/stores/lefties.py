@@ -1111,10 +1111,24 @@ class LeftiesStore:
                 )
                 self._tags.fiables.discard(hoja.tag)
                 continue
+            # Dos nodos de la rama pueden resolver al MISMO grid, porque los alias del menú
+            # apuntan a otra categoría (#393) y el `_VIEWALL` de un eje apunta justo a su padre,
+            # que es la hoja del propio eje: medido sobre `lefties_menu.json`, `1030267747` y
+            # `1030267709` dan los dos `0526c2bc-…`. El dedupe de arriba es por `category_id`, que
+            # no lo ve. Antes de #393 tampoco se veía —las dos URL eran distintas y la tienda las
+            # resolvía al mismo sitio—, así que esto no arregla una regresión: quita una petición
+            # que llevaba ahí desde el principio, contra una tienda que va tras Akamai.
+            #
+            # El conjunto es POR HOJA y no global: dos ejes distintos que compartieran grid
+            # aplican etiquetas distintas, y saltarse el segundo dejaría prendas sin marcar.
+            pedidos: set[str] = set()
             for cid in ids:
                 grid_id = grids.get(cid)
                 if grid_id is None:
                     continue  # nodo del menú sin grid propio (un divisor, o una sección espejo)
+                if grid_id in pedidos:
+                    continue
+                pedidos.add(grid_id)
                 try:
                     grid = session.get_json(_GRID_URL.format(grid_id=grid_id))
                 except Exception as exc:  # noqa: BLE001 — misma red ancha que en el listado (#107)

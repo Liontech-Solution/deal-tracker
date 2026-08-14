@@ -19,12 +19,14 @@ from scraper.stores.lefties import (
     CATEGORIES,
     CategoryConfig,
     LeftiesStore,
+    TagLeaf,
     grid_ids_by_category,
     known_product_ids,
     parse_detail_product,
     parse_listing_entries,
     talla_de,
 )
+from scraper.tags import TAG_DEPORTIVA
 
 from .conftest import load_fixture
 
@@ -717,3 +719,50 @@ def test_check_leaves_marca_la_hoja_de_campana_como_estacional() -> None:
     assert hojas["1030302501"].alive is False, "apagada es apagada: no se puede listar"
     assert hojas["1030302501"].estacional is True
     assert hojas["1030267678"].estacional is False
+
+
+# --- #393 El alias que hacía pedir dos veces el mismo grid --------------------------------------
+
+
+class _SesionContadora(_ScanSession):
+    """`_ScanSession` que además cuenta cuántas veces se pide cada grid."""
+
+    def __init__(self, menu: dict[str, Any], grids: dict[str, Any]) -> None:
+        super().__init__(menu, grids)
+        self.peticiones: Counter[str] = Counter()
+
+    def get_json(self, url: str) -> Any:
+        if "/grids/" in url:
+            self.peticiones[url.split("/grids/", 1)[1].split("?")[0]] += 1
+        return super().get_json(url)
+
+
+def test_un_eje_no_pide_dos_veces_el_mismo_grid() -> None:
+    """El `_VIEWALL` de un eje es un alias de su PADRE, que es la hoja del propio eje (#393).
+
+    Medido sobre `lefties_menu.json`: `1030267747` (`3_NA_T_ROPADEPORTIVA_VIEWALL`) y `1030267709`
+    resuelven los dos a `0526c2bc-…`. El dedupe de la rama es por `category_id` y no lo ve, así que
+    la pasada pedía el mismo grid dos veces. Antes de #393 tampoco se notaba: las dos URL eran
+    distintas —una numérica y otra uuid— y la tienda las resolvía al mismo sitio.
+    """
+    menu = {
+        "items": [
+            {
+                "id": 100,
+                "content": {"id": "uuid-eje"},
+                "children": [{"id": 101, "content": {"id": "100"}}],  # el `_VIEWALL` alias
+            }
+        ]
+    }
+    session = _SesionContadora(menu, {"uuid-eje": _grid("P1")})
+    store = LeftiesStore(
+        _CFG,
+        categories=[],
+        session_factory=lambda: session,  # type: ignore[arg-type]
+        tag_leaves=[TagLeaf(100, "", TAG_DEPORTIVA, "niña")],
+    )
+
+    list(store.list_catalog())
+
+    assert session.peticiones["uuid-eje"] == 1, "el alias y su destino son el mismo grid"
+    assert store.product_tags().por_producto == {"P1": {TAG_DEPORTIVA}}, "y se etiqueta igual"
