@@ -1877,7 +1877,23 @@ solo publica una hoja filtrada no se emite nunca, así que su `last_seen_at` se 
 ingirió y ya no vuelve a moverse. No se da de baja —la confirmación activa lo encuentra vivo y
 `_rescue` le pone la racha a cero en cada pasada—, o sea que se queda en el catálogo enseñando un
 precio que nadie vuelve a comprobar. Ninguna métrica lo delata: la hoja responde 200, `filtro_vacio`
-no salta porque el filtro sí casó con algo, y el `ScanReport` cuenta hojas, no productos.
+no salta porque el filtro sí casó con algo, y el `ScanReport` contaba hojas, no productos.
+
+Esa última frase es la que **cerró #358**: el `ScanReport` cuenta ahora también productos, y publica
+por hoja cuánto aporta el residuo tras el cruce contra `emitted` (lo que *aporta*, no lo que parsea
+— `parse_listing_leftovers()` deduplica dentro de una hoja pero no entre hojas, así que sumar lo
+parseado contaría dos veces al que sale en dos lookbooks). Sin eso, el arreglo de aquí abajo podía
+irse a cero en silencio y el síntoma tardaría meses en reaparecer.
+
+**Y de ahí sale una regla que vale para cualquier contador futuro, no solo para éste: lo que ocurre
+en TODA pasada no puede ir al `scrape_run.message`.** El rescate aporta decenas de prendas en todas
+las pasadas de Zara, así que publicar la cifra ahí dejaría el `message` distinto de `NULL` siempre y
+rompería lo único que lo hace consultable (`WHERE message IS NOT NULL`, ver `_success_message()`).
+El reparto que se adoptó —y que hay que respetar al añadir el siguiente contador— es: **la cifra al
+resumen de `run.py`, la anomalía al `message`**. Aquí la anomalía es una hoja con filtro que ha
+dejado de aportar, y **no** saca su ámbito de las bajas como sí hace `filtro_vacio()`: un lookbook
+sin residuo clasificable es un estado legítimo, y tratarlo como sospecha metería falsos positivos en
+el camino más delicado del scraper.
 
 La cura tiene una propiedad que hay que conservar si alguien la reescribe: **el residuo se emite al
 final de la pasada, no en su hoja**. Las hojas-lookbook van DELANTE a propósito, así que en el
@@ -2201,10 +2217,12 @@ Dos cosas comprobadas de camino que evitan repetir el trabajo:
   las bajas y un id muerto que respondiera 200 redirigido al padre dejaría prendas retiradas en
   catálogo para siempre. Coinciden exactamente: vivo `pedir=200 navegar=200`, inventado
   `pedir=404 navegar=404`, sin redirección.
-- **`page.request` no pasa por `route()`**, así que `bloquear()` y `descartar_recursos()` no aplican
-  por esa vía. Hoy no viola el `Disallow: /api` de esta tienda —ni la rejilla ni la ficha apuntan
-  ahí, y una página que no se renderiza no pide nada por su cuenta—, pero es una asimetría entre los
-  dos transportes que conviene tener presente si algún día la tienda redirige una ficha.
+- **`page.request` no pasa por `route()`**, así que `descartar_recursos()` no aplica por esa vía.
+  Con `bloquear()` pasaba lo mismo hasta #282, y el matiz importaba: no había violación, pero el
+  `Disallow: /api` se cumplía **por construcción** —ninguna URL nuestra cae ahí, y una página que no
+  se renderiza no pide nada por su cuenta— y no por el filtro. Lo que quedaba fuera de nuestro
+  control era que redirigiera la tienda, porque `page.request.get()` sigue los 30x de forma
+  transparente y sin veto.
 
 Corolario para la siguiente tienda que se convierta: **la lista de rutas a mirar no es «el listado y
 la ficha», es todo lo que implemente el `Protocol`** — `list_catalog`, `fetch_details`,
@@ -2213,6 +2231,35 @@ segundos. Estado hoy: en `hipercor.py` el único `get_html()` que queda es el re
 agotada; `sfera.py` y `lefties.py` no tienen ninguno; `hm.py` conserva uno en `_menu_html()`, que
 solo llama `category_tree()` —o sea `--tree` y el vigía, nunca la pasada normal—, y por eso sus
 `limits.memory: 512Mi` no esconden un OOM latente pese a arrancar Chromium.
+
+### El veto de rutas lo tiene que conocer la sesión, no la tabla de `route()` (#282)
+
+La cura del punto anterior no fue parchear `pedir_html()`: **la asimetría era del transporte, no de
+una tienda**, así que arreglar solo el camino que dolía la habría dejado esperando a la siguiente
+conversión — y esa superficie crece sola (2 sitios en #160, 4 en #281, más el de Sfera).
+`bloquear()` guarda ahora su patrón en la sesión además de registrarlo en Playwright, y
+`pedir_html()` y `get_json()` comprueban contra él la URL pedida **y `resp.url`**, la final tras
+redirecciones, elevando `RutaVetada`.
+
+Tres cosas medidas que evitan rehacer el razonamiento:
+
+- **`max_redirects=0` no vale, aunque exista.** Playwright lo ofrece desde 1.26 (aquí se fija
+  `>=1.49,<1.62`), pero **eleva** al superar el límite en vez de devolver el 30x: una
+  canonicalización de barra final tumbaría la pasada por nada. Por eso la comprobación es a
+  posteriori sobre `resp.url`.
+- **El emparejado va con `fnmatch` de la stdlib, no con `glob_to_regex_pattern` de Playwright**, que
+  existe y haría lo mismo. Es un interno, y este repo ya paga uno en `tls.py`. Contrastados los dos
+  sobre `**/api/**` con seis URLs reales de Hipercor **coinciden en las seis**, incluido que ninguno
+  casa `…/api` sin barra final. Esa coincidencia es la condición de que esto sirva: lo que se
+  comprueba tiene que ser exactamente lo que `route()` bloquea, o el veto significaría una cosa al
+  navegar y otra al pedir.
+- **Detecta, no previene, y conviene no leer de más.** Cuando se ve la redirección la petición ya
+  salió; lo que se garantiza es que su contenido no se parsea ni se guarda y que la pasada se para.
+
+Queda un hueco conocido y **deliberadamente no tapado**: `probe_alive()` de Hipercor hace
+`except Exception: continue`, así que ahí una `RutaVetada` se traga como «sin veredicto». Es seguro
+—no produce bajas falsas— pero es el único de los cinco sitios que no la hace visible; los otros
+cuatro la elevan o la reportan como `LeafHealth`.
 
 ### Un pod muerto deja su transacción abierta, y la siguiente pasada se queda muda esperándola
 
