@@ -15,8 +15,14 @@
  * observado.
  */
 
-/** Margen de tolerancia sobre el máximo observado antes de considerar el PVP inflado. */
-const INFLATED_LIST_MARGIN = 1.03;
+/**
+ * Margen de tolerancia sobre el máximo observado antes de considerar el PVP inflado.
+ *
+ * Se exporta para que el espejo SQL (`deal-rule.sql.ts`) la interpole en vez de repetir el
+ * literal: mientras fueron dos números, moverlo aquí y no allí compilaba, pasaba los tests y
+ * cambiaba el orden de «Ofertas» sin que nadie se enterara (#375).
+ */
+export const INFLATED_LIST_MARGIN = 1.03;
 /** Coma flotante: un 20,000000001 % debe contar como 20 %. */
 const EPSILON = 1e-9;
 
@@ -84,6 +90,23 @@ export function honestListPrice(
   return list > max * INFLATED_LIST_MARGIN ? max : list;
 }
 
+/**
+ * Descuento real en % contra el PVP creíble; 0 cuando no hay rebaja que medir contra él.
+ *
+ * Está fuera de `evaluateDeal` porque es **lo que ordena el catálogo**: `sort=ofertas` desempata
+ * por `honestDiscountSql`, su espejo en SQL, y sin una función a la que apuntar el espejo solo
+ * podía compararse contra `DealVerdict.discountPct` — que no vale, porque `evaluateDeal` lo pone a
+ * 0 en cuanto falla la condición A y el `ORDER BY` no aplica esa condición. Ver #375.
+ */
+export function honestDiscountPct(
+  price: string | number | null,
+  honest: number | null,
+): number {
+  const p = num(price);
+  if (p === null || honest === null || honest <= 0 || honest <= p) return 0;
+  return round2((1 - p / honest) * 100);
+}
+
 /** Evalúa un precio nuevo contra los parámetros de un interés. */
 export function evaluateDeal(input: DealInput): DealVerdict {
   const price = num(input.price);
@@ -113,7 +136,7 @@ export function evaluateDeal(input: DealInput): DealVerdict {
   }
 
   // Condición B: la rebaja contra el PVP honesto debe alcanzar el umbral del interés.
-  const discount = honest > 0 && honest > price ? round2((1 - price / honest) * 100) : 0;
+  const discount = honestDiscountPct(price, honest);
   if (discount <= 0) return none('sin-rebaja', honest);
   if (discount + EPSILON < minDiscount) return none('descuento-insuficiente', honest, discount);
 
