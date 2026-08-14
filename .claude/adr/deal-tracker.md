@@ -1401,6 +1401,20 @@ Afina la severidad sin bajar el listón de lo que importa. La prueba de que el l
 editando la skill y no negociando dentro de una validación es que los dos informes lo aplicaron tal
 cual y lo dejaron anotado en vez de rebajar el hallazgo sobre la marcha.
 
+**Y desde el 14/08/2026 (#260) la capa hace también la pregunta simétrica**: de lo declarado, ¿qué
+sigue publicando la tienda? Una declaración es una decisión sobre una ruta concreta, y cuando la
+ruta se apaga la decisión se queda en el fichero apuntando al vacío sin que nada lo diga. No era
+hipotético: al medirlo había **4 huérfanas en Lefties** —dos «Promoción» de zapatería y las dos
+`REBAJAS HASTA -70%` de bebé— y **0 en c-and-a, hm, sfera y springfield**.
+
+Sale como **aviso y sin marca nueva**, y las dos mitades de esa decisión importan. Aviso, al revés
+que el hueco de cobertura, porque lo que cada uno esconde no se parece: un hueco esconde catálogo
+que el usuario no ve; una huérfana no esconde nada, solo envejece — y muchas son de campaña, cuyo id
+vuelve con la temporada, así que hacerla accionable abriría issue dos veces al año para borrar y
+reescribir la misma decisión. Y sin marca porque **las marcas son el contrato con el listón de
+`/validar-qa`**: añadir una obliga a tocar la skill, y este hallazgo no necesita que la puerta de la
+release lo clasifique.
+
 Lo que hay que saber antes de tocarla es que **«no mapeado» no es «hueco», y suponerlo la
 inutiliza**. Medido sobre las tiendas que enumeran su árbol (ocho desde #179; las tres primeras
 son las de #156):
@@ -1417,7 +1431,9 @@ son las de #156):
 | lefties | 273 (de 301, sin los divisores) | 203 | **5 sin decidir (391 prendas)** |
 
 Son medidas con fecha, no el estado de hoy: **Sfera cerró sus huecos en #212** (49 rutas, 49
-cubiertas, 06/08/2026) y de paso enseñó las dos formas de cerrarlos, que son las únicas que hay.
+cubiertas, 06/08/2026) y **Lefties los suyos en #260** (299 rutas, 299 cubiertas, 14/08/2026, tras
+crecer de 6 a 12 rutas sin cubrir en cuatro barridos), y de paso enseñaron las dos formas de
+cerrarlos, que son las únicas que hay.
 `banadores-bebe` se **declara** —la decisión ya estaba tomada, pero solo en la prosa de la cabecera
 de `CATEGORIES`, y `COBERTURA_DECLARADA` listaba tres de las cuatro ramas de baño: faltaba la del
 slug asimétrico, la que no sale de copiar el nombre de sus hermanas—. `punto-y-jerseis` se

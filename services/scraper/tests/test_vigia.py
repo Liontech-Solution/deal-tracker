@@ -560,6 +560,60 @@ def test_una_categoria_declarada_no_suena() -> None:
     assert not informe.accionables
 
 
+def test_una_declaracion_que_la_tienda_ya_no_publica_avisa_sin_abrir_issue() -> None:
+    """La pregunta simétrica del hueco de cobertura (#260, cuarta casilla).
+
+    Una declaración es una decisión sobre una ruta, y cuando la ruta se va la decisión se queda
+    apuntando al vacío. Pasaba ya: 4 de las 84 de Lefties el 14/08/2026, y 0 en las otras cuatro
+    tiendas que se enumeran.
+
+    Avisa y **no** es accionable a propósito: una huérfana no esconde catálogo —para eso está el
+    `✖ [cobertura]`— y muchas son de campaña, cuyo id vuelve con la temporada. Hacerla accionable
+    abriría issue dos veces al año para reescribir la misma decisión.
+    """
+    tienda = TiendaConArbol(
+        {"ninos/nina": [_nodo("ninos/nina/bano")]},
+        mapeadas=[],
+    )
+    informe = Informe("falsa")
+
+    COBERTURA_DECLARADA["falsa"] = {
+        "ninos/nina/bano": "no es del brief",
+        "ninos/nina/rebajas-verano": "campaña: 5/0/5",
+    }
+    try:
+        revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+    finally:
+        del COBERTURA_DECLARADA["falsa"]
+
+    assert informe.esta_bien, "una declaración caducada no es un hallazgo accionable"
+    assert len(informe.avisos) == 1
+    assert "ninos/nina/rebajas-verano" in informe.avisos[0]
+    assert "ninos/nina/bano" not in informe.avisos[0], "esa sigue publicada"
+
+
+def test_una_declaracion_de_una_rama_que_aun_tiene_hijas_no_es_huerfana() -> None:
+    """Declarar la rama basta, así que la rama puede no emitirse como nodo y seguir viva.
+
+    Sin esta mitad, cada declaración por rama de H&M o C&A —que es como están escritas— saldría
+    como huérfana el primer jueves.
+    """
+    tienda = TiendaConArbol(
+        {"ninos/nina": [_nodo("ninos/nina/bano/bikinis", depth=2)]},
+        mapeadas=[],
+    )
+    informe = Informe("falsa")
+
+    COBERTURA_DECLARADA["falsa"] = {"ninos/nina/bano": "no es del brief"}
+    try:
+        revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+    finally:
+        del COBERTURA_DECLARADA["falsa"]
+
+    assert informe.esta_bien
+    assert not informe.avisos
+
+
 def test_lo_que_cuelga_de_una_hoja_ya_mapeada_no_es_un_hueco() -> None:
     """Medido en C&A: 53 de 122 rutas eran subcategorías de hojas que YA ingerimos.
 

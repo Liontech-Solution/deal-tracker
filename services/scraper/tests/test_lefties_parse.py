@@ -23,6 +23,7 @@ from scraper.stores.lefties import (
     known_product_ids,
     parse_detail_product,
     parse_listing_entries,
+    talla_de,
 )
 
 from .conftest import load_fixture
@@ -219,6 +220,37 @@ def test_parse_detail_product_extrae_tallas_precio_y_stock() -> None:
     assert v.size and v.color
     assert v.retailer_variant_id.startswith("747860883-")
     assert isinstance(v.in_stock, bool)
+
+
+def test_el_numero_suelto_de_ropa_se_corrige_con_la_edad_que_trae_al_lado() -> None:
+    """El `42` de #365: la tienda escribe mal el `name` y pone la talla buena en `description`.
+
+    Forma exacta capturada el 14/08/2026 pidiendo el detalle de las afectadas — 173 prendas de
+    `ropa`, todas con la MISMA descripción, que además es el peldaño más bajo de la escalera y no
+    ropa de adulto, que era la hipótesis que habría subido la prioridad.
+    """
+    assert talla_de({"name": "42", "description": "5-6 años (116 cm)"}, "ropa") == "5-6 años"
+    # Lo que ya está bien no se toca, ni siquiera cuando `description` dice más.
+    assert talla_de({"name": "6-7 años", "description": "6-7 años (122 cm)"}, "ropa") == "6-7 años"
+
+
+def test_la_correccion_de_talla_no_le_quita_su_numero_a_calcetines_ni_calzado() -> None:
+    """La regla pide las tres condiciones a la vez porque `description` NO es mejor en general.
+
+    En los calcetines el bueno es `name` y la descripción es la equivalencia por edad; aplicarla
+    ahí borraría el vocabulario por número que #325 tuvo que nombrar `Por número`. Y en `zapateria`
+    un número suelto sí es una talla de verdad.
+    """
+    calcetin = {"name": "15-17", "description": "1-6 meses (8-9 cm)"}
+    assert talla_de(calcetin, "ropa") == "15-17", (
+        "no es un número suelto: es un rango, y es la talla"
+    )
+
+    assert talla_de({"name": "24", "description": ""}, "zapateria") == "24"
+    assert talla_de({"name": "24", "description": "5-6 años (116 cm)"}, "zapateria") == "24"
+    # Un número suelto en `ropa` sin edad al lado no se inventa: se registra y el vigía lo verá.
+    assert talla_de({"name": "42", "description": "Talla única"}, "ropa") == "42"
+    assert talla_de({"name": None}, "ropa") is None
 
 
 def test_el_stock_sale_de_visibility_value_y_no_de_is_buyable() -> None:

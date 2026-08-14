@@ -26,12 +26,16 @@ Cuatro endpoints, y el orden importa:
   4. bajas:    el mismo `productsArray` con un id que ya no existe responde 200 con
      `_ERR_PRODUCT_NOT_FOUND` — veredicto limpio para la confirmación activa.
 
-Tres trampas que conviene no volver a pisar:
+Cuatro trampas que conviene no volver a pisar:
 
 - **El stock NO es `isBuyable`**, que viene `true` siempre. Es `visibilityValue`: `SHOW` =
   disponible, `HIDDEN` = agotada. Y con `allowWithoutStock=false` el endpoint **omite** las tallas
   agotadas, así que se pide `true`: si no, un producto agotado del todo parecería una baja.
 - **`price` llega como string** de céntimos ("1799"), no como int, al revés que Zara.
+- **El `name` de una talla puede no ser una talla.** 173 prendas de `ropa` traían `'42'`, un
+  número suelto en una sección cuyo vocabulario es de edad entero, y con `'5-6 años (116 cm)'` al
+  lado en `description`. Lo corrige `talla_de()`, que es donde está la medición y por qué el
+  arreglo tiene que ser estrecho (#365).
 - **Los componentes del grid no se reconocen por `kind`.** La tienda intercambió `kind` y `type`
   el 05/08/2026 y la pasada se quedó en 0 entradas sin que nada se pusiera rojo; el porqué y cómo
   se detectó están en `_product_components()`, que es donde vive la decisión.
@@ -308,10 +312,22 @@ def dominios_emitibles(gender: str) -> list[tuple[str, str]]:
 # bajo una de las cinco conserve esa categoría, y aquí eso pasa mucho (ver la nota del bloque).
 CATEGORIES: list[CategoryConfig] = [
     # --- barefoot: primero a propósito (ver nota de orden arriba) ---
+    # Va SOLO la de la rama propia, como en bebé: la de dentro de `ZAPATOS` publica EXACTAMENTE lo
+    # mismo. Medido el 06/08/2026 (15/15 niña, 23/23 niño) y **remedido el 14/08/2026** con el
+    # catálogo ya crecido —21/21 y 25/25, cruzando por `productParentId`—, así que no es una
+    # coincidencia de un día. Las dos espejo quedan declaradas en `COBERTURA_DECLARADA` con la
+    # medición; ver #203 para por qué el coste no era la petición sino el comentario que las hacía
+    # parecer dos conjuntos distintos que había que unir.
+    #
+    # Y no son dos hojas hermanas: la que mapeamos es un **alias de menú** (`key` acabada en
+    # `_MENU`) cuyo `content.id` es la otra —`1030680692` -> `1030680609`, `1030680206` ->
+    # `1030680610`—, así que la identidad la garantiza el menú, no la medición. Eso responde
+    # también a la duda de #203 sobre perder señal al declararla: la que sondea `check_leaves()`
+    # no puede sobrevivir a la declarada, porque lo que pide es su grid. Si la de dentro de
+    # `ZAPATOS` muriera, la petición de la rama propia moriría con ella y la pasada la trataría
+    # como hoja retirada (`_hoja_comprometida`), que es exactamente lo que hay que decir.
     CategoryConfig(1030680692, "niña", "zapateria", "barefoot", _NINA),  # barefoot (rama propia)
-    CategoryConfig(1030680609, "niña", "zapateria", "barefoot", _NINA_ZAPATOS),  # dentro de zapatos
     CategoryConfig(1030680206, "niño", "zapateria", "barefoot", _NINO),  # barefoot (rama propia)
-    CategoryConfig(1030680610, "niño", "zapateria", "barefoot", _NINO_ZAPATOS),  # dentro de zapatos
     # Las dos ramas de bebé tienen su hoja `BAREFOOT` propia, que es justo el nicho del producto y
     # hasta ahora solo se llenaba desde niño/niña. Va SOLO la de la rama, no la de dentro de
     # `ZAPATOS`: se midió el 06/08/2026 y las dos publican EXACTAMENTE lo mismo (23 y 24 modelos,
@@ -756,6 +772,51 @@ def _images_by_color(product: dict[str, Any]) -> dict[str, list[str]]:
     return out
 
 
+# La talla por edad tal y como la escribe esta tienda: «5-6 años», «6-12 meses», «1-6 meses».
+_TALLA_POR_EDAD = re.compile(r"^\s*\d+\s*(?:-\s*\d+)?\s*(?:años|año|meses|mes)\b", re.IGNORECASE)
+# Un número pelado, sin unidad ni rango: «42». En `ropa` esta tienda no tiene ninguna talla así.
+_NUMERO_SUELTO = re.compile(r"^\s*\d+\s*$")
+
+
+def talla_de(size: Mapping[str, Any], section: str) -> str | None:
+    """La talla de una variante, corrigiendo el número suelto que la tienda mete en `ropa` (#365).
+
+    Normalmente es `name` tal cual. La excepción está medida: **173 prendas de `ropa` traían la
+    talla cruda `42`**, un número suelto entre un vocabulario que en esta sección es de edad de
+    punta a punta. Pedido el detalle de las afectadas el 14/08/2026, las tres hipótesis que la
+    issue dejaba abiertas se resuelven de una vez, porque la respuesta viene en el mismo objeto:
+
+        {'name': '42', 'description': '5-6 años (116 cm)', 'visibilityValue': 'SHOW'}
+
+    O sea que **no es ropa de adulto** (116 cm es el peldaño más bajo de la escalera, justo debajo
+    de `6-7 años`) y **no es un artefacto nuestro** (leemos `name` fielmente): es un valor malo en
+    el `name` de la tienda, con el bueno al lado en `description`. Muestreadas 1237 variantes de
+    cinco hojas de secciones y ramas distintas, el `42` siempre venía con la misma descripción.
+
+    **El arreglo es estrecho a propósito, porque `description` no es mejor fuente en general**, y
+    eso también está medido en la misma muestra:
+
+    - 521 variantes **no traen `description`** (el calzado, casi entero).
+    - En los calcetines el bueno es `name`: `'15-17'` con `description` `'1-6 meses (8-9 cm)'`.
+      Ahí la descripción da la equivalencia por edad, no la talla, y preferirla borraría el
+      vocabulario por número que #325 tuvo que nombrar `Por número`.
+    - En los complementos, `'M'` con `'Talla única'`.
+
+    Por eso la regla pide las tres cosas a la vez: sección `ropa`, `name` que sea un número suelto
+    —que en `ropa` no es talla de nada— y una `description` que sí empiece por una etiqueta de
+    edad. Cualquier gemelo futuro del `42` entra solo; nada de lo que hoy está bien se toca.
+    """
+    nombre = size.get("name")
+    if not isinstance(nombre, str):
+        return None
+    if section != "ropa" or not _NUMERO_SUELTO.match(nombre):
+        return nombre
+    descripcion = size.get("description")
+    if not isinstance(descripcion, str) or not _TALLA_POR_EDAD.match(descripcion):
+        return nombre  # número suelto sin edad al lado: no hay con qué corregirlo, se deja igual
+    return descripcion.split("(")[0].strip()
+
+
 def parse_detail_product(product: dict[str, Any], cat: CategoryConfig) -> ScrapedProduct | None:
     """Convierte una entrada de `productsArray` en ScrapedProduct (None si no hay variantes).
 
@@ -787,7 +848,7 @@ def parse_detail_product(product: dict[str, Any], cat: CategoryConfig) -> Scrape
             variants.append(
                 ScrapedVariant(
                     retailer_variant_id=f"{pid}-{color_id}-{sku}",
-                    size=size.get("name"),
+                    size=talla_de(size, cat.section),
                     color=color_name,
                     sku=str(sku) if sku is not None else None,
                     price=price,
