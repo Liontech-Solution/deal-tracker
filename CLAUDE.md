@@ -225,7 +225,15 @@ These are facts about the running system, not plans:
   consumes the very tag QA already runs — it is a **gate**: it refuses to move unless
   `.claude/qa-reports/<version>.md` says `**Veredicto: APTO**`, QA is running that version, both
   images exist in GHCR and the prod overlay is where the contract says. The authority is that
-  committed report, never the GitHub `prerelease` flag.
+  committed report, never the GitHub `prerelease` flag. And since #306 it **only moves forward**: a
+  GATE 0 rejects a version with no published Release, or one that is not `>=` the current `latest`
+  (`>=`, not `>`, because re-running it over the version prod already serves is a supported case).
+  Rolling back needs a different path, and it is not this workflow.
+- **`prerelease` is not archive, and it now expires.** Here a live `prerelease` is a failed attempt —
+  `/validar-qa` lowers the flag *only* when it writes an `APTO` report — so `release-qa` ends by
+  calling `prune-prereleases.yml`, which keeps the **5 newest by semver** (hard floor of 2) and
+  deletes the rest with their git tag. It never touches non-`prerelease` releases, `latest`, the
+  GHCR images (that axis is #283) or the QA reports, and the commits stay reachable on `main`.
 - **Manifests live in a separate repo:** `juanjocop/k3s-local-apps-manifests`, under
   `deal-tracker/{base,overlays/dev,overlays/qa,overlays/prod}`. The `images[].newTag` values there
   are **machine-edited — never hand-edit them**. ArgoCD runs with `selfHeal: true`, so a

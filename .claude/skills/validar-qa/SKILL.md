@@ -218,9 +218,16 @@ como aprobado**: el valor entero de esta skill es que nunca aprueba por omisión
 saltárselo una vez para que deje de servir.
 
 **Y una versión que no se validó nunca tampoco llega a producción**, aunque nadie la haya declarado
-mala. Se puede cortar una release de QA y no pasarle esta skill jamás: se queda en `prerelease` para
-siempre y `release-prod.yml` la rechaza por no encontrar `.claude/qa-reports/<version>.md`. No es un
-accidente feliz, es el diseño — el silencio no promueve.
+mala. Se puede cortar una release de QA y no pasarle esta skill jamás: se queda en `prerelease` y
+`release-prod.yml` la rechaza dos veces — el GATE 0 por seguir en `prerelease`, y el GATE 1 por no
+encontrar `.claude/qa-reports/<version>.md`. No es un accidente feliz, es el diseño — el silencio no
+promueve.
+
+Lo que sí ha cambiado con #306: **no se queda ahí para siempre**. `release-qa` poda al publicar y
+solo sobreviven las **5 `prerelease` más recientes por semver**, así que una versión sin validar
+acaba desapareciendo con su tag. No afecta al veredicto —una prerelease no era promocionable de
+todos modos—, pero sí a mirar atrás: si hace falta conservar el rastro de por qué se cortó una
+versión, lo que lo conserva es **su informe**, que la poda no toca nunca.
 
 ### Las issues
 

@@ -143,3 +143,18 @@ jobs:
           git add "${QA_KUSTOMIZATION#gitops/}"
           git commit -m "chore(qa): deal-tracker $VERSION" || { echo "sin cambios"; exit 0; }
           git push
+
+  # La versión que acaba de nacer es la enésima `prerelease` viva, y hasta #306 no se borraba
+  # ninguna nunca. Se poda justo aquí porque es el momento exacto en que nace una, igual que los dos
+  # CI limpian GHCR justo después de publicar la imagen. El techo y el suelo, y por qué las
+  # no-`prerelease` no se tocan, están en el propio `prune-prereleases.yml`.
+  #
+  # Va como job aparte y no como paso porque el mismo workflow se lanza a mano por
+  # `workflow_dispatch` para vaciar el atraso: es el MISMO código, no una copia que se desincroniza.
+  # Que `promote` haya terminado bien es lo único que exige.
+  limpieza:
+    name: podar prereleases viejas
+    needs: promote
+    permissions:
+      contents: write
+    uses: ./.github/workflows/prune-prereleases.yml
