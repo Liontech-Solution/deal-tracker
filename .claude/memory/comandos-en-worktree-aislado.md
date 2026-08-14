@@ -40,6 +40,14 @@ la forma del comando. Dos que cuestan varios intentos si no se sabe:
 - **Encadenar `sleep` está bloqueado**, y esto no es del worktree: `sleep 45 && gh pr view ...` se
   rechaza pidiendo un bucle. Para esperar al CI, la condición dentro de un `until`:
   `until gh pr view N --json statusCheckRollup -q '.statusCheckRollup[].status' | grep -qv IN_PROGRESS; do sleep 10; done`
+
+  **Pero en un worktree ese `until` también se rechaza** en cuanto lleva comillas dentro del `-q`
+  de `gh`, y `Monitor` con el mismo bucle igual: vuelve el «too complex». Aquí la salida es la
+  misma que para `env` — **el bucle en un `.sh` del scratchpad** y `bash <ruta> <PR>`, que además
+  se reutiliza en cada PR de la sesión. Y para el CI hay un atajo que no necesita bucle ninguno:
+  `gh run watch <id> --exit-status --interval 5` bloquea hasta que el run acaba, y funciona incluso
+  si ya había terminado. Ojo a que `gh pr checks` dice *«no checks reported»* mientras
+  `statusCheckRollup` ya los está enseñando (ver [[gh-pr-merge-auto-no-espera]]).
 - **Los ficheros de fuera del worktree no se pueden editar** desde una sesión aislada, y la memoria
   es uno: `~/.claude/projects/.../memory/` es un symlink al `.claude/memory/` del checkout principal
   (ver [[memoria-en-repo]]), así que `Edit` sobre esa ruta se rechaza. Hay que editar **la copia del
