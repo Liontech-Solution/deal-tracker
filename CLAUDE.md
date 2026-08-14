@@ -234,6 +234,14 @@ These are facts about the running system, not plans:
   calling `prune-prereleases.yml`, which keeps the **5 newest by semver** (hard floor of 2) and
   deletes the rest with their git tag. It never touches non-`prerelease` releases, `latest`, the
   GHCR images (that axis is #283) or the QA reports, and the commits stay reachable on `main`.
+- **GHCR retention is prod's rollback policy** (#283). `v*` images are **never** pruned
+  (`exclude-tags: latest,v*`): the prod overlay paints a tag, not a digest, so the surviving `v*`
+  window *is* how far back prod can go. Only the `sha-<7>` tail has a ceiling — raised from 10 to
+  **30** on 2026-08-14, because at the measured rate (15 scraper / 26 web publishes per week) 10 was
+  under three days of dev. **Past that window the image is gone and dev has no rollback**, by
+  decision. If a `v*` ever gets pruned: GHCR deletes *versions*, not tags, and some versions carry
+  two releases (`1106121923` of `deal-tracker-web` holds `v0.1.8` **and** `v0.1.9`), so resolve tags
+  to digests first and refuse if the version carries a protected `v*`.
 - **Manifests live in a separate repo:** `juanjocop/k3s-local-apps-manifests`, under
   `deal-tracker/{base,overlays/dev,overlays/qa,overlays/prod}`. The `images[].newTag` values there
   are **machine-edited — never hand-edit them**. ArgoCD runs with `selfHeal: true`, so a

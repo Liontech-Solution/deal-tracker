@@ -103,7 +103,18 @@ jobs:
           # multiarch de main, que es la que leen todos los PR. mode=max porque las stages caras
           # son intermedias (deps/build-api/build-frontend en el web).
           cache-to: ${{ github.event_name == 'push' && 'type=gha,mode=max' || '' }}
-      - name: Retención de imágenes en GHCR (conserva las 10 últimas)
+      # `keep-n-tagged` cuenta SOLO las versions no excluidas, así que esto acota la cola de
+      # `sha-<7>` y nada más: cada `release-qa` añade un `v*` a una version y la saca del ciclo de
+      # poda para siempre. Medido el 14/08/2026 en #283: de 22 versions con tag del scraper, 12 son
+      # ya inmunes, y esa fracción solo sube (+1 por release, nunca baja).
+      #
+      # POR QUÉ 30 Y NO 10, que es con lo que nació esto en el primer CI: la ventana de `sha-<7>`
+      # ES la ventana de rollback de dev, el único entorno que corre un sha. Con 10 y el ritmo real
+      # de los últimos 7 días —15 publicaciones de esta imagen, 26 la del web— dev no podía volver
+      # a lo que corría hace cinco días, y en una versión con sesiones en paralelo es bastante peor.
+      # 30 da del orden de dos semanas aquí y una en el web. Pasado ese umbral la imagen YA NO
+      # EXISTE y dev no tiene rollback: es una decisión escrita, no un olvido.
+      - name: Retención de imágenes en GHCR (conserva las 30 últimas)
         if: github.event_name == 'push'
         continue-on-error: true # la limpieza nunca debe tumbar la publicación
         uses: dataaxiom/ghcr-cleanup-action@v1
@@ -111,8 +122,11 @@ jobs:
           owner: liontech-solution
           packages: deal-tracker-scraper
           token: ${{ secrets.GITHUB_TOKEN }}
-          keep-n-tagged: 10
-          # Protege 'latest' y los tags de release semver (v*) que consume QA/prod de la poda.
+          keep-n-tagged: 30
+          # Protege 'latest' y los tags de release semver (v*) que consume QA/prod de la poda. NO
+          # se toca: la ventana de `v*` que sobreviva ES la ventana de rollback de prod, cuyo
+          # overlay pinta un tag y no un digest. Y si algún día se poda, ojo — GHCR borra
+          # *versions*, no tags, y hay versions que cargan dos `v*` a la vez (#283).
           exclude-tags: latest,v*
           delete-untagged: true
 
