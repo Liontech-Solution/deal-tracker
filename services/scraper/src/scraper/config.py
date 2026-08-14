@@ -104,6 +104,32 @@ class Config:
     # migraciones legítimamente, y algunas obligan a un `REINDEX` que no cabe en 30 s. `0` lo
     # desactiva y espera lo que haga falta.
     migration_lock_wait: float = 300.0
+    # Segundos que una transacción nuestra puede estar OCIOSA antes de que Postgres mate la sesión
+    # (#210). Es la otra mitad de #169: el `lock_timeout` de arriba acota a la VÍCTIMA —la pasada
+    # que choca con una huérfana muere en 30 s nombrando al culpable— pero la huérfana sigue ahí
+    # para la siguiente. Esto acota a la CULPABLE, y lo hace el servidor: la sesión sigue viva en
+    # Postgres cuando el pod ya está muerto, así que es el único de los dos que la limpia.
+    #
+    # Ojo a la asimetría, que es lo que hace peligroso este número: `lock_timeout` acota cada
+    # ESPERA por un lock y jamás mata una pasada legítima; éste acota el tiempo ocioso DENTRO de la
+    # transacción, y la fase 1 no ejecuta ni una sentencia mientras lista el catálogo. O sea que
+    # puesto por debajo del listado más largo mata pasadas buenas por construcción.
+    #
+    # El suelo, medido el 14/08/2026 sobre la vuelta completa de QA del 10/08 (las nueve tiendas,
+    # dos o tres muestras cada una): el peor listado es el de Hipercor con 3m —`duracion()` redondea
+    # al minuto, o sea 2m30s-3m29s—, y le siguen hm, sfera, lefties y mango entre 1 y 2 min.
+    # Springfield lista en 3 s. Los otros dos huecos candidatos quedaron descartados con dato: la
+    # fase 2 escribe por ficha y va a 1,0-2,5 s/ficha, y el lote entero de `probe_alive()` —que sí
+    # corre sin SQL entre sondeo y sondeo— cabe en los 2m13s que Sfera tarda en TODO lo que sigue
+    # al listado, sus 50 sondeos incluidos.
+    #
+    # Una hora es deliberadamente generosa sobre esos 3m, y el motivo es que el error no es
+    # simétrico: quedarse corto cuesta una pasada buena —en QA, una semana sin datos de esa tienda—
+    # y pasarse cuesta solo que la huérfana sobreviva un rato más, con el `lock_timeout` ya
+    # protegiendo a quien se la encuentre. Cubre además los ~30 min que el ADR guarda del listado de
+    # Hipercor antes de #160, por si algo los reintrodujera. **Este valor caduca solo**: la fase 1
+    # de una tienda de navegador crece con su catálogo. `0` lo desactiva.
+    idle_tx_timeout: float = 3600.0
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
@@ -142,6 +168,7 @@ class Config:
             log_level=env.get("SCRAPER_LOG_LEVEL", "INFO"),
             lock_timeout=float(env.get("SCRAPER_LOCK_TIMEOUT", "30")),
             migration_lock_wait=float(env.get("SCRAPER_MIGRATION_LOCK_WAIT", "300")),
+            idle_tx_timeout=float(env.get("SCRAPER_IDLE_TX_TIMEOUT", "3600")),
         )
 
 

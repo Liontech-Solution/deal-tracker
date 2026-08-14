@@ -21,13 +21,25 @@ def connect(config: Config) -> psycopg.Connection:
 
     Ojo: acota cada ESPERA por un lock, no la duración de la transacción. Una pasada legítima de
     cinco horas no se ve afectada mientras nadie le retenga las filas.
+
+    El `idle_in_transaction_session_timeout` viaja por el mismo sitio y por el mismo motivo, pero
+    apunta al revés (#210): aquél acota a la víctima de una huérfana, éste mata a la huérfana. Que
+    vaya en la conexión no es una comodidad — es lo que lo hace funcionar, porque **lo aplica el
+    servidor**: cuando el pod muere, su sesión sigue viva en Postgres y sigue contando.
+
+    Y aquí sí hay filo: este segundo acota el tiempo OCIOSO dentro de la transacción, y la fase 1
+    no ejecuta SQL mientras lista. Por debajo del listado más largo mata pasadas buenas. El suelo
+    medido y el margen elegido están en el comentario de `Config.idle_tx_timeout`.
     """
+    opciones = []
     if config.lock_timeout > 0:
-        ms = int(config.lock_timeout * 1000)
-        return psycopg.connect(
-            config.database_url, autocommit=False, options=f"-c lock_timeout={ms}"
-        )
-    return psycopg.connect(config.database_url, autocommit=False)
+        opciones.append(f"-c lock_timeout={int(config.lock_timeout * 1000)}")
+    if config.idle_tx_timeout > 0:
+        idle_ms = int(config.idle_tx_timeout * 1000)
+        opciones.append(f"-c idle_in_transaction_session_timeout={idle_ms}")
+    if not opciones:
+        return psycopg.connect(config.database_url, autocommit=False)
+    return psycopg.connect(config.database_url, autocommit=False, options=" ".join(opciones))
 
 
 @dataclass(frozen=True)
