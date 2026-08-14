@@ -28,6 +28,19 @@
  * condición A, condición que el orden no aplica—. Mirar solo `real` dejaba pasar una desalineación
  * del margen entera: no puede moverlo sobre ninguna fila que la base pueda producir (#375).
  *
+ * **El mínimo declarado de 30 días sí vive aquí, y esa es la diferencia con el umbral de arriba**
+ * (#354). Tiene dos mitades y solo una es de este fichero: la *vía de acusación* condiciona
+ * `suspicious` y se queda en el TS, pero el *techo del PVP creíble* entra en `honestListPriceSql` y
+ * por tanto en `real` y en el orden de «Ofertas». La dirección es lo que lo hace seguro: el techo
+ * solo puede **bajar** el PVP, así que solo puede quitar una oferta real, nunca inventarla.
+ *
+ * Ojo a los dos umbrales, que no son el mismo y conviene no leerlos como si lo fueran: el techo
+ * retira `real` en cuanto `min30 <= price`, mientras que la acusación exige el margen
+ * (`price > min30 · 1,03`). Entre los dos queda una banda estrecha —`min30 <= price <= min30·1,03`—
+ * donde la oferta deja de ser real y **no** se acusa a nadie: cae a `unverified`. Es el
+ * comportamiento que se quiere, no un hueco — dentro del margen no afirmamos nada— pero significa
+ * que quitar `real` y etiquetar `suspicious` no son equivalentes, solo van en la misma dirección.
+ *
  * Si tocas `deal-rule.ts`, toca este fichero en el mismo commit.
  */
 
@@ -59,6 +72,11 @@ export interface DealSqlColumns {
   maxObserved: SQL;
   /** Cuántas observaciones anteriores hay. 0 = arranque en frío. */
   priorPoints: SQL;
+  /**
+   * Mínimo de 30 días que declara la tienda (`retailer_min_30d`), o `NULL` en las siete tiendas que
+   * no lo publican. Entra como techo del PVP creíble (#354).
+   */
+  retailerMin30d: SQL;
 }
 
 /**
@@ -67,13 +85,21 @@ export interface DealSqlColumns {
  *
  * `NULL` cuando no hay ninguno: sin histórico no se cae de vuelta al precio tachado de la tienda.
  */
-export function honestListPriceSql(listPrice: SQL, maxObserved: SQL): SQL {
-  return sql`(CASE
+export function honestListPriceSql(listPrice: SQL, maxObserved: SQL, retailerMin30d: SQL): SQL {
+  const base = sql`(CASE
     WHEN ${maxObserved} IS NULL THEN NULL
     WHEN ${listPrice} IS NULL THEN ${maxObserved}
     WHEN ${listPrice} > ${maxObserved} * ${MARGEN} THEN ${maxObserved}
     ELSE ${listPrice}
   END)`;
+  // El tercer parámetro es OBLIGATORIO a propósito, aunque la columna sea NULL en siete de las nueve
+  // tiendas: un argumento opcional aquí es exactamente el vector de deriva que este fichero existe
+  // para cerrar — quien lo olvidara se llevaría la regla vieja, compilando y sin decir nada.
+  //
+  // `LEAST` ignora los NULL, que es lo que hace falta cuando la tienda no publica el mínimo. Ojo,
+  // no es intercambiable con un `LEAST` a secas: si `base` fuese NULL (arranque en frío) `LEAST`
+  // devolvería el mínimo declarado y **crearía** una referencia donde el TS devuelve `null`.
+  return sql`(CASE WHEN ${base} IS NULL THEN NULL ELSE LEAST(${base}, ${retailerMin30d}) END)`;
 }
 
 /**
@@ -87,7 +113,7 @@ export function honestListPriceSql(listPrice: SQL, maxObserved: SQL): SQL {
  *  - `honest > 0 AND honest > price`   → condición B: descuento > 0 contra el PVP creíble.
  */
 export function isRealDealSql(c: DealSqlColumns): SQL {
-  const honest = honestListPriceSql(c.listPrice, c.maxObserved);
+  const honest = honestListPriceSql(c.listPrice, c.maxObserved, c.retailerMin30d);
   return sql`(
     COALESCE(${c.priorPoints}, 0) > 0
     AND ${c.price} IS NOT NULL
@@ -106,7 +132,7 @@ export function isRealDealSql(c: DealSqlColumns): SQL {
  * `sort=ofertas` desempata, en lugar del `discount_pct` que declara la tienda.
  */
 export function honestDiscountSql(c: DealSqlColumns): SQL {
-  const honest = honestListPriceSql(c.listPrice, c.maxObserved);
+  const honest = honestListPriceSql(c.listPrice, c.maxObserved, c.retailerMin30d);
   return sql`(CASE
     WHEN ${honest} IS NOT NULL AND ${honest} > 0 AND ${honest} > ${c.price}
       THEN round((1 - ${c.price} / ${honest}) * 100, 2)

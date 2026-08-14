@@ -173,9 +173,12 @@ simétrico del anterior) · **una combinación de filtros que el propio panel of
 10 s** · **dato escrito por una imagen anterior cuando la release toca `services/scraper/`** (#378:
 el frente de datos estaría midiendo el scraper de la versión pasada).
 
-> Ojo con el simétrico de esto, que es un falso rojo fácil: **que no aparezca ni un solo badge
-> «Precio inflado» es lo esperado**, no una regresión. Acusar exige 90 días cubiertos y la serie de
-> QA arranca el 24/07/2026, así que hasta ~22/10/2026 no puede haber ninguno. Ver U26b/U26c.
+> Ojo con el simétrico de esto, que es un falso rojo fácil, **y desde #354 solo vale para siete de
+> las nueve tiendas**: que no aparezca ni un solo badge «Precio inflado» en ellas es lo esperado, no
+> una regresión — acusar por histórico propio exige 90 días cubiertos y la serie de QA arranca el
+> 24/07/2026, así que hasta ~22/10/2026 no puede haber ninguno por esa vía. **En C&A y Springfield es
+> al revés**: publican el mínimo de 30 días de la Ómnibus, esa vía no espera a nadie, y que no haya
+> ni uno es un hallazgo. Ver U26b/U26c/U26d.
 
 **P1 — no bloquea, pero se abre issue.** `errors > 0` en una pasada `success` · hoja de categoría
 retirada · aviso de ritmo del vigía · `✖ [cobertura]` del vigía · error en la consola del navegador ·

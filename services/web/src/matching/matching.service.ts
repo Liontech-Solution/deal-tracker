@@ -212,7 +212,7 @@ export class MatchingService {
   private async findCandidates(runIds: number[]): Promise<CandidateRow[]> {
     const rows = await this.db.execute(sql`
       WITH batch AS (
-        SELECT ph.variant_id, ph.price, ph.list_price, ph.scraped_at, ph.scrape_run_id,
+        SELECT ph.variant_id, ph.price, ph.list_price, ph.retailer_min_30d, ph.scraped_at, ph.scrape_run_id,
                v.product_id, v.size, v.color,
                p.retailer_id, p.gender, p.section, p.category,
                p.name AS product_name, coalesce(v.url, p.url) AS product_url,
@@ -242,7 +242,7 @@ export class MatchingService {
       )
       SELECT i.id AS interest_id, i.user_id, i.min_discount_pct, i.compare_base, i.window_days,
              u.telegram_chat_id,
-             b.variant_id, b.price, b.list_price, b.scrape_run_id, b.size, b.color,
+             b.variant_id, b.price, b.list_price, b.retailer_min_30d, b.scrape_run_id, b.size, b.color,
              -- Las cuatro piezas con las que se decide que dos variantes son la misma prenda
              -- comprable (#108). Las canónicas salen de la base, que es donde vive la única
              -- definición de "misma talla" y "mismo color" que usa también el WHERE de arriba.
@@ -309,6 +309,7 @@ export class MatchingService {
       variantId: Number(r.variant_id),
       price: String(r.price),
       listPrice: r.list_price === null ? null : String(r.list_price),
+      retailerMin30d: r.retailer_min_30d === null ? null : String(r.retailer_min_30d),
       scrapeRunId: Number(r.scrape_run_id),
       size: r.size,
       color: r.color,
@@ -491,5 +492,6 @@ interface RawCandidate {
   retailer_name: string;
   recent_min: string | null;
   max_observed: string | null;
+  retailer_min_30d: string | null;
   prior_points: string | number | null;
 }

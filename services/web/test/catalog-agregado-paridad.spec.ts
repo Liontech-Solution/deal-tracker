@@ -165,7 +165,8 @@ describe.skipIf(!TEST_DB)('paridad entre el agregado precomputado y el vivo (#31
     const [{ def }] = await sql<{ def: string }[]>`
       SELECT pg_get_functiondef('refresh_product_agg(bigint)'::regprocedure) AS def`;
     const enLaFuncion = def.match(/ORDER BY in_stock DESC, price ASC, variant_id\)\)\[1\]/g) ?? [];
-    expect(enLaFuncion).toHaveLength(8);
+    // Nueve desde la 0039 (#354): las ocho de la 0038 más `retailer_min_30d_repr`.
+    expect(enLaFuncion).toHaveLength(9);
 
     // Y el mismo recuento en el camino vivo del servicio.
     const capturadas: string[] = [];
@@ -181,7 +182,21 @@ describe.skipIf(!TEST_DB)('paridad entre el agregado precomputado y el vivo (#31
     await new CatalogService(espia as never).listProducts(q, { forzarAgregadoVivo: true });
     const enElServicio =
       capturadas[0].match(/ORDER BY in_stock DESC, price ASC, variant_id\)\)\[1\]/g) ?? [];
-    expect(enElServicio).toHaveLength(8);
+    expect(enElServicio).toHaveLength(9);
+  });
+
+  it('el mínimo declarado llega igual por los dos caminos, y acusa (#354)', async () => {
+    const { precomputado, vivo } = await ambos((q) => (q.q = 'declarado'));
+
+    // Lo primero es la paridad, que es lo que este fichero vigila: si el precomputado se llevara el
+    // mínimo de otra variante, el veredicto de la tarjeta se separaría del camino vivo.
+    expect(precomputado.items).toEqual(vivo.items);
+    expect(precomputado.items).toHaveLength(1);
+
+    // Y el veredicto es la acusación, no un «sin confirmar»: la representativa vale 25,00 con un
+    // mínimo declarado de 20,00, o sea que la tienda anuncia rebaja sobre 40,00 habiendo vendido
+    // más barato dentro de los 30 días. Sin el dato serían 4 días de histórico y `unverified`.
+    expect(precomputado.items[0].honesty).toBe('suspicious');
   });
 
   it('un producto sin variantes vivas con precio no sale por ninguno de los dos', async () => {
@@ -303,12 +318,14 @@ async function sembrar(sql: postgres.Sql): Promise<void> {
     listPrice: string | null,
     diasAtras: number,
     inStock = true,
+    min30d: string | null = null,
   ) => {
     await sql`
-      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock,
+                                 retailer_min_30d, scraped_at)
       VALUES (${variantId}, ${price}, ${listPrice},
               ${listPrice ? sql`round((1 - ${price}::numeric / ${listPrice}::numeric) * 100, 2)` : null},
-              ${inStock}, now() - make_interval(days => ${diasAtras}))`;
+              ${inStock}, ${min30d}, now() - make_interval(days => ${diasAtras}))`;
   };
 
   // 1. EMPATE: dos variantes al mismo precio y mismo stock. Solo el desempate por variant_id
@@ -367,6 +384,19 @@ async function sembrar(sql: postgres.Sql): Promise<void> {
   await precio(a1, '10.00', '60.00', 0, false); // la más barata, y sin stock
   await precio(a2, '50.00', '60.00', 4);
   await precio(a2, '40.00', '60.00', 0); // más cara, pero comprable
+
+  // 9. MÍNIMO DECLARADO (#354): la tienda publica su mínimo de 30 días y el precio actual está POR
+  //    ENCIMA de él, o sea que se desmiente sola. Es lo único del seed que ejercita
+  //    `retailer_min_30d_repr`, y hace falta que lo ejercite en las DOS variantes con valores
+  //    distintos: si el precomputado se llevara el de la variante equivocada, el veredicto de la
+  //    tarjeta cambiaría y el `EXCEPT` de los dos caminos es lo único que lo vería.
+  const declarado = await producto(zara.id, 'Z-DECLARADO', 'Botas con minimo declarado');
+  const d1 = await variante(declarado, 'Z-DECLARADO-24-gris', '24', 'gris');
+  const d2 = await variante(declarado, 'Z-DECLARADO-25-lila', '25', 'lila');
+  await precio(d1, '30.00', '40.00', 4, true, '20.00');
+  await precio(d1, '25.00', '40.00', 0, true, '20.00'); // la representativa: 25 > 20 -> se desmiente
+  await precio(d2, '38.00', '40.00', 4, true, '35.00');
+  await precio(d2, '36.00', '40.00', 0, true, '35.00');
 
   // 8. TODO AGOTADO: ninguna variante con stock. No tiene fila en el ámbito 'con_stock', así que
   //    con `inStock=true` no debe salir por ninguno de los dos caminos.

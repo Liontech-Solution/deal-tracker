@@ -174,6 +174,18 @@ and the honest discount (which orders `sort=ofertas`) that see a divergence. The
 `revisor-espejo-honestidad` subagent catches it before the fact, and is what you use on any change
 touching either file, their consumers in `catalog.service.ts`, or its `stats` CTEs.
 
+**And the rule now has an input that is not ours** (#354). C&A and Springfield publish the 30-day
+minimum the Ómnibus directive obliges them to (`price_history.retailer_min_30d`, there since `0018`
+and unread by anything until now). It enters as a **ceiling** on the credible RRP — never as a
+reference on its own — and opens a second path to `suspicious` that **does not wait for
+`HONESTY_EVIDENCE_DAYS`**, because the evidence is the store contradicting itself rather than our
+own thin series. Two consequences worth knowing before reading a catalogue: the blackout #332
+imposed until ~05/11/2026 (prod) **no longer covers those two stores** — 291 variants of 89 products
+were already accusable in QA on 14/08/2026, a third of them on the first pass we ever see them — and
+the accusation text differs by basis (`honestyBasis`), because saying "inflated against its history"
+about a garment discovered yesterday would be false. What does *not* move is `real`: the ceiling can
+only lower the credible RRP, so it can only remove a deal, never invent one.
+
 **Migrations have two appliers, both idempotent**: the scraper (`--migrate`) and the web
 (`pnpm migrate` / `node dist/database/migrate.js`, which runs as an initContainer in the cluster).
 Neither owns them.

@@ -3,7 +3,12 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { classifyHonesty, honestDiscountPct, honestListPrice } from '../src/matching/deal-rule';
+import {
+  classifyHonesty,
+  honestDiscountPct,
+  honestListPrice,
+  honestyBasis,
+} from '../src/matching/deal-rule';
 import type { DealInput } from '../src/matching/deal-rule';
 import {
   honestDiscountSql,
@@ -23,8 +28,8 @@ import { makeSql, TEST_DB } from './helpers';
  *
  * La red que había era un test extremo a extremo sobre **cuatro productos sembrados a mano**
  * (`catalog.e2e.spec.ts`), y esa es la duda que #228 levantaba: cuatro casos no cubren los bordes
- * de una regla con cinco entradas, tres de ellas nulables. Aquí se comparan los dos lados fila a
- * fila sobre el **producto cartesiano** de los valores interesantes de cada entrada — 1.440 casos,
+ * de una regla con seis entradas, cuatro de ellas nulables. Aquí se comparan los dos lados fila a
+ * fila sobre el **producto cartesiano** de los valores interesantes de cada entrada — 5.760 casos,
  * incluidos todos los nulos y los dos lados del margen del 3 %.
  *
  * Cartesiano y no aleatorio a posta: es determinista (un fallo se reproduce siempre igual), no
@@ -37,13 +42,14 @@ import { makeSql, TEST_DB } from './helpers';
  * creíble, y lo que la convierte en daño visible es el descuento honesto, que ordena «Ofertas».
  */
 
-/** Las mismas cinco entradas de `DEAL_COLUMNS`, aquí como columnas de un `VALUES`. */
+/** Las mismas seis entradas de `DEAL_COLUMNS`, aquí como columnas de un `VALUES`. */
 const COLUMNAS: DealSqlColumns = {
   price: sql`price`,
   listPrice: sql`list_price`,
   recentMin: sql`recent_min`,
   maxObserved: sql`max_observed`,
   priorPoints: sql`prior_points`,
+  retailerMin30d: sql`retailer_min_30d`,
 };
 
 interface Caso {
@@ -52,6 +58,7 @@ interface Caso {
   recentMin: string | null;
   maxObserved: string | null;
   priorPoints: number;
+  retailerMin30d: string | null;
 }
 
 /**
@@ -64,6 +71,18 @@ interface Caso {
  *    `price == recent_min`), que es donde vive el fallo de #332;
  *  - `null` está en las cuatro entradas nulables, que es lo que el seed de 4 productos no cubría.
  */
+/**
+ * El mínimo declarado de 30 días (#354). Cuatro valores elegidos por lo que hacen contra los
+ * precios de arriba, no por parecer variados:
+ *  - `null` es el caso de siete de las nueve tiendas, o sea la inmensa mayoría del catálogo;
+ *  - `3.99` coincide con un precio y con un máximo, que es donde vive el empate;
+ *  - `19.99` cae POR DEBAJO de los tachados grandes y por encima de los precios pequeños, así que
+ *    ejercita el techo de `honestListPrice` en las dos direcciones;
+ *  - `30.90` es exactamente `30.00 * 1.03`, el borde del margen, para que mover
+ *    `INFLATED_LIST_MARGIN` en un solo lado también se vea por esta entrada.
+ */
+const MINIMOS_DECLARADOS = [null, '3.99', '19.99', '30.90'];
+
 const PRECIOS = [null, '3.99', '19.99', '30.00'];
 const TACHADOS = [null, '3.99', '30.90', '31.00', '39.99', '99.99'];
 const MAXIMOS = [null, '3.99', '19.99', '30.00', '39.99'];
@@ -74,7 +93,16 @@ const CASOS: Caso[] = PRECIOS.flatMap((price) =>
   TACHADOS.flatMap((listPrice) =>
     MAXIMOS.flatMap((maxObserved) =>
       MINIMOS.flatMap((recentMin) =>
-        PUNTOS.map((priorPoints) => ({ price, listPrice, recentMin, maxObserved, priorPoints })),
+        PUNTOS.flatMap((priorPoints) =>
+          MINIMOS_DECLARADOS.map((retailerMin30d) => ({
+            price,
+            listPrice,
+            recentMin,
+            maxObserved,
+            priorPoints,
+            retailerMin30d,
+          })),
+        ),
       ),
     ),
   ),
@@ -95,23 +123,24 @@ describe.skipIf(!TEST_DB)('paridad de la regla de honestidad con su espejo SQL (
     client = makeSql();
     const db = drizzle(client);
 
-    // Un solo viaje a la base con los 1.200 casos como filas de un VALUES: la expresión que se
+    // Un solo viaje a la base con los 5.760 casos como filas de un VALUES: la expresión que se
     // ejercita es LA MISMA que compone `catalog.service.ts`, solo que apuntando a otras columnas.
     const filas = sql.join(
       CASOS.map(
         (c, i) =>
           sql`(${i}::int, ${c.price}::numeric, ${c.listPrice}::numeric, ${c.recentMin}::numeric,
-               ${c.maxObserved}::numeric, ${c.priorPoints}::int)`,
+               ${c.maxObserved}::numeric, ${c.priorPoints}::int, ${c.retailerMin30d}::numeric)`,
       ),
       sql`, `,
     );
     const rows = (await db.execute(sql`
       SELECT idx,
              ${isRealDealSql(COLUMNAS)}      AS is_real_deal,
-             ${honestListPriceSql(COLUMNAS.listPrice, COLUMNAS.maxObserved)} AS honest_list_price,
+             ${honestListPriceSql(COLUMNAS.listPrice, COLUMNAS.maxObserved, COLUMNAS.retailerMin30d)}
+               AS honest_list_price,
              ${honestDiscountSql(COLUMNAS)}  AS honest_discount
       FROM (VALUES ${filas})
-        AS t(idx, price, list_price, recent_min, max_observed, prior_points)
+        AS t(idx, price, list_price, recent_min, max_observed, prior_points, retailer_min_30d)
       ORDER BY idx
     `)) as unknown as {
       idx: number;
@@ -138,7 +167,7 @@ describe.skipIf(!TEST_DB)('paridad de la regla de honestidad con su espejo SQL (
     expect(reales).toBeLessThan(CASOS.length);
   });
 
-  it('SQL y TypeScript dan el mismo veredicto en los 1.440 casos', () => {
+  it('SQL y TypeScript dan el mismo veredicto en los 5.760 casos', () => {
     const discrepancias = CASOS.map((c, i) => ({ caso: c, sql: veredictosSql[i] }))
       .filter(({ caso, sql: enSql }) => enSql !== (classifyHonesty(comoDealInput(caso, 0)) === 'real'))
       .slice(0, 5);
@@ -159,7 +188,10 @@ describe.skipIf(!TEST_DB)('paridad de la regla de honestidad con su espejo SQL (
     // Aquí no hay condición A que valga: el PVP creíble se compara crudo, así que cualquier
     // tachado de la franja separa los dos lados.
     const discrepancias = CASOS.map((c, i) => ({ caso: c, sql: pvpsSql[i] }))
-      .filter(({ caso, sql: enSql }) => enSql !== honestListPrice(caso.listPrice, caso.maxObserved))
+      .filter(
+        ({ caso, sql: enSql }) =>
+          enSql !== honestListPrice(caso.listPrice, caso.maxObserved, caso.retailerMin30d),
+      )
       .slice(0, 5);
 
     expect(discrepancias).toEqual([]);
@@ -173,7 +205,11 @@ describe.skipIf(!TEST_DB)('paridad de la regla de honestidad con su espejo SQL (
     const discrepancias = CASOS.map((c, i) => ({ caso: c, sql: descuentosSql[i] }))
       .filter(
         ({ caso, sql: enSql }) =>
-          enSql !== honestDiscountPct(caso.price, honestListPrice(caso.listPrice, caso.maxObserved)),
+          enSql !==
+          honestDiscountPct(
+            caso.price,
+            honestListPrice(caso.listPrice, caso.maxObserved, caso.retailerMin30d),
+          ),
       )
       .slice(0, 5);
 
@@ -195,6 +231,59 @@ describe.skipIf(!TEST_DB)('paridad de la regla de honestidad con su espejo SQL (
       const enTs = CASOS.map((c) => classifyHonesty(comoDealInput(c, dias)) === 'real');
       expect(enTs).toEqual(veredictosSql);
     }
+  });
+
+  it('el mínimo declarado solo puede BAJAR el PVP creíble, nunca subirlo (#354)', () => {
+    // Es la propiedad de la que cuelga todo lo demás: si el techo solo baja, el descuento honesto
+    // solo puede encogerse, así que este cambio no puede convertir en «oferta real» nada que no lo
+    // fuera ya. Sin esto habría que demostrar caso a caso que `onlyDeals` no se ensancha.
+    for (const c of CASOS) {
+      const sinTecho = honestListPrice(c.listPrice, c.maxObserved, null);
+      const conTecho = honestListPrice(c.listPrice, c.maxObserved, c.retailerMin30d);
+
+      // Y el techo tampoco puede CREAR una referencia donde no la había: sin histórico seguimos
+      // callados, que es lo que #332 dejó establecido.
+      if (sinTecho === null) {
+        expect(conTecho).toBeNull();
+        continue;
+      }
+      expect(conTecho).not.toBeNull();
+      expect(conTecho as number).toBeLessThanOrEqual(sinTecho);
+    }
+  });
+
+  it('la acusación por dato declarado y `real` son excluyentes por construcción (#354)', () => {
+    // No es una casualidad de los datos de hoy —medido en QA el 14/08/2026: 0 filas en las dos a la
+    // vez— sino una consecuencia del techo: si `price > min30 · margen`, el PVP creíble se queda en
+    // `min30 < price`, la condición B cae y `evaluateDeal` no puede avisar. Si alguien cambiara el
+    // techo por una vía paralela que no tocara `honestListPrice`, esto se rompería y sería justo lo
+    // que hay que enterarse: la tarjeta diría «Oferta real» y la ficha «Precio inflado».
+    const enAmbas = CASOS.filter(
+      (c, i) => veredictosSql[i] && classifyHonesty(comoDealInput(c, 0)) === 'suspicious',
+    );
+
+    expect(enAmbas).toEqual([]);
+  });
+
+  it('la acusación por dato declarado NO espera a HONESTY_EVIDENCE_DAYS (#354)', () => {
+    // La mitad del valor de #354 es esta: el umbral de 90 días existe porque `max_observed` es
+    // NUESTRA observación y necesita madurar. El mínimo declarado no es nuestro, así que la
+    // acusación vale desde el primer día — incluido el arranque en frío, que en QA era un tercio de
+    // los casos (104 de 291). Si alguien le aplicara el umbral «por coherencia», el apagón hasta
+    // noviembre volvería entero y en silencio.
+    const caso = {
+      price: '19.99',
+      listPrice: '39.99',
+      recentMin: null,
+      maxObserved: null,
+      priorPoints: 0,
+      retailerMin30d: '3.99',
+    };
+
+    expect(classifyHonesty(comoDealInput(caso, 0))).toBe('suspicious');
+    expect(honestyBasis(comoDealInput(caso, 0))).toBe('declarado');
+    // Y la misma prenda sin el dato de la tienda se queda callada, que es el estado de antes.
+    expect(classifyHonesty(comoDealInput({ ...caso, retailerMin30d: null }, 0))).toBe('none');
   });
 
   it('`real` implica haber visto la prenda MÁS CARA que ahora', () => {

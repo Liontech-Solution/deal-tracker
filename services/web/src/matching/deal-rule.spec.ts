@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { classifyHonesty, evaluateDeal, honestListPrice, HONESTY_EVIDENCE_DAYS } from './deal-rule';
+import {
+  classifyHonesty,
+  evaluateDeal,
+  honestListPrice,
+  honestyBasis,
+  HONESTY_EVIDENCE_DAYS,
+} from './deal-rule';
 import type { DealInput } from './deal-rule';
 
 /**
@@ -304,6 +310,123 @@ describe('classifyHonesty · no acusar sin poder desmentir (#332)', () => {
 
     expect(verdict.notify).toBe(false);
     expect(verdict.reason).toBe('no-es-minimo');
+  });
+});
+
+describe('el mínimo de 30 días que declara la tienda (#354)', () => {
+  /**
+   * Caso de C&A medido el 14/08/2026: se anuncia a 11,99 € desde 22,99 € (−48 %) mientras la propia
+   * tienda declara haberlo vendido a 10,79 € dentro de los últimos 30 días.
+   */
+  const desmentida = (overrides: Partial<DealInput> = {}): DealInput =>
+    deal({
+      price: '11.99',
+      listPrice: '22.99',
+      retailerMin30d: '10.79',
+      recentMin: null,
+      maxObserved: null,
+      priorPoints: 0,
+      trackedDays: 0,
+      ...overrides,
+    });
+
+  it('la tienda se desmiente sola -> suspicious, y desde la PRIMERA vez que la vemos', () => {
+    // Lo que lo separa de #332: aquí no se usa nada nuestro. Sin el dato de la tienda este mismo
+    // caso es `none` —arranque en frío— y así se queda hasta noviembre.
+    expect(classifyHonesty(desmentida())).toBe('suspicious');
+    expect(honestyBasis(desmentida())).toBe('declarado');
+    expect(classifyHonesty(desmentida({ retailerMin30d: null }))).toBe('none');
+  });
+
+  it('el mínimo declarado POR ENCIMA del precio no acusa: eso es una rebaja de verdad', () => {
+    // 11,99 € por debajo de los 15,00 € que la tienda declara como mínimo de 30 días. No hay
+    // contradicción ninguna: la prenda está más barata que nunca en ese periodo.
+    expect(classifyHonesty(desmentida({ retailerMin30d: '15.00' }))).toBe('none');
+  });
+
+  it('sin tachado no hay rebaja anunciada, así que no hay nada que desmentir', () => {
+    // Una prenda a precio normal por encima de su mínimo de hace tres semanas no está engañando a
+    // nadie: simplemente ya no está rebajada.
+    expect(classifyHonesty(desmentida({ listPrice: null }))).toBe('none');
+  });
+
+  it('respeta el mismo margen del 3% que la vía observada', () => {
+    // 10,79 * 1,03 = 11,1137. Justo por debajo no acusa; justo por encima sí.
+    expect(classifyHonesty(desmentida({ price: '11.11' }))).toBe('none');
+    expect(classifyHonesty(desmentida({ price: '11.12' }))).toBe('suspicious');
+  });
+
+  it('entra como TECHO del PVP creíble, y solo puede bajarlo', () => {
+    // Con histórico propio: el tachado de 39,99 € es creíble contra un máximo de 39,99 €, pero la
+    // tienda declara haber vendido a 22,00 €, así que la referencia honesta es esa.
+    expect(honestListPrice('39.99', '39.99')).toBe(39.99);
+    expect(honestListPrice('39.99', '39.99', '22.00')).toBe(22);
+    // Un mínimo declarado por encima de la referencia no la sube.
+    expect(honestListPrice('39.99', '39.99', '50.00')).toBe(39.99);
+  });
+
+  it('no CREA una referencia donde no la había: sin histórico, sigue siendo null', () => {
+    // Es la guarda que impide que el dato declarado resucite el «-60 %» que #332 vino a callar.
+    expect(honestListPrice('49.99', null, '20.00')).toBeNull();
+  });
+
+  it('el aviso de Telegram ve el mismo techo, para no contradecir al catálogo', () => {
+    // La rebaja a 19,99 € desde un tachado de 39,99 € alcanzaría el 20 % que pide el interés... si
+    // la tienda no declarara haberla vendido a 21,00 € hace dos semanas. Contra esa referencia el
+    // descuento es del 4,8 % y no llega.
+    const conTecho = evaluateDeal(deal({ retailerMin30d: '21.00' }));
+
+    expect(conTecho.honestListPrice).toBe(21);
+    expect(conTecho.notify).toBe(false);
+    expect(conTecho.reason).toBe('descuento-insuficiente');
+    // Y sin el dato, el mismo interés sí avisaba.
+    expect(evaluateDeal(deal()).notify).toBe(true);
+  });
+
+  it('las siete tiendas que no lo publican se comportan exactamente igual que antes', () => {
+    // `undefined` (el campo es opcional) y `null` tienen que dar lo mismo que no tenerlo.
+    const base = deal();
+    expect(evaluateDeal({ ...base, retailerMin30d: null })).toEqual(evaluateDeal(base));
+    expect(classifyHonesty({ ...base, retailerMin30d: null })).toBe(classifyHonesty(base));
+  });
+
+  it('la banda entre los dos umbrales quita la oferta pero NO acusa', () => {
+    // El techo retira `real` en cuanto `min30 <= price`; la acusación exige además el margen del
+    // 3 %. Entre los dos queda esta banda, y aquí lo correcto es callarse: la oferta deja de serlo
+    // —el PVP creíble ya no supera al precio— pero dentro del margen no afirmamos nada.
+    //
+    // Está fijado porque los dos umbrales invitan a leerse como si fueran el mismo, y la diferencia
+    // solo se ve en tres céntimos de una prenda de once euros.
+    const enLaBanda = deal({
+      price: '11.00',
+      listPrice: '22.99',
+      retailerMin30d: '10.79', // 10,79 * 1,03 = 11,1137, o sea que 11,00 no llega al margen
+      recentMin: '12.00',
+      maxObserved: '22.99',
+      priorPoints: 5,
+      trackedDays: 5,
+    });
+
+    expect(classifyHonesty(enLaBanda)).toBe('unverified');
+    expect(honestyBasis(enLaBanda)).toBeNull();
+    // Y la oferta sí se ha retirado: el PVP creíble bajó al mínimo declarado, por debajo del precio.
+    expect(evaluateDeal({ ...enLaBanda, minDiscountPct: 0 }).notify).toBe(false);
+    // Sin el dato de la tienda, ese mismo caso era una bajada real contra un tachado creíble.
+    expect(evaluateDeal({ ...enLaBanda, retailerMin30d: null, minDiscountPct: 0 }).notify).toBe(true);
+  });
+
+  it('honestyBasis distingue las dos vías, y solo habla cuando hay acusación', () => {
+    const observada = deal({
+      price: '30.00',
+      listPrice: '99.99',
+      recentMin: '30.00',
+      maxObserved: '30.00',
+      trackedDays: HONESTY_EVIDENCE_DAYS,
+    });
+
+    expect(classifyHonesty(observada)).toBe('suspicious');
+    expect(honestyBasis(observada)).toBe('observado');
+    expect(honestyBasis(deal())).toBeNull();
   });
 });
 

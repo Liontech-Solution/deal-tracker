@@ -1,6 +1,6 @@
 /** Formas de respuesta del catálogo (precios como string: dinero exacto, sin float). */
 
-import type { HonestyVerdict } from '../matching/deal-rule';
+import type { HonestyBasis, HonestyVerdict } from '../matching/deal-rule';
 
 export interface ProductListItem {
   id: number;
@@ -100,8 +100,25 @@ export interface VariantWithPrice {
    * pinta, y la superficie de la API se queda en lo que alguien consume.
    */
   trackedDays: number;
+  /**
+   * Mínimo de los últimos 30 días que declara la tienda por la directiva Ómnibus (#354). `null` en
+   * las siete tiendas que no lo publican — solo lo traen C&A y Springfield.
+   *
+   * Sale en la ficha y no en el listado, con el mismo criterio que `trackedDays`: lo consume el
+   * texto de una acusación `declarado`, que cita la cifra en vez de limitarse a etiquetar.
+   */
+  retailerMin30d: string | null;
   /** Veredicto de descuento honesto de esta variante (misma regla que el aviso). */
   honesty: HonestyVerdict;
+  /**
+   * En qué se apoya una acusación: en nuestro histórico (`observado`) o en lo que la propia tienda
+   * declara (`declarado`). `null` en todo lo que no sea `suspicious` (#354).
+   *
+   * Existe porque la frase de la ficha no puede ser la misma en los dos casos: decir «inflado
+   * respecto a su historial» sobre una prenda que acabamos de descubrir sería falso, y afirmar de
+   * más es exactamente lo que #332 vino a quitar.
+   */
+  honestyBasis: HonestyBasis | null;
 }
 
 /** Una foto de la galería, atribuida al color que retrata (`null` = sin color atribuible). */
