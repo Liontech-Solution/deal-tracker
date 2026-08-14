@@ -17,6 +17,7 @@ import argparse
 import logging
 import sys
 from collections import Counter
+from collections.abc import Mapping
 
 import psycopg
 
@@ -94,6 +95,37 @@ def _cuales(nombres: list[str]) -> str:
     return f" ({', '.join(sorted(nombres))})" if nombres else ""
 
 
+def _report_residuo(
+    total: int, secas: list[str], por_hoja: Mapping[str, int] | None = None
+) -> None:
+    """Cuánto ha aportado el rescate del residuo (#358), con el desglose si se tiene.
+
+    Se imprime **siempre que la tienda use el mecanismo**, aporte o no, y esa es la gracia: la
+    cifra sana es la línea base contra la que se nota que algo se ha roto. Publicar solo la
+    anomalía dejaría al operador sin saber nunca cuánto era lo normal.
+
+    Al `scrape_run.message` va lo contrario —solo la anomalía, nunca la cifra—, y el reparto es
+    deliberado: ver la nota de `_success_message()` en `ingest.py`.
+
+    `por_hoja` solo lo tiene `--dry-run`, que trabaja con el `ScanReport` en la mano; la pasada
+    normal lee el `IngestResult`, que lleva el total y las hojas secas ya resumidos.
+    """
+    if por_hoja is not None:
+        if not por_hoja:
+            return
+        detalle = ", ".join(f"{hoja} {n}" for hoja, n in sorted(por_hoja.items()))
+        print(f"  rescate del residuo: {total} entradas de {len(por_hoja)} hojas [{detalle}]")
+    elif total or secas:
+        print(f"  rescate del residuo: {total} entradas")
+    if secas:
+        print(
+            f"⚠ {len(secas)} hoja{'' if len(secas) == 1 else 's'} con filtro no "
+            f"{'aportó' if len(secas) == 1 else 'aportaron'} nada de residuo"
+            f"{_cuales(secas)}: comprueba si la tienda ha cambiado cómo rotula esas familias "
+            f"(`_FAMILIA_RESIDUAL`), porque el rescate de #289 dejaría de funcionar en silencio"
+        )
+
+
 def _report_dead_leaves(store: BaseStore) -> None:
     """Avisa de las hojas de categoría que la tienda ya no sirve (solo en `--dry-run`)."""
     if not isinstance(store, SupportsScanReport):
@@ -112,6 +144,7 @@ def _report_dead_leaves(store: BaseStore) -> None:
             f"{'respondió' if cuantas == 1 else 'respondieron'} pero su filtro no casó con nada"
             f"{_cuales(report.empty_filter_leaves)}: mira cómo se llaman hoy sus productos"
         )
+    _report_residuo(report.residual_entries, report.barren_residual_leaves, report.residual_by_leaf)
 
 
 def _check_categories(config: Config, slug: str) -> int:
@@ -489,6 +522,7 @@ def main(argv: list[str] | None = None) -> int:
             f"{'' if cuantas == 1 else 's'} se queda{'' if cuantas == 1 else 'n'} sin detección de "
             "bajas hasta saber cuál de las dos. Compruébalo pidiendo la hoja y mirando los nombres."
         )
+    _report_residuo(result.residual_entries, result.barren_residual_leaves)
     return 0
 
 
