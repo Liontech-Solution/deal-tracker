@@ -1,0 +1,129 @@
+name: prune-prereleases
+
+# Poda de GitHub Releases en `prerelease`, con su tag git.
+#
+# POR QUÉ SOLO LAS `prerelease`: en este repo el flag no es decorativo. `/validar-qa` lo baja SOLO al
+# escribir un informe con veredicto APTO, así que una `prerelease` viva es una de dos cosas — una
+# versión con veredicto en contra, o una que nunca se llegó a validar. Un intento fallido, no
+# historia del repo. Las no-`prerelease` y la `latest` son la ventana de rollback de prod y NO SE
+# TOCAN NUNCA, ni ellas ni sus imágenes.
+#
+# LO QUE ESTO NO BORRA, y conviene tenerlo claro antes de tocar los números:
+#   - Las imágenes de GHCR. Ese eje es #283 y tiene una trampa medida allí: GHCR borra *versiones*,
+#     no tags, y hay versiones que cargan dos releases a la vez (la `1106121923` de
+#     `deal-tracker-web` lleva `v0.1.9` Y `v0.1.8`), así que podar la imagen de una `prerelease`
+#     puede llevarse por delante la que corre prod. Aquí no se toca GHCR a propósito.
+#   - Los informes `.claude/qa-reports/*.md`. Son el registro de POR QUÉ aquella versión fue
+#     defectuosa, y su bloque `## Cifras` es la línea base del informe siguiente. Pesan cero.
+#   - Los commits: siguen en `main` y siguen siendo alcanzables sin el tag.
+#
+# Se invoca desde `release-qa.yml` (justo después de nacer una `prerelease`, que es el patrón que ya
+# viven los dos CI: limpiar detrás de publicar) y a mano por `workflow_dispatch`.
+#
+# Issue: #306.
+
+on:
+  workflow_call:
+    inputs:
+      keep:
+        description: "Cuántas prereleases se conservan (las más recientes por semver)"
+        required: false
+        default: 5
+        type: number
+      dry_run:
+        description: "Solo listar, sin borrar"
+        required: false
+        default: false
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: "Cuántas prereleases se conservan (las más recientes por semver)"
+        required: false
+        default: 5
+        type: number
+      # El manual arranca en seco a propósito: la primera pasada de esto vacía un atraso, y una
+      # lista impresa cuesta 20 segundos frente a un borrado que no se deshace.
+      dry_run:
+        description: "Solo listar, sin borrar"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: prune-prereleases
+  cancel-in-progress: false
+
+jobs:
+  podar:
+    name: podar prereleases (techo ${{ inputs.keep }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # borrar Releases y sus tags
+    steps:
+      # `continue-on-error` por lo mismo que lo lleva el paso de retención de GHCR de los dos CI
+      # (scraper-ci.yml, web-ci.yml): LA LIMPIEZA NUNCA DEBE TUMBAR LA RELEASE. Cuando esto corre
+      # desde `release-qa`, la versión ya está publicada y bumpeada; que la poda falle es ruido, no
+      # motivo para pintar de rojo una promoción que salió bien.
+      - name: Podar prereleases por encima del techo
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          KEEP: ${{ inputs.keep }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+
+          # SUELO DURO. Ojo con el motivo, porque el que parece obvio es falso: esto NO es una
+          # ventana de rollback. Una `prerelease` no es promocionable por construcción — el GATE 1
+          # de `release-prod` exige un informe APTO commiteado, y si lo tuviera ya no sería
+          # `prerelease`. El rollback de prod vive en las no-`prerelease` y en las imágenes de
+          # GHCR, que este workflow no toca.
+          # El suelo está para otra cosa: que un `keep` mal tecleado en el `workflow_dispatch`
+          # (un 0, un 1) no se lleve de golpe la historia de qué se cortó y por qué.
+          MIN_KEEP=2
+          if [ "$KEEP" -lt "$MIN_KEEP" ]; then
+            echo "::warning::keep=$KEEP está por debajo del suelo; se usa $MIN_KEEP"
+            KEEP=$MIN_KEEP
+          fi
+
+          # Ordenar por SEMVER, no por fecha. `gh release list` ordena por fecha de publicación, y
+          # un re-tag o una release fuera de orden desordenaría la ventana.
+          mapfile -t prereleases < <(
+            gh release list --repo "$REPO" --limit 200 \
+              --json tagName,isPrerelease,isDraft \
+              -q '.[] | select(.isPrerelease and (.isDraft | not)) | .tagName' \
+            | sort -V
+          )
+
+          total=${#prereleases[@]}
+          echo "prereleases vivas: $total (techo: $KEEP)"
+
+          if [ "$total" -le "$KEEP" ]; then
+            echo "nada que podar"
+            exit 0
+          fi
+
+          sobran=$(( total - KEEP ))
+          a_borrar=( "${prereleases[@]:0:$sobran}" )
+          se_quedan=( "${prereleases[@]:$sobran}" )
+
+          echo "::group::se quedan (${#se_quedan[@]})"
+          printf '%s\n' "${se_quedan[@]}"
+          echo "::endgroup::"
+
+          echo "::group::se borran (${#a_borrar[@]})"
+          printf '%s\n' "${a_borrar[@]}"
+          echo "::endgroup::"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "::notice::dry_run: no se borra nada. Se irían ${#a_borrar[@]}: ${a_borrar[*]}"
+            exit 0
+          fi
+
+          for tag in "${a_borrar[@]}"; do
+            echo "borrando $tag (Release + tag git)"
+            gh release delete "$tag" --repo "$REPO" --yes --cleanup-tag
+          done
+          echo "::notice::podadas ${#a_borrar[@]} prereleases: ${a_borrar[*]}"

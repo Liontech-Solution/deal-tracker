@@ -7,8 +7,9 @@ name: release-prod
 # copia la manifest list al mismo digest. Prod consume EXACTAMENTE el mismo tag `vX.Y.Z` que QA ya
 # está corriendo: no hay nada que re-etiquetar, y por eso no hay `imagetools create`.
 #
-# Lo que este workflow es de verdad es un GATE. Su valor entero está en los cuatro pasos de
-# verificación, y el que importa es el del informe:
+# Lo que este workflow es de verdad es un GATE. Su valor entero está en los cinco pasos de
+# verificación —el GATE 0 se añadió en #306 y es el único que mira la DIRECCIÓN del movimiento—,
+# y el que importa es el del informe:
 #
 #   La autoridad de que una versión vale para producción es `.claude/qa-reports/<version>.md`,
 #   commiteado en este repo, que empieza por `**Veredicto: APTO**`. NO el flag `prerelease` de
@@ -67,6 +68,58 @@ jobs:
             exit 1
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      # ------------------------------------------- GATE 0: prod solo avanza, y solo hacia lo real
+      # Barato y sin checkouts, para que falle en cinco segundos. Tapa lo único que NINGÚN otro gate
+      # mira: la dirección. Hasta #306 la versión llegaba de un campo de texto libre, y `v0.1.8`
+      # tecleada por error habría pasado los cuatro gates el día que tuviera informe APTO — un
+      # downgrade silencioso de producción.
+      #
+      # OJO, DOS MATICES QUE NO SON DECORATIVOS:
+      #
+      #   1. Es `>=` y no `>` A PROPÓSITO. Relanzar este workflow sobre la versión que prod ya corre
+      #      es un caso real y soportado (ver el paso de ascenso del Release, más abajo: el estreno
+      #      fue con `v0.1.9`, ya desplegada). Un `>` estricto rompería esa idempotencia sin ganar
+      #      nada: el rollback sigue bloqueado igual.
+      #   2. EL GATE 0 NO SUSTITUYE AL GATE 1. Aquí se mira el flag `prerelease`, y la cabecera de
+      #      este workflow es explícita en que ese flag es la señal y nunca la decisión — lo cambia
+      #      cualquiera con dos clics y no deja rastro. La autoridad sigue siendo el informe
+      #      commiteado. Esto solo descarta rápido lo que ni siquiera merece que se clone el repo.
+      #
+      # Para rollbacks se decidirá otro camino: este workflow solo va hacia adelante, y desde #306
+      # eso está escrito y comprobado, no supuesto.
+      - name: Exigir Release publicada y que no sea un downgrade
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if ! release=$(gh release view "$VERSION" --repo "$REPO" --json isPrerelease,isDraft 2>/dev/null); then
+            echo "::error::$VERSION no tiene GitHub Release. ¿Llegó a lanzarse el release-qa de esta versión?"
+            exit 1
+          fi
+          if [ "$(echo "$release" | jq -r .isDraft)" = "true" ]; then
+            echo "::error::El Release de $VERSION es un borrador: no ha llegado a publicarse."
+            exit 1
+          fi
+          if [ "$(echo "$release" | jq -r .isPrerelease)" = "true" ]; then
+            echo "::error::$VERSION sigue en prerelease: o no se validó, o su informe no dio APTO. El GATE 1 lo confirmará, pero no hace falta llegar hasta allí."
+            exit 1
+          fi
+
+          latest=$(gh api "repos/$REPO/releases/latest" -q .tag_name 2>/dev/null || true)
+          if [ -z "$latest" ]; then
+            echo "::warning::No hay ninguna release marcada como latest; no puedo comprobar la dirección. Sigo."
+            exit 0
+          fi
+          # sort -V ordena por semver (v0.10.0 > v0.4.0, que es donde una comparación de texto
+          # se equivocaría). Si la mayor de las dos no es la que se pide, se va hacia atrás.
+          if [ "$(printf '%s\n%s\n' "$latest" "$VERSION" | sort -V | tail -1)" != "$VERSION" ]; then
+            echo "::error::$VERSION es anterior a la latest actual ($latest). release-prod solo avanza: para volver atrás hace falta otro camino, y no es este workflow."
+            exit 1
+          fi
+          echo "$VERSION es release publicada y >= latest ($latest)"
 
       # Este repo primero: `actions/checkout` limpia su destino, y el segundo checkout cuelga
       # dentro del árbol del primero (gitops/).
