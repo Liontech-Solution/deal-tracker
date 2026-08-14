@@ -22,10 +22,27 @@
  * condición A cae antes. `deal-rule-paridad.spec.ts` fija esa implicación como invariante, para que
  * el día que alguien mueva `real` se entere de que arrastra la acusación.
  *
+ * **Y el veredicto no es lo único que hay que comparar.** `honestDiscountSql` alimenta el `ORDER BY`
+ * de `sort=ofertas` sobre TODAS las filas, no solo las `real`, así que su espejo es
+ * `honestDiscountPct()` y no `DealVerdict.discountPct` —que se pone a 0 en cuanto falla la
+ * condición A, condición que el orden no aplica—. Mirar solo `real` dejaba pasar una desalineación
+ * del margen entera: no puede moverlo sobre ninguna fila que la base pueda producir (#375).
+ *
  * Si tocas `deal-rule.ts`, toca este fichero en el mismo commit.
  */
 
 import { sql, type SQL } from 'drizzle-orm';
+
+import { INFLATED_LIST_MARGIN } from './deal-rule';
+
+/**
+ * El margen del PVP inflado, como **literal SQL** y no como parámetro ligado.
+ *
+ * `sql.raw` y no `sql`${...}`` a propósito: un número de JavaScript ligado viaja como `float8`, y
+ * `numeric * float8` no redondea igual que `numeric * numeric`. El literal preserva la aritmética
+ * exacta que la comparación tenía cuando el 1.03 estaba escrito a mano aquí.
+ */
+const MARGEN = sql.raw(String(INFLATED_LIST_MARGIN));
 
 /**
  * Columnas (o expresiones) de la variante "mejor oferta" contra las que se evalúa la regla. Son las
@@ -45,8 +62,8 @@ export interface DealSqlColumns {
 }
 
 /**
- * PVP creíble — espejo de `honestListPrice()` (`deal-rule.ts:64-77`), incluido su
- * `INFLATED_LIST_MARGIN = 1.03`.
+ * PVP creíble — espejo de `honestListPrice()` (`deal-rule.ts`), con el mismo
+ * `INFLATED_LIST_MARGIN`, que ya no se repite aquí sino que se importa.
  *
  * `NULL` cuando no hay ninguno: sin histórico no se cae de vuelta al precio tachado de la tienda.
  */
@@ -54,7 +71,7 @@ export function honestListPriceSql(listPrice: SQL, maxObserved: SQL): SQL {
   return sql`(CASE
     WHEN ${maxObserved} IS NULL THEN NULL
     WHEN ${listPrice} IS NULL THEN ${maxObserved}
-    WHEN ${listPrice} > ${maxObserved} * 1.03 THEN ${maxObserved}
+    WHEN ${listPrice} > ${maxObserved} * ${MARGEN} THEN ${maxObserved}
     ELSE ${listPrice}
   END)`;
 }

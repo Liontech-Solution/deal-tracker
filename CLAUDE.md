@@ -151,9 +151,14 @@ touching `db/migrations/**` or `schema.ts`.
 **The honesty rule is mirrored too, and the mirror is load-bearing.** `classifyHonesty()` in
 `services/web/src/matching/deal-rule.ts` labels the card, but filtering (`onlyDeals`) and sorting
 (`sort=ofertas`) have to decide **before the `LIMIT`**, so `deal-rule.sql.ts` reimplements it in SQL.
-The two go **in the same commit** — `INFLATED_LIST_MARGIN = 1.03` is a literal on the SQL side, so a
-change to one compiles fine and lies. `test/deal-rule-paridad.spec.ts` catches a divergence after the
-fact; the `revisor-espejo-honestidad` subagent catches it before, and is what you use on any change
+The two go **in the same commit**: a change to one compiles fine and lies.
+`INFLATED_LIST_MARGIN` is the one thing that can no longer drift — since #375 the SQL side imports
+it instead of repeating the literal — and that fix came from measuring how blind the net was: with
+the margin moved on one side only, all 725 tests of the service passed. What the parity spec
+compares now is three things, because **the `real` verdict is the least sensitive of them**: the
+margin cannot move `real` on any row the database can actually produce, so it is the credible RRP
+and the honest discount (which orders `sort=ofertas`) that see a divergence. The
+`revisor-espejo-honestidad` subagent catches it before the fact, and is what you use on any change
 touching either file, their consumers in `catalog.service.ts`, or its `stats` CTEs.
 
 **Migrations have two appliers, both idempotent**: the scraper (`--migrate`) and the web

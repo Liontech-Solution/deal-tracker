@@ -26,16 +26,19 @@ delante del usuario.
 ## Las dos fuentes y sus dos consumidores
 
 1. `services/web/src/matching/deal-rule.ts` — **la verdad para el usuario**. `evaluateDeal()`,
-   `classifyHonesty()`, `honestListPrice()`, y las constantes `INFLATED_LIST_MARGIN = 1.03`,
-   `HONESTY_WINDOW_DAYS = 90` y `HONESTY_EVIDENCE_DAYS`.
+   `classifyHonesty()`, `honestListPrice()`, `honestDiscountPct()`, y las constantes
+   `INFLATED_LIST_MARGIN = 1.03` (que el espejo importa), `HONESTY_WINDOW_DAYS = 90` y
+   `HONESTY_EVIDENCE_DAYS`.
 2. `services/web/src/matching/deal-rule.sql.ts` — el espejo. `isRealDealSql()`,
    `honestListPriceSql()`, `honestDiscountSql()`.
 3. `services/web/src/catalog/catalog.service.ts` — los alimenta a los dos. Ojo: **hay dos caminos**,
    el del listado y el de la ficha, cada uno con su propia CTE `stats` y su propia llamada a
    `classifyHonesty`. El listado pasa las columnas `*_repr` (el representante que elige `product_agg`
    por `array_agg`); la ficha pasa las columnas planas.
-4. Las dos redes que ya existen: `services/web/test/deal-rule-paridad.spec.ts` (1.200 casos
-   cartesianos, fila a fila) y el test de paridad extremo a extremo de `test/catalog.e2e.spec.ts`.
+4. Las dos redes que ya existen: `services/web/test/deal-rule-paridad.spec.ts` (1.440 casos
+   cartesianos, fila a fila, comparando **tres** cosas —el veredicto `real`, el PVP creíble y el
+   descuento honesto— porque el veredicto solo no ve el margen, #375) y el test de paridad extremo a
+   extremo de `test/catalog.e2e.spec.ts`.
 
 **El contrato, en una línea:** `isRealDealSql(...)` debe ser cierto exactamente cuando
 `classifyHonesty({ ...los mismos valores, minDiscountPct: 0, compareBase: 'recent_min' }) === 'real'`.
@@ -47,10 +50,13 @@ delante del usuario.
   responder, aunque el resto esté impecable. Compruébalo con `git diff` contra la base de la rama,
   no solo leyendo los ficheros.
 
-- **Constantes desalineadas.** El `1.03` de `INFLATED_LIST_MARGIN` está **literal** dentro de
-  `honestListPriceSql`, no importado. Mover la constante en TS deja el SQL mintiendo, y compila.
-  `HONESTY_WINDOW_DAYS` decide qué es `recent_min` y viaja al SQL por interpolación en la CTE
-  `stats` — en **las dos** de `catalog.service.ts`, que es donde se olvida una.
+- **Constantes desalineadas.** `INFLATED_LIST_MARGIN` ya **se importa** en `deal-rule.sql.ts` y se
+  interpola con `sql.raw` (#375), así que mover la constante mueve los dos lados a la vez: lo que
+  hay que vigilar ahora es que nadie vuelva a escribir el número a mano en el SQL, y que siga
+  siendo `sql.raw` y no un parámetro ligado (un número de JS viaja como `float8` y cambia la
+  aritmética de `numeric`). `HONESTY_WINDOW_DAYS` decide qué es `recent_min` y viaja al SQL por
+  interpolación en la CTE `stats` — en **las dos** de `catalog.service.ts`, que es donde se olvida
+  una.
 
 - **Entradas nuevas.** `DealSqlColumns` tiene cinco campos y `DealInput` tiene más. Si aparece una
   entrada nueva en TS, hay que decidir **explícitamente** si afecta al veredicto `real`. Ya pasó con
