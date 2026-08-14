@@ -2674,6 +2674,29 @@ frentes de datos y API de `/validar-qa` machacando la misma API y la misma base.
 latencia de QA sin un control `sin filtros` antes y después no vale: no distingue una regresión de la
 carga del que mide.
 
+**Cerrado sobre lo desplegado el 14/08/2026, validando `v0.4.0`.** Todo lo de arriba se midió por
+`EXPLAIN` o contra `v0.3.0`; esto es por HTTP contra el artefacto que va a producción, con el control
+estable antes (0,17-0,24 s) y después (0,17-0,32 s), ×3 por combinación:
+
+| consulta | bajo v0.3.0 | bajo v0.4.0 |
+|---|---:|---:|
+| sin filtros | 1,85 / 1,80 s | **0,18 s** |
+| `color=negro&retailer=hm` | 27,05 / 27,64 s | **1,04 s** |
+| `color=negro&retailer=zara` | 23,25 / 23,57 s | 1,02 s |
+| `inStock=true` | — | 2,1 s |
+
+Dos cosas que solo se ven midiendo así y no con `EXPLAIN`. La primera: los **0,18 s** de extremo a
+extremo incluyen HTTP y validación de token, o sea que el suelo real que ve el usuario está **por
+debajo** del criterio de hecho de #314, no rozándolo. La segunda: `inStock=true` sale en **2,1 s**,
+por encima del ~1-1,5 s que #373 daba por bueno, y se queda como el techo del panel —es el único
+filtro que no aprovecha `product_agg` (#371)—, aunque siga bajo el umbral P1 de 3 s del listón.
+
+**Y `product_agg` cuadra después de ingerir, que es lo que no se había comprobado nunca.** El
+apartado de la `0035` avisa de que una caché desactualizada devuelve menos filas *sin dar síntoma* y
+argumenta que en producción ese estado no es alcanzable. Verificado ya empíricamente: antes de una
+pasada real 16.517 = 16.517 productos vivos, y después de una pasada real de zara **16.844 =
+16.844**. El argumento deja de ser solo estructural.
+
 ### La faceta describe la vista, y cruzarla tiene una frontera de coste declarada (#292, #291)
 
 `getFacets()` es lo que llena el panel de filtros, y hasta la v0.3.0 solo se acotaba por `barefoot`,
@@ -3124,6 +3147,45 @@ Dos detalles del diseño que se decidieron aquí y conviene no revertir por desc
   la página impide que sus hooks lleguen a montarse: si dispararan antes de que `AuthProvider`
   resuelva `/api/config`, el token sería `null` todavía y la primera carga daría 401 con sesión
   válida. Por eso la rama `!ready` del wrapper no es cosmética.
+
+### El `Job` conserva la imagen de su disparo, así que una validación puede medir otra release (#378)
+
+Corolario incómodo del apartado anterior, descubierto validando **v0.4.0** el 14/08/2026. Cuando se
+pregunta «¿con qué versión se ingirió esto?», el sitio natural donde mirar —el `CronJob`— **miente
+por construcción**: ArgoCD ya le ha sincronizado la plantilla, así que enseña la imagen desplegada
+hoy. Pero el `Job` que de verdad escribió las filas es un **snapshot inmutable del momento en que se
+disparó** y conserva la que hubiera entonces.
+
+```bash
+kubectl -n deal-tracker-qa get jobs -o json | jq -r '.items[]
+  | select(.metadata.name|test("scraper|matching"))
+  | "\(.metadata.name)\t\(.status.startTime)\t\(.spec.template.spec.containers[0].image)"'
+```
+
+En QA, con `v0.4.0` desplegado, las nueve pasadas del 10/08 salían con
+`…/deal-tracker-scraper:v0.1.9`. **Tres releases por detrás.** Y no es un despiste de una sesión: el
+informe de v0.3.0 dio por hecho que su dato era de v0.3.0 y era de v0.1.9, porque no había forma
+barata de verlo. Su bloque `## Cifras` describe, en realidad, la ingesta de v0.1.9.
+
+La causa es la cadencia, no un fallo: QA solo ingiere **los lunes**, y `release-qa` corta cuando
+corta. Entre una promoción y el lunes siguiente, **el entorno sirve dato viejo con binarios nuevos**,
+que es un estado perfectamente sano y perfectamente engañoso.
+
+Lo que hay que llevarse, porque es lo que decide si una validación vale:
+
+- **La imagen desplegada y la imagen que escribió el dato son dos preguntas distintas**, y solo la
+  primera es fácil. Un informe que no las separe afirma sobre la ingesta más de lo que ha medido.
+- **El riesgo no es constante: depende de si la release toca `services/scraper/`.** v0.3.0 podía
+  permitírselo porque no tenía ni un cambio ahí (su informe lo dice y lo usa como coartada). v0.4.0
+  no: `stores/zara.py` +140 líneas (#289), más `ingest.py`, `migrate.py`, `db.py` y `run.py`. Ahí
+  validar contra filas de v0.1.9 no prueba nada del código que va a producción.
+- **La salida barata es disparar una pasada a mano** desde el `CronJob`, que sí toma la imagen
+  vigente. En la validación de v0.4.0 se hizo con zara —la tienda que cambiaba— y salió `success`, 0
+  errores, 13 min, +7,3 % de catálogo. Trece minutos compran la afirmación entera.
+
+Queda abierto en #378 dónde ponerle el arreglo permanente: que `/validar-qa` compare las dos imágenes
+y lo diga (barato, esta semana), o que `scrape_run` registre la versión que la escribió (contestable
+en SQL, sin `kubectl`, y también en prod — pero toca el contrato de esquema).
 
 ### Callar y acusar son decisiones asimétricas, y `max_observed` no significa lo que su nombre dice (#332)
 
