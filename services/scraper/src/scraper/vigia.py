@@ -462,6 +462,14 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "1030267671/1030267672/1030267718/1030421806": (
             "«Rebajas» (3_NA_T_ZAPATOS_REBAJAS_ES): vista transversal; 1/0/1"
         ),
+        # El espejo de la hoja barefoot, igual que en las dos ramas de bebé y por el mismo motivo
+        # (#203). Aquí el menú lo dice además con todas las letras: la que mapeamos es un ALIAS
+        # —`key` acabada en `_MENU`— cuyo `content.id` es esta misma categoría, así que la
+        # identidad no es una coincidencia de la medición, es la estructura del menú.
+        "1030267671/1030267672/1030267718/1030680609": (
+            "«Barefoot» (3_NA_T_ZAPATOS_BAREFOOT): espejo exacto de la rama propia ya mapeada "
+            "(1030680692, que es su alias de menú); 21/21/0 el 14/08/2026, 15/15/0 el 06/08"
+        ),
         # --- niño, ropa (3_NO_*) ---
         "1030267671/1030267673/1030269021": (
             "«NOVEDADES» (3_NO_T_NEWIN): vista transversal; 208/125/83, misma composición que la "
@@ -516,6 +524,10 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         ),
         "1030267671/1030267673/1030267842/1030293053": (
             "«Promoción» (3_NO_T_ZAPATOS_PROMO): vista transversal; 25/25/0"
+        ),
+        "1030267671/1030267673/1030267842/1030680610": (
+            "«Barefoot» (3_NO_T_ZAPATOS_BAREFOOT): espejo exacto de la rama propia ya mapeada "
+            "(1030680206, que es su alias de menú); 25/25/0 el 14/08/2026, 23/23/0 el 06/08"
         ),
         # --- bebé niña (3_BA_*), lo que queda fuera de la rama --------------------------------
         #
@@ -662,6 +674,73 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         ),
         "1030267671/1030513546/1030679108": (
             "«Bolsos Maternidad» (3_BG_T_BOLSOS): ni es del brief ni es infantil; 6/0/6"
+        ),
+        # --- las rutas de campaña que el vigía llevaba cuatro barridos cantando (#260) ----------
+        #
+        # Crecían solas: 6 rutas el 07/08, 8 el 12/08 y **12 el 14/08**. Ninguna cae en las cinco
+        # categorías del brief POR SU NOMBRE, que es lo que el listón de `/validar-qa` mira, pero
+        # cuatro traían hijas sin inspeccionar y eso es lo que tenía la severidad en el aire. Se
+        # inspeccionaron el 14/08/2026 cruzando sus rejillas por `productParentId` contra el
+        # catálogo que ingiere la pasada (1152 modelos), y el resultado —`total/ya entra/
+        # exclusivos`— es lo que hay en cada motivo. **La severidad se queda en P1, ahora medida y
+        # no supuesta.**
+        #
+        # Las cuatro `VUELTA AL COLE` son ALIAS: su `content.id` apunta a su propia hija «Ver Todo»
+        # (y en bebé niño, a la `Ropa` de niño, que es un error de la tienda y no nuestro), así que
+        # declarar la rama tapa el subárbol entero y no hace falta declarar las hijas.
+        #
+        # ⚠️ **Estas doce caducan con la campaña**, y por eso #260 pedía valorar si una declaración
+        # debe caducar sola. Lo hace ya: `revisar_cobertura()` avisa de las que la tienda ha dejado
+        # de publicar, y el día que estos ids se apaguen saldrán ahí en vez de quedarse mintiendo.
+        "1030267671/1030267672/1030272190": (
+            "«Ropa Deportiva» (3_NA_T_ROPADEPORTIVA_MENU): alias de menú de la hoja de ETIQUETA "
+            "ya mapeada (1030267709); 78/78/0"
+        ),
+        "1030267671/1030267673/1030272225": (
+            "«Ropa Deportiva» (3_NO_T_ROPADEPORTIVA_MENU): alias de menú de la hoja de ETIQUETA "
+            "ya mapeada (1030267833); 75/75/0"
+        ),
+        "1030267671/1030267672/1030286006": (
+            "«PROMOCIÓN» (3_NA_P_PROMO_ES): campaña transversal; 64/39/25, y sus exclusivos son "
+            "baño, toallas, gorras y mochilas — ninguna de las 5 del brief"
+        ),
+        "1030267671/1030267673/1030286007": (
+            "«PROMOCIÓN» (3_NO_P_PROMO_ES): campaña transversal; 48/32/16, mismos exclusivos que "
+            "la de niña (baño, toallas, gorras)"
+        ),
+        "1030267671/1030267672/1030713711": (
+            "«BEST PACK» (3_NA_T_BEST_PACK_MENU_8): packs, reagrupan lo ya ingerido; 27/27/0"
+        ),
+        "1030267671/1030267673/1030714207": (
+            "«BEST PACK» (3_NO_T_BEST_PACK_MENU_8): packs, reagrupan lo ya ingerido; 30/30/0"
+        ),
+        "1030267671/1030267674/1030714208": (
+            "«BEST PACK» (3_BA_T_BEST_PACK_MENU_8): packs, reagrupan lo ya ingerido; 22/22/0"
+        ),
+        "1030267671/1030267675/1030714209": (
+            "«BEST PACK» (3_BO_T_BEST_PACK_MENU_8): packs, reagrupan lo ya ingerido; 21/21/0"
+        ),
+        # Las cuatro de vuelta al cole, que son las que había que mirar por dentro. Sus hijas son
+        # `Ropa`, `Kit escolar` | `Mochilas` y `Zapatos`: los `Zapatos` entran enteros (29/29/0,
+        # 23/23/0, 15/15/0, 12/12/0), el material escolar no es ni ropa ni calzado, y de la `Ropa`
+        # los exclusivos son abrigo, parka, cazadora, chaleco y complementos de pelo. El residuo
+        # del brief son **2 prendas de 107 exclusivos**: un pantalón de chándal de niño y un peto
+        # de bebé niña, las dos con casa natural en hojas que ya ingerimos.
+        "1030267671/1030267672/1030513545": (
+            "«VUELTA AL COLE» (3_NA_T_BTS): campaña de temporada; 159/116/43, y sus exclusivos "
+            "son abrigo, cazadora y complementos de pelo — ninguna de las 5 del brief"
+        ),
+        "1030267671/1030267673/1030513548": (
+            "«VUELTA AL COLE» (3_NO_T_BTS): campaña de temporada; 98/85/13, exclusivos de abrigo "
+            "salvo un pantalón de chándal, cuya casa es la hoja de chándal ya declarada"
+        ),
+        "1030267671/1030267674/1030514050": (
+            "«VUELTA AL COLE» (3_BA_T_BTS_8): campaña de temporada; 92/52/40, y los exclusivos "
+            "son material escolar (mochila, estuche, fiambrera) más abrigo y un peto"
+        ),
+        "1030267671/1030267675/1030513553": (
+            "«VUELTA AL COLE» (3_BO_T_BTS_8): campaña de temporada; 72/61/11, exclusivos de "
+            "abrigo. Su alias apunta a la `Ropa` de NIÑO: la tienda se equivocó de rama"
         ),
         # Las dos hojas `REBAJAS HASTA -70%` ya NO se declaran aquí: se ingieren desde #195, con la
         # categoría derivada por producto (`lefties._FAMILIA_A_DOMINIO`). Lo que las sacó de esta
@@ -1021,6 +1100,31 @@ def revisar_cobertura(store: BaseStore, informe: Informe) -> None:
         informe.avisos.append(
             f"{len(rotas)} raíz/raíces del árbol sin recorrer (fallo del barrido, no cobertura):\n"
             + "\n".join(f"  - {r}" for r in rotas)
+        )
+        return  # con el árbol a medias, cualquier declaración parecería huérfana
+
+    # Y la pregunta simétrica, que hasta #260 no se hacía nadie: de lo declarado, ¿qué sigue
+    # publicando la tienda? Una declaración es una decisión sobre una ruta concreta, y cuando la
+    # ruta se va la decisión se queda en el fichero apuntando al vacío. Medido el 14/08/2026: 0
+    # huérfanas en c-and-a, hm, sfera y springfield, y **4 en lefties** —dos «Promoción» de
+    # zapatería y las dos `REBAJAS HASTA -70%` de bebé—, o sea que la caducidad no es hipotética,
+    # ya había pasado cuatro veces sin que nada lo dijera.
+    #
+    # **Es aviso y no accionable, al revés que el hueco de cobertura**, y la diferencia es lo que
+    # cada uno esconde: un hueco esconde catálogo que el usuario no ve; una declaración huérfana no
+    # esconde nada, solo envejece. Y muchas son de campaña —su id vuelve con la temporada, igual
+    # que en `LeafHealth.estacional`—, así que hacerla accionable abriría issue dos veces al año
+    # para borrar y volver a escribir la misma decisión. Lo que se gana teniéndolo aquí es no leer
+    # la lista como si sus 84 rutas existieran todas hoy.
+    declaradas = COBERTURA_DECLARADA.get(store.slug, {})
+    huerfanas = sorted(
+        r for r in declaradas if r not in rutas and not any(p.startswith(r + sep) for p in rutas)
+    )
+    if huerfanas:
+        informe.avisos.append(
+            f"{len(huerfanas)} declaración(es) de COBERTURA_DECLARADA que la tienda ya no publica "
+            "(campaña apagada o ruta retirada; no es un hueco de catálogo):\n"
+            + "\n".join(f"  - {r} «{declaradas[r].split(':')[0]}»" for r in huerfanas)
         )
 
 

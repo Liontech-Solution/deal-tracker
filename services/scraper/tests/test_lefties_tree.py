@@ -27,6 +27,7 @@ from scraper.stores.lefties import (
     CategoryConfig,
     LeftiesStore,
     TagLeaf,
+    grid_ids_by_category,
     parse_category_tree,
 )
 from scraper.tags import TAG_DEPORTIVA
@@ -214,7 +215,9 @@ def test_el_padre_declarado_es_el_que_publica_el_menu() -> None:
     publicadas = {n.path for n in parse_category_tree(_menu(), _NINOS)}
     de_nina = [c for c in CATEGORIES if c.parent.startswith(_NINA)]
 
-    assert len(de_nina) == 20, "la fixture cubre la rama de niña entera"
+    # 19 desde #203, que quitó la segunda hoja `barefoot` de la rama (era el alias de la de dentro
+    # de `ZAPATOS`, y publicaba lo mismo).
+    assert len(de_nina) == 19, "la fixture cubre la rama de niña entera"
     for cat in de_nina:
         assert f"{cat.parent}/{cat.category_id}" in publicadas, (
             f"la hoja {cat.category_id} dice colgar de {cat.parent}, y el menú no lo publica así"
@@ -238,6 +241,31 @@ def test_el_padre_declarado_de_bebe_es_el_que_publica_el_menu() -> None:
         assert f"{cat.parent}/{cat.category_id}" in publicadas, (
             f"la hoja {cat.category_id} dice colgar de {cat.parent}, y el menú no lo publica así"
         )
+
+
+def test_las_hojas_de_bebe_son_hojas_con_grid_y_no_secciones() -> None:
+    """Estar en el árbol no basta: una sección también lo está, y no se puede listar.
+
+    Lo pedía la auditoría de #205, y es la mitad que al test de arriba le faltaba. Los 36 ids de
+    #194 están escritos a mano contra un árbol de ids opacos, y el que apuntara a un nodo
+    intermedio pasaría el test anterior y luego no listaría nada: `list_catalog()` resuelve el
+    grid con este mismo `grids.get(cat.category_id)` (`lefties.py`), y `check_leaves()` la cantaría
+    como retirada desde el primer día — un diagnóstico equivocado, porque la hoja no ha muerto: es
+    que nunca fue una hoja.
+
+    Que esto solo lo demostrara la pasada en vivo era el hueco: aquí cuesta cero peticiones,
+    porque la fixture del menú ya trae el `content.id` de cada nodo.
+    """
+    grids = grid_ids_by_category(_menu_bebe())
+    ramas = (f"{_NINOS}/1030267674", f"{_NINOS}/1030267675", f"{_NINOS}/1030513546")
+    de_bebe = [c for c in CATEGORIES if c.parent.startswith(ramas)]
+
+    sin_grid = [c.category_id for c in de_bebe if grids.get(c.category_id) is None]
+
+    assert sin_grid == [], (
+        f"estas hojas de bebé no tienen grid propio en el menú: {sin_grid} — son secciones, "
+        "y una sección no se puede listar"
+    )
 
 
 def test_la_fixture_de_bebe_no_arrastra_las_ramas_que_ya_ingeriamos() -> None:
