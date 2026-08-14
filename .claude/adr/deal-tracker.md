@@ -2659,9 +2659,38 @@ Dos consecuencias que no son evidentes y conviene tener escritas:
 - **`inStock` es un mal colapsador**, al revés que talla y color. El diseño se apoya en que un
   filtro de variante reduce el conjunto antes de agregarlo, y eso vale para talla y color; pero
   `inStock=true` casa con casi todas las variantes, así que ese camino paga la agregación casi
-  entera (~1,1 s en dev con 14.733 productos). No es una regresión —antes costaba lo mismo— y **no
-  se puede resolver con este agregado**, porque filtrar por stock cambia cuál es la variante
-  representativa y con ella `price_from` y la honestidad.
+  entera (~1,1 s en dev con 14.733 productos, remedido en **~2,1 s** en QA el 14/08). No es una
+  regresión —antes costaba lo mismo— y **no se puede resolver con este agregado**, porque filtrar
+  por stock cambia cuál es la variante representativa y con ella `price_from` y la honestidad.
+
+  **Resuelto el 14/08/2026 con la `0038` (#371), y la forma es la consecuencia directa de esa
+  última frase**: como no se puede con *este* agregado, se hace con **dos**. `product_agg` gana un
+  eje `scope` (`'todas'` | `'con_stock'`) y PK compuesta, y `refresh_product_agg` emite los dos
+  ámbitos desde el **mismo** `GROUP BY` sobre `matched` —un `CROSS JOIN` con los dos valores—, que
+  es lo que impide que uno derive del otro. Una tabla y no dos (`product_agg_in_stock`) porque el
+  coste de una segunda no es el almacenamiento —33.688 filas donde había 16.844— sino **el
+  espejo**: dos definiciones en `schema.ts`, dos ramas en la función y dos juegos de paridad.
+
+  Antes se midió si el filtro merecía conservarse, porque la salida barata era reinterpretarlo como
+  filtro de **producto** con el `any_in_stock` que ya existía (casi gratis: se queda en el camino
+  precomputado). Los dos números no se parecen, y por eso no se hizo: **45.667 de 167.377 variantes
+  vivas están agotadas (27,28 %)**, o sea que a nivel de variante el interruptor filtra de verdad;
+  pero solo **294 de 16.844 productos** no tienen ninguna variante con stock, así que a nivel de
+  producto habría dejado de filtrar nada. Cambiar la semántica habría sido barato y habría
+  convertido el interruptor en un adorno.
+
+  Dos detalles que no son evidentes. **El filtro va sobre `matched`, no dentro de `latest`**:
+  `latest` es la última lectura de cada variante, y filtrar dentro haría que una variante agotada
+  hoy cayera a una lectura anterior con stock y el agregado enseñara un precio que ya no existe. Y
+  **`inStock=false` se queda en el camino vivo** a propósito: la SPA no lo pide
+  (`CatalogPage` manda `inStock: filters.inStock || undefined`) y un tercer ámbito costaría otro
+  tercio de refresco por un caso que nadie hace.
+
+  El riesgo que introduce la forma, y que conviene tener escrito: **una lectura que olvide el
+  predicado de `scope` duplica filas en silencio**. Lo sujeta que hay un solo lector
+  (`agregadoPrecomputado`) y que la paridad lo cubre. Y cambió un contrato que sí tenía consumidor
+  fuera del web: `refresh_product_agg` devuelve ahora filas producto×ámbito, así que el número casi
+  se dobla — tres asserts de `test_ingest.py` pasaron de 2 a 4.
 
 ### `array_agg(... ORDER BY …)[1]` elige a suertes si el orden no desempata (#314)
 
@@ -3060,6 +3089,57 @@ La generalización, que aplica a cualquier medida futura sobre prod: **este proy
 de producción sin usuarios a propósito**, así que toda métrica que dependa de tráfico real (contadores
 de índice, caché, latencia observada) es inútil ahí. Lo que se puede medir en prod es lo estructural
 —planes, tamaños, conteos— y lo que hace la ingesta, que sí corre a diario.
+
+### Un índice de expresión ata el `ANALYZE` a una función nuestra, y el autovacuum no perdona (#370)
+
+`ANALYZE` **evalúa las expresiones de los índices de expresión** para construir sus estadísticas.
+`VACUUM` no. Esa asimetría, que no aparece en ninguna parte hasta que muerde, es la que dejó
+`variant` sin analizar durante meses sin que nada lo dijera.
+
+`variant` es la única tabla del esquema con índices de expresión sobre funciones propias:
+`ix_variant_size_canon` (`size_canon(size)`), `ix_variant_color_family` (`color_family(color)`) e
+`ix_variant_size_band` (`size_band(size)`). Y los workers de autovacuum corren con el `search_path`
+**vaciado a propósito** —es la defensa de PostgreSQL para que nadie cuele una función suya en medio
+de una operación de mantenimiento—, así que un cuerpo que llame a otra función **sin cualificar**
+no resuelve. `color_family` llamaba así a `color_canon`, y `size_band` a `size_canon`.
+
+El resultado es un modo de fallo que despista en las tres direcciones a la vez:
+
+- **La tabla se vacúa y no se analiza.** El vacuum va primero y queda reportado; el analyze revienta
+  después y se aborta entero. En `pg_stat_user_tables` eso se lee como `last_autovacuum` de hoy y
+  `last_autoanalyze` de hace días, que parece un problema de planificación del autovacuum.
+- **El umbral no explica nada**, y de ahí sale la hipótesis equivocada. Medido el 14/08/2026:
+  `variant` tenía 50.614 modificaciones contra un umbral de 17.108 en QA (3×) y **354.920 contra
+  17.153 en prod (20×)**, o sea que bajar `autovacuum_analyze_scale_factor` —la salida obvia— no
+  podía arreglar nada: ya disparaba.
+- **Y no deja rastro.** `log_autovacuum_min_duration` viene en 10 minutos, así que solo registra el
+  autovacuum lento. El `ERROR: function color_canon(text) does not exist` sí estaba en los logs de
+  la CNPG, y se había leído como ruido de alguna sesión.
+
+Lo que se paga mientras dura: con las estadísticas rancias el catálogo va **2-2,5× más lento**, y
+—peor— **distorsiona cualquier medida de latencia que se tome sin saberlo**, incluido el bloque
+`## Cifras` con el que `/validar-qa` decide una promoción.
+
+Se descartó la inanición de workers con una comprobación que vale la pena repetir si esto reaparece:
+mirar la firma «sobre umbral y sin analizar» en **todas** las bases de la CNPG compartida. `variant`
+era la única tabla así de todo el servidor.
+
+**El arreglo es fijar el `search_path` de la función** (`0037`), no cualificar las llamadas internas.
+Lo segundo obliga a re-pegar los cuerpos enteros en la migración —40 líneas de regex en
+`color_family`— y esa duplicación es la deriva que este esquema evita en todas partes. La objeción
+seria era el plan, porque **una función SQL con cláusula `SET` no se puede hacer *inline***; se midió
+antes con `EXPLAIN` y los planes son idénticos con y sin `SET`, con índice (`Index Cond:
+(color_family(color) = …)`) y sin él, porque `color_family` ya no se inlineaba de todos modos: su
+cuerpo lleva un `FROM (SELECT ...)`.
+
+Regla que queda, y es la parte reutilizable: **toda función alcanzable desde un índice de expresión
+—cierre transitivo incluido— lleva `search_path` fijado**. Arreglar una sola no vale; con
+`color_family` ya arreglada el `ANALYZE` se caía a continuación en `size_band`.
+
+Queda un cabo suelto honesto: el mecanismo es determinista en local, pero **no explica por qué el
+autoanalyze acierta de vez en cuando** (QA el 10/08, prod el 12/08). La `0036` —que baja
+`log_autovacuum_min_duration` a 0 *para esa tabla*, como reloption declarada y no como GUC de un
+servidor que comparten otros cuatro proyectos— es lo que lo va a contestar.
 
 ### Un plan de Postgres medido en el portátil no predice el del cluster (#292)
 
