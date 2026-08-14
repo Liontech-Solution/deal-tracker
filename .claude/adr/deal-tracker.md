@@ -2739,6 +2739,23 @@ Dos consecuencias que no son evidentes y conviene tener escritas:
   fuera del web: `refresh_product_agg` devuelve ahora filas producto×ámbito, así que el número casi
   se dobla — tres asserts de `test_ingest.py` pasaron de 2 a 4.
 
+  **Lo que costó de verdad**, medido en dev el 14/08/2026 con la `0038` ya desplegada, HTTP, ×3, y
+  el mismo catálogo de **14.733 productos** con el que se tomó la medida de arriba:
+
+  | | antes | después |
+  |---|---:|---:|
+  | `inStock=true` | 1.119 / 1.139 / 1.473 ms | **102 / 86 / 83 ms** |
+  | portada (`ofertas` + `onlyDeals` + `inStock`) | — | 51 / 48 / 46 ms |
+  | control sin filtros | 127 / 100 / 111 ms | 102 / 99 / 94 ms |
+
+  El control da lo mismo antes y después, que es lo que descarta que la mejora sea un hueco de
+  ruido. `inStock` deja de ser el techo del panel y se pone al nivel del caso sin filtros.
+
+  Y el precio declarado de la decisión: **`inStock=false` cuesta 699-747 ms**, porque se quedó en el
+  camino vivo a propósito. Sigue por debajo del umbral P1 de `/validar-qa` y la SPA no lo ofrece,
+  así que no justifica un tercer ámbito — pero el día que alguien lo ponga en la interfaz, ese
+  número es el que hay que volver a mirar.
+
 ### `array_agg(... ORDER BY …)[1]` elige a suertes si el orden no desempata (#314)
 
 El patrón con el que el listado elige la «variante representativa» —la que pone precio, color y foto
@@ -3183,10 +3200,23 @@ Regla que queda, y es la parte reutilizable: **toda función alcanzable desde un
 —cierre transitivo incluido— lleva `search_path` fijado**. Arreglar una sola no vale; con
 `color_family` ya arreglada el `ANALYZE` se caía a continuación en `size_band`.
 
+**Verificado de punta a punta en dev el 14/08/2026**, y hacía falta forzarlo porque `variant` estaba
+quieta: se disparó una pasada de Zara a mano, y en cuanto la ingesta —que es atómica— hizo COMMIT,
+la tabla saltó a **49.731 modificaciones sobre un umbral de 14.550** y quedó **analizada 40 segundos
+después**. En el log aparecen entonces las dos fases, `automatic vacuum` y `automatic analyze` de
+`deal_tracker.public.variant`, donde en las 2 horas previas no había ni una línea. Que salgan las
+dos, y no solo la del vacuum, es la forma más directa de ver el arreglo: la asimetría entre esas dos
+líneas *era* el fallo.
+
 Queda un cabo suelto honesto: el mecanismo es determinista en local, pero **no explica por qué el
-autoanalyze acierta de vez en cuando** (QA el 10/08, prod el 12/08). La `0036` —que baja
-`log_autovacuum_min_duration` a 0 *para esa tabla*, como reloption declarada y no como GUC de un
-servidor que comparten otros cuatro proyectos— es lo que lo va a contestar.
+autoanalyze acertaba de vez en cuando** (QA el 10/08, prod el 12/08). Y ya no se puede perseguir en
+dev, porque con la `0037` puesta el fallo no se reproduce — que es justo lo que se quería.
+
+Lo que sí deja la `0036` —que baja `log_autovacuum_min_duration` a 0 *para esa tabla*, como
+reloption declarada y no como GUC de un servidor que comparten otros cuatro proyectos— no es la
+explicación sino **la capacidad de verlo si vuelve**: un `automatic vacuum` de `variant` sin su
+`automatic analyze` detrás es ahora una señal legible en el log, y el instrumento está probado
+contra el caso real, no supuesto. Antes ese mismo suceso no dejaba absolutamente nada.
 
 ### Un plan de Postgres medido en el portátil no predice el del cluster (#292)
 
