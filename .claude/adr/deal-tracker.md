@@ -1726,20 +1726,23 @@ Dos mecanismos que hay que tener juntos para no volver a diagnosticarlo mal:
   45 en pasadas sucesivas, con **`probes_dead = 0`**: Sfera no ha dado una sola baja nunca. Las
   únicas salidas del pool son «volver a verse» y «muerte confirmada», y la segunda no ocurre.
 
-  **Corregido el 14/08/2026 (#357): esa serie es la columna `errors`, no el pool, y para Sfera
-  significa otra cosa.** Se midió antes de que el código escribiera las `probes_*` (ver más abajo),
-  así que el único número disponible era `errors`, que bajo la v0.1.9 valía
-  `sospechosos + sin_veredicto + hojas_caídas` con `sin_veredicto` arrastrando todavía a los que no
-  cabían en el tope. Para Zara la lectura de «pool» se sostiene. Para **Sfera no**: sus 45
-  candidatas quedaban por debajo del tope de 50, luego `over_cap = 0` y el número entero es
-  `probe.unresolved`. O sea **45 sondeos enviados y 45 sin veredicto**, no 45 candidatas que no se
-  drenan. Que sea 45 de 45 y no una mezcla apunta al `except Exception: verdicts = {}` de
-  `_confirm_candidates`, que deja a **todos** los candidatos sin veredicto de una vez, y a que
-  `Sfera.probe_alive` abre con un `session.goto()` de siembra de Akamai sin protección — la misma
-  llamada que mató la pasada del 02/08 con un timeout de 45 s. Consecuencia para el diagnóstico: a
-  las prendas congeladas de Zara **se les pregunta y contestan que siguen vivas**; a las de Sfera
-  **no se les ha llegado a preguntar con éxito nunca**, así que no son el mismo fenómeno aunque se
-  parezcan en la tabla.
+  **Confirmado el 14/08/2026 (#357) en los logs de los pods, y conviene saber por qué hizo falta.**
+  Esa serie se midió cuando el único número disponible era `errors`, que bajo la v0.1.9 valía
+  `sospechosos + sin_veredicto + hojas_caídas` **con `sin_veredicto` arrastrando todavía a los que no
+  cabían en el tope**. Eso la hace ambigua leída sola: el mismo entero puede ser «candidatas que no
+  se drenan» o «sondeos que la tienda no contestó», que son diagnósticos opuestos. Los tres pods de
+  Sfera que sobreviven en QA lo zanjan, y dicen lo primero:
+
+  ```
+  confirmación activa: 50 sondeos (50 siguen a la venta, 0 retirados, 45 sin confirmar: se reintentan)
+  ```
+
+  Los 31 / 33 / 45 de las pasadas del 06, 07 y 10/08 son exactamente los `errors` de esas filas y
+  son **over-cap**: Sfera manda sus 50 sondeos, le contestan **50 vivos y 0 retirados**, y lo que
+  queda fuera del tope es el pool. O sea que Sfera **sí sondea y sí le contestan**, igual que a
+  Zara — y por tanto las prendas congeladas de las dos tiendas son **el mismo fenómeno**, no dos.
+  La lección de método: `errors` de una fila pre-v0.2.0 no distingue esos dos casos y **no se puede
+  usar para diagnosticar el sondeo**; la línea de `confirmación activa` del log sí.
 
 De ahí el reparto que deja la 0028: `errors` se queda con sospechosos + hojas caídas + **sondeos sin
 veredicto**, y los que no caben en el tope se van a `scrape_run.probes_over_cap`. La distinción es
@@ -1762,6 +1765,15 @@ que una tienda no sondea, comprueba con qué imagen corrió esa pasada**; y ojo 
 semanales, porque Sfera tardó una semana entera en tener su primera fila honesta. Es la misma
 ventana migración-código que ya se describe arriba, vista desde el otro lado — allí engañaba al
 validar una release, aquí engañó al diagnosticar un mecanismo.
+
+**Y cuando la fila no sirve, la autoridad es el log del pod, no una deducción sobre `errors`.** La
+línea `confirmación activa: N sondeos (A siguen a la venta, D retirados, U sin confirmar)` que
+imprime `run.py` trae el desglose completo aunque la fila lo haya perdido, y es lo que zanjó el caso
+de Sfera de arriba: la columna decía `probes_sent = 0` y el log de la misma pasada decía **50**.
+Dura lo que dure el pod —por eso existe `scrape_run.message`—, así que si la duda aparece con pods
+todavía vivos, se mira ahí **antes** de reconstruir nada a partir de `errors`. Reconstruirlo salió
+mal una vez, y en la dirección peligrosa: la deducción era autoconsistente y daba el diagnóstico
+contrario al verdadero.
 
 **Y esa copia duradera no existía: `scrape_run.message` solo se rellenaba en el camino de fallo**
 (`_record_failed_run`), o sea justo en el caso en el que la pasada NO cierra en `success`. La hoja
