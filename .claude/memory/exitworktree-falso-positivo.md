@@ -26,7 +26,20 @@ git branch --contains <sha> -a      # debe listar remotes/origin/main
 ```
 
 Si sale bien, el `discard_changes` no descarta nada y el mensaje final («Discarded 1 commit») es
-igual de engañoso. Si falla, el aviso era real: `action: "keep"`.
+igual de engañoso.
+
+**Pero si el PR se cerró con `--squash`, esa comprobación falla teniendo el trabajo a salvo**, y
+falla igual que fallaría con trabajo de verdad sin subir: el squash crea un sha nuevo, así que los
+commits originales no están contenidos en ningún sitio. Ahí la prueba buena es **de contenido, no de
+sha**:
+
+```bash
+git diff --stat origin/main <rama>   # vacío = no hay nada que perder
+```
+
+Medido el 14/08/2026 (sesión S8, PR #396): la herramienta avisaba de 6 commits y el diff contra
+`main` salía vacío salvo por lo que a la rama le **faltaba**. Una rama por detrás de `main` no es
+una rama con trabajo pendiente, y el diff lo distingue mientras que `--contains` no.
 
 **Y el orden importa:** si sales con `action: "keep"` (p. ej. para actualizar `main` en el checkout
 canónico antes de reindexar, ver [[reindexar-tras-actualizar-main]]), **ya no hay sesión de worktree
