@@ -20,6 +20,25 @@ que las compare.
    `services/scraper/src/scraper/ingest.py` (INSERT ... ON CONFLICT escritos a mano), y los
    SELECT de `services/web/src/{catalog,interests,matching}/`.
 
+## Primero el barrido mecánico, y sobre el esquema ENTERO
+
+Antes de leer nada, tira el barrido: compara el espejo contra el esquema real columna a
+columna, y no solo en las tablas que toca el cambio que revisas. **Esto no es opcional y no
+se sustituye por leer con cuidado**: `missing_streak` llevaba desalineada desde la `0008`,
+`last_detail_at` desde la `0009` y `scrape_run` entera desde la `0001`, y las cuatro salieron
+de rebote revisando otra cosa (#364). El ojo encuentra lo que va buscando.
+
+```bash
+# hace falta una base con TODAS las migraciones aplicadas; una desechable vale
+python3 .claude/agents/barrido-espejo.py --dsn "$DATABASE_URL"
+python3 .claude/agents/barrido-espejo.py --psql-cmd "docker exec <contenedor> psql -U <user> -d <base>"
+```
+
+Sale con 1 y lista tablas o columnas ausentes, nulabilidad y tipos desalineados. Lo que
+reporte es un hallazgo aunque no lo haya introducido el cambio que revisas: dilo, marcando
+que es deriva preexistente. Lo que **no** cubre —y por eso sigue el resto de este documento—
+es `ingest.py`, los `ON CONFLICT`, los defaults, el reparto de propiedad y el SQL crudo.
+
 ## Qué buscar
 
 Reconstruye el esquema efectivo aplicando las migraciones en orden (una columna puede

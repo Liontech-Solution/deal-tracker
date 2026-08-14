@@ -8,6 +8,12 @@
  *
  * Reparto: `retailer/product/variant/price_history/scrape_run/vigia_run` los escribe el scraper
  * (aquí solo se leen); `app_user/interest/notification` son propiedad del servicio web.
+ *
+ * **El espejo declara el contrato entero, no solo lo que el web consulta.** Que una tabla o una
+ * columna no se lea desde aquí no es motivo para omitirla: omitirla es justo lo que hace que el
+ * día que se necesite alguien escriba una migración que ya existe (#364). La única ausencia
+ * deliberada es `schema_migrations`, que no está en `db/migrations`: la crean los dos aplicadores
+ * (`migrate.ts` y `scraper/migrate.py`) para llevar su propia cuenta.
  */
 import { relations, sql } from 'drizzle-orm';
 import {
@@ -57,6 +63,18 @@ export const product = pgTable(
     firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
     delistedAt: timestamp('delisted_at', { withTimezone: true }),
+    /**
+     * Histéresis de la detección de bajas (migración 0008): pasadas consecutivas sin ver la fila.
+     * **La escribe solo la ingesta** — la pone a 0 al volver a ver la fila, la incrementa cuando
+     * falta, y no marca `delisted_at` hasta `SCRAPER_DELIST_MIN_MISSES`. El web no la lee.
+     */
+    missingStreak: integer('missing_streak').notNull().default(0),
+    /**
+     * Cuándo se pidió por última vez la ficha completa (migración 0009). También de la ingesta:
+     * el detalle solo se vuelve a pedir cuando cambia la huella del listado, así que esta marca es
+     * lo único que hace que una prenda de precio estable se re-observe y tenga serie temporal.
+     */
+    lastDetailAt: timestamp('last_detail_at', { withTimezone: true }),
   },
   (t) => [unique().on(t.retailerId, t.retailerProductId)],
 );
@@ -135,6 +153,8 @@ export const variant = pgTable(
     firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
     delistedAt: timestamp('delisted_at', { withTimezone: true }),
+    /** La misma histéresis de bajas que en `product` (migración 0008), variante a variante. */
+    missingStreak: integer('missing_streak').notNull().default(0),
   },
   (t) => [unique().on(t.productId, t.retailerVariantId)],
 );
@@ -174,6 +194,38 @@ export const productAgg = pgTable('product_agg', {
   refreshedAt: timestamp('refreshed_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Una pasada de un scraper: qué tienda, cuánto duró, qué vio y cómo terminó (migración 0001, más
+ * `message` en la 0013 y los contadores de sondeo en la 0028).
+ *
+ * La escribe el scraper y el web no la lee —igual que `vigia_run`—, pero está aquí porque el
+ * espejo declara el contrato entero, no solo la parte que el web consulta: `price_history` tiene
+ * una FK contra esta tabla, y el matching se apoya en sus ids para saber qué pasadas ya evaluó
+ * (`matching_scanned_run`, #240). Faltaba desde la 0001 (#364).
+ *
+ * Los cinco `probes_*` son el desglose del sondeo de bajas de una pasada: `probes_sent +
+ * probes_over_cap` es el pool de candidatas y `probes_dead` el drenaje real (ver la 0028).
+ */
+export const scrapeRun = pgTable('scrape_run', {
+  id: bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
+  retailerId: bigint('retailer_id', { mode: 'number' })
+    .notNull()
+    .references(() => retailer.id),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  /** `running` mientras la pasada está abierta; la ingesta es atómica, así que no deja rastro. */
+  status: text('status').notNull().default('running'),
+  productsSeen: integer('products_seen').notNull().default(0),
+  variantsSeen: integer('variants_seen').notNull().default(0),
+  errors: integer('errors').notNull().default(0),
+  message: text('message'),
+  probesSent: integer('probes_sent').notNull().default(0),
+  probesAlive: integer('probes_alive').notNull().default(0),
+  probesDead: integer('probes_dead').notNull().default(0),
+  probesOverCap: integer('probes_over_cap').notNull().default(0),
+  probesUnresolved: integer('probes_unresolved').notNull().default(0),
+});
+
 export const priceHistory = pgTable('price_history', {
   id: bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
   variantId: bigint('variant_id', { mode: 'number' })
@@ -188,7 +240,9 @@ export const priceHistory = pgTable('price_history', {
   retailerMin30d: numeric('retailer_min_30d', { precision: 10, scale: 2 }),
   inStock: boolean('in_stock').notNull().default(true),
   scrapedAt: timestamp('scraped_at', { withTimezone: true }).notNull().defaultNow(),
-  scrapeRunId: bigint('scrape_run_id', { mode: 'number' }),
+  // NULL = fila que no viene de ninguna pasada (histórico sembrado a mano); el matching las
+  // excluye a propósito. La FK contra `scrape_run` existe en la base desde la 0001.
+  scrapeRunId: bigint('scrape_run_id', { mode: 'number' }).references(() => scrapeRun.id),
 });
 
 /**
@@ -339,7 +393,12 @@ export const schema = {
   productTag,
   variant,
   productAgg,
+  scrapeRun,
   priceHistory,
+  // `vigiaRun` faltaba aquí desde la 0022 por el mismo motivo por el que faltaba `scrape_run`
+  // entera: nadie la consulta desde el web. Declarada pero fuera de este objeto, la tabla es
+  // invisible para la API relacional de Drizzle, que es la mitad de por qué existe el espejo.
+  vigiaRun,
   appUser,
   interest,
   notification,
