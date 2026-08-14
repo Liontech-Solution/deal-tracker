@@ -3609,10 +3609,13 @@ Tres consecuencias que no son evidentes:
 - **El estado que más se ve no es ninguno de los dos que había.** `unverified` es hoy 15.968 de
   16.303 veredictos no vacíos en prod, frente a 335 `real` y 0 acusaciones. Cualquier interfaz que
   explique «dos etiquetas» está describiendo la minoría.
-- **El camino de la acusación no es ejercitable en ningún entorno hasta ~05/11/2026** (qa
-  ~22/10/2026), porque ninguna serie llega a 90 días. Su única cobertura hasta entonces son tests
-  unitarios, y la **ausencia** de badges «Precio inflado» es el estado esperado — declarado así en
-  `/validar-qa` (U26b, U26c, A31d) para que la validación no abra un P0 inventado.
+- **El camino de la acusación no era ejercitable en ningún entorno hasta ~05/11/2026** (qa
+  ~22/10/2026), porque ninguna serie llega a 90 días. Su única cobertura eran tests unitarios, y la
+  **ausencia** de badges «Precio inflado» era el estado esperado — declarado así en `/validar-qa`
+  (U26b, U26c, A31d) para que la validación no abra un P0 inventado. **Esto dejó de valer para dos
+  de las nueve tiendas el 14/08/2026** (#354, sección siguiente): C&A y Springfield publican un dato
+  que no es nuestro y que no necesita madurar. En ellas la ausencia total de acusaciones pasó a ser
+  un hallazgo, no el estado esperado — de ahí el caso U26d.
 
 **Comparar el veredicto `real` no vigila la regla: el margen del PVP inflado es invisible por ahí,
 y no por un descuido del corpus.** El espejo `deal-rule.ts` ↔ `deal-rule.sql.ts` lo vigila
@@ -3644,6 +3647,91 @@ Desde #375 el margen ya no es dos números: `deal-rule.sql.ts` **importa** la co
 interpola con `sql.raw`, no como parámetro ligado (un número de JS viaja como `float8` y
 `numeric * float8` no redondea como `numeric * numeric`). La clase de fallo desaparece en vez de
 solo detectarse, y lo que queda por vigilar es que nadie vuelva a escribir el número a mano.
+
+### Un dato declarado por la tienda puede ser evidencia si se usa CONTRA quien lo declara (#354)
+
+`price_history.retailer_min_30d` existía desde la `0018` (#78) sin que ningún código lo leyera. Lo
+publican C&A y Springfield porque el art. 6a de la Directiva 98/6 (Ómnibus) les obliga a anunciar el
+precio mínimo de los 30 días previos, y es **el único insumo anterior a nuestra primera pasada** que
+tiene el proyecto. Es también la única vía que acorta el apagón de #332 sin esperar al calendario.
+
+**La premisa con la que se abrió la issue era falsa, y hay que dejarlo escrito porque es tentadora.**
+Decía: si la tienda declara un mínimo por debajo de su tachado, ese tachado está desmentido. Medido
+contra `deal_tracker_qa` el 14/08/2026 (datos del 10/08), eso le ocurre a **8.545 de 8.654 variantes
+con los dos datos: el 98,7 %**. No describe un fraude, describe el estado normal de cualquier prenda
+rebajada — y el 98,7 % es la misma forma de error que el 99,7 % de #332, un criterio sin valor
+discriminante presentado como acusación.
+
+Lo confirmó el reconocimiento de las fichas reales, que es lo que zanjó la discusión con evidencia en
+vez de con argumento: **las dos tiendas enseñan las dos cifras**. C&A la pinta inline bajo el precio
+(«El precio más bajo de los últimos 30 días: 13,49 € / Precio original 19,99 €»); Springfield la pone
+en un tooltip «Histórico de precios» —Inicial / Más bajo últimos 30 días / Actual— rotulando el
+tachado al pie como *«precio inicial de venta»*. O sea que el tachado no pretende ser la referencia
+legal, y la tienda lo dice. Detalle apuntado de camino y no ingerido: el JSON de Springfield trae una
+bandera `hideLowestPrice` que se pone a `true` justo cuando `actual == lowest`, o sea que oculta la
+línea precisamente en las prendas que llevan todo el periodo al mismo precio.
+
+**Lo que sí desmiente a la tienda es el precio ACTUAL por encima de su propio mínimo declarado**:
+anuncia una rebaja y a la vez declara haber vendido esa prenda más barata dentro de esos 30 días. Son
+**291 variantes de 89 productos** en QA, y el ejemplo canónico es un pack de sujetadores de C&A a
+4,99 € anunciado como **−62 %** desde 12,99 € cuando la propia tienda declara un mínimo de 4,24 €.
+
+**El argumento que lo hace admisible, que es lo que la épica marcaba como el trabajo caro.** Toda la
+regla de #332 se construyó sobre desconfiar del dato declarado, así que usar dato declarado como
+evidencia exige justificarse. Tres razones, en orden de peso:
+
+1. **No se le pide a la tienda que sea sincera, se le pide que sea coherente.** El dato no se usa
+   como verdad sobre el mercado sino **contra quien lo declara**: la acusación es «tu cifra A
+   contradice tu cifra B», y para eso da igual si A es cierta.
+2. **Las dos cifras no tienen el mismo régimen.** El mínimo de 30 días es una obligación legal con
+   sanción administrativa detrás y un contenido definido por ley; el tachado es marketing, con la
+   referencia que elige la tienda — y Springfield lo escribe al pie de su propio tooltip.
+3. **Por eso no lleva `HONESTY_EVIDENCE_DAYS`.** Los 90 días existen porque `max_observed` es
+   *nuestra* observación y necesita madurar. Esta evidencia no es nuestra, así que vale **desde la
+   primera vez que vemos la prenda**: en QA, 104 de las 291 (un tercio) son de arranque en frío, y
+   exigirles histórico perdería esa parte por un umbral que la afirmación no usa.
+
+**Entra como techo, nunca como referencia por sí solo**, y esa forma es la que hace el cambio seguro:
+`honestListPrice = LEAST(lo de antes, retailer_min_30d)`. Como solo puede **bajar** el PVP creíble,
+solo puede reducir el descuento honesto, nunca inventarlo — así que no puede convertir en «oferta
+real» nada que no lo fuera ya, y no hace falta demostrarlo caso a caso. Tampoco puede *crear* una
+referencia donde no la había: el arranque en frío se sigue resolviendo antes con `null`, que es la
+guarda de #332 intacta. Medido sobre las 17.552 variantes vivas de las dos tiendas en QA: 291
+acusaciones nuevas (había 0), **0 de ellas eran `real`**; 991 variantes bajan su PVP creíble (media
+1,74 €), **0 de ellas son `real`**.
+
+**Dos umbrales que invitan a leerse como uno, y no lo son.** El techo retira `real` en cuanto
+`min30 <= price`; la acusación exige además el margen (`price > min30 · 1,03`). Entre los dos queda
+la banda `min30 <= price <= min30·1,03`, donde la oferta deja de ser real y **no se acusa a nadie**:
+cae a `unverified`. Es lo que se quiere —dentro del margen no afirmamos nada— pero significa que
+quitar `real` y etiquetar `suspicious` no son equivalentes, solo van en la misma dirección. Lo
+destapó `revisor-espejo-honestidad`, sobre un comentario que afirmaba la equivalencia.
+
+**Consecuencias de contrato que no se ven leyendo la regla:**
+
+- **El techo entra en `honestListPrice`, así que entra en el espejo SQL y en el aviso de Telegram.**
+  Al revés que `trackedDays` —que solo condiciona la acusación y por eso pudo quedarse en el
+  catálogo—, esto mueve la referencia contra la que se mide la rebaja, y el aviso la consume por
+  `evaluateDeal`. `matching.service.ts` lo lee de la fila `batch` (la última observación), no de la
+  CTE `stats`: es dato del último precio, igual que en el catálogo lo trae `latest` y no `stats`.
+- **El tercer parámetro de `honestListPriceSql` es obligatorio a propósito**, aunque la columna sea
+  `NULL` en siete de las nueve tiendas. Un argumento opcional ahí es el vector de deriva exacto que
+  ese fichero existe para cerrar. Y el `LEAST` va envuelto en un `CASE ... WHEN base IS NULL THEN
+  NULL`: un `LEAST` a secas devolvería el mínimo declarado en arranque en frío y crearía la
+  referencia que el TS deja en `null`.
+- **El veredicto del listado sale de `product_agg`**, así que el dato necesitó la `0039`
+  (`retailer_min_30d_repr`, con el mismo `array_agg(... ORDER BY in_stock DESC, price ASC,
+  variant_id)[1]` que las otras cinco `*_repr`). Sin ella la ficha habría visto el dato y la tarjeta
+  no, que es la divergencia que el agregado precomputado siempre amenaza.
+- **`sort=ofertas` se reordena entre filas que NO son ofertas reales** (991), porque desde #375 el
+  orden se calcula sobre todas. `onlyDeals` no cambia de conjunto.
+- **La acusación ya no puede explicarse con una sola frase**, y por eso la API expone `honestyBasis`
+  (`observado` | `declarado`): decir «el tachado está inflado respecto a su historial» sobre una
+  prenda con `trackedDays: 0` sería afirmar lo que no sabemos, o sea reabrir #332 por el texto.
+
+Verificado con pasada real de C&A contra Postgres: `EXCEPT` de los dos caminos del agregado sobre
+1.146 productos con **0 divergencias en las dos direcciones**, y **37 acusaciones en una primera
+pasada** —todas de arranque en frío— donde la regla anterior no podía producir ninguna.
 
 ### El aviso no se puede provocar a voluntad: hace falta una bajada real, y el tachado no sirve
 
