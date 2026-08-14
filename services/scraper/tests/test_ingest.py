@@ -17,6 +17,7 @@ import pytest
 from scraper import progreso as progreso_mod
 from scraper.ingest import (
     CatalogScanAborted,
+    ProbeOutcome,
     _ExistingProduct,
     _moved_out_counts,
     _success_message,
@@ -782,6 +783,26 @@ def test_sondeo_sin_veredicto_si_cuenta_como_error(db_conn: Any) -> None:
     errors, sent, _alive, _dead, over_cap, unresolved, _limpia = _sondeos(db_conn, T2)
     assert (sent, over_cap, unresolved) == (1, 0, 1)
     assert errors == 1  # el sondeo sin veredicto sí suma
+
+
+def test_el_sondeo_mudo_llega_hasta_scrape_run_message(db_conn: Any) -> None:
+    """De punta a punta: `ProbeOutcome` -> `_success_message` -> la fila de la pasada (#357).
+
+    `errors` ya contaba estos sondeos, pero un número sin explicación es lo que dejó a Sfera
+    mandando 45 de 45 sin veredicto durante semanas mientras la única pista era un `errors = 45`
+    que nadie sabía leer. Se afirma sobre la FILA porque ahí es donde se lee meses después, cuando
+    el log del pod hace tiempo que se recicló.
+    """
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={}, explode=True)
+    ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    assert _sondeos(db_conn, T2)[-1] is False  # `message` ya no es NULL
+    mensaje = _scalar(db_conn, "SELECT message FROM scrape_run WHERE started_at = %s", (T2,))
+    assert "sondeo sin respuesta" in mensaje
+    assert "1 de 1" in mensaje
 
 
 def test_pasada_limpia_deja_los_sondeos_a_cero(db_conn: Any) -> None:
@@ -1631,6 +1652,57 @@ def test_el_mensaje_NO_publica_la_cifra_del_residuo_cuando_todo_va_bien() -> Non
     report.residuo("2622124", 25)
 
     assert _success_message(report, suspicious=set()) is None
+
+
+def test_el_mensaje_nombra_el_sondeo_que_volvio_entero_sin_veredicto() -> None:
+    """La firma de la tienda que no contesta (#357).
+
+    Sfera llevaba pasadas mandando sondeos que volvían enteros sin respuesta —45 de 45 el
+    10/08/2026— y lo único visible era un `errors` sin explicación: los sondeos sin veredicto
+    suman ahí, pero no los nombraba nadie. `_confirm_candidates` envuelve `probe_alive()` en un
+    `except Exception`, así que un fallo de transporte deja a TODOS los candidatos sin veredicto
+    de una vez y se ve como `unresolved == sent` exacto.
+    """
+    report = ScanReport()
+    report.leaf_ok()
+
+    mensaje = _success_message(report, suspicious=set(), probe=ProbeOutcome(sent=45, unresolved=45))
+
+    assert mensaje is not None
+    assert "sondeo sin respuesta" in mensaje
+    assert "45 de 45" in mensaje
+
+
+def test_el_mensaje_NO_habla_de_sondeos_cuando_alguno_si_contesta() -> None:
+    """El umbral es «todos», no «algunos»: mismo contrato que la cifra del residuo.
+
+    Un sondeo parcialmente sin veredicto es rutina —se reintenta en la siguiente pasada— y sigue
+    contando en `errors` y en `probes_unresolved`. Publicarlo aquí dejaría `message` distinto de
+    NULL casi siempre y rompería `WHERE message IS NOT NULL`.
+    """
+    report = ScanReport()
+    report.leaf_ok()
+
+    assert (
+        _success_message(
+            report, suspicious=set(), probe=ProbeOutcome(sent=50, alive=49, unresolved=1)
+        )
+        is None
+    )
+
+
+def test_el_mensaje_NO_habla_de_sondeos_en_una_pasada_sana() -> None:
+    """Ni cuando no se sondeó nada, ni cuando el sondeo dio veredictos limpios."""
+    report = ScanReport()
+    report.leaf_ok()
+
+    assert _success_message(report, suspicious=set(), probe=ProbeOutcome()) is None
+    assert (
+        _success_message(
+            report, suspicious=set(), probe=ProbeOutcome(sent=10, alive=7, dead=3, over_cap=134)
+        )
+        is None
+    )
 
 
 def test_una_tienda_que_no_colapsa_generos_no_marca_nada() -> None:
