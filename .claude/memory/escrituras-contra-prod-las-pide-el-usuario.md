@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: 7b3fc60e-45f5-4c57-9ef4-c06e6a29669e
-  modified: 2026-08-12T23:59:00.000Z
+  modified: 2026-08-14T09:53:27.696Z
 ---
 
 Las acciones que **escriben** en producción o que la despliegan las bloquea el clasificador de auto
@@ -17,10 +17,17 @@ mode, aunque el resto de la sesión vaya con permisos. Medido el 08/08/2026 y am
   `toolsuite-platform-gitops`** (medido el 12/08/2026 en su PR #59, que solo añadía un script y
   documentación). El criterio del clasificador parece ser el repo, no lo que cambia el PR: el
   `gh pr merge` de un PR de `deal-tracker` sí pasa. En los de GitOps ni lo intentes dos veces.
-- `gh release edit <tag> --prerelease=false`, el paso con el que `/validar-qa` asciende una release
-  al dar **APTO** (medido el 12/08/2026 en la validación de v0.3.0). Aquí el bloqueo alcanza
-  **también a la lectura**: `gh release view` cae igual, así que ni siquiera puedes comprobar el
-  flag antes ni después. Es la excepción a la regla de abajo.
+- ~~`gh release edit <tag> --prerelease=false`~~ **ya no: desmentido el 14/08/2026.** En la
+  validación de v0.3.0 (12/08) se midió bloqueado, lectura incluida, y así quedó escrito aquí. En la
+  de **v0.4.0 pasó sin más**: `gh release edit v0.4.0 --prerelease=false`, `gh release list` y
+  `gh release view --json isPrerelease` funcionaron los tres a la primera. Así que **el ascenso de
+  la release lo puedes hacer tú**; no se lo pidas al usuario por costumbre. Si algún día vuelve a
+  caer, será por otra cosa, no por ser `gh release`.
+
+  Y la moraleja que vale más que el dato: **una medida de «esto está bloqueado» caduca**. El
+  clasificador cambia — en la misma sesión del 14/08 un `python3 - <<PY` que editaba **este mismo
+  fichero** sí cayó, y se resolvió con la herramienta de edición normal. Intentar el comando cuesta
+  un turno; darlo por imposible durante semanas cuesta la casilla entera.
 
 Las **lecturas** contra prod pasan a veces, no siempre, y conviene no darlo por hecho:
 `kubectl get/logs/kustomize` sí.
