@@ -13,6 +13,7 @@
 - [scraper-sin-just-ni-env](scraper-sin-just-ni-env.md) — `just` no está instalado y no hay `.env`: las recetas a mano, `mypy` sin argumentos, venv propio por worktree y el `DATABASE_URL` de pega de `--check-categories`
 - [web-tests-sin-env-con-docker](web-tests-sin-env-con-docker.md) — los tests del web no necesitan `.env` (vitest lee `process.env`, y escribir `.env` está vetado por permisos): sus dos bases, en un Postgres desechable de Docker
 - [exitworktree-falso-positivo](exitworktree-falso-positivo.md) — `ExitWorktree --remove` avisa de commits «a descartar» aunque el PR esté mergeado: comprobar con `merge-base --is-ancestor` antes de forzar
+- [numeros-de-issue-y-pr-son-la-misma-serie](numeros-de-issue-y-pr-son-la-misma-serie.md) — issues y PR comparten numeración: crea la issue antes de escribir su número, o el hueco se lo lleva el PR de otra sesión
 - [buscar-issue-antes-de-abrir](buscar-issue-antes-de-abrir.md) — buscar si el hallazgo ya tiene issue (aunque sea mencionado de pasada) antes de abrir una nueva
 - [subagente-nuevo-no-invocable-en-su-sesion](subagente-nuevo-no-invocable-en-su-sesion.md) — un `.claude/agents/*.md` recién creado no es invocable en la sesión que lo crea (el registro se carga al arrancar): para ejercerlo, pasar su cuerpo como instrucciones a un agente genérico, y hacerlo contra el árbol limpio **y** contra una divergencia deliberada
 - [gh-pr-merge-desde-worktree](gh-pr-merge-desde-worktree.md) — el error «main is already used by worktree» llega DESPUÉS de mergear: comprobar el PR y borrar la rama a mano
