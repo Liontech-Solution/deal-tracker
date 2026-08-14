@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: 31501bb9-0b33-4106-9061-4e31b18a2197
-  modified: 2026-08-12T23:59:00.000Z
+  modified: 2026-08-14T14:21:00.003Z
 ---
 
 `manage_adr(mode='update')` **reemplaza el ADR completo** con lo que le pases en `content`: no
@@ -86,3 +86,10 @@ volcar `--mode get` a un fichero y buscar dentro **una frase que hayas escrito h
 hayas **quitado** — las dos, porque encontrar la nueva no prueba que la vieja se fuera. Y con
 `grep -o … | wc -l`, no `grep -c`: la salida es una única línea JSON gigante y `-c` cuenta líneas,
 así que siempre dirá 1.
+
+**Y elige el testigo de una línea.** El JSON conserva los `\n` del markdown, así que una frase que
+en el fichero esté **partida por el salto de línea** da 0 aunque el ADR esté entero — un falso
+negativo que parece exactamente lo mismo que haber perdido la publicación. Medido el 14/08/2026 con
+tres sesiones republicando por turnos. Antes de usar una frase como testigo, compruébala en el
+fichero (`grep -c "<frase>" .claude/adr/<proyecto>.md`): si ahí ya da 0, el problema es el testigo y
+no el grafo.
