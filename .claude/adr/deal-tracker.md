@@ -217,6 +217,40 @@ promocionable por construcción, y el rollback de prod vive en las no-`prereleas
 El suelo está para que un `keep` mal tecleado en el dispatch no se lleve de golpe la historia de qué
 se cortó y por qué.
 
+**La retención de imágenes en GHCR es la política de rollback, y hasta el 14/08/2026 no estaba
+escrita en ningún sitio** (issue #283): vivía en dos líneas de YAML que llegaron con el primer CI y
+que nadie había vuelto a mirar. Hay **cuatro ejes que se mueven por su cuenta** —el `sha-<7>` en
+GHCR, el `vX.Y.Z` en GHCR, el tag git con su GitHub Release, y el informe de QA— y solo el primero
+tenía techo. Que derivan entre sí no es teórico: `v0.1.6` se promovió a QA y **se quedó sin
+informe**, con informes a ambos lados.
+
+La decisión, con lo medido delante: **las `v*` no se podan, y eso es deliberado**. El overlay de
+prod pinta un *tag*, no un digest, así que la ventana de `v*` que sobreviva **es** la ventana de
+rollback de prod: borrar una no deja un Release sin artefacto, deja un overlay que no puede recrear
+el pod si ArgoCD resincroniza o el nodo reprograma. Y `exclude-tags: latest,v*` tiene un efecto de
+rebote que conviene dejar dicho porque hoy se cumple por accidente: la `vX.Y.Z`, su `sha-<7>` y
+`latest` comparten *version*, así que **el sha de una release promocionada está protegido también**.
+Lo que sí se subió es la cola de `sha-<7>`, de 10 a **30**, y el motivo es un número: en los siete
+días anteriores hubo **15 publicaciones del scraper y 26 del web**, o sea que con 10 dev no podía
+volver a lo que corría hacía cinco días —tres en el web—, y dev es el único entorno que corre un
+sha. Pasado ese umbral **la imagen ya no existe y dev no tiene rollback**; ahora es una decisión
+escrita y no un olvido.
+
+Y si algún día se poda una `v*`, hay dos trampas medidas que cualquier implementación tiene que
+respetar. La primera: **`keep-n-tagged` cuenta solo las versions no excluidas**, así que la
+retención no acota el package sino únicamente la cola de sha — cada release saca una version del
+ciclo *para siempre*, y las inmunes ya son mayoría (12 de 22 en el scraper, 13 de 24 en el web) con
+una fracción que solo sube. La segunda, que es la peligrosa: **GHCR borra versions, no tags**, y hay
+versions que cargan dos releases a la vez —la `1106121923` del web lleva `v0.1.8` **y** `v0.1.9`, la
+que sirvió prod; la `1055695859` del scraper lleva `v0.1.0` y `v0.1.1`—, así que podar «la vieja»
+por fecha se lleva la buena por delante. Cualquier ventana tiene que **resolver tags a digest antes
+de borrar y negarse si la version carga alguna `v*` protegida**, borrar en las dos packages a la vez
+(que sobreviva una y no la otra es peor que borrar ambas), y dejar en pie el tag git, el Release y
+sobre todo el informe. El criterio de *qué* podar lo aporta la poda de prereleases: **una imagen
+`v*` cuyo Release ya no existe es la primera candidata evidente**, y desde el 14/08 ese conjunto ha
+dejado de estar vacío — son las cuatro de `v0.1.0`…`v0.1.3`. No se han borrado: la política es lo
+que faltaba, no el espacio.
+
 **Y la autoridad de que una versión vale para producción es el informe commiteado, no el flag
 `prerelease` de GitHub.** Los dos dicen lo mismo y solo uno deja rastro: el flag lo cambia
 cualquiera con dos clics y no aparece en ningún diff; `.claude/qa-reports/<version>.md` está en git
