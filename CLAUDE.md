@@ -139,9 +139,11 @@ to strip it. Before blaming your own rate, **reproduce the request with curl**: 
 separates the two hypotheses. The measured detail lives in the ADR.
 
 **Ingestion is atomic.** A pass either commits fully or rolls back. A cold pass against Zara is
-~30 min (2219 products / 25623 variants); steady state is ~1m35s thanks to conditional detail
-fetching by signature. This is why the cluster CronJob carries a generous `activeDeadlineSeconds`
-and only one retry.
+~58 min (4644 products / 47426 variants, measured 14/08/2026); steady state is ~1m35s thanks to
+conditional detail fetching by signature. **That first figure tracks the catalogue, so it carries a
+date**: it read ~30 min / 2219 products until the store's catalogue doubled under it, and nothing
+said so. This is why the cluster CronJob carries a generous `activeDeadlineSeconds` and only one
+retry.
 
 **The Drizzle schema is a mirror, not the source of truth.** `db/migrations` is. Three places can
 drift silently: the SQL migrations, `services/web/src/database/schema.ts`, and the raw SQL in
