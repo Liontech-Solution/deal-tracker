@@ -121,6 +121,53 @@ def test_grid_ids_by_category_resuelve_las_hojas_del_menu() -> None:
     assert grid_ids_by_category({}) == {}
 
 
+def test_grid_ids_by_category_deshace_los_alias_de_menu() -> None:
+    """Un nodo alias apunta a OTRA categoría, no a un grid (#393).
+
+    Su `content.id` es un id numérico, y devolverlo tal cual pedía `.../grids/1030680609` en el
+    hueco donde la API espera el uuid. Funcionaba de casualidad — la tienda lo resolvía — y el día
+    que dejara de hacerlo las cuatro hojas `barefoot`, que son justamente alias, darían 404 a la vez
+    y `_hoja_comprometida()` las leería como retiradas.
+    """
+    menu = {
+        "items": [
+            {
+                "id": 1,
+                "children": [
+                    # El alias va ANTES que su destino a propósito: se resuelve al terminar el
+                    # recorrido, no según se encuentra.
+                    {"id": 10, "content": {"id": "11"}},
+                    {"id": 11, "content": {"id": "uuid-destino"}},
+                ],
+            }
+        ]
+    }
+    assert grid_ids_by_category(menu) == {10: "uuid-destino", 11: "uuid-destino"}
+
+
+def test_un_alias_sin_destino_conserva_su_valor() -> None:
+    """Quitarlo convertiría un alias huérfano en una hoja desaparecida, que es el diagnóstico
+    equivocado que #393 viene a evitar: la hoja no ha muerto, es que no sabemos resolverla."""
+    menu = {"items": [{"id": 1, "children": [{"id": 10, "content": {"id": "999"}}]}]}
+    assert grid_ids_by_category(menu) == {10: "999"}
+
+
+def test_un_ciclo_de_alias_no_cuelga_la_pasada() -> None:
+    menu = {
+        "items": [
+            {
+                "id": 1,
+                "children": [
+                    {"id": 10, "content": {"id": "11"}},
+                    {"id": 11, "content": {"id": "10"}},
+                ],
+            }
+        ]
+    }
+    # Lo que importa es que termine y devuelva algo: no hay uuid al final de un ciclo.
+    assert set(grid_ids_by_category(menu)) == {10, 11}
+
+
 def test_parse_listing_entries_agrupa_colores_en_modelos() -> None:
     """Cada componente del grid es un COLOR; el producto es su `productParentId`."""
     grid = load_fixture("lefties_grid_zapatos_nina.json")

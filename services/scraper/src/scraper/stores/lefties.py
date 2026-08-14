@@ -10,6 +10,8 @@ Cuatro endpoints, y el orden importa:
      Da el árbol de categorías. La clave está en que cada hoja trae `content.id`, un **uuid**:
      es lo que pide el listado. Los `/{category}/product` que uno supone por analogía con Zara
      dan todos 404 — el id numérico de categoría NO sirve para listar.
+     Con una excepción que hay que conocer: en los **nodos alias** ese `content.id` no es un uuid
+     sino el id numérico de otra categoría, y quien lo resuelve es `grid_ids_by_category()` (#393).
      Esta misma petición es la que responde **las tres preguntas** de la tienda: qué hojas hay
      que listar, si siguen vivas (`check_leaves()`: la retirada es la que desaparece del menú) y
      qué publica que no ingerimos (`category_tree()`, #179). O sea que enumerarse le cuesta cero
@@ -321,7 +323,9 @@ CATEGORIES: list[CategoryConfig] = [
     #
     # Y no son dos hojas hermanas: la que mapeamos es un **alias de menú** (`key` acabada en
     # `_MENU`) cuyo `content.id` es la otra —`1030680692` -> `1030680609`, `1030680206` ->
-    # `1030680610`—, así que la identidad la garantiza el menú, no la medición. Eso responde
+    # `1030680610`—, así que la identidad la garantiza el menú, no la medición. Ese salto lo
+    # deshace `grid_ids_by_category()` desde #393: la pasada pide el uuid de la hoja apuntada y no
+    # el id numérico, que la tienda venía resolviendo de casualidad. Eso responde
     # también a la duda de #203 sobre perder señal al declararla: la que sondea `check_leaves()`
     # no puede sobrevivir a la declarada, porque lo que pide es su grid. Si la de dentro de
     # `ZAPATOS` muriera, la petición de la rama propia moriría con ella y la pasada la trataría
@@ -547,8 +551,30 @@ def _cents(value: Any) -> Decimal | None:
     return (Decimal(int(value)) / 100).quantize(Decimal("0.01"))
 
 
+#: Saltos máximos al resolver un alias. Medido sobre los dos menús que hay en fixtures, los 14
+#: alias resuelven en **uno**; el margen es para que una cadena inesperada no se quede a medias, y
+#: el tope para que un ciclo del menú no cuelgue la pasada.
+_MAX_SALTOS_ALIAS = 3
+
+
 def grid_ids_by_category(menu: dict[str, Any]) -> dict[int, str]:
-    """Recorre el menú y devuelve `id de categoría -> uuid del grid` de todas las hojas."""
+    """Recorre el menú y devuelve `id de categoría -> uuid del grid` de todas las hojas.
+
+    El menú tiene **nodos alias**, y su `content.id` no es el uuid de un grid: es el id numérico de
+    **otra categoría** (#393). Es una convención suya y no una rareza de barefoot — las `_VIEWALL`
+    («Ver Todo») apuntan a su padre y las `_MENU` a la hoja de dentro de otra rama. Medido sobre los
+    fixtures: 8 de 116 hojas en el menú de niña y 6 de 108 en el de bebé.
+
+    Devolver ese id tal cual funcionaba de casualidad: la tienda hoy resuelve el id numérico en el
+    hueco del uuid. El día que deje de hacerlo, las cuatro hojas `barefoot` que mapeamos —que son
+    justamente alias— darían 404 **a la vez**, `_hoja_comprometida()` las leería como retiradas y
+    con `SCRAPER_SCAN_MAX_DEAD_RATIO` de por medio eso no es inofensivo. Lo caro no es la petición
+    fallida: es el diagnóstico, que manda a buscar una baja que no existe.
+
+    Un alias cuyo destino no esté en el menú **conserva su valor**. Quitarlo convertiría el alias
+    huérfano en una hoja desaparecida, que es exactamente el diagnóstico equivocado que esto viene a
+    evitar.
+    """
     out: dict[int, str] = {}
 
     def walk(node: dict[str, Any]) -> None:
@@ -561,6 +587,22 @@ def grid_ids_by_category(menu: dict[str, Any]) -> dict[int, str]:
 
     for item in menu.get("items") or []:
         walk(item)
+
+    # Se resuelve al final y no dentro de `walk()` a propósito: un alias puede aparecer en el árbol
+    # antes que la categoría a la que apunta.
+    for cid, grid in list(out.items()):
+        destino = grid
+        vistos = {cid}
+        for _ in range(_MAX_SALTOS_ALIAS):
+            if not destino.isdigit():
+                break
+            siguiente = int(destino)
+            if siguiente in vistos or siguiente not in out:
+                break
+            vistos.add(siguiente)
+            destino = out[siguiente]
+        out[cid] = destino
+
     return out
 
 
