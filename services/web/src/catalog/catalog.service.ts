@@ -200,6 +200,23 @@ export class CatalogService {
     // cualquier orden ("botas niña" y "niña botas" encuentran lo mismo). El género entra porque es
     // como la gente teclea ("botas niña"), y los nombres que dan las tiendas casi nunca lo llevan.
     // `position()` en vez de `LIKE` para no tener que escapar los comodines de lo que se teclee.
+    //
+    // #229 entró a revisar si mezclar un eje de FILTRADO dentro de la búsqueda por texto valía lo
+    // que cuesta, y la respuesta, medida sobre `deal_tracker_qa` el 14/08/2026 (16.844 productos
+    // vivos), es que sí: `botas niña` devuelve **60 productos con el género dentro y 0 sin él**, y
+    // `vestido niña` pasa de 121 a 1.503. O sea que el caso que lo motivó no era hipotético y sigue
+    // sin serlo. Se queda, y con ello la asimetría conocida: teclear un género suelto devuelve ese
+    // catálogo entero (8.692 de 16.844) sin que la barra de filtros aplicados lo refleje.
+    //
+    // Lo que la medida sí destapó, y no estaba escrito en ninguna parte, es que el `position()`
+    // casa por SUBCADENA sobre un campo de tres valores: `ni` está dentro de `niño`, `niña` **y**
+    // `unisex`, así que buscar `ni` devuelve el catálogo completo (16.844 de 16.844; sin el género
+    // serían 2.426) y `nin` devuelve el 88 % (14.918). Eso es #408, y se arregla con la búsqueda
+    // facetada o acotando el género a palabra completa, no aquí.
+    //
+    // Un falso positivo que NO existe, por si alguien viene a buscarlo: un término no puede casar a
+    // caballo entre el nombre, la categoría y el género, porque las costuras son espacios y los
+    // términos salen de partir por espacios.
     const terms = (q.q ?? '').split(/\s+/).filter(Boolean);
     const haystack = fold(
       sql`p.name || ' ' || coalesce(p.category, '') || ' ' || coalesce(p.gender, '')`,
@@ -792,7 +809,9 @@ export class CatalogService {
     const retailer = q.retailer ?? null;
 
     // Mismo plegado y misma forma que la búsqueda del listado, a propósito: si el buscador y la
-    // faceta no entendieran lo tecleado igual, el panel volvería a ofrecer chips vacíos.
+    // faceta no entendieran lo tecleado igual, el panel volvería a ofrecer chips vacíos. Por eso el
+    // género también entra aquí, y por eso el porqué —con lo que se midió en #229— está escrito una
+    // sola vez, en `listProducts`: son el mismo criterio y tienen que moverse juntos.
     const terms = (q.q ?? '').split(/\s+/).filter(Boolean);
     const haystack = fold(
       sql`p.name || ' ' || coalesce(p.category, '') || ' ' || coalesce(p.gender, '')`,
