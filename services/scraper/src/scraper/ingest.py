@@ -946,6 +946,7 @@ def _success_message(
     suspicious: set[_ScopeKey],
     gender_frozen: int = 0,
     rescued: set[_ScopeKey] | None = None,
+    probe: ProbeOutcome | None = None,
 ) -> str | None:
     """Por qué esta pasada, aun con éxito, no está del todo limpia. `None` si lo está (#151).
 
@@ -972,6 +973,17 @@ def _success_message(
     son ámbitos que HABRÍAN salido como caída sospechosa y no lo hacen porque sus productos se han
     mudado. Dicho aquí, un cambio de clasificación deja rastro en la fila de la pasada en vez de
     parecer que no pasó nada.
+
+    De `probe` entra SOLO el caso extremo —el sondeo entero devuelto sin un veredicto— y no la
+    cifra, por el mismo criterio que el residuo de #358: lo que aparece en toda pasada no puede ir
+    en `message` sin romper `WHERE message IS NOT NULL`. El umbral es «todos» y no «algunos» porque
+    ésa es la firma de la tienda que no contesta: `_confirm_candidates` envuelve `probe_alive()` en
+    un `except Exception` que deja a TODOS los candidatos sin veredicto de una vez, así que un fallo
+    de transporte se ve como `unresolved == sent` exacto, no como una mezcla. Sale de #357: Sfera
+    llevaba pasadas mandando sondeos que volvían enteros sin respuesta —45 de 45 el 10/08/2026— y lo
+    único que se veía era un `errors` sin explicación, porque los sondeos sin veredicto suman ahí
+    pero no se nombraban en ningún sitio. Un `probes_unresolved` alto ya tenía columna desde la
+    `0028`; lo que no tenía era quien dijera **qué** significaba al leer la pasada meses después.
     """
     partes: list[str] = []
     if report.leaves_failed:
@@ -1010,6 +1022,8 @@ def _success_message(
     if rescued:
         ambitos = sorted(_render_scope(s) for s in rescued)
         partes.append(f"ambitos remapeados: {', '.join(ambitos)}")
+    if probe is not None and probe.sent and probe.unresolved == probe.sent:
+        partes.append(f"sondeo sin respuesta: {probe.sent} de {probe.sent} sin veredicto")
     if gender_frozen:
         partes.append(f"generos conservados: {gender_frozen}")
     return " · ".join(partes)[:_MAX_FAIL_MESSAGE] if partes else None
@@ -1270,7 +1284,7 @@ def ingest(
                     # `errors` cuenta; `message` dice QUÉ (#151). El desglose del sondeo no entra en
                     # `message`: tiene columnas propias (migración 0028), y meterlo aquí dejaría
                     # casi ninguna pasada con `message` a NULL —lo único que hace útil la consulta.
-                    _success_message(report, suspicious, gender_frozen, rescued),
+                    _success_message(report, suspicious, gender_frozen, rescued, probe),
                     probe.sent,
                     probe.alive,
                     probe.dead,
