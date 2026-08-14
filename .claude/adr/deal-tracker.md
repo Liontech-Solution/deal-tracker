@@ -2372,9 +2372,21 @@ corre sin SQL entre sondeo y sondeo, hasta 50, pero cabe en los 2m13s que Sfera 
 sigue al listado. Medirlos es lo que convierte «la fase 1 es el suelo» en un dato y no en un supuesto.
 
 Una arista al leer un fallo de este tipo (#411): cuando lo que mata la pasada es la pérdida de la
-conexión, el `conn.rollback()` del `except` de `ingest()` falla también y **sustituye al error
-original**, así que en el log aparece `the connection is lost` y no la causa — y `_record_failed_run`
-no llega a correr, o sea que esa pasada no deja fila en `scrape_run`.
+conexión, el `conn.rollback()` del camino de error **falla también**. Hasta el arreglo eso sustituía
+al error original, así que en el log aparecía `the connection is lost` y no la causa. Y estaba en
+**dos** sitios, que es lo que lo hacía inmune a un arreglo a medias: el `except` de `ingest()` y el
+del propio `_record_failed_run`, cuyo rollback vive **dentro** del manejador y vuelve a salir de la
+función. Con el primero protegido y el segundo no, el comportamiento observable no se movía nada.
+Los dos van hoy bajo `suppress(Exception)`: no hay nada que deshacer —el servidor se llevó la
+transacción— y lo único que aportaba era tapar el diagnóstico.
+
+**Lo que el arreglo NO resolvió, y conviene no leerlo de más: esa pasada sigue sin dejar fila en
+`scrape_run`.** Ahora por un motivo distinto y más honesto — `_record_failed_run` sí se ejecuta,
+pero abre transacción nueva sobre la **misma** conexión muerta, así que su `_upsert_retailer` es lo
+primero que falla y la función se traga su propio error por diseño. O sea que de las dos promesas de
+esa función, con la conexión perdida se cumple la del **diagnóstico** y no la del **rastro en BD**;
+escribir la fila necesita una conexión nueva, con su propia decisión sobre reintentos y timeouts, y
+eso es cambio de diseño y no un parche.
 
 ### Dos migradores comparten `schema_migrations` a propósito, y por eso comparten un lock (#298)
 

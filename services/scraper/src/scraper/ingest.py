@@ -42,6 +42,7 @@ from __future__ import annotations
 import logging
 from collections import Counter, defaultdict
 from collections.abc import Sequence
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -1058,7 +1059,17 @@ def _record_failed_run(
             )
         conn.commit()
     except Exception:
-        conn.rollback()
+        # Protegido por lo mismo que el `except` de `ingest()` (#411), y es el SEGUNDO sitio donde
+        # pasaba: sobre una conexión muerta este rollback también eleva, y al estar dentro del
+        # `except` esa excepción sale de la función y vuelve a sustituir a la original. Con el de
+        # arriba arreglado y éste no, el síntoma no se movía ni un poco — lo cazó el test de #210.
+        #
+        # El docstring de arriba promete una fila, y con la conexión perdida esa promesa NO se
+        # cumple: el `_upsert_retailer` es lo primero que falla. Lo que se salva aquí es el
+        # diagnóstico, que se propague la causa real; que la fila llegue a escribirse necesita una
+        # conexión nueva, y eso es un cambio de diseño que #411 deja fuera a propósito.
+        with suppress(Exception):
+            conn.rollback()
 
 
 def ingest(
@@ -1340,6 +1351,18 @@ def ingest(
             gender_frozen=gender_frozen,
         )
     except Exception as exc:
-        conn.rollback()
+        # El rollback va protegido porque **sobre una conexión muerta también falla** (#411): eleva
+        # `OperationalError: the connection is lost`, y al estar fuera de cualquier `try` esa
+        # excepción SUSTITUÍA a la original y se llevaba por delante las dos líneas siguientes.
+        # Neto: en el log se leía «the connection is lost» en vez de la causa —con el de #210, un
+        # `IdleInTransactionSessionTimeout` que dice exactamente qué pasó— y `_record_failed_run` ni
+        # se ejecutaba. O sea que el rastro en BD se apagaba precisamente en la familia de fallos
+        # donde no hay pod al que preguntar, que es justo para la que existe.
+        #
+        # Se traga la excepción del rollback en vez de encadenarla: la conexión ya está perdida, no
+        # hay nada que deshacer —el servidor se llevó la transacción— y lo único que aporta es tapar
+        # el diagnóstico bueno.
+        with suppress(Exception):
+            conn.rollback()
         _record_failed_run(conn, store, run_ts, exc)
         raise

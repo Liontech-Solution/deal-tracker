@@ -116,18 +116,24 @@ def test_una_pasada_cuyo_listado_pasa_del_tope_muere(db_conn: Any) -> None:
     delante una pasada perfectamente sana. Esto no es un fallo del mecanismo: es el criterio con el
     que se eligió el número, y por eso está escrito como test y no como comentario.
 
-    Y lo que se afirma aquí NO es `IdleInTransactionSessionTimeout`, aunque sea lo que mata a la
-    sesión: el `except` de `ingest()` hace `conn.rollback()` sobre la conexión ya muerta, ese
-    rollback eleva `OperationalError` y **sustituye al error original**. O sea que quien mire el log
-    lee «the connection is lost» y no «terminating connection due to idle-in-transaction timeout»,
-    y además `_record_failed_run` no llega a ejecutarse, así que la pasada no deja fila en
-    `scrape_run` — justo lo que el docstring de esa función dice que existe para evitar. Es
-    anterior a #210 (le pasa a cualquier conexión que muera) y vive en `ingest.py`, que en la
-    v0.5.0 es de otra sesión, así que aquí se deja MEDIDO y no arreglado. El test se escribe contra
-    lo que de verdad se observa; el día que se arregle, este `raises` es lo que hay que cambiar.
+    Y se afirma **la excepción de verdad**, `IdleInTransactionSessionTimeout` (SQLSTATE 25P03),
+    cuyo mensaje —«terminating connection due to idle-in-transaction timeout»— es la causa exacta y
+    accionable. Esa afirmación es el arreglo de #411: hasta él aquí se leía `OperationalError`,
+    porque el camino de error hacía `conn.rollback()` sobre la conexión ya muerta y ese rollback
+    elevaba `the connection is lost` **sustituyendo al error original**. Eran **dos** sitios, no
+    uno: el `except` de `ingest()` y el de `_record_failed_run`; con el primero arreglado y el
+    segundo no, el síntoma no se movía nada.
+
+    Lo que este test NO afirma, porque sigue sin cumplirse: que la pasada deje fila en `scrape_run`.
+    Con la conexión perdida `_record_failed_run` no puede escribirla —su `_upsert_retailer` es lo
+    primero que falla— y arreglarlo pide una conexión nueva, que es cambio de diseño. #411 se cerró
+    a propósito sobre la mitad del diagnóstico.
     """
     url = _test_url()
-    with db.connect(_config(url, idle=_OCIOSO)) as conn, pytest.raises(psycopg.OperationalError):
+    with (
+        db.connect(_config(url, idle=_OCIOSO)) as conn,
+        pytest.raises(psycopg.errors.IdleInTransactionSessionTimeout),
+    ):
         ingest(conn, TiendaLenta(_OCIOSO * 4))
 
 
