@@ -1726,6 +1726,21 @@ Dos mecanismos que hay que tener juntos para no volver a diagnosticarlo mal:
   45 en pasadas sucesivas, con **`probes_dead = 0`**: Sfera no ha dado una sola baja nunca. Las
   únicas salidas del pool son «volver a verse» y «muerte confirmada», y la segunda no ocurre.
 
+  **Corregido el 14/08/2026 (#357): esa serie es la columna `errors`, no el pool, y para Sfera
+  significa otra cosa.** Se midió antes de que el código escribiera las `probes_*` (ver más abajo),
+  así que el único número disponible era `errors`, que bajo la v0.1.9 valía
+  `sospechosos + sin_veredicto + hojas_caídas` con `sin_veredicto` arrastrando todavía a los que no
+  cabían en el tope. Para Zara la lectura de «pool» se sostiene. Para **Sfera no**: sus 45
+  candidatas quedaban por debajo del tope de 50, luego `over_cap = 0` y el número entero es
+  `probe.unresolved`. O sea **45 sondeos enviados y 45 sin veredicto**, no 45 candidatas que no se
+  drenan. Que sea 45 de 45 y no una mezcla apunta al `except Exception: verdicts = {}` de
+  `_confirm_candidates`, que deja a **todos** los candidatos sin veredicto de una vez, y a que
+  `Sfera.probe_alive` abre con un `session.goto()` de siembra de Akamai sin protección — la misma
+  llamada que mató la pasada del 02/08 con un timeout de 45 s. Consecuencia para el diagnóstico: a
+  las prendas congeladas de Zara **se les pregunta y contestan que siguen vivas**; a las de Sfera
+  **no se les ha llegado a preguntar con éxito nunca**, así que no son el mismo fenómeno aunque se
+  parezcan en la tabla.
+
 De ahí el reparto que deja la 0028: `errors` se queda con sospechosos + hojas caídas + **sondeos sin
 veredicto**, y los que no caben en el tope se van a `scrape_run.probes_over_cap`. La distinción es
 lo importante y no el sitio — *no cupo* es la rutina de una tienda con muchos candidatos, *sin
@@ -1735,6 +1750,18 @@ columnas `probes_{sent,alive,dead,over_cap,unresolved}` hacen que «¿el pool cr
 una consulta y no una excavación en el log de un pod: `probes_sent + probes_over_cap` es el pool y
 `probes_dead` el drenaje. **No hay backfill**, así que la serie empieza en la 0028 y las filas
 anteriores tienen 0 en las cinco.
+
+**Y un cero ahí tiene DOS causas, no una — que es la trampa que costó una sesión entera (#357).** A
+la de arriba (la fila es anterior a la `0028`) se suma que **el código no escribió esas columnas
+hasta la v0.2.0**: en la v0.1.9 el `UPDATE` final de `scrape_run` pone solo
+`products_seen, variants_seen, errors, message`, así que con la migración ya aplicada las cinco se
+quedaban en su `DEFAULT 0` **en todas las tiendas a la vez**. Se ve en la tabla de QA: el 10/08 Zara
+aparece **dos veces**, una con `errors = 106` y los sondeos a cero y otra, ya con la imagen nueva,
+con `probes_sent = 50` y `over_cap = 134`. La regla práctica al leer `probes_*`: **antes de concluir
+que una tienda no sondea, comprueba con qué imagen corrió esa pasada**; y ojo con las tiendas
+semanales, porque Sfera tardó una semana entera en tener su primera fila honesta. Es la misma
+ventana migración-código que ya se describe arriba, vista desde el otro lado — allí engañaba al
+validar una release, aquí engañó al diagnosticar un mecanismo.
 
 **Y esa copia duradera no existía: `scrape_run.message` solo se rellenaba en el camino de fallo**
 (`_record_failed_run`), o sea justo en el caso en el que la pasada NO cierra en `success`. La hoja
