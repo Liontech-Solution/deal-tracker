@@ -1,0 +1,104 @@
+-- El `ANALYZE` del autovacuum sobre `variant` lleva meses cayéndose en silencio (issue #370).
+--
+-- Esta es la causa raíz, y no es la que la issue suponía. La 0036 puso el instrumento; esta arregla.
+--
+--
+-- ── EL SÍNTOMA, Y POR QUÉ DESPISTA ──
+--
+-- `variant` acumula modificaciones muy por encima del umbral y no se analiza nunca, mientras
+-- `product`, `price_history` y `product_agg` se analizan solas a los pocos minutos de cada pasada.
+-- Con las estadísticas rancias el catálogo va 2-2,5x más lento, y un `ANALYZE variant` a mano lo
+-- arregla en el acto — lo que hace pensar en un problema de planificación del autovacuum.
+--
+-- Medido el 14/08/2026 contra `deal_tracker_qa`, con la pasada 63 recién terminada (08:58:24):
+--
+--     tabla           n_mod_since_analyze   umbral   last_autovacuum    last_autoanalyze
+--     variant                      50.614   17.108   14/08 08:58:55     10/08 12:18
+--
+-- **El autovacuum sí llega, y la vacúa.** Seis horas después seguía 3x sobre umbral sin analizar,
+-- con `autovacuum_naptime` en 60 s y `n_mod_since_analyze` clavado en 50.614 (nada escribía). No es
+-- que no le toque: es que el analyze se intenta y se cae, una y otra vez.
+--
+-- Y no es inanición de workers: se miró la firma «sobre umbral y sin analizar» en **todas** las
+-- bases que comparten la CNPG `platform-postgres-dev` —`keycloak_dev`, `platform`, `deal_tracker`—
+-- y `variant` de QA era la única tabla así de todo el servidor.
+--
+--
+-- ── LA CAUSA ──
+--
+-- `variant` es la única de las cuatro con **índices de expresión sobre funciones nuestras**:
+--
+--     ix_variant_size_canon     ON variant (size_canon(size))     WHERE delisted_at IS NULL
+--     ix_variant_color_family   ON variant (color_family(color))  WHERE delisted_at IS NULL
+--     ix_variant_size_band      ON variant (size_band(size))      WHERE delisted_at IS NULL
+--
+-- **`ANALYZE` evalúa las expresiones de esos índices** para construir sus estadísticas. `VACUUM` no.
+-- Ahí está la asimetría que hacía inexplicable el síntoma.
+--
+-- Y el worker de autovacuum corre con el `search_path` **restringido a propósito** (PostgreSQL lo
+-- vacía en las operaciones de mantenimiento, para que nadie pueda colar una función suya en medio
+-- de un ANALYZE). Los cuerpos de estas funciones llaman a otras **sin cualificar**:
+--
+--     color_family(color) -> color_canon(color)      (0029/0030, LANGUAGE sql)
+--     size_band(size)     -> size_canon(size)        (0033, LANGUAGE plpgsql)
+--
+-- Con el `search_path` restringido ese nombre no resuelve, la evaluación revienta y **el analyze
+-- entero se aborta**. El vacuum, que ya había pasado, queda reportado — de ahí `last_autovacuum` de
+-- hoy y `last_autoanalyze` de hace cuatro días.
+--
+-- Reproducido entero el 14/08/2026 sobre una copia local, con sus tres controles:
+--
+--     SET search_path = pg_catalog;
+--     VACUUM  public.variant;   -> OK            (no evalúa expresiones)
+--     ANALYZE public.variant;   -> ERROR: function color_canon(text) does not exist
+--                                  CONTEXT: SQL function "color_family" during inlining
+--     ANALYZE public.product;   -> OK            (no tiene índices de expresión)
+--
+-- Ese mensaje de error estaba en los logs de la CNPG y se había leído como ruido de alguna sesión.
+-- No lo era: es el autovacuum.
+--
+--
+-- ── POR QUÉ ERA INVISIBLE ──
+--
+-- `log_autovacuum_min_duration` estaba en 600000 ms, así que solo dejaba rastro el autovacuum que
+-- tardara más de 10 minutos. La 0036 lo baja a 0 para esta tabla.
+--
+--
+-- ── EL ARREGLO, Y LA OPCIÓN QUE SE DESCARTÓ ──
+--
+-- Se fija el `search_path` de las funciones, que las hace inmunes al del llamante. La alternativa
+-- era cualificar las llamadas internas (`public.color_canon(...)`), y se descartó porque obliga a
+-- re-pegar en esta migración los cuerpos enteros —40 líneas de regex en `color_family`— y esa
+-- duplicación es justo la deriva silenciosa que este esquema evita en todas partes.
+--
+-- **Se comprobó antes que no cuesta plan**, porque era la objeción seria: una función SQL con
+-- cláusula `SET` no se puede hacer *inline*. Medido con `EXPLAIN` antes y después:
+--
+--     con índice:   Index Scan using ix_variant_color_family
+--                     Index Cond: (color_family(color) = 'azul'::text)     <-- igual con y sin SET
+--     sin índice:   Seq Scan, Filter: (color_family(color) = 'azul'::text) <-- igual con y sin SET
+--
+-- Los dos planes son idénticos. `color_family` **ya no se inlineaba hoy** —su cuerpo lleva un
+-- `FROM (SELECT ...)`, que lo impide— así que aquí no hay nada que perder.
+--
+-- `pg_catalog` va delante para que nada de `public` pueda tapar una función del catálogo.
+--
+--
+-- ── QUÉ FUNCIONES, Y POR QUÉ ESTAS ──
+--
+-- Las cuatro alcanzables desde un índice de expresión, cierre transitivo incluido: `size_canon`,
+-- `color_family`, `color_canon` (la llama `color_family`) y `size_band`. Arreglar solo una no vale
+-- —se comprobó: con `color_family` ya arreglada, el ANALYZE se caía a continuación en `size_band`.
+--
+-- Y las tres que hoy no indexa nadie —`size_cm`, `size_sort`, `refresh_product_agg`— por lo mismo
+-- que la 0034 explicaba al revés: quien añada mañana un índice sobre `size_cm(size)` volvería a
+-- caer aquí, y no tendría por qué saberlo. Es una línea por función.
+--
+-- La vuelta atrás de cualquiera de ellas es `ALTER FUNCTION <nombre>(<args>) RESET search_path`.
+ALTER FUNCTION size_canon(text)            SET search_path = pg_catalog, public;
+ALTER FUNCTION color_canon(text)           SET search_path = pg_catalog, public;
+ALTER FUNCTION color_family(text)          SET search_path = pg_catalog, public;
+ALTER FUNCTION size_band(text)             SET search_path = pg_catalog, public;
+ALTER FUNCTION size_cm(text)               SET search_path = pg_catalog, public;
+ALTER FUNCTION size_sort(text)             SET search_path = pg_catalog, public;
+ALTER FUNCTION refresh_product_agg(bigint) SET search_path = pg_catalog, public;

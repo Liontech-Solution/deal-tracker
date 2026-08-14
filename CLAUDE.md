@@ -148,6 +148,17 @@ drift silently: the SQL migrations, `services/web/src/database/schema.ts`, and t
 `ingest.py`. The `revisor-contrato-esquema` subagent exists for exactly that — use it on any change
 touching `db/migrations/**` or `schema.ts`.
 
+**A function reachable from an index expression must pin its `search_path`.** `variant` carries
+three expression indexes over our own functions (`size_canon`, `color_family`, `size_band`), and
+**`ANALYZE` evaluates those expressions** while `VACUUM` does not. Autovacuum workers run with the
+`search_path` deliberately emptied, so a function body that calls another one *unqualified* — as
+`color_family` did with `color_canon` — blows up mid-analyze and the whole thing aborts. The vacuum,
+already done, still gets reported. Net effect: the table is vacuumed forever and never analyzed, its
+statistics rot, and the catalogue runs 2-2,5× slower with **nothing** in any log
+(`log_autovacuum_min_duration` defaulted to 10 min, so even the failure was invisible). That was
+#370, and it hid for months. Migration `0037` pins `search_path` on all of them; if you add another
+expression index, its function goes in that list.
+
 **The honesty rule is mirrored too, and the mirror is load-bearing.** `classifyHonesty()` in
 `services/web/src/matching/deal-rule.ts` labels the card, but filtering (`onlyDeals`) and sorting
 (`sort=ofertas`) have to decide **before the `LIMIT`**, so `deal-rule.sql.ts` reimplements it in SQL.
