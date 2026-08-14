@@ -100,16 +100,22 @@ export function HomePage() {
           </div>
           {/* Era un `toast` que decía «Inicia sesión para guardar tus seguimientos · muy pronto»
               incluso a quien ya tenía sesión (#301): el único CTA de una portada pública no llevaba
-              a ninguna parte. Ahora lleva al catálogo, que es de donde se sigue una prenda; sin
-              sesión y con realm, al login, porque el catálogo está cerrado desde #309 y mandar allí
-              a un anónimo solo le enseñaría la página de acceso. */}
+              a ninguna parte. Ahora lleva al catálogo, que es de donde se sigue una prenda.
+
+              Sin sesión y con realm lleva a `/acceso`, y no al login (#383). #301 mandaba de aquí
+              directo a Keycloak para ahorrarle un salto al anónimo; el salto resultó valer más que
+              lo que costaba. Con el registro cerrado (#347) un formulario de login a secas es un
+              callejón sin salida que ni siquiera dice que no se puede registrar, mientras que
+              `/acceso` es la única pantalla que explica el producto y el estado del registro. De
+              paso arregla a dónde se vuelve: `/acceso` pide el login con `redirect_uri` al
+              catálogo, que es lo que se había pedido al pulsar, y no a esta misma portada. */}
           <div style={{ marginTop: 16 }}>
             <button
               className="btn btn-secondary"
               style={{ padding: '13px 22px', fontSize: 15 }}
               onClick={() => {
                 if (conCatalogo) navigate('/catalogo');
-                else if (auth.enabled) auth.login();
+                else if (auth.enabled) navigate('/acceso');
                 else toast('Inicio de sesión con Keycloak · disponible al desplegar');
               }}
             >
