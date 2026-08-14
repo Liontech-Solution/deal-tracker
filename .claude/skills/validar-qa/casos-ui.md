@@ -24,12 +24,18 @@ primero que se hace, porque a partir de U3 ya no se puede volver atrás sin cerr
 | U1c | Abrir `/producto/<id>` a pelo sin sesión (el enlace compartido) | mismo muro en `/acceso` |
 | U1d | Abrir `/acceso` directamente | la página se sostiene sola y ofrece login, sin quedarse en blanco por no traer destino |
 | U1e | Con `browser_network_requests`, mirar las llamadas de U1 | las de `/api/catalog/*` o no se hacen, o responden **401**. Un 200 con datos significa que el candado está solo en la interfaz — **P0** |
-| U2 | Pulsar login desde `/acceso` (viniendo de U1c) | redirección al Keycloak de `keycloak-dev`, formulario real |
+| U1f | Pulsar «Empieza a seguir prendas», el CTA del hero, **sin sesión** | aterriza en `/acceso`, **no** en el formulario de Keycloak. El CTA es la puerta de entrada del visitante y `/acceso` es lo que le explica que hace falta cuenta y que el registro está cerrado. Volver a saltar a Keycloak es **P1**: la regresión de #383. **Exigible a partir de v0.5.0** — el arreglo (`51241c1`) es posterior al tag `v0.4.0`, así que contra una QA que sirva v0.4.0 o anterior el CTA salta a Keycloak con `redirect_uri=…%2F` y **eso no es un hallazgo**, es la versión sin el arreglo (comprobado en QA el 14/08/2026). Antes de reportarlo: `git merge-base --is-ancestor 51241c1 <tag desplegado>` |
+| U2 | Pulsar login desde `/acceso` (viniendo de U1c) | redirección al Keycloak de `keycloak-dev`, formulario real. **Y mira el `redirect_uri`**, que es la mitad que se escapa: debe ser `https%3A%2F%2Fdealtracker-qa.liontechsolution.com%2Fcatalogo`. Si trae `…%2F` —la portada— el destino se perdió por el camino y el visitante acaba donde no pidió ir; era el segundo defecto de #383 y no se ve mirando solo a dónde navega |
 | U3 | Entrar con las credenciales de `.claude/qa-test-user.local` | vuelta a la SPA **ya autenticada**, `UserMenu` en lugar del botón, y **de vuelta a la ficha de U1c**, no a la raíz. Volver a `/` es **P1**: rompe compartir enlaces, que es justo lo que U12 protege en el catálogo |
 | U4 | Recargar la página | la sesión **sobrevive** (`check-sso` + PKCE). Si obliga a repetir login, es **P0**: nadie usa así una web |
 
 El login va por la interfaz de verdad, no inyectando un token: parte de lo que se valida es que el
 `silent-check-sso` funciona en el dominio de QA.
+
+**Este bloque entero solo es observable en QA o en prod**, y conviene saberlo antes de intentar
+adelantarlo: todas sus ramas cuelgan de `auth.enabled === true` con la sesión cerrada, y `dev` deja
+los `KEYCLOAK_*` sin poner **a propósito**. Allí el CTA del hero se va al catálogo sin pasar por lo
+que aquí se comprueba, así que un `dev` verde no dice nada de U0.
 
 **Del resto del fichero en adelante se da por hecha la sesión de U3.** Antes de v0.3.0 daba igual
 en casi todos los casos; ahora no, porque sin ella no hay catálogo que recorrer.
@@ -44,7 +50,7 @@ en casi todos los casos; ahora no, porque sin ella no hay catálogo que recorrer
 | U8 | Pulsar una sugerencia (`botas`) | misma navegación con ese término |
 | U9 | Tarjeta «Ropa» y tarjeta «Zapatería» | `/catalogo?section=ropa` y `?section=zapateria`, con resultados |
 | U10b | Panel «Dos etiquetas, y cuándo no ponemos ninguna» | enumera **tres** estados —«Oferta real», «Precio inflado» y «Sin etiqueta»— y son los mismos que el catálogo puede enseñar hoy. Es el caso que faltaba: hasta #332 este panel no lo ejercía nadie, y explicaba dos etiquetas cuando los estados ya eran tres, con el ausente siendo el mayoritario (en prod, 15.968 prendas sin etiqueta frente a 335 ofertas reales). Que la home describa un estado que el producto ya no tiene —o se calle uno que sí— es **P1**: es la promesa de honestidad explicada mal, y se pudre en silencio igual que se pudrió U10 |
-| U10 | Botón «Empieza a seguir prendas» | ~~solo lanza un toast, placeholder conocido~~ **ya no lo es**: con sesión lleva a `/catalogo`, y sin ella lanza el login de Keycloak (`HomePage.tsx`). El toast solo es alcanzable con Keycloak **desactivado**, o sea en `dev` y nunca en QA. Aquí, que estamos en el bloque con sesión (ver U5), lo que se exige es la navegación al catálogo; un toast es **P1** de verdad, no un conocido |
+| U10 | Botón «Empieza a seguir prendas» | ~~solo lanza un toast, placeholder conocido~~ **ya no lo es**: con sesión lleva a `/catalogo` (`HomePage.tsx`). ~~Sin ella lanza el login de Keycloak~~ — desde #383 el anónimo va a `/acceso`, y eso se ejerce en **U1f**, no aquí. El toast solo es alcanzable con Keycloak **desactivado**, o sea en `dev` y nunca en QA. Aquí, que estamos en el bloque con sesión (ver U5), lo que se exige es la navegación al catálogo; un toast es **P1** de verdad, no un conocido |
 
 ## U2 · Catálogo
 
@@ -91,10 +97,22 @@ en casi todos los casos; ahora no, porque sin ella no hay catálogo que recorrer
 | U36 | Reabrir | vuelve a los valores por defecto, no recuerda el intento anterior |
 | U37 | Confirmar | toast de éxito **y** el interés aparece en `/seguimientos` con sus chips (`−X% mínimo`, base, ventana, tienda) |
 | U38 | Borrar el interés desde `/seguimientos` | desaparece con toast |
-| U39 | `/seguimientos` sin ninguno | estado vacío con enlace al catálogo |
+| U39 | `/seguimientos` sin ninguno | estado vacío con enlace al catálogo. **Ejercitable desde el 14/08/2026**: hasta entonces la lista nunca estaba vacía y el caso se declaraba no ejercido en cada validación (#385) |
 
 U37 y U38 **escriben**: deja la lista como la encontraste. Si el frente aborta a medias, bórralo por
-API antes de dar el informe.
+API antes de dar el informe. Y ojo, porque de eso depende U39: si te dejas uno vivo, el siguiente
+validador se encuentra el caso bloqueado y sin saber por qué.
+
+> **Los dos intereses que arrastraba `test-qa` ya no están, y no eran «ajenos».** Hasta el
+> 14/08/2026 la lista traía dos intereses activos creados el 04/08 (`lefties` y `hm`, tienda entera,
+> 0 % de mínimo, con 147 ms entre uno y otro: semilla, no algo curado). Tres validaciones seguidas
+> los describieron como *intereses ajenos que no se tocan* y por eso nadie los quitó — pero en QA hay
+> **un solo `app_user`**, y `GET /api/interests` solo devuelve los del usuario autenticado, así que
+> si el frente de API los ve, son suyos. En diez días no generaron ni un aviso. Se dieron de baja por
+> la API, que es lo mismo que hace un usuario, y la baja es **lógica**: las filas siguen ahí con
+> `active = false` y se revierten con `UPDATE interest SET active = true WHERE id IN (2,3)`.
+> Lo que **no** se hace es borrarlas en la base: `notification.interest_id` es `ON DELETE CASCADE` y
+> un `DELETE` se llevaría por delante el histórico de avisos sin decir nada.
 
 ## U5 · Ajustes y Telegram
 

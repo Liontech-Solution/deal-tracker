@@ -74,6 +74,13 @@ que es justo la que hay que ver.
   suelto no es un hallazgo, es un dato sin interpretar.
 - Última pasada de más de 8 días en QA (donde el ciclo es semanal) → **P1**.
 
+Y una que esta consulta **no puede contestar**: un `success` reciente no dice **qué versión** escribió
+la fila. En QA el ciclo es semanal y las promociones son más frecuentes, así que lo normal es que la
+última pasada sea de una imagen anterior a la desplegada — con la release del 10/08 escribiendo dato
+de `v0.1.9` mientras QA servía `v0.4.0`. Eso lo resuelve `qa-procedencia.sh` en la Fase 0 (#378), y
+**todo este frente descansa en su respuesta**: si el dato es de otra versión y la release toca
+`services/scraper/`, lo que se mide aquí abajo es el scraper anterior.
+
 ## D3 · Caracterizar lo que salió mal
 
 Esto aplica a dos casos, no solo a uno: los jobs **fallados**, y las pasadas `success` con

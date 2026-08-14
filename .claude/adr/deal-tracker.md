@@ -3277,9 +3277,32 @@ Lo que hay que llevarse, porque es lo que decide si una validación vale:
   vigente. En la validación de v0.4.0 se hizo con zara —la tienda que cambiaba— y salió `success`, 0
   errores, 13 min, +7,3 % de catálogo. Trece minutos compran la afirmación entera.
 
-Queda abierto en #378 dónde ponerle el arreglo permanente: que `/validar-qa` compare las dos imágenes
-y lo diga (barato, esta semana), o que `scrape_run` registre la versión que la escribió (contestable
-en SQL, sin `kubectl`, y también en prod — pero toca el contrato de esquema).
+**Resuelto el 14/08/2026 por la primera vía**: `.claude/skills/validar-qa/scripts/qa-procedencia.sh`
+empareja cada última fila de `scrape_run` con el `Job` que la escribió y la Fase 0 lo pone en el
+informe, conforme o no. La segunda —una columna de versión en `scrape_run`— sigue siendo la que
+cierra el agujero de verdad (contestable en SQL, sin `kubectl`, y también en prod), y se pospuso
+porque toca `db/migrations/`, que en la v0.5.0 tiene otra dueña.
+
+Tres cosas del emparejamiento que no son obvias y que cuestan una tarde si se descubren de nuevo:
+
+- **La clave del join son los args del contenedor, no el nombre del `Job`.** Los nombres siguen un
+  patrón sólo mientras los crea el `CronJob`: en cuanto alguien dispara uno a mano aparecen
+  `validacion-v040-zara`, `hipercor-frio-1` o `springfield-qa-1`, que no lo siguen. Todos, en cambio,
+  llevan `--retailer <slug>` en sus args, y ese slug es **el mismo string** que `retailer.slug`
+  (`c-and-a` con guiones, ver `SLUG` en `stores/c_and_a.py`). El `ownerReferences` al `CronJob`
+  tampoco vale del todo, porque el nombre del CronJob no siempre es el slug.
+- **La fila se fecha sola.** `scrape_run.started_at` es la hora de inicio de la transacción de la
+  pasada, y el `INSERT` vive dentro de ella, así que va 2-5 s por detrás del `startTime` del `Job`
+  (medido: 2 s en zara el 14/08, 5 s en hipercor el 10/08). Con eso basta para elegir el `Job`
+  correcto sin ambigüedad.
+- **La procedencia caduca, y esa es la frontera real.** Los CronJob traen
+  `successfulJobsHistoryLimit: 3` en el repo de manifiestos, y QA ingiere semanalmente: pasadas de
+  más de ~3 semanas ya no tienen `Job` y su procedencia es **incontestable**, no «buena por defecto».
+  Medido contra `deal-tracker-dev`, donde tres tiendas ya están en ese estado.
+
+Y la política, que es lo que convierte el dato en decisión: **dato heredado es P1 de proceso si la
+release no toca `services/scraper/`, y P0 si lo toca**. Es exactamente la coartada de v0.3.0 vuelta
+regla, y el script la evalúa solo si se le pasa el rango de la release.
 
 ### Callar y acusar son decisiones asimétricas, y `max_observed` no significa lo que su nombre dice (#332)
 
