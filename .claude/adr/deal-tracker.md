@@ -179,11 +179,43 @@ validación siguiente detecta que una tienda pasó de 3381 productos a 40 con la
 no era** (08/08/2026, #267). `release-qa` tiene trabajo que hacer porque dev corre `sha-<7>` y QA
 necesita un `vX.Y.Z`: copia la manifest list al mismo digest. **Prod consume exactamente el mismo
 tag que QA ya está corriendo**, así que no hay nada que re-etiquetar y `release-prod.yml` no lleva
-`imagetools create`. Lo que es de verdad es un **gate**, con cuatro comprobaciones que abortan:
-el informe dice APTO · QA corre esa versión (si ya no la corre, el informe no habla de lo que se
-promueve) · las dos imágenes existen en GHCR · el overlay de prod existe (aquí **falla**, mientras
-que `release-qa` salta con un warning: la ausencia del de QA era un «todavía no», la del de prod es
-que alguien renombró el contrato).
+`imagetools create`. Lo que es de verdad es un **gate**, con cinco comprobaciones que abortan:
+la versión existe como Release publicada y **no va hacia atrás** (GATE 0, #306) · el informe dice
+APTO · QA corre esa versión (si ya no la corre, el informe no habla de lo que se promueve) · las dos
+imágenes existen en GHCR · el overlay de prod existe (aquí **falla**, mientras que `release-qa`
+salta con un warning: la ausencia del de QA era un «todavía no», la del de prod es que alguien
+renombró el contrato).
+
+**El GATE 0 llegó el último y tapa lo único que ningún otro miraba: la dirección** (14/08/2026,
+issue #306). La versión llega de un campo de texto libre, y los cuatro gates originales comprueban
+*qué* se promueve pero no *hacia dónde se mueve prod*: `v0.1.8` tecleada por error los habría
+pasado todos el día que tuviera informe APTO, y habría sido un downgrade silencioso. Se rechaza lo
+que no tiene Release publicada —o la tiene en `draft`/`prerelease`— y lo que no es `>=` la `latest`
+actual, comparando por `sort -V` porque un orden de texto pondría `v0.4.0` por encima de `v0.10.0`.
+Dos matices que no son decorativos: es **`>=` y no `>`** a propósito, porque relanzar el workflow
+sobre la versión que prod ya corre es un caso real y soportado —el estreno mismo fue con `v0.1.9`,
+ya desplegada— y un `>` estricto rompería esa idempotencia sin bloquear ningún rollback que no
+estuviera ya bloqueado; y **el GATE 0 no sustituye al GATE 1**, porque mira el flag `prerelease`,
+que es la señal y nunca la decisión. Es un filtro barato que va **antes de los checkouts** y falla
+en segundos; la autoridad sigue siendo el fichero. Para volver atrás hará falta otro camino: este
+workflow solo avanza, y desde #306 eso está escrito y ejercido, no supuesto.
+
+**Y el flag `prerelease` ha dejado de ser eterno, que es la otra mitad de #306.** Aquí una
+`prerelease` viva no es un archivo histórico sino un intento fallido —`/validar-qa` baja el flag
+*solo* al escribir un informe APTO, así que lo que sigue marcado o tuvo veredicto en contra o nunca
+se miró—, y llegaron a acumularse **nueve, ninguna promocionable**. Desde #306 `release-qa` termina
+llamando a `prune-prereleases.yml`, que conserva las **5 más recientes por semver** (`gh release
+list` ordena por fecha, y un re-tag desordenaría la ventana) y borra el resto con su tag git. Va
+como workflow reutilizable y no como paso, para que el `workflow_dispatch` manual que vació el
+atraso y el automático sean **el mismo código**; y con `continue-on-error`, por lo mismo que la
+retención de GHCR: la limpieza nunca debe tumbar la release. **Lo que no toca es lo que importa**:
+ni las no-`prerelease`, ni `latest`, ni una sola imagen de GHCR —ese eje es #283, y borrar allí es
+peligroso por otro motivo—, ni los informes, que son el registro de *por qué* aquella versión fue
+defectuosa y la línea base de la siguiente. Hay además un suelo duro de 2, y conviene leer bien su
+motivo porque el intuitivo es falso: **no es una ventana de rollback**. Una `prerelease` no es
+promocionable por construcción, y el rollback de prod vive en las no-`prerelease` y en las imágenes.
+El suelo está para que un `keep` mal tecleado en el dispatch no se lleve de golpe la historia de qué
+se cortó y por qué.
 
 **Y la autoridad de que una versión vale para producción es el informe commiteado, no el flag
 `prerelease` de GitHub.** Los dos dicen lo mismo y solo uno deja rastro: el flag lo cambia
@@ -199,7 +231,10 @@ y se compara **completo**, porque un `grep APTO` a secas también casa con `NO A
 exactamente el caso a rechazar. Medido el 08/08/2026 sobre los cuatro informes reales: `v0.1.9`
 pasa los cuatro gates y el bump sale vacío (prod ya la corría, puesta a mano en el estreno del
 07/08); `v0.1.8` muere en el primer gate con los cinco pasos siguientes en `skipped` y su release
-intacta en `Pre-release`. **La ruta `deal-tracker/overlays/prod` es contrato entre los dos repos**,
+intacta en `Pre-release`. **Con el GATE 0 delante, esas dos medidas cambian de sitio y conviene no
+leerlas literales**: `v0.1.8` muere ahora antes, sin llegar a clonar nada, y `v0.1.9` ya **no
+pasaría** — `latest` es `v0.4.0` y sería ir hacia atrás, que es justo lo que el gate nuevo existe
+para impedir. **La ruta `deal-tracker/overlays/prod` es contrato entre los dos repos**,
 igual que la de QA.
 
 **En prod la ingesta se enciende antes que la notificación, y esa asimetría es deliberada.** Prod
