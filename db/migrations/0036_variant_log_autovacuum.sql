@@ -1,0 +1,82 @@
+-- `variant` deja traza de cada visita del autovacuum (issue #370).
+--
+-- Esto NO es el arreglo. Es el instrumento que hace falta para elegirlo, y va primero porque la
+-- causa que la issue daba por buena es falsa.
+--
+--
+-- ── LO QUE DECÍA LA ISSUE, Y LO QUE MIDE DE VERDAD ──
+--
+-- #370 se abrió diciendo que «el autovacuum no llega a `variant`»: 58.326 modificaciones sin
+-- analizar y el último `autoanalyze` de 9 días antes, mientras `product`, `price_history` y
+-- `product_agg` sí se analizaban solas a los pocos minutos de acabar la pasada. Con esas
+-- estadísticas el catálogo iba 2-2,5x más lento, y un `ANALYZE variant` a secas lo arreglaba en el
+-- acto.
+--
+-- El síntoma es real y se reproduce. La causa no. Medido el 14/08/2026 contra `deal_tracker_qa`:
+--
+--     tabla           n_mod_since_analyze   umbral(*)   last_autovacuum     last_autoanalyze
+--     product                           0       1.755   14/08 08:58:55      14/08 08:58:55
+--     product_agg                       0       1.734   14/08 08:58:51      14/08 08:58:51
+--     price_history                15.483      36.528   10/08 05:04         10/08 05:04
+--     variant                      50.614      17.108   14/08 08:58:54      10/08 12:18   <--
+--
+--     (*) autovacuum_analyze_threshold + autovacuum_analyze_scale_factor * reltuples = 50 + 0,1*n,
+--         con los valores del servidor, que están en los de fábrica. `variant` no trae reloptions.
+--
+-- **El autovacuum sí llega a `variant`, y de hecho la vacuó ese mismo día a las 08:58:54**, en la
+-- misma barrida en la que analizó `product` y `product_agg`. Lo que no hizo fue analizarla, con el
+-- umbral superado 3x y llevando así desde el 10/08. `n_dead_tup` es 0: el vacuum va sobrado.
+--
+-- (`price_history` aparece retrasada y **está bien**: 15.483 modificaciones contra un umbral de
+-- 36.528, o sea que todavía no le toca. Es el control que confirma que la fórmula se lee bien.)
+--
+--
+-- ── LA CONSECUENCIA, QUE DESCARTA LA OPCIÓN QUE PARECÍA BUENA ──
+--
+-- La issue proponía bajar `autovacuum_analyze_scale_factor` para esta tabla. **No puede funcionar**:
+-- bajar el umbral no arregla algo que ya lo supera por 3x. El disparo no es el problema; lo es que
+-- la fase de analyze no cuaja. Esa firma —vacuum sí, analyze no, en la misma visita— es la de un
+-- worker cortado *entre las dos fases*, típicamente por una petición de lock en conflicto, que es
+-- cuando PostgreSQL auto-cancela al autovacuum.
+--
+-- Es una hipótesis, y no se puede confirmar mirando contadores acumulados: `pg_stat_user_tables`
+-- dice cuándo fue la última vez, nunca cuántas veces se intentó y se abandonó.
+--
+--
+-- ── POR QUÉ HACE FALTA ESTA LÍNEA PARA VERLO ──
+--
+-- El servidor tiene `log_autovacuum_min_duration = 600000` (10 minutos), así que solo deja rastro
+-- el autovacuum que tarde más de eso. No hay **una sola** línea de autovacuum en los logs de las
+-- últimas 24 h de la CNPG, y por eso el mecanismo lleva invisible desde el principio.
+--
+-- Puesto a `0` **para esta tabla**, cada visita a `variant` deja línea con lo que hizo y cuánto
+-- tardó, incluidas las que hoy se pierden.
+--
+--
+-- ── POR QUÉ COMO RELOPTION Y NO EN EL SERVIDOR ──
+--
+-- `log_autovacuum_min_duration` también es un GUC de servidor, y bajarlo ahí sería una línea. Pero
+-- la CNPG `platform-postgres-dev` **la comparten** `keycloak_dev`, `platform`, `tradingtool-dev` y
+-- `tradingtool-qa` además de las tres bases de deal-tracker: subirle el volumen de log a cuatro
+-- proyectos ajenos para diagnosticar una tabla nuestra no es proporcionado.
+--
+-- Como reloption queda **declarada en el esquema y viaja con él** a los tres entornos, que es
+-- justo lo que #219 enseñó que hace falta: configuración aplicada a mano por `ALTER DATABASE` no
+-- queda en ningún repo y puede volver a cambiar sin aparecer en ningún diff. Mismo argumento que
+-- #210.
+--
+--
+-- ── CÓMO SE LEE, Y CUÁNDO SE QUITA ──
+--
+-- El fallo está vivo: `variant` lleva sobre umbral sin analizar desde el 10/08, así que la próxima
+-- barrida ya se observa sin esperar a la pasada semanal de QA.
+--
+--     kubectl -n data-dev logs platform-postgres-dev-1 -c postgres | grep -i 'automatic.*variant'
+--
+-- Esta línea se queda mientras #370 siga abierta. Cuando el arreglo esté puesto y comprobado, se
+-- decide si sobra — no es gratis: cada visita escribe una línea de log. La vuelta atrás es
+--
+--     ALTER TABLE variant RESET (log_autovacuum_min_duration);
+--
+-- y no toca datos.
+ALTER TABLE variant SET (log_autovacuum_min_duration = 0);
