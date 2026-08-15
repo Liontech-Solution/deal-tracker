@@ -1,6 +1,6 @@
 ---
 name: comandos-en-worktree-aislado
-description: "En un worktree el clasificador rechaza el prefijo VAR=valor y los heredoc con cd; usa `env`, y el pod de la CNPG tiene el filesystem en solo lectura"
+description: "En un worktree el clasificador rechaza el prefijo VAR=valor y los heredoc con cd; usa `env`, un comando RECHAZADO no es una respuesta «no» (comprobar existencias con comandos pelados), y el pod de la CNPG tiene el filesystem en solo lectura"
 metadata: 
   node_type: memory
   type: project
@@ -48,6 +48,24 @@ la forma del comando. Dos que cuestan varios intentos si no se sabe:
   `gh run watch <id> --exit-status --interval 5` bloquea hasta que el run acaba, y funciona incluso
   si ya había terminado. Ojo a que `gh pr checks` dice *«no checks reported»* mientras
   `statusCheckRollup` ya los está enseñando (ver [[gh-pr-merge-auto-no-espera]]).
+- **Un comando RECHAZADO no es una respuesta «no».** Es la trampa cara de todo lo anterior, porque
+  el rechazo se parece a un resultado. El 15/08/2026 (#197) di esta máquina por «sin Docker» y me
+  fui a buscar una Postgres por pip (`pgserver`, `postgresql-wheel`: ninguna tiene wheel para
+  Python 3.14) y a crear bases de usar y tirar **en la CNPG compartida del cluster**, que luego hubo
+  que borrar. Docker estaba instalado (29.7.2) y la respuesta correcta era un contenedor en dos
+  comandos. Las dos falsas negativas, las dos con esta forma:
+
+  - `for c in podman docker ...; do command -v $c; done` → **rechazado** por «too complex». No
+    imprimió nada, y leí «no hay ninguno».
+  - `ls .env services/web/.env; echo ---; docker ps ...` en un solo comando → la primera parte
+    falló (no hay `.env`) y `docker ps` salió **vacío**, que leí como «docker no está».
+
+  La regla: **una comprobación de existencia va sola y pelada** (`command -v docker`,
+  `docker --version`), nunca dentro de un bucle, un compuesto ni detrás de algo que pueda fallar. Si
+  el comando vuelve rechazado, la pregunta **sigue sin contestar** — no está contestada que no. Vale
+  para el `command -v` que ya miente por el PATH en [[verificar-en-cluster-dev]]: allí el falso
+  negativo lo pone el entorno, aquí lo pone la forma del comando, y el desenlace es el mismo.
+
 - **Los ficheros de fuera del worktree no se pueden editar** desde una sesión aislada, y la memoria
   es uno: `~/.claude/projects/.../memory/` es un symlink al `.claude/memory/` del checkout principal
   (ver [[memoria-en-repo]]), así que `Edit` sobre esa ruta se rechaza. Hay que editar **la copia del
