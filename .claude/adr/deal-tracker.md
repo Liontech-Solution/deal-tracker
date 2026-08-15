@@ -2055,19 +2055,64 @@ Tres consecuencias que van más allá de estas dos tiendas:
   residuo. Moverla hacia arriba rompería la categoría de producto vivo **en silencio**, porque el
   producto seguiría entrando.
 
-Y una deuda que esto deja abierta y **no está medida**: esas prendas son las únicas del catálogo que
-no cuelgan de ninguna hoja permanente, así que al acabar la campaña dejan de verse del todo y decide
-`probe_alive()`. El de Lefties da por vivo cualquier id que `productsArray` siga reconociendo aunque
-esté agotado —Sfera usa dos señales, esta una— y a un producto confirmado vivo `ingest.py` le pone
-la racha a cero (`_rescue`), así que un saldo agotado que la tienda siga sirviendo en el detalle se
-quedaría en el catálogo indefinidamente. Hay que mirarlo al acabar esta campaña.
+La deuda que esto dejaba abierta **ya está medida, y salió que sí** (#197, 15/08/2026). Esas prendas
+son las únicas del catálogo que no cuelgan de ninguna hoja permanente, así que al acabar la campaña
+dejan de verse del todo y decide `probe_alive()`. Sondeados sus 58 ids contra `productsArray`:
+
+| | |
+|---|---|
+| devueltos con `id` | **58 de 58** (0 `_ERR_PRODUCT_NOT_FOUND`) |
+| con `id` y **todas** las tallas `HIDDEN` | **33** (uno con 66 de 66) |
+| con `state` distinto de `"visible"` | **0** |
+
+O sea que el sondeo daba por vivos a los 58, incluidos 33 que nadie puede comprar, y `_rescue` les
+ponía la racha a cero en cada pasada. Tres cosas que la medición enseñó y no se podían deducir:
+
+- **`state` no sirve como señal.** Los 58 vienen `state: "visible"`, agotados incluidos. Es la
+  trampa a la que se echa mano antes que a `visibilityValue`.
+- **El disparador es el stock, no la fecha.** No hizo falta esperar al fin de campaña: de los 48
+  productos que el 10/08 tenían **una** talla comprable, 30 no tenían ninguna cinco días después.
+  Anclar la espera al `endDate` era anclarla al evento equivocado.
+- **El fenómeno no es de la campaña**: 12 de 40 productos de control fuera de esas hojas están
+  igual. Lo exclusivo de la campaña es quedarse **sin red** cuando la hoja se apague.
 
 Con una calibración que ahorra dar por hecho el desenlace: **el temor análogo en Zara se midió y
 salió al revés** (#261, ver la trampa de lectura de `scrape_run.errors` más arriba) — de 40
 candidatos ausentes 14+ días, 39 tenían stock y `probe_alive` acertaba en los 40. Que el sondeo sea
 la señal débil no implica que esté mintiendo; en Zara lo que fallaba era la cobertura del listado.
-Lo de Lefties sigue en pie porque su sondeo es de una sola señal y el de Zara pide la ficha entera,
-pero la conclusión hay que medirla, no deducirla.
+Lo de Lefties salió al otro lado porque su sondeo era de una sola señal, y por eso había que medirlo
+en vez de deducirlo en cualquiera de las dos direcciones.
+
+#### El veredicto del sondeo pasó de dos valores a tres, y el tercero no es un error (#197)
+
+`SupportsAliveProbe.probe_alive()` devuelve `Mapping[str, ProbeVerdict]` —`ALIVE`, `DEAD`,
+`UNBUYABLE`— y la **ausencia del mapa** sigue significando «sin veredicto». Cuatro estados con tres
+valores. `UNBUYABLE` es «la tienda lo reconoce y no queda una talla que comprar», y cae al mismo
+camino que «sin veredicto»: ni se rescata ni se da de baja, con la racha intacta. Que no haya stock
+hoy no prueba que la prenda se haya retirado, y aflojar eso es como se producen bajas falsas
+masivas.
+
+La parte que no es obvia es **la contabilidad**, y es la misma lección de #261 un escalón más abajo:
+`probes_unbuyable` tiene columna propia (`0040`) y **no suma en `errors`**. Son 33 productos de
+Lefties en TODAS las pasadas, así que contarlos dejaría a esa tienda con `errors` permanentemente
+distinto de cero por algo rutinario — exactamente lo que hizo ilegible el `errors = 60` de Zara.
+
+Y una alarma que **deliberadamente no está**, con su porqué medido: tentaba añadir a
+`scrape_run.message` la firma «todos los candidatos agotados», porque también sería la firma de la
+señal de stock rota (si `visibilityValue` cambiara de nombre, todo saldría `UNBUYABLE` y el rescate
+se apagaría en silencio). Pero el umbral «todos» que vale para `unresolved` **aquí falsea desde el
+caso mínimo**: con UN solo candidato legítimamente agotado ya se cumple `unbuyable == sent`, así que
+la frase saldría en pasadas sanas y se llevaría por delante `WHERE message IS NOT NULL`. El
+discriminador bueno no está en el sondeo sino fuera —cruzarlo con el stock que la pasada vio en el
+listado, porque si el parser se rompe el catálogo ENTERO se queda sin stock—, y eso necesita su
+propia medición.
+
+**Y Sfera comparte el defecto raíz, que es lo que corrige la frase «Sfera usa dos señales».** Su
+`_probe_one()` consulta primero el endpoint de stock, pero el docstring de `stock_lists_available`
+ya dice que *un producto agotado pero vivo también sale de `ADD`*; cuando esa señal no confirma,
+cae a mirar solo si la PDP da 200 vs 404. Su propio test —`test_agotado_pero_con_ficha_viva_no_es_baja`—
+afirma `ALIVE` para un producto con cero tallas comprables. O sea que **Sfera no es la referencia de
+«lo correcto» en este aspecto concreto**, y su población está sin medir.
 
 ### Una pasada muda no se puede depurar, y las dos tiendas que acumulan son ciegas por diseño
 

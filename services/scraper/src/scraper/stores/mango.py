@@ -138,6 +138,7 @@ from .base import (
     DelistCandidate,
     LeafHealth,
     ListingEntry,
+    ProbeVerdict,
     ScanReport,
     ScrapedImage,
     ScrapedProduct,
@@ -987,7 +988,7 @@ class MangoStore:
                         f"{len(ids)} productos" if ids else "viva, sin productos ahora mismo",
                     )
 
-    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:
         """Confirma bajas preguntando por la ficha. Ver `stores.base.SupportsAliveProbe`.
 
         `/es/es/p/_{id}` redirige (308) a la URL canónica cuando el producto existe y da **404
@@ -995,19 +996,19 @@ class MangoStore:
         inesperado se dejan **fuera del mapa**: no concluyente, que es lo que la ingesta necesita
         para no descatalogar en masa por un bloqueo.
         """
-        veredicto: dict[str, bool] = {}
+        veredicto: dict[str, ProbeVerdict] = {}
         with self._client() as client:
             for cand in candidates:
                 try:
                     self._get(client, _FICHA_URL.format(producto=cand.retailer_product_id))
                 except httpx.HTTPStatusError as exc:
                     if exc.response.status_code in GONE_STATUS:
-                        veredicto[cand.retailer_product_id] = False
+                        veredicto[cand.retailer_product_id] = ProbeVerdict.DEAD
                     # cualquier otro status: sin veredicto
                 except httpx.TransportError:
                     pass  # sin veredicto
                 else:
-                    veredicto[cand.retailer_product_id] = True
+                    veredicto[cand.retailer_product_id] = ProbeVerdict.ALIVE
         return veredicto
 
     def category_tree(self, root: str) -> Iterable[CategoryNode]:

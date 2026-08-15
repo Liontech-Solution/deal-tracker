@@ -93,6 +93,7 @@ from .base import (
     DelistCandidate,
     LeafHealth,
     ListingEntry,
+    ProbeVerdict,
     ScanReport,
     ScrapedImage,
     ScrapedProduct,
@@ -897,7 +898,7 @@ class SpringfieldStore:
                 has_children=path in con_hijas,
             )
 
-    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:
         """Pregunta por la ficha: 200 directo = vivo, 404 = retirado, lo demás sin veredicto.
 
         **Se sondea sin seguir redirecciones, y eso es el punto.** Medido el 03/08/2026 sobre la
@@ -910,9 +911,9 @@ class SpringfieldStore:
         Un 3xx queda entonces **fuera del mapa**, que es la respuesta honesta: la tienda no ha dicho
         que esté retirado, ha dicho que mires a otro sitio. Igual un fallo de red o un 5xx. La
         ingesta solo da de baja lo confirmado, así que abstenerse solo retrasa una baja real,
-        mientras que un `False` de más borra del catálogo algo que se sigue vendiendo.
+        mientras que un `DEAD` de más borra del catálogo algo que se sigue vendiendo.
         """
-        veredictos: dict[str, bool] = {}
+        veredictos: dict[str, ProbeVerdict] = {}
         with self._client(seguir_redirecciones=False) as client:
             for candidato in candidates:
                 url = candidato.url
@@ -924,9 +925,9 @@ class SpringfieldStore:
                 except httpx.HTTPError:
                     continue
                 if resp.status_code in GONE_STATUS:
-                    veredictos[candidato.retailer_product_id] = False
+                    veredictos[candidato.retailer_product_id] = ProbeVerdict.DEAD
                 elif resp.status_code == 200:
-                    veredictos[candidato.retailer_product_id] = True
+                    veredictos[candidato.retailer_product_id] = ProbeVerdict.ALIVE
         return veredictos
 
     # --- interno ------------------------------------------------------------

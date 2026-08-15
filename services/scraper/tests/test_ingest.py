@@ -26,6 +26,7 @@ from scraper.ingest import (
 from scraper.stores.base import (
     DelistCandidate,
     ListingEntry,
+    ProbeVerdict,
     ProductTags,
     ScanReport,
     ScrapedImage,
@@ -100,7 +101,7 @@ class ProbingFakeStore(FakeStore):
         self,
         products: list[ScrapedProduct],
         signatures: dict[str, str],
-        verdicts: dict[str, bool],
+        verdicts: dict[str, ProbeVerdict],
         *,
         scopes: list[ScrapeScope] | None = None,
         explode: bool = False,
@@ -110,10 +111,10 @@ class ProbingFakeStore(FakeStore):
         self._explode = explode
         self.probed: list[str] = []
 
-    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:
         if self._explode:
             raise RuntimeError("tienda bloqueada")
-        out: dict[str, bool] = {}
+        out: dict[str, ProbeVerdict] = {}
         for candidate in candidates:
             self.probed.append(candidate.retailer_product_id)
             verdict = self._verdicts.get(candidate.retailer_product_id)
@@ -661,7 +662,7 @@ def test_sondeo_rescata_al_que_sigue_a_la_venta(db_conn: Any) -> None:
     both, sigs = _dos_productos()
     ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
 
-    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={"B": True})
+    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={"B": ProbeVerdict.ALIVE})
     result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
 
     assert store.probed == ["B"]
@@ -679,7 +680,7 @@ def test_sondeo_confirma_la_retirada_y_da_de_baja(db_conn: Any) -> None:
     both, sigs = _dos_productos()
     ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
 
-    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={"B": False})
+    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={"B": ProbeVerdict.DEAD})
     result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
 
     assert (result.probes_sent, result.probes_alive, result.probes_dead) == (1, 0, 1)
@@ -714,7 +715,7 @@ def test_sondeo_respeta_el_tope_y_no_da_de_baja_lo_no_sondeado(db_conn: Any) -> 
     store = ProbingFakeStore(
         [products[0]],
         signatures={"A0": "s"},
-        verdicts={"A1": False, "A2": False},
+        verdicts={"A1": ProbeVerdict.DEAD, "A2": ProbeVerdict.DEAD},
         scopes=[ScrapeScope("niña", "zapateria", "zapatos")],
     )
     result = ingest(
@@ -730,11 +731,12 @@ def test_sondeo_respeta_el_tope_y_no_da_de_baja_lo_no_sondeado(db_conn: Any) -> 
 
 
 def _sondeos(conn: Any, run_ts: Any) -> tuple[Any, ...]:
-    """`(errors, sent, alive, dead, over_cap, unresolved, limpia)` de la pasada de `run_ts`."""
+    """`(errors, sent, alive, dead, over_cap, unresolved, unbuyable, limpia)` de esa pasada."""
     with conn.cursor() as cur:
         cur.execute(
             "SELECT errors, probes_sent, probes_alive, probes_dead, probes_over_cap, "
-            "probes_unresolved, message IS NULL FROM scrape_run WHERE started_at = %s",
+            "probes_unresolved, probes_unbuyable, message IS NULL FROM scrape_run "
+            "WHERE started_at = %s",
             (run_ts,),
         )
         row = cur.fetchone()
@@ -757,7 +759,7 @@ def test_fuera_del_tope_no_cuenta_como_error_y_queda_en_su_columna(db_conn: Any)
     store = ProbingFakeStore(
         [products[0]],
         signatures={"A0": "s"},
-        verdicts={"A1": True, "A2": True},
+        verdicts={"A1": ProbeVerdict.ALIVE, "A2": ProbeVerdict.ALIVE},
         scopes=[ScrapeScope("niña", "zapateria", "zapatos")],
     )
     ingest(
@@ -765,7 +767,38 @@ def test_fuera_del_tope_no_cuenta_como_error_y_queda_en_su_columna(db_conn: Any)
     )
 
     # errors = 0 y `message` a NULL: la pasada está limpia, que es justo lo que antes no se veía.
-    assert _sondeos(db_conn, T2) == (0, 1, 1, 0, 1, 0, True)
+    assert _sondeos(db_conn, T2) == (0, 1, 1, 0, 1, 0, 0, True)
+
+
+def test_agotado_no_cuenta_como_error_y_queda_en_su_columna(db_conn: Any) -> None:
+    """#197: la tienda contesta que existe pero sin talla comprable. Ni baja, ni rescate, ni error.
+
+    Es el gemelo del test de #261 de arriba y por el mismo motivo: son 33 productos de Lefties en
+    TODAS las pasadas, así que meterlos en `errors` dejaría a la tienda con un número permanente
+    que no significa nada — que es exactamente lo que hacía ilegible el `errors = 60` de Zara.
+
+    Lo que sí tiene que pasar es que el producto **conserve la racha**: si se rescatara (racha a 0)
+    volvería a empezar el conteo en cada pasada y se quedaría en el catálogo para siempre con su
+    último precio rebajado, que es el fallo que abrió la issue.
+    """
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    # B ha desaparecido del listado y la tienda dice que existe, pero agotado del todo.
+    store = ProbingFakeStore(
+        _solo_a(), signatures={"A": "a1"}, verdicts={"B": ProbeVerdict.UNBUYABLE}
+    )
+    result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    errors, sent, alive, dead, over_cap, unresolved, unbuyable, limpia = _sondeos(db_conn, T2)
+    assert (sent, alive, dead, over_cap, unresolved, unbuyable) == (1, 0, 0, 0, 0, 1)
+    assert errors == 0 and limpia, "no es un fallo: la tienda ha contestado, y con claridad"
+
+    # Ni se da de baja...
+    assert result.products_delisted == 0
+    assert _scalar(db_conn, "SELECT count(*) FROM product WHERE delisted_at IS NULL") == 2
+    # ...ni se rescata: la racha sigue subiendo, que es lo que hace el estado observable.
+    assert _scalar(db_conn, "SELECT missing_streak FROM product WHERE retailer_product_id = 'B'")
 
 
 def test_sondeo_sin_veredicto_si_cuenta_como_error(db_conn: Any) -> None:
@@ -780,7 +813,7 @@ def test_sondeo_sin_veredicto_si_cuenta_como_error(db_conn: Any) -> None:
     store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={}, explode=True)
     ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
 
-    errors, sent, _alive, _dead, over_cap, unresolved, _limpia = _sondeos(db_conn, T2)
+    errors, sent, _alive, _dead, over_cap, unresolved, _unbuyable, _limpia = _sondeos(db_conn, T2)
     assert (sent, over_cap, unresolved) == (1, 0, 1)
     assert errors == 1  # el sondeo sin veredicto sí suma
 
@@ -810,7 +843,7 @@ def test_pasada_limpia_deja_los_sondeos_a_cero(db_conn: Any) -> None:
     both, sigs = _dos_productos()
     ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
 
-    assert _sondeos(db_conn, T1) == (0, 0, 0, 0, 0, 0, True)
+    assert _sondeos(db_conn, T1) == (0, 0, 0, 0, 0, 0, 0, True)
 
 
 def test_sondeo_desactivado_vuelve_a_la_histeresis(db_conn: Any) -> None:
@@ -818,7 +851,7 @@ def test_sondeo_desactivado_vuelve_a_la_histeresis(db_conn: Any) -> None:
     both, sigs = _dos_productos()
     ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
 
-    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={"B": True})
+    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={"B": ProbeVerdict.ALIVE})
     result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1, delist_probe=False)
 
     assert store.probed == []
@@ -1671,6 +1704,40 @@ def test_el_mensaje_nombra_el_sondeo_que_volvio_entero_sin_veredicto() -> None:
     assert mensaje is not None
     assert "sondeo sin respuesta" in mensaje
     assert "45 de 45" in mensaje
+
+
+def test_el_mensaje_NO_habla_de_agotados_ni_cuando_lo_estan_todos() -> None:
+    """#197: `unbuyable` se queda FUERA de `message`, y es una decisión medida.
+
+    Tentador ponerlo, porque «todos agotados» es también la firma de la señal de stock rota. Pero
+    el umbral «todos» que sirve para `unresolved` aquí falsea desde el caso más pequeño: **un solo**
+    candidato legítimamente agotado ya cumple `unbuyable == sent`, y en Lefties eso va a pasar en
+    pasadas sanas en cuanto la cohorte de #197 entre en el pool. La frase saldría casi siempre y
+    rompería `WHERE message IS NOT NULL`, que es justo lo que este mecanismo existe para proteger.
+
+    El rastro durable es `scrape_run.probes_unbuyable`, y quien vigila su tendencia es el validador
+    de QA. Alarmar sin falsos positivos necesita cruzarlo con el stock del listado —si el parser se
+    rompe, el catálogo entero se queda sin stock—, y eso es medición e issue aparte.
+    """
+    report = ScanReport()
+    report.leaf_ok()
+
+    # Todos agotados: sigue sin ser un mensaje, por muy sospechoso que suene.
+    assert (
+        _success_message(report, suspicious=set(), probe=ProbeOutcome(sent=33, unbuyable=33))
+        is None
+    )
+    # Y el caso pequeño que lo destapó: uno solo.
+    assert (
+        _success_message(report, suspicious=set(), probe=ProbeOutcome(sent=1, unbuyable=1)) is None
+    )
+    # Mezclado, tampoco.
+    assert (
+        _success_message(
+            report, suspicious=set(), probe=ProbeOutcome(sent=50, alive=17, unbuyable=33)
+        )
+        is None
+    )
 
 
 def test_el_mensaje_NO_habla_de_sondeos_cuando_alguno_si_contesta() -> None:

@@ -227,8 +227,11 @@ export const productAgg = pgTable(
  * una FK contra esta tabla, y el matching se apoya en sus ids para saber qué pasadas ya evaluó
  * (`matching_scanned_run`, #240). Faltaba desde la 0001 (#364).
  *
- * Los cinco `probes_*` son el desglose del sondeo de bajas de una pasada: `probes_sent +
+ * Los seis `probes_*` son el desglose del sondeo de bajas de una pasada: `probes_sent +
  * probes_over_cap` es el pool de candidatas y `probes_dead` el drenaje real (ver la 0028).
+ * `probes_unbuyable` (0040, #197) es la tienda contestando que el producto existe pero sin talla
+ * comprable: ni rescate ni baja, y NO cuenta como error — al contrario que `probes_unresolved`,
+ * que es la tienda negándose a contestar.
  */
 export const scrapeRun = pgTable('scrape_run', {
   id: bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
@@ -248,6 +251,7 @@ export const scrapeRun = pgTable('scrape_run', {
   probesDead: integer('probes_dead').notNull().default(0),
   probesOverCap: integer('probes_over_cap').notNull().default(0),
   probesUnresolved: integer('probes_unresolved').notNull().default(0),
+  probesUnbuyable: integer('probes_unbuyable').notNull().default(0),
 });
 
 export const priceHistory = pgTable('price_history', {

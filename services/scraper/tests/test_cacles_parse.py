@@ -16,6 +16,7 @@ from typing import Any
 import httpx
 
 from scraper.config import Config
+from scraper.stores.base import ProbeVerdict
 from scraper.stores.cacles import (
     _PAGE_SIZE,
     CaclesStore,
@@ -525,18 +526,18 @@ def _candidato() -> Any:
 def test_probe_alive_confirma_vivo_con_200_y_producto() -> None:
     producto = load_fixture("cacles_product_handle.json")
     store = _store_probando(httpx.Response(200, json=producto))
-    assert store.probe_alive([_candidato()]) == {"1": True}
+    assert store.probe_alive([_candidato()]) == {"1": ProbeVerdict.ALIVE}
 
 
 def test_probe_alive_confirma_retirado_con_404() -> None:
     store = _store_probando(httpx.Response(404))
-    assert store.probe_alive([_candidato()]) == {"1": False}
+    assert store.probe_alive([_candidato()]) == {"1": ProbeVerdict.DEAD}
 
 
 def test_un_error_de_red_no_vale_como_prueba_de_retirada() -> None:
-    """Tres estados con dos valores: sin veredicto se omite del mapa (ver `SupportsAliveProbe`).
+    """Sin veredicto se omite del mapa (ver `SupportsAliveProbe`).
 
-    Devolver `False` ante un 500 o una red caída provocaría bajas masivas falsas.
+    Devolver `DEAD` ante un 500 o una red caída provocaría bajas masivas falsas.
     """
     for fallo in (
         httpx.Response(500),
@@ -555,7 +556,9 @@ def test_un_candidato_sin_url_no_se_puede_sondear() -> None:
 
 def test_el_410_tambien_confirma_la_retirada() -> None:
     """410 significa lo mismo que 404 y así lo declara `GONE_STATUS` en el contrato común."""
-    assert _store_probando(httpx.Response(410)).probe_alive([_candidato()]) == {"1": False}
+    assert _store_probando(httpx.Response(410)).probe_alive([_candidato()]) == {
+        "1": ProbeVerdict.DEAD
+    }
 
 
 # --------------------------------------------------------------------------------------

@@ -43,7 +43,7 @@ import pytest
 
 from scraper import progreso
 from scraper.config import Config
-from scraper.stores.base import DelistCandidate, ScrapeScope
+from scraper.stores.base import DelistCandidate, ProbeVerdict, ScrapeScope
 from scraper.stores.browser import BrowserUnreachable
 from scraper.stores.hipercor import (
     _MAX_FICHAS_FALLIDAS,
@@ -980,8 +980,8 @@ def test_probe_alive_solo_sentencia_lo_que_la_tienda_confirma() -> None:
     tienda = _tienda(respuestas, [])
     sesion = tienda._session_factory()
     veredictos = tienda.probe_alive([vivo, muerto, bloqueado, sin_url])
-    assert veredictos == {"A56615356": True, "A99999999": False}
-    # Ausente del mapa = no concluyente. Devolver False ante un 403 daría bajas masivas falsas.
+    assert veredictos == {"A56615356": ProbeVerdict.ALIVE, "A99999999": ProbeVerdict.DEAD}
+    # Ausente del mapa = no concluyente. Devolver DEAD ante un 403 daría bajas masivas falsas.
     assert "A55555555" not in veredictos and "A44444444" not in veredictos
     # De la respuesta solo se lee el status, así que renderizar la ficha es trabajo tirado, y aquí
     # era por producto (#259). El 404 honesto se lee igual de lo servido, que es lo que `_ficha()`

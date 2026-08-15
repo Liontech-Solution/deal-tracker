@@ -54,6 +54,7 @@ from .stores.base import (
     BaseStore,
     DelistCandidate,
     ListingEntry,
+    ProbeVerdict,
     ProductTags,
     ScanReport,
     ScrapedImage,
@@ -159,6 +160,7 @@ class IngestResult:
     probes_dead: int  # el sondeo confirmó la retirada
     probes_over_cap: int  # no cabían en el tope: rutina, entran los primeros en la siguiente
     probes_unresolved: int  # sondeados y sin veredicto (fallo de red, bloqueo o respuesta ambigua)
+    probes_unbuyable: int  # la tienda los reconoce pero no queda talla comprable (#197)
     # Reparto si/no/desconocido del calzado ACTIVO de la tienda tras la pasada. Es el informe que
     # pide #30, y va aquí en vez de en una consulta a mano porque es la cifra que dice si el foco
     # barefoot tiene contenido: una zapatería que se queda en 0 productos `si` no es un detalle
@@ -785,15 +787,21 @@ def _advance_missing(
 class ProbeOutcome:
     """Resultado de la confirmación activa de una pasada (ver `_confirm_candidates`).
 
-    Los cinco contadores se persisten en `scrape_run.probes_*` (migración 0028, #261): sin ellos
-    la única huella del mecanismo era un sumando dentro de `errors`, y la pregunta "¿el pool de
-    candidatos crece o se drena?" obligaba a leer el log de un pod que se recicla.
-    `sent + over_cap` es el pool de la pasada; `dead` es el drenaje real.
+    Los seis contadores se persisten en `scrape_run.probes_*` (migración 0028, #261; la 0040
+    añadió `unbuyable`, #197): sin ellos la única huella del mecanismo era un sumando dentro de
+    `errors`, y la pregunta "¿el pool de candidatos crece o se drena?" obligaba a leer el log de
+    un pod que se recicla. `sent + over_cap` es el pool de la pasada; `dead` es el drenaje real.
 
     `over_cap` y `unresolved` estaban juntos y se separan aquí porque **no son lo mismo**, y esa es
     toda la diferencia entre una alarma útil y una que nadie mira: quedarse fuera del tope es la
     rutina de una tienda con muchos candidatos, mientras que quedarse sin veredicto es la tienda
     negándose a contestar. Solo el segundo suma en `errors`.
+
+    `unbuyable` es el tercero de esa familia y por el mismo motivo: la tienda **sí** ha contestado,
+    y lo que dice es que el producto existe pero no queda talla que comprar (#197). Confundirlo con
+    `unresolved` sería el error de #261 otra vez, y peor: son 33 productos de Lefties hoy, en TODAS
+    las pasadas, así que dejaría a la tienda con `errors` permanentemente distinto de cero por algo
+    que no es un fallo. Diagnósticos opuestos — "no contesta" contra "contesta que está agotado".
     """
 
     sent: int = 0
@@ -801,6 +809,7 @@ class ProbeOutcome:
     dead: int = 0
     over_cap: int = 0  # no cabían en el tope de sondeos: rutina, se sondean en la siguiente
     unresolved: int = 0  # sondeados y sin veredicto: fallo de red, bloqueo o respuesta ambigua
+    unbuyable: int = 0  # existe pero sin talla comprable: ni rescate ni baja (#197)
     blocked_ids: list[int] = field(default_factory=list)  # `product.id` que NO se dan de baja
 
 
@@ -882,11 +891,18 @@ def _confirm_candidates(
     alive_ids: list[int] = []
     for product_id, retailer_product_id, _url in candidates:
         verdict = verdicts.get(retailer_product_id)
-        if verdict is True:
+        if verdict is ProbeVerdict.ALIVE:
             alive_ids.append(product_id)
             outcome.alive += 1
-        elif verdict is False:
+        elif verdict is ProbeVerdict.DEAD:
             outcome.dead += 1
+        elif verdict is ProbeVerdict.UNBUYABLE:
+            # Existe pero no se puede comprar (#197): se trata como el "sin veredicto" de abajo
+            # —bloqueado, con su racha intacta— pero se cuenta aparte, porque NO es un fallo y no
+            # puede sumar en `errors`. Que no quede stock hoy no prueba que la prenda se haya
+            # retirado; darla de baja por eso es como se producen bajas falsas masivas.
+            outcome.blocked_ids.append(product_id)
+            outcome.unbuyable += 1
         else:  # no concluyente: ni se rescata ni se da de baja
             outcome.blocked_ids.append(product_id)
             outcome.unresolved += 1
@@ -985,6 +1001,24 @@ def _success_message(
     único que se veía era un `errors` sin explicación, porque los sondeos sin veredicto suman ahí
     pero no se nombraban en ningún sitio. Un `probes_unresolved` alto ya tenía columna desde la
     `0028`; lo que no tenía era quien dijera **qué** significaba al leer la pasada meses después.
+
+    **`unbuyable` NO entra aquí, y es una decisión, no un olvido** (#197). El riesgo que invitaría a
+    meterlo es real: si la señal de stock se rompiera —Lefties renombra `visibilityValue` o cambia
+    el string `"SHOW"`— TODO candidato saldría `UNBUYABLE`, nadie se rescataría y, como ese
+    veredicto no suma en `errors` a propósito, el mecanismo se apagaría sin ruido. Pero el umbral
+    «todos» que sirve para `unresolved` **aquí falsea, y se midió**: con UN solo candidato
+    legítimamente agotado ya se cumple `unbuyable == sent`, así que la frase saldría en pasadas
+    perfectamente sanas y se llevaría por delante `WHERE message IS NOT NULL` para esa tienda —el
+    mismo daño que este docstring existe para evitar. Y a diferencia de `unresolved`, «todos
+    agotados» es un estado plausible: la cohorte de #197 son prendas ausentes del listado **y** sin
+    stock, o sea las dos condiciones a la vez.
+
+    Lo que sí queda es el rastro durable en `scrape_run.probes_unbuyable` (0040) y su lectura
+    escrita en el validador de QA, que vigila la **tendencia**. El discriminador que faltaría para
+    alarmar sin falsos positivos no está en el sondeo sino fuera: cruzar «todos los candidatos
+    agotados» con el stock que la propia pasada vio en el listado —si el parser se rompe, el
+    catálogo ENTERO se queda sin stock, y eso sí es inequívoco—. Eso necesita su medición y su
+    issue; ponerlo aquí a ojo sería cambiar un agujero silencioso por una alarma que nadie mira.
     """
     partes: list[str] = []
     if report.leaves_failed:
@@ -1278,7 +1312,7 @@ def ingest(
                 SET finished_at = clock_timestamp(), status = 'success',
                     products_seen = %s, variants_seen = %s, errors = %s, message = %s,
                     probes_sent = %s, probes_alive = %s, probes_dead = %s,
-                    probes_over_cap = %s, probes_unresolved = %s
+                    probes_over_cap = %s, probes_unresolved = %s, probes_unbuyable = %s
                 WHERE id = %s
                 """,
                 (
@@ -1291,6 +1325,10 @@ def ingest(
                     # que tres validaciones seguidas leyeran una cobertura incompleta como una
                     # ingesta rota. Los sondeos SIN VEREDICTO sí siguen contando: ésos son la
                     # tienda negándose a contestar, que es justo lo que hay que cazar.
+                    # `probe.unbuyable` tampoco suma, y por la misma razón medida (#197): la tienda
+                    # ha contestado y dice que el producto existe sin talla comprable. Son 33 de
+                    # Lefties en cada pasada, así que contarlos dejaría a esa tienda con `errors`
+                    # permanente por algo rutinario — exactamente el fallo que arregló #261.
                     len(suspicious) + report.leaves_failed + probe.unresolved,
                     # `errors` cuenta; `message` dice QUÉ (#151). El desglose del sondeo no entra en
                     # `message`: tiene columnas propias (migración 0028), y meterlo aquí dejaría
@@ -1301,6 +1339,7 @@ def ingest(
                     probe.dead,
                     probe.over_cap,
                     probe.unresolved,
+                    probe.unbuyable,
                     run_id,
                 ),
             )
@@ -1342,6 +1381,7 @@ def ingest(
             probes_dead=probe.dead,
             probes_over_cap=probe.over_cap,
             probes_unresolved=probe.unresolved,
+            probes_unbuyable=probe.unbuyable,
             barefoot_counts=barefoot_counts,
             tag_counts=tag_counts,
             # `sin-marcar` para el género ausente, igual que `_barefoot_counts`: una tienda que no

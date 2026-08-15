@@ -480,9 +480,14 @@ def main(argv: list[str] | None = None) -> int:
         # `over_cap` y `unresolved` se dicen por separado (#261): el primero es la cola normal de
         # una tienda con muchos candidatos, el segundo es la tienda sin contestar. Solo el segundo
         # suma en `errors`, así que leerlos juntos era lo que hacía ilegible el número.
+        # `unbuyable` va DENTRO del paréntesis y no fuera (#197) porque es un veredicto, no una
+        # cola: sin él la suma no cuadra con `sondeos` —en Lefties serían 33 de 58 desaparecidos
+        # del desglose— y un total que no cuadra es justo lo que manda a buscar al sitio
+        # equivocado.
         print(
             f"confirmación activa: {result.probes_sent} sondeos "
             f"({result.probes_alive} siguen a la venta, {result.probes_dead} retirados, "
+            f"{result.probes_unbuyable} agotados sin baja, "
             f"{result.probes_unresolved} sin veredicto) · "
             f"{result.probes_over_cap} fuera del tope de {config.delist_probe_max}: "
             f"entran los primeros en la siguiente pasada"

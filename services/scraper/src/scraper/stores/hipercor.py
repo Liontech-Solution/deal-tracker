@@ -148,6 +148,7 @@ from .base import (
     DelistCandidate,
     LeafHealth,
     ListingEntry,
+    ProbeVerdict,
     ScanReport,
     ScrapedImage,
     ScrapedProduct,
@@ -1147,7 +1148,7 @@ class HipercorStore:
                     f"{total} productos en la 1ª página (la tienda declara {declarados})",
                 )
 
-    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:
         """Confirmación activa (ver `stores.base.SupportsAliveProbe`).
 
         La ficha enruta por id y da **404 honesto** para uno retirado (verificado: el slug da
@@ -1168,7 +1169,7 @@ class HipercorStore:
         pendientes = list(candidates)
         if not pendientes:
             return {}
-        veredictos: dict[str, bool] = {}
+        veredictos: dict[str, ProbeVerdict] = {}
         with self._session_factory() as session:
             self._preparar(session)
             for candidato in pendientes:
@@ -1180,8 +1181,8 @@ class HipercorStore:
                 except Exception:
                     continue  # timeout o error de navegación: no prueba nada
                 if status in GONE_STATUS:
-                    veredictos[candidato.retailer_product_id] = False
+                    veredictos[candidato.retailer_product_id] = ProbeVerdict.DEAD
                 elif status == 200:
-                    veredictos[candidato.retailer_product_id] = True
+                    veredictos[candidato.retailer_product_id] = ProbeVerdict.ALIVE
                 # Otros códigos (403 de Akamai, 5xx) son problema nuestro: sin veredicto.
         return veredictos

@@ -394,6 +394,74 @@ def test_known_product_ids_es_la_prueba_de_baja() -> None:
     assert known_product_ids({}) == set()
 
 
+# --- #197 «Existe» no es «se puede comprar» -------------------------------------------------
+
+
+def _producto(pid: int, *visibilidades: str) -> dict[str, Any]:
+    """Un producto de `productsArray` con una talla por visibilidad dada."""
+    return {
+        "id": pid,
+        "state": "visible",
+        "detail": {"colors": [{"sizes": [{"visibilityValue": v} for v in visibilidades]}]},
+    }
+
+
+def test_buyable_product_ids_exige_al_menos_una_talla_show() -> None:
+    """Basta UNA talla `SHOW`; con todas `HIDDEN` el producto existe pero no se puede comprar."""
+    payload = {
+        "products": [
+            _producto(1, "SHOW", "SHOW"),
+            _producto(2, "HIDDEN", "SHOW", "HIDDEN"),  # una sola talla viva basta
+            _producto(3, "HIDDEN", "HIDDEN"),
+            {"key": "_ERR_PRODUCT_NOT_FOUND"},
+        ]
+    }
+    assert lefties.buyable_product_ids(payload) == {"1", "2"}
+    # Lo reconocido y lo comprable son conjuntos distintos, y esa diferencia es toda la issue.
+    assert known_product_ids(payload) == {"1", "2", "3"}
+    assert lefties.buyable_product_ids({}) == set()
+
+
+def test_buyable_product_ids_reparte_los_colores() -> None:
+    """Un color agotado no condena al producto si otro tiene tallas."""
+    payload = {
+        "products": [
+            {
+                "id": 9,
+                "detail": {
+                    "colors": [
+                        {"sizes": [{"visibilityValue": "HIDDEN"}]},
+                        {"sizes": [{"visibilityValue": "SHOW"}]},
+                    ]
+                },
+            }
+        ]
+    }
+    assert lefties.buyable_product_ids(payload) == {"9"}
+
+
+def test_producto_sin_tallas_no_cuenta_como_comprable() -> None:
+    """Sin tallas no hay prueba de que se pueda comprar: la salida conservadora es dejarlo fuera."""
+    payload = {"products": [{"id": 7, "detail": {"colors": []}}, {"id": 8, "detail": {}}]}
+    assert lefties.buyable_product_ids(payload) == set()
+    assert known_product_ids(payload) == {"7", "8"}  # existir, existen
+
+
+def test_state_visible_no_rescata_a_un_agotado() -> None:
+    """La trampa medida (#197): los 58 sondeados vinieron `state: "visible"`, 33 sin stock.
+
+    Fixture real del 15/08/2026: el producto 720246206 trae sus 6 tallas `HIDDEN` y aun así la
+    tienda lo sirve entero, con `state: "visible"`. Si el veredicto mirase `state` —o solo el
+    `id`, como hacía antes— lo daría por vivo y la ingesta le pondría la racha a cero.
+    """
+    payload = load_fixture("lefties_details_agotado.json")
+    (producto,) = [p for p in payload["products"] if p.get("id")]
+    assert producto["state"] == "visible"
+
+    assert known_product_ids(payload) == {"720246206"}  # la tienda lo reconoce...
+    assert lefties.buyable_product_ids(payload) == set()  # ...y no queda nada que comprar
+
+
 # --- #41 Hojas que desaparecen del menú o dejan de responder --------------------------------
 
 _CATS_SCAN = [
