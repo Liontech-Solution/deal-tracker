@@ -203,9 +203,17 @@ httpcore internal, and a bump that breaks it brings back a 429 that reads like s
 category leaves plus a generic parse smoke on 5 products, opening one GitHub issue when it finds
 something actionable. It runs **in the cluster and not in CI** on purpose — the question is whether
 the stores let *us* in, and a GitHub runner exits from a different IP with a different reputation.
-Two consequences worth knowing: it is the only CronJob shipping `suspend: false` (a paused watchdog
-is the problem it exists to solve, so dev pauses it instead, to avoid asking twice), and
-`check_leaves()` is effectively mandatory — `just check` fails for a registered store that lacks it.
+Two consequences worth knowing: it is the only CronJob shipping `suspend: false` in `base` (a paused
+watchdog is the problem it exists to solve), and `check_leaves()` is effectively mandatory —
+`just check` fails for a registered store that lacks it.
+
+**But only one environment actually runs it, and since 2026-08-07 that is `prod`.** The three
+namespaces share the cluster and leave for the internet through the **same public IP**, so a second
+vigía is double the requests for zero extra signal. `dev` and `qa` both override `base` to
+`suspend: true`; the reasoning is written out in `overlays/qa/patch-vigia.yaml` in the manifests
+repo. Reading a suspended vigía in `qa` as a broken watchdog is a false alarm that has already been
+made once — to sweep from there on purpose (after touching `tls.py`, say, or bumping httpx), fire it
+by hand: `kubectl -n deal-tracker-qa create job vigia-manual --from=cronjob/deal-tracker-vigia`.
 
 **Local verification does not need the cluster.** A throwaway Postgres in Docker covers the
 ingestion tests and a real full pass. The dev cluster is only for verifying **deployment**, and that
@@ -230,9 +238,10 @@ These are facts about the running system, not plans:
   a matching job and the vigía. Base ships them `suspend: true` (the vigía is the one exception), so
   in **dev** a pass is fired by hand:
   `kubectl -n deal-tracker-dev create job <name> --from=cronjob/deal-tracker-scraper-<slug>`.
-  In **QA** all nine scrapers and matching run **weekly** (Mondays, staggered 03:00→07:00) and the
-  vigía on Thursdays: QA is not production, so it only needs enough passes to grow `price_history`
-  and let someone experiment. Note that QA's matching sends **real Telegram messages**. QA tracks
+  In **QA** all nine scrapers and matching run **weekly** (Mondays, staggered 03:00→07:00), and the
+  vigía is **suspended** there on purpose — `prod` is the one that sweeps (see the vigía above). QA
+  is not production, so it only needs enough passes to grow `price_history` and let someone
+  experiment. Note that QA's matching sends **real Telegram messages**. QA tracks
   **semver**, not `sha`, so a newly merged store stays `suspend: true` there until a `release-qa`
   puts it in the image — firing it earlier dies with `ValueError: Tienda desconocida`. And its slots
   are **not** base's, so a new store cannot inherit base's `schedule` without checking what it
