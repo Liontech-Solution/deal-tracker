@@ -11,7 +11,7 @@ from types import TracebackType
 from typing import Any
 
 from scraper.config import Config
-from scraper.stores.base import DelistCandidate
+from scraper.stores.base import DelistCandidate, ProbeVerdict
 from scraper.stores.sfera import CategoryConfig, SferaStore
 
 _CFG = Config(database_url="x", request_delay=0.0, retry_backoff=0.0)
@@ -81,7 +81,7 @@ def test_stock_comprable_confirma_vivo_sin_visitar_la_ficha() -> None:
     session = FakeSession(stock={"A1": _stock(["A1"])}, statuses={})
     store = _store(session)
 
-    assert store.probe_alive([_candidate("A1")]) == {"A1": True}
+    assert store.probe_alive([_candidate("A1")]) == {"A1": ProbeVerdict.ALIVE}
     assert not [u for u in session.visited if u.endswith("A1-x/")]  # no hizo falta la PDP
 
 
@@ -90,7 +90,7 @@ def test_agotado_pero_con_ficha_viva_no_es_baja() -> None:
     session = FakeSession(stock={"A1": _stock([])}, statuses={})
     store = _store(session)
 
-    assert store.probe_alive([_candidate("A1")]) == {"A1": True}
+    assert store.probe_alive([_candidate("A1")]) == {"A1": ProbeVerdict.ALIVE}
 
 
 def test_ficha_404_confirma_la_retirada() -> None:
@@ -98,7 +98,7 @@ def test_ficha_404_confirma_la_retirada() -> None:
     session = FakeSession(stock={"A1": _stock([])}, statuses={url: 404})
     store = _store(session)
 
-    assert store.probe_alive([_candidate("A1")]) == {"A1": False}
+    assert store.probe_alive([_candidate("A1")]) == {"A1": ProbeVerdict.DEAD}
 
 
 def test_bloqueo_de_akamai_no_da_veredicto() -> None:
@@ -127,7 +127,7 @@ def test_la_ficha_se_pide_y_no_se_navega() -> None:
     session = FakeSession(stock={"A1": _stock([])}, statuses={url: 404})
     store = _store(session)
 
-    assert store.probe_alive([_candidate("A1")]) == {"A1": False}
+    assert store.probe_alive([_candidate("A1")]) == {"A1": ProbeVerdict.DEAD}
     assert session.pedidas == [url]
     assert url not in session.navegadas
     assert len(session.navegadas) == 1, "la única navegación es la siembra"

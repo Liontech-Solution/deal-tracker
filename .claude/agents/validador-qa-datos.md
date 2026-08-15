@@ -69,7 +69,8 @@ escalaran el `errors = 60` de Zara como si la ingesta estuviera rota. Se midió 
 de 40 candidatos ausentes 14+ días, **39 seguían con stock**. Así que:
 
 ```sql
-SELECT probes_sent, probes_alive, probes_dead, probes_over_cap, probes_unresolved
+SELECT probes_sent, probes_alive, probes_dead, probes_over_cap, probes_unresolved,
+       probes_unbuyable
   FROM scrape_run WHERE id = …;
 ```
 
@@ -80,6 +81,16 @@ SELECT probes_sent, probes_alive, probes_dead, probes_over_cap, probes_unresolve
   Eso es P2 y se contrasta contra el `## Cifras` anterior, no P0.
 - **`probes_unresolved > 0` sí es un hallazgo.** Son sondeos hechos a los que la tienda no contestó:
   bloqueo, red o respuesta ambigua. Es la tienda negándose a entrar, que es el fallo silencioso.
+- **`probes_unbuyable` NO es un error, y en Lefties se espera distinto de cero** (0040, #197). Es la
+  tienda contestando que el producto existe pero sin ninguna talla comprable: ni se rescata ni se da
+  de baja. Medido el 15/08/2026, 33 de los 58 productos de sus hojas de campaña estaban así. Dos
+  lecturas que hay que hacer bien:
+  - **No lo confundas con `probes_unresolved`.** Son diagnósticos opuestos —«no contesta» contra
+    «contesta que está agotado»— y solo el primero suma en `errors`. Un `probes_unbuyable` alto con
+    `errors = 0` es el comportamiento correcto, no una contradicción.
+  - **Lo que sí hay que vigilar es su tendencia**, como con `over_cap`: estos productos se quedan en
+    el catálogo con la racha subiendo y sin darse de baja nunca, así que un crecimiento sostenido
+    dice que la cohorte congelada engorda. Eso es P3 y va contra el `## Cifras` anterior.
 
 **La evidencia caduca.** El desglose de una pasada vive en el log del pod y los pods se recolectan
 en días. Cuando `kubectl logs` conteste `error: timed out waiting for the condition` —que parece un

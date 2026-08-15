@@ -72,6 +72,7 @@ from .base import (
     DelistCandidate,
     LeafHealth,
     ListingEntry,
+    ProbeVerdict,
     ProductTags,
     ScanReport,
     ScrapedImage,
@@ -713,7 +714,7 @@ class CAndAStore:
 
     # --- capacidades opcionales --------------------------------------------------------------
 
-    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:
         """Sondea la ficha de producto. Ver `stores.base.SupportsAliveProbe`.
 
         La PDP da **404 honesto** cuando el producto no existe (verificado con `usim` inventado).
@@ -721,7 +722,7 @@ class CAndAStore:
         solo el 404 cuenta como retirado — cualquier otra cosa se deja fuera del mapa, que es como
         se dice «no concluyente».
         """
-        veredictos: dict[str, bool] = {}
+        veredictos: dict[str, ProbeVerdict] = {}
         with self._client() as client:
             for cand in candidates:
                 if not cand.url:
@@ -732,9 +733,9 @@ class CAndAStore:
                 except httpx.TransportError:
                     continue  # fallo nuestro, no veredicto de la tienda
                 if resp.status_code == 404:
-                    veredictos[cand.retailer_product_id] = False
+                    veredictos[cand.retailer_product_id] = ProbeVerdict.DEAD
                 elif resp.is_success:
-                    veredictos[cand.retailer_product_id] = True
+                    veredictos[cand.retailer_product_id] = ProbeVerdict.ALIVE
         return veredictos
 
     def check_leaves(self) -> Iterable[LeafHealth]:

@@ -48,6 +48,7 @@ from .base import (
     FiltroDeHoja,
     LeafHealth,
     ListingEntry,
+    ProbeVerdict,
     ScanReport,
     ScrapedImage,
     ScrapedProduct,
@@ -892,14 +893,16 @@ class ZaraStore:
             return None  # forma inesperada: no arriesgamos una baja con esto
         return bool(detail)  # lista vacía = Zara ya no conoce ese id
 
-    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:
         """Confirmación activa (ver `stores.base.SupportsAliveProbe`): un GET por candidato."""
-        verdicts: dict[str, bool] = {}
+        verdicts: dict[str, ProbeVerdict] = {}
         with self._client() as client:
             for candidate in candidates:
                 verdict = self._probe_one(client, candidate.retailer_product_id)
                 if verdict is not None:  # sin veredicto -> se omite del mapa
-                    verdicts[candidate.retailer_product_id] = verdict
+                    verdicts[candidate.retailer_product_id] = (
+                        ProbeVerdict.ALIVE if verdict else ProbeVerdict.DEAD
+                    )
         return verdicts
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:

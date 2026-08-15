@@ -65,6 +65,7 @@ from .base import (
     FiltroDeHoja,
     LeafHealth,
     ListingEntry,
+    ProbeVerdict,
     ProductTags,
     ScanReport,
     ScrapedImage,
@@ -1007,16 +1008,18 @@ class SferaStore:
         # son problema nuestro, no del producto: sin veredicto.
         return True if status == 200 else None
 
-    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:
         """Confirmación activa (ver `stores.base.SupportsAliveProbe`)."""
         pending = list(candidates)
         if not pending:
             return {}
-        verdicts: dict[str, bool] = {}
+        verdicts: dict[str, ProbeVerdict] = {}
         with self._session_factory() as session:
             session.goto(self._seed_url())  # siembra las cookies de Akamai del origen
             for candidate in pending:
                 verdict = self._probe_one(session, candidate)
                 if verdict is not None:  # sin veredicto -> se omite del mapa
-                    verdicts[candidate.retailer_product_id] = verdict
+                    verdicts[candidate.retailer_product_id] = (
+                        ProbeVerdict.ALIVE if verdict else ProbeVerdict.DEAD
+                    )
         return verdicts

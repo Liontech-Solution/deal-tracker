@@ -24,6 +24,7 @@ import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
+from enum import Enum
 from typing import Protocol, runtime_checkable
 
 
@@ -431,6 +432,27 @@ class BaseStore(Protocol):
         ...
 
 
+class ProbeVerdict(Enum):
+    """Lo que la tienda contesta cuando se le pregunta por un producto concreto.
+
+    `UNBUYABLE` es el tercero y sale de #197: una tienda puede seguir reconociendo un id y
+    servir su ficha entera mientras **ninguna** talla se puede comprar. Medido en Lefties el
+    15/08/2026: de 58 ids de las hojas de campaña, los 58 volvieron con `id` y `state:
+    "visible"`, y 33 tenían TODAS las tallas agotadas. Sin este valor esos 33 se responden
+    `ALIVE`, la ingesta les pone la racha a cero (`_rescue`) y se quedan en el catálogo para
+    siempre con su último precio rebajado, sin que nadie pueda comprarlos.
+
+    Lo que NO es: no es una baja. Que no quede stock hoy no prueba que la prenda se haya
+    retirado, así que la ingesta ni la rescata ni la descataloga (ver `_confirm_candidates`).
+    Aflojar eso —responder `DEAD` porque no hay stock— es exactamente como se producen bajas
+    falsas masivas, que es el fallo que la confirmación activa existe para evitar.
+    """
+
+    ALIVE = "alive"  # la tienda lo reconoce y queda al menos una talla comprable
+    DEAD = "dead"  # la tienda no lo reconoce: retirado
+    UNBUYABLE = "unbuyable"  # lo reconoce, pero no queda ni una talla comprable
+
+
 @runtime_checkable
 class SupportsAliveProbe(Protocol):
     """Capacidad OPCIONAL: confirmar de forma activa si un producto sigue a la venta.
@@ -440,12 +462,17 @@ class SupportsAliveProbe(Protocol):
     producto concreto, la ingesta la usa como veredicto final antes de descatalogar.
     """
 
-    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
-        """Sondea los candidatos: retailer_product_id -> sigue a la venta.
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:
+        """Sondea los candidatos: retailer_product_id -> qué contesta la tienda.
 
-        Tres estados con dos valores: `True` (vivo), `False` (retirado) y **ausente del
-        mapa** = no concluyente (fallo de red, bloqueo, respuesta ambigua). La ingesta es
-        conservadora: solo da de baja lo confirmado como retirado.
+        **Cuatro estados con tres valores**: los tres de `ProbeVerdict` y **ausente del mapa**
+        = no concluyente (fallo de red, bloqueo, respuesta ambigua). La ingesta es conservadora:
+        solo da de baja lo confirmado como retirado (`DEAD`), y solo rescata lo confirmado
+        comprable (`ALIVE`). Los otros dos casos dejan el producto como está —bloqueado esta
+        pasada, con su racha intacta— y se reintentan en la siguiente.
+
+        Una tienda que no sepa distinguir el stock no emite `UNBUYABLE`: el criterio se aplica
+        donde está medido, tienda a tienda, y no se generaliza a ojo.
         """
         ...
 

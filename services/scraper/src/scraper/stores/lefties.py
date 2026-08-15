@@ -56,14 +56,24 @@ prendas que no están en ninguna otra hoja, y mezcla desde faldas hasta zapatill
 cada parte: `_FAMILIA_A_DOMINIO` la categoría, `CategoryConfig.estacional` el apagado, y el ORDEN
 de `CATEGORIES` que la hoja mezclada no le pise la categoría a quien ya la tiene.
 
-⚠️ **Lo que esto deja abierto, y no está medido:** estas prendas son las únicas del catálogo que no
+**Y esto ya se midió, con resultado (#197).** Estas prendas son las únicas del catálogo que no
 cuelgan de ninguna hoja permanente, así que cuando la campaña acabe dejarán de verse **del todo**.
-Ahí decide `probe_alive()`, que aquí da por vivo cualquier id que `productsArray` siga reconociendo
-aunque esté agotado —Sfera usa dos señales, esta solo una—, y a un producto confirmado vivo
-`ingest.py` le pone la racha a cero (`_rescue`). O sea que un saldo agotado que la tienda siga
-sirviendo en el detalle se quedaría en el catálogo indefinidamente. No se ha visto pasar: hay que
-mirarlo al acabar esta campaña, y si pasa la respuesta es de `probe_alive()` (tratar «existe pero
-todas las tallas HIDDEN» como no concluyente), no de esta hoja.
+Ahí decide `probe_alive()`, que daba por vivo cualquier id que `productsArray` siguiera
+reconociendo aunque estuviera agotado —Sfera usa dos señales, esta usaba una—, y a un producto
+confirmado vivo `ingest.py` le pone la racha a cero (`_rescue`): un saldo agotado que la tienda
+siga sirviendo en el detalle se quedaba en el catálogo indefinidamente.
+
+Sondeados los 58 ids de las dos hojas el 15/08/2026 contra `productsArray`: **los 58 volvieron con
+`id`** (0 `_ERR_PRODUCT_NOT_FOUND`) y **33 traían TODAS las tallas `HIDDEN`** —uno de ellos, el
+`724364752`, con 66 de 66—. Los 58 vinieron además `state: "visible"`, así que **`state` no sirve
+como señal**. No hubo que esperar al fin de campaña: el disparador es el stock, no el `endDate`, y
+de los 48 productos que el 10/08 tenían una sola talla comprable, 30 ya no tenían ninguna cinco
+días después.
+
+Lo resuelve `buyable_product_ids()`, que lee el `visibilityValue` que esa misma respuesta ya trae:
+«existe pero todas las tallas HIDDEN» es `ProbeVerdict.UNBUYABLE` —ni rescate ni baja—, no un
+problema de esta hoja. El fenómeno no es exclusivo de la campaña (12 de 40 productos de control
+fuera de estas hojas están igual); lo que sí es exclusivo es quedarse sin red al apagarse la hoja.
 
 Id estable de producto: `identifier.productParentId` (= `id` del detalle). Id estable de variante:
 `{productId}-{colorId}-{sku}`. Las funciones `parse_*` son puras y se testean con fixtures reales.
@@ -87,6 +97,7 @@ from .base import (
     DelistCandidate,
     LeafHealth,
     ListingEntry,
+    ProbeVerdict,
     ProductTags,
     ScanReport,
     ScrapedImage,
@@ -933,10 +944,38 @@ def known_product_ids(payload: dict[str, Any]) -> set[str]:
 
     Lo que no sale (viene como `_ERR_PRODUCT_NOT_FOUND`, sin `id`) es lo que ya no existe: es la
     prueba negativa que necesita la confirmación activa antes de dar de baja.
+
+    **Reconocido no es vendible**: esto solo dice que el id existe. Para el stock hace falta
+    `buyable_product_ids()`, y la diferencia entre las dos es lo que #197 midió.
     """
     return {
         str(p["id"]) for p in payload.get("products") or [] if isinstance(p, dict) and p.get("id")
     }
+
+
+def buyable_product_ids(payload: dict[str, Any]) -> set[str]:
+    """Ids de `productsArray` a los que les queda **al menos una** talla comprable.
+
+    La señal es la misma que usa `parse_detail_product()` para el stock por talla:
+    `visibilityValue == "SHOW"` (`HIDDEN` = agotada). Viaja en esta misma respuesta porque
+    `_DETAILS_URL` pide `allowWithoutStock=true`, así que separar "existe" de "se puede comprar"
+    NO cuesta ni una petición extra — solo mirar lo que ya se ha descargado.
+
+    Ojo con `state`: **no sirve**. Los 58 productos medidos el 15/08/2026 vinieron
+    `state: "visible"`, incluidos los 33 sin una sola talla comprable. Es la trampa obvia.
+
+    Un producto sin ninguna talla (ni `SHOW` ni `HIDDEN`) tampoco entra: con
+    `allowWithoutStock=true` no debería pasar, y si pasa no es prueba de que se pueda comprar.
+    """
+    comprables: set[str] = set()
+    for p in payload.get("products") or []:
+        if not isinstance(p, dict) or not p.get("id"):
+            continue
+        for color in (p.get("detail") or {}).get("colors") or []:
+            if any(size.get("visibilityValue") == "SHOW" for size in color.get("sizes") or []):
+                comprables.add(str(p["id"]))
+                break
+    return comprables
 
 
 def _batched(items: list[str], size: int) -> Iterable[list[str]]:
@@ -1304,16 +1343,21 @@ class LeftiesStore:
                     if scraped is not None:
                         yield scraped
 
-    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, bool]:
+    def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:
         """Pregunta por los candidatos: lo que la tienda no reconoce está retirado.
 
         Un fallo de red deja el lote **sin veredicto** (fuera del mapa) en vez de darlo por
         retirado: la ingesta es conservadora y prefiere esperar otra pasada.
+
+        Reconocer un id NO es que se pueda comprar (#197): la tienda sirve la ficha entera de un
+        saldo agotado, así que el veredicto sale de cruzar las dos señales que trae esta misma
+        respuesta. Lo que antes se respondía `True` a secas ahora se parte en `ALIVE` y
+        `UNBUYABLE`, y solo el primero rescata al producto.
         """
         ids = [c.retailer_product_id for c in candidates]
         if not ids:
             return {}
-        veredictos: dict[str, bool] = {}
+        veredictos: dict[str, ProbeVerdict] = {}
         with BrowserSession(self._config) as session:
             session.goto(BASE_URL)
             for lote in _batched(ids, _DETAIL_BATCH):
@@ -1322,6 +1366,12 @@ class LeftiesStore:
                 except Exception:
                     continue  # sin veredicto para este lote
                 vivos = known_product_ids(payload)
+                comprables = buyable_product_ids(payload)
                 for pid in lote:
-                    veredictos[pid] = pid in vivos
+                    if pid in comprables:
+                        veredictos[pid] = ProbeVerdict.ALIVE
+                    elif pid in vivos:
+                        veredictos[pid] = ProbeVerdict.UNBUYABLE
+                    else:
+                        veredictos[pid] = ProbeVerdict.DEAD
         return veredictos
