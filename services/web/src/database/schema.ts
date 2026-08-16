@@ -263,6 +263,13 @@ export const scrapeRun = pgTable('scrape_run', {
   status: text('status').notNull().default('running'),
   productsSeen: integer('products_seen').notNull().default(0),
   variantsSeen: integer('variants_seen').notNull().default(0),
+  /**
+   * De las anteriores, cuántas traían stock (0043, #427). Su denominador es `variants_seen`, y las
+   * dos se leen juntas o no se leen: a 0 con `variants_seen` a 0 la pasada simplemente no escribió
+   * nada (no cambió ninguna huella), mientras que a 0 con `variants_seen > 0` el parser de stock
+   * de esa tienda se ha roto — la pasada con menos stock jamás registrada trae 7 de 55.
+   */
+  variantsInStock: integer('variants_in_stock').notNull().default(0),
   errors: integer('errors').notNull().default(0),
   message: text('message'),
   probesSent: integer('probes_sent').notNull().default(0),

@@ -1837,6 +1837,39 @@ def test_el_mensaje_nombra_el_sondeo_que_volvio_entero_sin_veredicto() -> None:
     assert "45 de 45" in mensaje
 
 
+def test_el_contador_de_stock_se_persiste_y_cuadra_con_price_history(db_conn: Any) -> None:
+    """#427: `variants_in_stock` cuenta lo que la pasada escribió, y hay que poder consultarlo.
+
+    Se afirma sobre la FILA y contra `price_history`, no solo sobre `IngestResult`: el valor de la
+    columna es que la pregunta «¿este parser sigue viendo stock?» se responda con una consulta, y
+    que su respuesta sea la misma que daría contar las filas a mano.
+    """
+    agotada = ScrapedVariant(
+        retailer_variant_id="A-2",
+        size="31",
+        color="Negro",
+        sku="sku-A-2",
+        price=Decimal("39.95"),
+        list_price=None,
+        in_stock=False,
+    )
+    store = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95"), agotada])],
+        signatures={"A": "a1"},
+    )
+
+    result = ingest(db_conn, store, run_ts=T1)
+
+    assert (result.variants_seen, result.variants_in_stock) == (2, 1)
+    fila = _scalar(
+        db_conn,
+        "SELECT variants_in_stock FROM scrape_run WHERE id = %s",
+        (result.scrape_run_id,),
+    )
+    assert fila == 1
+    assert _scalar(db_conn, "SELECT count(*) FROM price_history WHERE in_stock") == 1
+
+
 def test_el_mensaje_NO_habla_de_agotados_ni_cuando_lo_estan_todos() -> None:
     """#197: `unbuyable` se queda FUERA de `message`, y es una decisión medida.
 
@@ -1847,25 +1880,109 @@ def test_el_mensaje_NO_habla_de_agotados_ni_cuando_lo_estan_todos() -> None:
     rompería `WHERE message IS NOT NULL`, que es justo lo que este mecanismo existe para proteger.
 
     El rastro durable es `scrape_run.probes_unbuyable`, y quien vigila su tendencia es el validador
-    de QA. Alarmar sin falsos positivos necesita cruzarlo con el stock del listado —si el parser se
-    rompe, el catálogo entero se queda sin stock—, y eso es medición e issue aparte.
+    de QA. Desde #427 hay ADEMÁS alarma, pero solo cuando «todos agotados» viene acompañado del
+    catálogo entero sin stock: ver `test_todos_agotados_Y_el_listado_sin_stock_si_es_alarma`. Este
+    test sigue fijando que la mitad de arriba, **por sí sola**, no dice nada.
     """
     report = ScanReport()
     report.leaf_ok()
 
-    # Todos agotados: sigue sin ser un mensaje, por muy sospechoso que suene.
+    # Todos agotados con el listado lleno de stock: sigue sin ser un mensaje.
     assert (
-        _success_message(report, suspicious=set(), probe=ProbeOutcome(sent=33, unbuyable=33))
+        _success_message(
+            report,
+            suspicious=set(),
+            probe=ProbeOutcome(sent=33, unbuyable=33),
+            variants_seen=1000,
+            variants_in_stock=500,
+        )
         is None
     )
     # Y el caso pequeño que lo destapó: uno solo.
     assert (
-        _success_message(report, suspicious=set(), probe=ProbeOutcome(sent=1, unbuyable=1)) is None
+        _success_message(
+            report,
+            suspicious=set(),
+            probe=ProbeOutcome(sent=1, unbuyable=1),
+            variants_seen=1000,
+            variants_in_stock=500,
+        )
+        is None
     )
     # Mezclado, tampoco.
     assert (
         _success_message(
-            report, suspicious=set(), probe=ProbeOutcome(sent=50, alive=17, unbuyable=33)
+            report,
+            suspicious=set(),
+            probe=ProbeOutcome(sent=50, alive=17, unbuyable=33),
+            variants_seen=1000,
+            variants_in_stock=500,
+        )
+        is None
+    )
+
+
+def test_todos_agotados_Y_el_listado_sin_stock_si_es_alarma() -> None:
+    """#427: las dos mitades juntas sí son inequívocas, y por separado ninguna lo es.
+
+    Si el parser de stock se rompiera, no es que los candidatos salgan agotados — es que el
+    catálogo ENTERO se queda sin una sola variante con stock. Medido sobre las ~60 pasadas de QA
+    (16/08/2026), la que menos stock vio trae 7 de 55, así que el cero no tiene lectura benigna.
+    """
+    report = ScanReport()
+    report.leaf_ok()
+
+    mensaje = _success_message(
+        report,
+        suspicious=set(),
+        probe=ProbeOutcome(sent=33, unbuyable=33),
+        variants_seen=1200,
+        variants_in_stock=0,
+    )
+    assert mensaje is not None
+    assert "señal de stock sospechosa" in mensaje
+    assert "0 de 1200" in mensaje
+
+
+def test_una_pasada_sin_escribir_variantes_NO_dispara_la_alarma_de_stock() -> None:
+    """El denominador no es defensivo de adorno: sin él, la pasada más tranquila parecería rota.
+
+    La fase 2 solo recorre productos a los que se pidió detalle, así que una pasada sin ningún
+    cambio de huella escribe CERO variantes — hay al menos una registrada en QA, de Cacles. Sin la
+    guarda `variants_seen > 0`, `variants_in_stock == 0` se cumpliría ahí y la alarma saltaría en el
+    caso más sano que existe.
+    """
+    report = ScanReport()
+    report.leaf_ok()
+
+    assert (
+        _success_message(
+            report,
+            suspicious=set(),
+            probe=ProbeOutcome(sent=33, unbuyable=33),
+            variants_seen=0,
+            variants_in_stock=0,
+        )
+        is None
+    )
+
+
+def test_el_listado_sin_stock_pero_con_sondeos_sanos_tampoco_alarma() -> None:
+    """La otra mitad sola: sin `unbuyable == sent` no hay alarma, aunque el stock salga a cero.
+
+    Va escrito porque es el falso positivo que la haría inútil: una tienda cuyo listado no declare
+    stock en una pasada concreta no puede llevarse por delante `WHERE message IS NOT NULL`.
+    """
+    report = ScanReport()
+    report.leaf_ok()
+
+    assert (
+        _success_message(
+            report,
+            suspicious=set(),
+            probe=ProbeOutcome(sent=50, alive=50),
+            variants_seen=1200,
+            variants_in_stock=0,
         )
         is None
     )

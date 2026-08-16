@@ -120,6 +120,12 @@ class IngestResult:
     details_refreshed: int  # de los anteriores, los pedidos solo por antigüedad del detalle
     products_unchanged: int  # productos sin cambios (ahorro de peticiones de detalle)
     variants_seen: int
+    # De las anteriores, cuántas tenían stock (#427). No es una cifra de negocio: es el
+    # discriminador que separa «esta tienda tiene poco stock» de «el parser de stock se ha roto».
+    # A 0 con `variants_seen > 0` no hay lectura benigna — ninguna tienda baja de 830 con stock por
+    # pasada (medido en QA el 16/08/2026). Las dos van juntas siempre: sin el denominador, una
+    # pasada sin cambios de huella (que no escribe ninguna variante) se leería como un parser roto.
+    variants_in_stock: int
     prices_recorded: int
     products_delisted: int
     variants_delisted: int
@@ -1028,6 +1034,8 @@ def _success_message(
     gender_frozen: int = 0,
     rescued: set[_ScopeKey] | None = None,
     probe: ProbeOutcome | None = None,
+    variants_seen: int = 0,
+    variants_in_stock: int = 0,
 ) -> str | None:
     """Por qué esta pasada, aun con éxito, no está del todo limpia. `None` si lo está (#151).
 
@@ -1078,11 +1086,24 @@ def _success_message(
     stock, o sea las dos condiciones a la vez.
 
     Lo que sí queda es el rastro durable en `scrape_run.probes_unbuyable` (0040) y su lectura
-    escrita en el validador de QA, que vigila la **tendencia**. El discriminador que faltaría para
-    alarmar sin falsos positivos no está en el sondeo sino fuera: cruzar «todos los candidatos
-    agotados» con el stock que la propia pasada vio en el listado —si el parser se rompe, el
-    catálogo ENTERO se queda sin stock, y eso sí es inequívoco—. Eso necesita su medición y su
-    issue; ponerlo aquí a ojo sería cambiar un agujero silencioso por una alarma que nadie mira.
+    escrita en el validador de QA, que vigila la **tendencia**.
+
+    **Y desde #427 hay además alarma**, con el discriminador que faltaba: no está en el sondeo sino
+    fuera, cruzando «todos los candidatos agotados» con el stock que la propia pasada vio en el
+    listado (`variants_in_stock`, migración 0043). Si el parser se rompe, el catálogo ENTERO se
+    queda sin una sola variante con stock, y eso sí es inequívoco — un producto agotado de verdad
+    convive con miles que no lo están.
+
+    **El umbral es el cero, y eso está medido, no elegido.** Sobre las ~60 pasadas con éxito
+    registradas en QA (16/08/2026), la que menos stock vio trae **7 variantes con stock de 55
+    escritas**, y la peor proporción es un 12,7 %. Ninguna se acerca al cero, ni siquiera las
+    pequeñas. Cualquier `< N` por encima de eso sería un número inventado con falsos positivos
+    garantizados; el cero no tiene lectura benigna.
+
+    La condición lleva **`variants_seen > 0` y no es defensivo de adorno**: la fase 2 solo recorre
+    productos a los que se les pidió detalle, así que una pasada sin ningún cambio de huella no
+    escribe ninguna variante y daría `variants_in_stock == 0` legítimamente. Sin ese denominador,
+    la alarma saltaría en la pasada más tranquila posible.
     """
     partes: list[str] = []
     if report.leaves_failed:
@@ -1123,6 +1144,19 @@ def _success_message(
         partes.append(f"ambitos remapeados: {', '.join(ambitos)}")
     if probe is not None and probe.sent and probe.unresolved == probe.sent:
         partes.append(f"sondeo sin respuesta: {probe.sent} de {probe.sent} sin veredicto")
+    # El «todos agotados» SOLO se nombra acompañado del catálogo entero sin stock (#427). Por
+    # separado, cada mitad es un estado sano y frecuente; juntas no lo son.
+    if (
+        probe is not None
+        and probe.sent
+        and probe.unbuyable == probe.sent
+        and variants_seen > 0
+        and variants_in_stock == 0
+    ):
+        partes.append(
+            f"señal de stock sospechosa: {probe.sent} de {probe.sent} candidatos agotados "
+            f"y 0 de {variants_seen} variantes con stock en el listado"
+        )
     if gender_frozen:
         partes.append(f"generos conservados: {gender_frozen}")
     return " · ".join(partes)[:_MAX_FAIL_MESSAGE] if partes else None
@@ -1324,6 +1358,7 @@ def ingest(
 
             # Fase 2: detalle de nuevos/cambiados/rancios -> upsert + apilar precio.
             details_fetched = variants_seen = prices_recorded = gender_frozen = 0
+            variants_in_stock = 0
             fase2_inicio = latido.transcurrido
             for product in store.fetch_details(to_fetch):
                 details_fetched += 1
@@ -1350,6 +1385,7 @@ def ingest(
                     variant_id = _upsert_variant(cur, product_id, run_ts, variant)
                     _record_price(cur, variant_id, run_id, run_ts, variant)
                     variants_seen += 1
+                    variants_in_stock += bool(variant.in_stock)
                     prices_recorded += 1
 
             # Bajas acotadas: (#1) solo en ámbitos realmente escaneados y (#2) descartando
@@ -1415,7 +1451,8 @@ def ingest(
                 """
                 UPDATE scrape_run
                 SET finished_at = clock_timestamp(), status = 'success',
-                    products_seen = %s, variants_seen = %s, errors = %s, message = %s,
+                    products_seen = %s, variants_seen = %s, variants_in_stock = %s,
+                    errors = %s, message = %s,
                     probes_sent = %s, probes_alive = %s, probes_dead = %s,
                     probes_over_cap = %s, probes_unresolved = %s, probes_unbuyable = %s,
                     probes_skipped_fresh = %s
@@ -1424,6 +1461,7 @@ def ingest(
                 (
                     len(entries),
                     variants_seen,
+                    variants_in_stock,
                     # Los candidatos que no cupieron en el tope ya NO suman aquí (#261): se midió
                     # que no son un error ni prendas retiradas atrapadas —de 40 candidatos de Zara
                     # ausentes 14+ días, el sondeo llamaba vivos a los 40 y 39 tenían stock de
@@ -1439,7 +1477,15 @@ def ingest(
                     # `errors` cuenta; `message` dice QUÉ (#151). El desglose del sondeo no entra en
                     # `message`: tiene columnas propias (migración 0028), y meterlo aquí dejaría
                     # casi ninguna pasada con `message` a NULL —lo único que hace útil la consulta.
-                    _success_message(report, suspicious, gender_frozen, rescued, probe),
+                    _success_message(
+                        report,
+                        suspicious,
+                        gender_frozen,
+                        rescued,
+                        probe,
+                        variants_seen,
+                        variants_in_stock,
+                    ),
                     probe.sent,
                     probe.alive,
                     probe.dead,
@@ -1466,6 +1512,7 @@ def ingest(
             details_refreshed=len(to_refresh),
             products_unchanged=products_unchanged,
             variants_seen=variants_seen,
+            variants_in_stock=variants_in_stock,
             prices_recorded=prices_recorded,
             products_delisted=products_delisted,
             variants_delisted=variants_delisted,

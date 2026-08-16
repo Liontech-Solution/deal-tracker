@@ -131,6 +131,24 @@ returning 404, and a dead leaf must not take down the whole pass. The safety net
 `SCRAPER_DELIST_*` and `SCRAPER_SCAN_MAX_DEAD_RATIO` (see `.env.example`). Don't tighten them
 without understanding which failure they absorb.
 
+**And the thing that protects a candidate is `blocked_ids`, never its absence from a list.**
+`_delist()` does not delete from the candidate list `_confirm_candidates` built — it deletes with
+its **own** `WHERE` (`missing_streak >= min_misses`), excluding only the ids in `blocked_ids`. So
+filtering a product out of `_load_delist_candidates` doesn't spare it: it **delists it without ever
+asking the store**. That is the whole reason the cooldown of #412 loads its candidates anyway and
+puts them in `blocked_ids` — what it saves is the network request, never the confirmation. If you
+ever add a reason to skip probing something, it goes in `blocked_ids` too, and
+`test_el_excluido_por_la_ventana_sigue_protegido_de_la_baja` is the net that catches you.
+
+**A store can break in a way that makes everything look sold out**, and `UNBUYABLE` deliberately
+doesn't count as an error (#197), so that failure used to be silent. The discriminator is outside
+the probe: `scrape_run.variants_in_stock` (#427). If the stock parser breaks it isn't the
+candidates that come back empty — it's the **whole catalogue**, and that is unambiguous. Measured
+over ~60 QA passes, the least-stocked pass ever recorded has 7 in-stock variants out of 55 written,
+so the alarm fires on **zero** and needs no invented threshold — but it also demands
+`variants_seen > 0`, because a pass where no signature changed writes nothing and would otherwise
+read exactly like a broken parser.
+
 **A 429 is not proof that you asked for too much.** Cacles' Cloudflare had *httpx's TLS fingerprint*
 rate-limited: every httpx request got `429 local_rate_limited` — from the cluster too — while curl,
 wget and urllib got 200 from the same IP with byte-identical headers. The culprit was the ALPN
