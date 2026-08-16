@@ -8,6 +8,7 @@ from ..config import Config
 from .base import BaseStore
 from .c_and_a import CAndAStore
 from .cacles import CaclesStore
+from .deditos import DeditosStore
 from .hipercor import HipercorStore
 from .hm import HMStore
 from .lefties import LeftiesStore
@@ -27,6 +28,7 @@ _STORES: dict[str, Callable[[Config], BaseStore]] = {
     HMStore.slug: HMStore,
     MangoStore.slug: MangoStore,
     SpringfieldStore.slug: SpringfieldStore,
+    DeditosStore.slug: DeditosStore,
 }
 
 

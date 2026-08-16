@@ -928,6 +928,74 @@ emitidas para 8219 filas, **110 precios duplicados**. El síntoma es un contador
 resumen, que se lee como ruido. La regla: si los dos números no cuadran, el que miente es el
 scraper, y el daño está en la tabla de la serie de precios.
 
+### Hay listados que no pueden producir una huella, y el rango de precios es el que peor miente (#65)
+
+El contrato de `base.py` reparte el trabajo en dos fases para ahorrar peticiones: `list_catalog()`
+da una huella barata y `fetch_details()` solo se paga por lo que ha cambiado. Deditos Barefoot
+—WooCommerce, décima tienda— es el primer caso donde ese ahorro **no existe**, y la parte que
+importa es cómo se descubre, porque la respuesta fácil parecía servir.
+
+Su Store API publica por producto un objeto `prices` con `price`, `regular_price` y un
+`price_range`. Leído por encima, ahí hay huella de sobra: mínimo, máximo y si está rebajado. Pero
+`variations` es solo `[{id, attributes}]` —ni precio ni stock por talla— y el rango **no describe lo
+que dice describir**. Medido el 16/08/2026 sobre las 431 fichas infantiles:
+
+| | |
+|---|---:|
+| productos con `price_range: null` | **276 de 431 (64 %)** |
+| …y de ésos, con tallas a precios distintos | los hay: el 9303 dice `price: "2560"` y `price_range: null` con sus 12 tallas a **25,60 y 27,48** |
+
+O sea que `price_range: null` **no significa «precio único»**. Una huella construida con el listado
+habría sido ciega a un cambio de precio de una talla intermedia: la pasada no pediría el detalle, el
+precio nuevo no se ingeriría nunca y `price_history` acumularía una serie falsa **sin un solo error
+en ningún log**. Es exactamente la familia de fallo que este repo persigue, y llegaba disfrazada de
+optimización.
+
+La salida es la forma de `cacles.py` por el motivo contrario: `list_catalog()` pide también la ficha
+de cada producto y `fetch_details()` sirve de la caché. En Cacles eso es gratis (el listado **es** el
+detalle, dos peticiones para la tienda entera); aquí cuesta ~431 peticiones por pasada, ~12 min con
+`SCRAPER_REQUEST_DELAY: "1"`. Se paga a sabiendas: la alternativa no era una pasada más rápida, era
+ingerir precios que no existen.
+
+**Lo transferible no es «WooCommerce no sirve», es cómo se decide.** Una huella se valida
+comprobando que el campo del listado *se mueve cuando se mueve el dato que representa*, y eso hay
+que mirarlo en la tienda, no en la documentación de la plataforma. El precedente contrario es #227:
+allí el `lastmod` del sitemap de Springfield parecía una huella perfecta y resultó ser el sello del
+generador. Los dos casos son el mismo error con dos disfraces —creerse el nombre de un campo— y la
+misma cura, que es medirlo antes de escribirlo.
+
+### El `permalink` que publica una tienda puede llevar a la ficha de otro producto (#65)
+
+Y cuando la ficha es la fuente del precio, eso deja de ser una curiosidad de URLs.
+
+La primera pasada real de Deditos se topó con ello: el producto **11711** («Cangrejeras Respetuosas
+Mayoral 41787») publica en el listado un `permalink` viejo que responde **301 hacia la ficha del
+41787**, una página donde su formulario no está por ningún lado — los que hay son 59523, 34025,
+59220 y 33776, que son otros productos.
+
+Lo que convierte esto en un modo de fallo serio es que **ninguna comprobación de forma lo detecta**.
+La página existe, responde 200, trae el `data-product_variations` que el parser espera, y el JSON
+parsea. Un scraper que cogiera «el primer formulario de la ficha» —que es lo natural, y funciona en
+el 99,8 % de los casos— le habría colgado al 11711 los precios y las tallas del 59523. Y un
+contador tampoco lo habría cazado: la Store API declara 4 variaciones para el 11711, y el 59523
+tiene justamente 4.
+
+El discriminador tiene que ser una **identidad**, no una posición ni un recuento: el formulario se
+elige por `data-product_id`, comparado contra el id que hemos pedido. Cuando no aparece, la
+respuesta correcta es `None` —«este producto no se ha visto en esta pasada»—, que la histéresis de
+bajas absorbe, y **nunca** una lista vacía de variantes, que significaría «se ha quedado sin
+tallas» y es una baja falsa.
+
+Dos consecuencias que valen para cualquier tienda futura:
+
+- **Un scraper que sondee por URL hereda el problema.** `DelistCandidate` lleva `url` porque hay
+  tiendas que solo pueden preguntar por ahí; si esa URL redirige a otro producto vivo, el sondeo
+  responde «vivo» sobre la prenda equivocada. El de Deditos pregunta por id contra la Store API y
+  por eso es inmune, pero es una propiedad del diseño y no de la tienda.
+- **La cifra que hay que mirar no es cuántos fallan, es qué pasa cuando uno falla.** Fue **1 de
+  430**. Con «el primer formulario» ese 1 habría entrado en la base con datos de otro y sin ruido;
+  con la identidad comprobada, sale por el `logger.warning` y no ingiere nada.
+
 ### Un 200 no prueba nada: hay que verificar QUÉ vino, no si vino
 
 La sección siguiente cataloga cómo miente una hoja muerta. C&A (02/08/2026) enseñó que el problema
