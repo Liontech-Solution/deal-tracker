@@ -3699,11 +3699,13 @@ de observaciones aparte. Se reutiliza `HONESTY_WINDOW_DAYS`, que ya era la venta
 
 Tres consecuencias que no son evidentes:
 
-- **`real` no puede verse afectado por el umbral, y está demostrado**: ya implica
+- **`real` no puede verse afectado por ESTE umbral, y está demostrado**: ya implica
   `max_observed > price`, porque `recent_min <= max_observed` —uno es un MIN y otro un MAX sobre
   las mismas observaciones— y la condición A cae antes. Por eso `evaluateDeal`, `deal-rule.sql.ts`,
-  `onlyDeals` y `sort=ofertas` quedaron intactos. La implicación se apoya en ese invariante **de
-  los datos**, no de la regla: si la CTE `stats` dejara de cumplirlo, se cae con ella.
+  `onlyDeals` y `sort=ofertas` quedaron intactos **entonces**. La implicación se apoya en ese
+  invariante **de los datos**, no de la regla: si la CTE `stats` dejara de cumplirlo, se cae con
+  ella. Ojo a no leer esto como «`real` no tiene umbral»: desde #436 tiene uno **propio y por otro
+  motivo** (sección siguiente), y ahí sí entraron el espejo SQL y `DEAL_COLUMNS`.
 - **El estado que más se ve no es ninguno de los dos que había.** `unverified` es hoy 15.968 de
   16.303 veredictos no vacíos en prod, frente a 335 `real` y 0 acusaciones. Cualquier interfaz que
   explique «dos etiquetas» está describiendo la minoría.
@@ -3745,6 +3747,63 @@ Desde #375 el margen ya no es dos números: `deal-rule.sql.ts` **importa** la co
 interpola con `sql.raw`, no como parámetro ligado (un número de JS viaja como `float8` y
 `numeric * float8` no redondea como `numeric * numeric`). La clase de fallo desaparece en vez de
 solo detectarse, y lo que queda por vigilar es que nadie vuelva a escribir el número a mano.
+
+### La asimetría tenía una segunda mitad, y estuvo abierta un año: el elogio sin pruebas (#436)
+
+#332 le puso listón a la **acusación** y dejó el **elogio** sin ninguno. La consecuencia se vio
+entera el 16/08/2026 en QA: de los 246 productos con el badge «Oferta real», **176 (71,5 %) tenían
+UNA sola observación previa** y los 246 menos de 90 días de seguimiento; a nivel de variante, 1.269
+de 1.837 tenían exactamente **dos filas** en todo su `price_history`. Y la ficha remataba con «es el
+precio más bajo de los últimos meses», que con dos puntos de histórico es *ayer*.
+
+Es el mismo error de #332 con el signo cambiado, y por eso es fácil no verlo: `real` sí implica que
+**algo bajó** —la implicación de la sección anterior es cierta— pero no que la referencia contra la
+que se mide signifique nada. `max_observed` sigue siendo «lo más caro que la hemos visto desde que la
+descubrimos» en los dos lados de la regla.
+
+**El umbral nuevo NO es el de #332, y confundirlos es el error a evitar.** `REAL_EVIDENCE_DAYS` son
+14 días y `HONESTY_EVIDENCE_DAYS` 90, porque no sostienen la misma afirmación: acusar exige haber
+visto la prenda *fuera* de su temporada de rebajas (de ahí el calendario comercial de la sección
+anterior); decir «esto ha bajado de verdad» solo exige que la serie contra la que se compara no sea
+un único punto. Aquí sí hubo con qué calibrar, y estos son los números sobre las 246 (QA,
+16/08/2026): **≥3 días → 238, ≥7 → 212, ≥14 → 26, ≥30 → 0**, con un histórico máximo en todo QA de
+**22,4 días**. 30 apaga el elogio entero y 7 no filtra nada. Un solo eje, en días: exigir además
+`priorPoints >= 3` baja de 26 a 13 y no compra nada que el umbral en días no dé ya.
+
+**Y el umbral no mide lo mismo en cada entorno, que es lo menos evidente de todo.** El mismo código
+sobre `dev` deja **104 de 105** bajadas como `real`, y sobre QA **26 de 246**. No es una diferencia
+de datos sino de **cadencia de ingesta**: `dev` pasa a diario desde hace meses y QA solo los lunes
+(ver la sección de CronJobs), así que 14 días son ~14 observaciones allí y ~2-3 aquí. Cualquier
+lectura de «cuántas ofertas reales hay» que no diga en qué entorno se midió no significa nada, y una
+regresión de esa cifra entre entornos no es un fallo.
+
+Lo demás que conviene saber antes de tocar la regla:
+
+- **Nace un tercer veredicto, `reciente`**, y no es `real` suavizado: es la misma bajada sin
+  cobertura. `HonestyVerdict` pasa a cinco valores, así que cualquier `switch` o guarda que los
+  enumere —`llevaBadge()` en la SPA es el sitio— tiene que decidir de qué lado cae el nuevo.
+- **`onlyDeals` y `sort=ofertas` se quedan ESTRICTOS en `real`**, por decisión de producto: ensanchar
+  el filtro haría que «Solo ofertas reales» dejara de significar lo que dice. La consecuencia
+  asumida es que la portada enseña su vacío durante semanas, y esa pantalla ya estaba escrita.
+- **El aviso de Telegram no se mueve.** `evaluateDeal` no mira `trackedDays` y sigue sin mirarlo:
+  esto cambió lo que el catálogo *afirma*, no a quién se avisa. Es la misma asimetría de #332, y
+  ahora está fijada por un test.
+- **El espejo SQL SÍ entra esta vez**, al revés que en #332: `DealSqlColumns` gana `trackedDays`
+  (obligatorio, por el mismo motivo que el tercer parámetro de `honestListPriceSql`) y `DEAL_COLUMNS`
+  lo apunta a `tracked_days_repr`, que **ya existía desde la `0035`** en los dos caminos del agregado
+  — el vivo la emite por `array_agg` y el precomputado la lee de `product_agg`. Sin migración.
+- **La segunda mitad era la más visible y la menos discutida**: la tarjeta pintaba en verde el `-X %`
+  de la tienda aunque `honestListPrice()` acabara de descartar ese tachado. Pasaba en **88 de los
+  246**, enseñando un 51,7 % medio donde la regla sostiene un 24,4 %. La API expone ahora
+  `honestListPrice` y `honestDiscountPct`, calculados desde la **misma entrada** que decide el
+  veredicto; sin PVP creíble el tachado se sigue enseñando pero **nunca en verde**.
+
+**Y la red del espejo tocó un techo de la herramienta.** El cartesiano de `deal-rule-paridad.spec.ts`
+pasa de 5.760 a 23.040 casos al añadir `trackedDays`, y a ese tamaño `sql.join` de drizzle —que
+construye la consulta recursivamente— se queda **sin pila** (`Maximum call stack size exceeded`)
+antes de mandar nada. Va en lotes de 5.760, que es el tamaño con el que el test vivió hasta aquí.
+Recortar casos para evitarlo habría pagado la comodidad justo con el borde del umbral, que es lo
+único que el test existe para vigilar.
 
 ### Un dato declarado por la tienda puede ser evidencia si se usa CONTRA quien lo declara (#354)
 
@@ -3837,6 +3896,27 @@ destapó `revisor-espejo-honestidad`, sobre un comentario que afirmaba la equiva
 Verificado con pasada real de C&A contra Postgres: `EXCEPT` de los dos caminos del agregado sobre
 1.146 productos con **0 divergencias en las dos direcciones**, y **37 acusaciones en una primera
 pasada** —todas de arranque en frío— donde la regla anterior no podía producir ninguna.
+
+**El patrón tiene un límite, y se encontró midiendo (#419).** «Un dato declarado puede ser
+evidencia» invita a ingerir cualquier bandera que publique la tienda, y no todas valen: la que no
+añade información sobre lo que ya tenemos no es evidencia de nada. El caso medido es
+`hideLowestPrice` de Springfield, que parecía prometedora porque la tienda la pone justo cuando
+**oculta al usuario** la línea «Más bajo últimos 30 días» — o sea, aparentemente, una decisión sobre
+qué esconder. Medido el 16/08/2026 sobre **54 colores de 51 fichas**, con grupo de control (30
+productos con `price = retailer_min_30d` y 21 con `price > retailer_min_30d`): la bandera es
+**exactamente** `actual == lowest`, **cero desviaciones en las dos direcciones**. No es una decisión,
+es la regla de pintado de un tooltip —no enseñar dos veces la misma cifra— y `actual`/`lowest` son
+`price` y `retailer_min_30d`, que ingerimos desde la `0018`.
+
+Dos cosas que llevarse de ahí. Una, **el grupo de control es lo que convierte la medida en
+respuesta**: sin él, «todas las del caso traen `true`» no distingue una intención de una tautología,
+y se habría ingerido una columna duplicada. Y dos, el caso que queda vivo —**775 productos de
+Springfield anunciando un −48 % medio cuya referencia legal de 30 días es el precio que ya pagas**—
+**no** es acusable con lo que sabemos: `price == retailer_min_30d` describe igual de bien una rebaja
+recién puesta que un tachado permanente, y confundirlas sería repetir #332 con otro dato. Se resuelve
+con serie propia, en el calendario de #332, y no antes. C&A publica un campo hermano
+(`lowestPrice30DaysDiscountFlag`) que los fixtures grabados nunca pueblan, y su población en este
+caso es **1 producto** contra los 775.
 
 ### El aviso no se puede provocar a voluntad: hace falta una bajada real, y el tachado no sirve
 
