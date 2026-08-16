@@ -2922,6 +2922,25 @@ Dos consecuencias que no son evidentes y conviene tener escritas:
   así que no justifica un tercer ámbito — pero el día que alguien lo ponga en la interfaz, ese
   número es el que hay que volver a mirar.
 
+**La invariante que gobierna los dos caminos, y que no estaba escrita hasta #367: todo filtro de
+variante tiene que entrar en `filtroDeVariante`.** No es una optimización, es corrección. El
+precomputado lee `product_agg`, cuyas `*_repr` están calculadas sobre **todas** las variantes vivas
+del producto, así que un eje de variante que no esté en ese interruptor deja el producto
+correctamente filtrado —el `WHERE` sí se aplica— pero **el precio, el tachado y el veredicto de
+honestidad de la tarjeta son los de una variante que el filtro acaba de excluir**. O sea «Oferta
+real» apoyada en una talla que el usuario acaba de decir que no quiere ver: la misma familia que
+#436 con otra causa.
+
+Y el spec de paridad de al lado **no lo caza, por construcción**. `ambos()` compara el camino por
+defecto contra el vivo forzado, así que en cuanto el eje está bien puesto los dos lados **son el
+vivo** y la comparación se vuelve tautológica: da verde por forma, no por corrección. Lo que hay que
+afirmar es *cuál de los dos caminos se elige*, y eso solo se ve en el SQL emitido — de ahí el test
+que recorre los cuatro ejes (`size`, `sizeExact`, `color`, `inStock=false`) exigiendo que ninguno
+toque `product_agg`, más el control inverso de que sin filtros de variante **sí** se use el
+precomputado; sin ese control pasaría con un interruptor siempre cierto, que es deshacer la 0035 en
+silencio. Se verificó quitando `sizeExact` del interruptor y comprobando que **falla**, que es lo
+único que distingue una red de un verde de adorno.
+
 ### `array_agg(... ORDER BY …)[1]` elige a suertes si el orden no desempata (#314)
 
 El patrón con el que el listado elige la «variante representativa» —la que pone precio, color y foto
@@ -3289,6 +3308,45 @@ Consecuencias que se llevan a cualquier función futura del esquema:
 - **El método que lo encontró es reproducible y cuesta dos minutos**: `EXPLAIN (ANALYZE, TIMING OFF)`
   de un `count(f(t))` sobre 20.000 filas generadas, comparado contra la función de debajo. Sin esa
   comparación, 6,89 ms parece «lo que cuesta plegar una talla».
+
+### Plegar un eje lo hace inexpresable, y recuperarlo es un eje hermano — que no siempre cabe (#367, #444)
+
+`ejeMultiple()` aplica el plegado **también a lo que llega por la query string**, y eso es
+deliberado: es lo que mantiene vivos los enlaces guardados con el texto crudo de la tienda, porque
+`?size=4-5 años` se pliega a su banda y **encuentra** en vez de devolver vacío. La consecuencia no
+se ve hasta que hace falta: mientras el eje pliegue, **pedir el valor concreto es inexpresable**. No
+es que el filtro no lo ofrezca, es que la URL no puede decirlo.
+
+Así que la contrapartida que #291 y #325 se dejaron anotada al plegar color y talla no era pintar
+más chips: era **un eje hermano** (`sizeExact`, que pliega a `size_canon` en vez de a `size_band`) y
+una faceta que enumere el contenido del chip elegido. Los dos ejes **se cruzan, no se sustituyen** —
+la banda es dónde estás y el concreto lo que pides dentro—, y por eso una pareja incoherente
+devuelve vacío: el error está en el enlace.
+
+**Y aquí es donde las dos mitades dejan de parecerse, que es el hallazgo que cierra el asunto.** El
+segundo piso solo es un filtro si lo que contiene el chip es una lista corta, y eso hay que medirlo
+por eje, no suponerlo. Contra `deal_tracker_qa` el 16/08/2026 (173.633 variantes vivas):
+
+| eje | valores concretos por chip |
+|---|---|
+| banda de talla | **3-11** (`4 años` contiene 4: `4-5 años` 2.407 productos, `4 años` 2.233, `4-6 años` 1.031, `104` 428). Excepciones conocidas: `Por número` 71, `Otras` 9, `Por letra` 6 |
+| familia de color | **466** en «azul», 347 «rosa», 342 «gris»… y **132 en «rosa» aun acotando** a niña+camisetas |
+
+O sea que en el color el segundo piso **devuelve el problema que #291 vino a quitar, un piso más
+abajo**. Y no hay atajo: de los 466 azules **ninguno tiene una sola variante** (no es cola de
+erratas que podar) y **los 10 más frecuentes cubren el 65,1 %**, así que un «top N» esconde un
+tercio de la familia sin decirlo — que es peor que no ofrecer el filtro, porque quien busca su color
+y no lo ve concluye que no existe. De ahí que #367 se cerrara **solo con la mitad de talla** y el
+color saliera a #444 como decisión de diseño pendiente (un campo donde teclear, un piso intermedio,
+o declarar que no se hace).
+
+Dos consecuencias operativas: la mitad de talla **no arrastró migración** porque
+`ix_variant_size_canon` sigue vivo (la `0033` no lo tocó), mientras que la de color exige recrear
+`ix_variant_color_canon`, que la `0034` retiró por quedarse sin consumidor (#317) — o sea que el
+índice de al lado y esta decisión son el mismo asunto visto dos veces. Y la faceta del segundo piso
+llega **vacía sin chip elegido y vacía en `zapateria`** (donde `plegadoTalla` ya devuelve la
+canónica y el primer piso *es* el concreto): quien decide si hay segundo piso es el backend, no el
+panel, que solo pinta lo que le llega.
 
 ### Los contadores de uso de un índice no miden nada en un entorno sin tráfico (#317)
 
