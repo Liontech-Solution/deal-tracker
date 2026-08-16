@@ -4665,3 +4665,21 @@ Y un aviso sobre cómo se verifica ese arreglo, porque costó dos PR el día que
 aceptó lo que le mandaste. Si tras republicar la sección fantasma sigue ahí, la primera hipótesis
 correcta no es «se ha perdido la republicación» sino «el fichero sigue mal». Se distingue mirando el
 fichero, no el grafo.
+
+**Y la regla «republica desde `main` fusionado» tiene un agujero que la convierte en el arma: borra
+lo que otra sesión publicó desde una rama SIN mergear.** Medido el 16/08/2026, con dos sesiones
+turnándose el ADR como manda la épica. La segunda publicó después de la primera, desde un `main`
+recién actualizado y siguiendo la regla al pie de la letra — y **le borró sus dos secciones**. El
+motivo es que la primera había publicado desde su rama, con su PR todavía abierto: su contenido no
+estaba en `main`, así que el `--mode update` de la segunda lo reemplazó por una versión que
+legítimamente no lo tenía. Ninguno de los dos lados dio error.
+
+`--mode sections` tampoco lo habría cazado, y ese es el matiz operativo: las secciones perdidas
+faltaban del listado, pero para notar una ausencia hay que saber de memoria qué debería haber. Lo
+destapó comprobar **un testigo concreto de la otra sesión**, y solo se le ocurrió porque ésta le
+había dicho por mensaje qué había metido.
+
+La regla correcta es más estricta: **publica desde un árbol que contenga todo lo ya publicado por
+otros** — o sea, publica solo tras mergear, o rebasa tu rama sobre `main` antes de publicar. Y la
+verificación por contenido lleva **dos testigos, uno propio y uno ajeno**: comprobar solo el tuyo
+confirma que publicaste, no que no borraste a nadie.
