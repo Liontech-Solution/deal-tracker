@@ -31,6 +31,16 @@ export interface ProductListItem {
    * enseña: sin esto puede pintar la foto de un color con el precio de otro.
    */
   colorRepr: string | null;
+  /**
+   * El **«desde»** de la tarjeta: lo más barato que se puede **comprar** (#402).
+   *
+   * Sale de la misma variante "mejor oferta" que `colorRepr`, `listFrom`, `discountFrom` y
+   * `honesty`, y eso es lo que garantiza que la tarjeta no pinte el precio de una prenda con el
+   * tachado de otra. Cuando **ninguna** variante tiene stock cae al mínimo a secas, que es el
+   * comportamiento de siempre y va acompañado de `anyInStock: false`.
+   *
+   * El nombre se conserva por contrato de API; lo que cambió en #402 es lo que significa.
+   */
   priceFrom: string | null;
   /** PVP y descuento de la variante "mejor oferta" (en stock, más barata). */
   listFrom: string | null;

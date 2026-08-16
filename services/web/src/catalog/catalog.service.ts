@@ -142,6 +142,36 @@ const DEAL_COLUMNS: DealSqlColumns = {
 };
 
 /**
+ * La columna del **«desde»** de la tarjeta (#402): lo más barato que se puede **comprar**.
+ *
+ * No es `price_from`, y esa es toda la issue. `price_from` es un `MIN(price)` sobre todas las
+ * variantes vivas **sin mirar el stock**, así que un producto cuya talla más barata está agotada
+ * anunciaba un precio que nadie puede pagar. Medido en `deal_tracker_qa` el 16/08/2026: 28 de los
+ * 17.489 productos, con un salto medio de 4,35 € y máximo de 12,57 € — un pantalón de Zara que
+ * decía «desde 5,38 €» cuando lo más barato comprable eran 17,95 €.
+ *
+ * **`price_repr` ya era ese valor y no hizo falta ni una columna ni una migración.** La variante
+ * representativa se elige con `ORDER BY in_stock DESC, price ASC, variant_id`, o sea: la más barata
+ * CON stock si hay alguna, y la más barata a secas si no hay ninguna. Ese respaldo es justo lo que
+ * el caso «todo agotado» necesita, y la tarjeta ya pinta ahí su badge «agotado».
+ *
+ * Y arregla de paso una asimetría dentro de la misma fila que la issue no llegaba a nombrar: el
+ * tachado (`list_from`), el porcentaje (`discount_from`) y el veredicto de honestidad salen todos de
+ * la variante representativa. Enseñar al lado un `MIN` de otra variante hacía que la tarjeta pintara
+ * un precio y un descuento **de prendas distintas**.
+ *
+ * Por qué el 0,16 % y no el 27 % de variantes agotadas que uno esperaría: el defecto solo puede
+ * darse donde las variantes de un producto **no valen todas lo mismo**, y eso son 272 productos
+ * (1,6 %). En el resto la agotada más barata empata en precio con una comprable y las dos columnas
+ * coinciden. La dispersión de precios es el techo, no el stock.
+ *
+ * `price_from` se sigue calculando en los dos caminos y en `product_agg`: es el catálogo
+ * **publicado**, y es lo que hace comparables los dos caminos con un `EXCEPT`. Lo que ya no hace es
+ * salir a pantalla.
+ */
+const PRECIO_DESDE = sql`price_repr`;
+
+/**
  * Plegado de texto para buscar sin distinguir mayúsculas ni acentos.
  *
  * A propósito **sin `unaccent` ni `pg_trgm`**: ambas exigen `CREATE EXTENSION`, que en la Postgres
@@ -177,6 +207,77 @@ function fold(expr: SQL): SQL {
 }
 
 /**
+ * La búsqueda por texto, **una sola vez** para el listado y para las facetas.
+ *
+ * Cada palabra tecleada debe aparecer en el nombre, la categoría o el género, en cualquier orden
+ * («botas niña» y «niña botas» encuentran lo mismo). El género entra porque es como la gente teclea,
+ * y los nombres que dan las tiendas casi nunca lo llevan. `position()` en vez de `LIKE` para no
+ * tener que escapar los comodines de lo que se teclee.
+ *
+ * Vivía duplicada literalmente en `listProducts` y en `getFacets`, con un comentario en la segunda
+ * pidiendo que se movieran juntas. Está aquí para que no puedan dejar de hacerlo: si el buscador y
+ * la faceta no entendieran lo tecleado igual, el panel volvería a ofrecer chips vacíos.
+ *
+ * ── EL GÉNERO NO SE CASA POR SUBCADENA (#408) ──
+ *
+ * Ese es el arreglo. #229 midió que meter el género en la búsqueda vale lo que cuesta —`botas niña`
+ * devuelve **60 productos con el género dentro y 0 sin él**, y `vestido niña` pasa de 121 a 1.503—,
+ * pero de camino destapó que casarlo por subcadena colapsa el catálogo: `gender` tiene tres valores
+ * y `ni` está dentro de `ni`ño, `ni`ña **y** u`ni`sex. Medido en `deal_tracker_qa` el 14/08/2026,
+ * `ni` devolvía **16.844 de 16.844** y `nin` el 88,6 %. Y no es un caso de borde: la SPA busca según
+ * se teclea, así que quien escribe «niña» pasa por `n`, `ni` y `nin`.
+ *
+ * Así que el género sale del pajar de subcadena y se compara por **igualdad**, ya plegado. El
+ * término casa si está en el nombre/categoría **o** si *es* el género entero.
+ *
+ * La forma nueva es **estrictamente más estrecha** que la vieja —todo lo que casa ahora casaba
+ * antes—, así que no puede inventar resultados: lo único que deja de casar son los prefijos que no
+ * son un género completo, que es exactamente el defecto. Y eso no es un argumento, está medido
+ * ejecutando las dos condiciones sobre los 17.489 productos vivos de `deal_tracker_qa`
+ * (16/08/2026):
+ *
+ * | tecleado       | antes  | ahora |
+ * |----------------|-------:|------:|
+ * | `ni`           | 17.489 | 2.527 |
+ * | `nin`          | 15.474 | 1.513 |
+ * | `nina`         |  9.071 | 9.071 |
+ * | `nino`         |  6.443 | 6.443 |
+ * | `unisex`       |  2.047 | 2.047 |
+ * | `botas nina`   |     64 |    64 |
+ * | `vestido nina` |  1.548 | 1.548 |
+ *
+ * O sea: **cambian los dos prefijos rotos y nada más**. Lo que #229 midió y hay que preservar sale
+ * idéntico hasta la unidad, porque «niña» *es* el género entero.
+ *
+ * La asimetría que #229 aceptó a sabiendas **sigue en pie** y no la toca esto: teclear un género
+ * suelto devuelve ese catálogo entero sin que la barra de filtros aplicados lo refleje. Lo que se
+ * arregla es que lo devolvieran también dos letras.
+ *
+ * `fold()` sobre el género y no una comparación cruda: con el ctype `C` del cluster `lower()` no
+ * baja las mayúsculas acentuadas (#105), y esto se prueba contra las dos bases en
+ * `busqueda-plegado.spec.ts`.
+ *
+ * Un falso positivo que NO existe, por si alguien viene a buscarlo: un término no puede casar a
+ * caballo entre el nombre y la categoría, porque la costura es un espacio y los términos salen de
+ * partir por espacios.
+ */
+export function searchCondition(q: string | undefined, alias: string): SQL {
+  const terms = (q ?? '').split(/\s+/).filter(Boolean);
+  if (!terms.length) return sql`TRUE`;
+  const texto = fold(
+    sql`${sql.raw(`${alias}.name`)} || ' ' || coalesce(${sql.raw(`${alias}.category`)}, '')`,
+  );
+  const genero = fold(sql`coalesce(${sql.raw(`${alias}.gender`)}, '')`);
+  return sql.join(
+    terms.map((t) => {
+      const buscado = fold(sql`${t}`);
+      return sql`(position(${buscado} in ${texto}) > 0 OR ${genero} = ${buscado})`;
+    }),
+    sql` AND `,
+  );
+}
+
+/**
  * Lectura del catálogo (tablas que escribe el scraper). "Último precio" por variante se
  * resuelve con `DISTINCT ON (variant_id) ... ORDER BY scraped_at DESC` sobre `price_history`.
  */
@@ -207,47 +308,24 @@ export class CatalogService {
     const minPrice = q.minPrice ?? null;
     const maxPrice = q.maxPrice ?? null;
 
-    // Búsqueda por texto: cada palabra debe aparecer en el nombre, la categoría o el género, en
-    // cualquier orden ("botas niña" y "niña botas" encuentran lo mismo). El género entra porque es
-    // como la gente teclea ("botas niña"), y los nombres que dan las tiendas casi nunca lo llevan.
-    // `position()` en vez de `LIKE` para no tener que escapar los comodines de lo que se teclee.
-    //
-    // #229 entró a revisar si mezclar un eje de FILTRADO dentro de la búsqueda por texto valía lo
-    // que cuesta, y la respuesta, medida sobre `deal_tracker_qa` el 14/08/2026 (16.844 productos
-    // vivos), es que sí: `botas niña` devuelve **60 productos con el género dentro y 0 sin él**, y
-    // `vestido niña` pasa de 121 a 1.503. O sea que el caso que lo motivó no era hipotético y sigue
-    // sin serlo. Se queda, y con ello la asimetría conocida: teclear un género suelto devuelve ese
-    // catálogo entero (8.692 de 16.844) sin que la barra de filtros aplicados lo refleje.
-    //
-    // Lo que la medida sí destapó, y no estaba escrito en ninguna parte, es que el `position()`
-    // casa por SUBCADENA sobre un campo de tres valores: `ni` está dentro de `niño`, `niña` **y**
-    // `unisex`, así que buscar `ni` devuelve el catálogo completo (16.844 de 16.844; sin el género
-    // serían 2.426) y `nin` devuelve el 88 % (14.918). Eso es #408, y se arregla con la búsqueda
-    // facetada o acotando el género a palabra completa, no aquí.
-    //
-    // Un falso positivo que NO existe, por si alguien viene a buscarlo: un término no puede casar a
-    // caballo entre el nombre, la categoría y el género, porque las costuras son espacios y los
-    // términos salen de partir por espacios.
-    const terms = (q.q ?? '').split(/\s+/).filter(Boolean);
-    const haystack = fold(
-      sql`p.name || ' ' || coalesce(p.category, '') || ' ' || coalesce(p.gender, '')`,
-    );
-    const search = terms.length
-      ? sql.join(
-          terms.map((t) => sql`position(${fold(sql`${t}`)} in ${haystack}) > 0`),
-          sql` AND `,
-        )
-      : sql`TRUE`;
+    // Búsqueda por texto (#28), con el género por palabra completa desde #408. El porqué de las dos
+    // mitades —y lo que #229 midió y hay que preservar— está en `searchCondition`, que es la misma
+    // que usan las facetas.
+    const search = searchCondition(q.q, 'p');
 
     // Orden traducido a SQL (whitelist en el DTO). "ofertas" = la oferta **real** primero, después
     // stock, y el descuento honesto (contra el PVP creíble) como criterio; el `discount_pct` que
     // declara la tienda queda de mero desempate porque es justo el dato del que desconfiamos.
     // El id, desempate estable para que la paginación por offset no repita ni se salte filas.
+    //
+    // El precio ordena por `price_repr` y no por `price_from` (#402): es el que la tarjeta pinta, y
+    // ordenar por una columna mientras se enseña otra es peor que el defecto que #402 vino a
+    // arreglar. Ver `PRECIO_DESDE`, donde está el porqué de los dos.
     const orderBy = {
       'ofertas': sql`is_real_deal DESC, any_in_stock DESC, honest_discount DESC NULLS LAST,
                      max_discount DESC NULLS LAST, id`,
-      'precio-asc': sql`price_from ASC NULLS LAST, id`,
-      'precio-desc': sql`price_from DESC NULLS LAST, id`,
+      'precio-asc': sql`${PRECIO_DESDE} ASC NULLS LAST, id`,
+      'precio-desc': sql`${PRECIO_DESDE} DESC NULLS LAST, id`,
       'descuento': sql`max_discount DESC NULLS LAST, id`,
     }[q.sort];
 
@@ -496,13 +574,18 @@ export class CatalogService {
                            ORDER BY ph.scraped_at DESC LIMIT 1) = ${inStock})
              ) AS variant_count
         FROM scored
-      -- El rango de precio (#290) va AQUÍ, junto a onlyDeals: price_from es un MIN() que solo
-      -- existe tras el GROUP BY de agg, y filtrarlo después del LIMIT —o peor, en el servicio
-      -- sobre la página ya recortada— rompería la paginación por offset, que es el mismo argumento
-      -- ya escrito en #228. Extremos incluidos: quien pide "hasta 20 EUR" espera ver los de 20.
+      -- El rango de precio (#290) va AQUÍ, junto a onlyDeals: el "desde" solo existe tras el
+      -- GROUP BY de agg, y filtrarlo después del LIMIT —o peor, en el servicio sobre la página ya
+      -- recortada— rompería la paginación por offset, que es el mismo argumento ya escrito en #228.
+      -- Extremos incluidos: quien pide "hasta 20 EUR" espera ver los de 20.
+      --
+      -- Filtra por el MISMO valor que se pinta y que ordena (#402): si el rango siguiera mirando
+      -- price_from, "hasta 20 EUR" devolvería prendas cuya tarjeta dice 40 porque su talla de 10
+      -- está agotada. Son 28 productos en QA, pero es exactamente la clase de fila que hace que un
+      -- filtro deje de ser creíble.
       WHERE (${onlyDeals}::boolean IS NOT TRUE OR is_real_deal)
-        AND (${minPrice}::numeric IS NULL OR price_from >= ${minPrice})
-        AND (${maxPrice}::numeric IS NULL OR price_from <= ${maxPrice})
+        AND (${minPrice}::numeric IS NULL OR ${PRECIO_DESDE} >= ${minPrice})
+        AND (${maxPrice}::numeric IS NULL OR ${PRECIO_DESDE} <= ${maxPrice})
       ORDER BY ${orderBy}
       LIMIT ${q.limit} OFFSET ${q.offset}
     `);
@@ -539,7 +622,9 @@ export class CatalogService {
       url: (row.url as string | null) ?? null,
       imageUrl: (row.image_url as string | null) ?? null,
       colorRepr: (row.color_repr as string | null) ?? null,
-      priceFrom: (row.price_from as string | null) ?? null,
+      // El "desde" es `price_repr`, no `price_from` (#402). El nombre del campo de la API no se
+      // mueve —lo que cambia es lo que significa—, y el porqué está en `PRECIO_DESDE`.
+      priceFrom: (row.price_repr as string | null) ?? null,
       listFrom: (row.list_from as string | null) ?? null,
       discountFrom: (row.discount_from as string | null) ?? null,
       maxDiscount: (row.max_discount as string | null) ?? null,
@@ -872,20 +957,10 @@ export class CatalogService {
     const color = q.color ?? null;
     const retailer = q.retailer ?? null;
 
-    // Mismo plegado y misma forma que la búsqueda del listado, a propósito: si el buscador y la
-    // faceta no entendieran lo tecleado igual, el panel volvería a ofrecer chips vacíos. Por eso el
-    // género también entra aquí, y por eso el porqué —con lo que se midió en #229— está escrito una
-    // sola vez, en `listProducts`: son el mismo criterio y tienen que moverse juntos.
-    const terms = (q.q ?? '').split(/\s+/).filter(Boolean);
-    const haystack = fold(
-      sql`p.name || ' ' || coalesce(p.category, '') || ' ' || coalesce(p.gender, '')`,
-    );
-    const search = terms.length
-      ? sql.join(
-          terms.map((t) => sql`position(${fold(sql`${t}`)} in ${haystack}) > 0`),
-          sql` AND `,
-        )
-      : sql`TRUE`;
+    // La MISMA que el listado, no una copia con la misma forma (#408): si el buscador y la faceta
+    // no entendieran lo tecleado igual, el panel volvería a ofrecer chips vacíos. Eran dos copias
+    // literales y un comentario pidiendo que se movieran juntas; ahora es una función.
+    const search = searchCondition(q.q, 'p');
 
     /** El eje que la faceta que se está pidiendo NO debe acotarse a sí misma. */
     type Eje = 'gender' | 'category' | 'size' | 'sizeExact' | 'color' | 'retailer';

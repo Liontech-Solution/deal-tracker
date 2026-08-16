@@ -36,7 +36,11 @@ export class FavoritesService {
         imageUrl: product.imageUrl,
         delistedAt: product.delistedAt,
         retailerName: retailer.name,
-        priceFrom: productAgg.priceFrom,
+        // `price_repr` y no `price_from`, igual que la tarjeta desde #402: es lo más barato
+        // COMPRABLE, con respaldo al mínimo a secas cuando no hay nada con stock. Leer aquí la otra
+        // columna volvería a separar las dos pantallas, que es lo que el comentario del JOIN de
+        // abajo lleva pidiendo desde #435.
+        priceFrom: productAgg.priceRepr,
         // ¿Hay ya un seguimiento ACTIVO de este mismo producto? Subconsulta y no un LEFT JOIN a
         // `interest` porque un join multiplicaría la fila del favorito por cada interés que case, y
         // esta lista tiene que devolver exactamente un favorito por corazón.
