@@ -46,6 +46,7 @@ from scraper.stores.hm import (
     CATEGORIES,
     CategoryConfig,
     HMStore,
+    TagLeaf,
     _ambito,
     _talla,
     es_espejismo,
@@ -447,8 +448,18 @@ def _handler(
     return handler
 
 
-def _store(paginas: dict[tuple[str, int], str], cats: list[CategoryConfig], **kw: Any) -> HMStore:
-    store = HMStore(_CFG, cats)
+def _store(
+    paginas: dict[tuple[str, int], str],
+    cats: list[CategoryConfig],
+    tag_leaves: list[TagLeaf] | None = None,
+    **kw: Any,
+) -> HMStore:
+    """Sin hojas de etiqueta salvo que el test las pida.
+
+    Con las cuatro de serie, cada test pagaría cuatro peticiones que le responde el canario y que
+    no está mirando; las de etiqueta tienen sus propios tests, más abajo.
+    """
+    store = HMStore(_CFG, cats, tag_leaves=tag_leaves if tag_leaves is not None else [])
     store._client = lambda: httpx.Client(  # type: ignore[method-assign]
         transport=httpx.MockTransport(_handler(paginas, **kw))
     )
@@ -568,7 +579,10 @@ def test_check_leaves_no_sentencia_lo_que_no_ha_podido_mirar() -> None:
             return httpx.Response(200, json=load_fixture(_CANARIO))
         return httpx.Response(500)
 
-    store = HMStore(_CFG, [_CAT_NINO])
+    # Sin hojas de etiqueta: aquí se mira el camino de las hojas de categoría, y las de etiqueta
+    # tienen su propio test. Con las cuatro de serie esto seguiría pasando —también salen `None`,
+    # que es lo correcto— pero dejaría de decir qué se está comprobando.
+    store = HMStore(_CFG, [_CAT_NINO], tag_leaves=[])
     store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
     hojas = list(store.check_leaves())
     assert [h.alive for h in hojas] == [None]
@@ -666,3 +680,59 @@ def test_bebe_y_recien_nacido_van_a_las_mismas_categorias_que_el_resto() -> None
     de_bebe = {c.category for c in CATEGORIES if c.page_id.startswith("/baby/")}
     de_ninos = {c.category for c in CATEGORIES if c.page_id.startswith("/kids/")}
     assert de_bebe <= de_ninos
+
+
+# --------------------------------------------------------------------------------------
+# Las hojas de etiqueta: marcan el eje `deportiva` sin ingerir nada (#208)
+# --------------------------------------------------------------------------------------
+
+_DEPORTE = TagLeaf("/kids/boys/sportswear", "niño", "deportiva")
+
+
+def test_la_hoja_de_etiqueta_marca_sin_ingerir_ni_crear_ambito() -> None:
+    """Lo que la hace transversal: aporta el eje y **nada más**.
+
+    Se reutiliza la fixture de pantalones de niño como si fuera la rama de deporte: lo que se mira
+    aquí no es qué prendas trae, sino que sus modelos salgan marcados y que la hoja no aparezca por
+    ningún otro lado — ni emitiendo entradas, ni en `scopes()`, ni en el `ScanReport`.
+    """
+    store = _store(
+        {(_CAT_NINA.page_id, 1): _NINA, (_DEPORTE.page_id, 1): _NINO_P1},
+        [_CAT_NINA],
+        tag_leaves=[_DEPORTE],
+    )
+    ids = {e.retailer_product_id for e in store.list_catalog()}
+    tags = store.product_tags()
+
+    marcados = set(tags.por_producto)
+    assert marcados, "la hoja de etiqueta tiene que haber marcado algo"
+    assert all(t == {"deportiva"} for t in tags.por_producto.values())
+    assert "deportiva" in tags.fiables, "se listó entera y sin fallos"
+    # No ingiere: sus modelos exclusivos no entran al catálogo por esta puerta.
+    assert marcados - ids, "la fixture trae modelos que no publica la hoja de categoría"
+    # Y no tiene ámbito: no puede provocar bajas ni contar como hoja de la pasada.
+    assert store.scan_report().leaves_total == 1
+    assert all(s.category is not None for s in store.scopes())
+
+
+def test_una_hoja_de_etiqueta_espejismo_no_borra_las_marcas_de_toda_la_tienda() -> None:
+    """El fallo silencioso que `fiables` existe para evitar.
+
+    La reconciliación de la ingesta BORRA las etiquetas que la tienda ya no declara. Si una rama
+    caída se leyera como «H&M ya no publica nada deportivo», se llevaría por delante las marcas de
+    los 156 productos que sí lo son. Aquí la señal de rama caída es el canario, no una lista vacía:
+    la ruta que no resuelve devuelve 200 con el cubo entero.
+    """
+    store = _store(
+        {(_CAT_NINA.page_id, 1): _NINA},  # la de deporte cae al canario -> espejismo
+        [_CAT_NINA],
+        tag_leaves=[_DEPORTE],
+    )
+    list(store.list_catalog())
+    tags = store.product_tags()
+
+    assert "deportiva" not in tags.fiables, "no se puede reconciliar lo que no se ha podido leer"
+    # Y la pasada sigue adelante: la hoja de etiqueta no compromete ningún ámbito ni cuenta como
+    # caída, porque no tiene ámbito que comprometer.
+    assert store.scan_report().leaves_failed == 0
+    assert store.scan_report().failed_scopes == set()

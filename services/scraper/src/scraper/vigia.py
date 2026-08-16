@@ -251,10 +251,18 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
     # `vestidos` en Lefties y aquí no. Conviene que se lean así (mismo formato que #187 en
     # springfield): el día que se resuelva, esas entradas se van y la rama pasa a `CATEGORIES`.
     #
-    # `sport`/`sportswear` es distinto de los monos y por eso cambió de motivo en #180: ahí la
-    # decisión YA está tomada —el eje `deportiva` existe y lo alimentan Sfera, Lefties y C&A— y lo
-    # que falta es sumar esta tienda, que son 8 ramas con 12-15 hijas cada una y no cabían en la
-    # misma sesión. O sea que aquí no queda nada que decidir, solo trabajo por hacer.
+    # `sportswear` **ya no está aquí** (#208): las cuatro ramas son hojas de etiqueta
+    # (`hm.HOJAS_ETIQUETA`) desde que alimentan el eje `deportiva`, así que salen por
+    # `mapped_leaves()` y esta capa ya no las ve como hueco. Lo medido el 16/08/2026 es lo mismo que
+    # enseñaron C&A y Lefties: de sus 224 modelos, **156 (69,6 %) ya entran** por `pantalones`,
+    # `camisetas`, `vestidos` y compañía — o sea que como categoría no aportaban casi nada, y como
+    # eje sí, porque es la tienda quien dice que esa prenda es deportiva.
+    #
+    # Lo que SÍ sigue declarado son las cuatro `clothing/sport`, **y con otro motivo**: medidas
+    # contra el canario ese mismo día, las cuatro devuelven el cubo de `kids_all`. No son hojas que
+    # no ingiramos, son rutas que **no resuelven**: están en el menú y no existen como página. El
+    # motivo viejo («el eje existe, falta esta tienda») mandaba a hacer un trabajo que no se puede
+    # hacer, que es la clase de entrada caducada que esta lista existe para no acumular.
     "hm": {
         # --- niño 2-8 (/kids/boys) ---
         "/kids/boys/accessories": "complementos: ni ropa ni calzado (8)",
@@ -269,13 +277,12 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/boys/clothing/multipacks": "packs: varias prendas en una referencia (1)",
         "/kids/boys/clothing/party-occasion": "vista transversal por ocasión (1)",
         "/kids/boys/clothing/socks": "calcetines: fuera del brief (1)",
-        "/kids/boys/clothing/sport": "deportiva: el eje existe, falta esta tienda; #180 (1)",
+        "/kids/boys/clothing/sport": "espejismo: devuelve el cubo de `kids_all`; #208",
         "/kids/boys/clothing/swimwear": "baño: fuera del brief (1)",
         "/kids/boys/clothing/view-all": "«Ver todo»: la rama entera (1)",
         "/kids/boys/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
         "/kids/boys/outerwear": "abrigo: fuera del brief (9)",
         "/kids/boys/school": "uniforme: medido, 43 de 45 ya entran por su categoría; #189 (12)",
-        "/kids/boys/sportswear": "deportiva: el eje existe, falta esta tienda; #180 (12)",
         # --- niño 9-14 (/kids/boys-9-14y) ---
         "/kids/boys-9-14y/accessories": "complementos: ni ropa ni calzado (8)",
         "/kids/boys-9-14y/clothing/basics": "«Básicos»: reagrupa lo ya ingerido (1)",
@@ -288,11 +295,10 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/boys-9-14y/clothing/multipacks": "packs: varias prendas en una referencia (1)",
         "/kids/boys-9-14y/clothing/party-occasion": "vista transversal por ocasión (1)",
         "/kids/boys-9-14y/clothing/socks": "calcetines: fuera del brief (1)",
-        "/kids/boys-9-14y/clothing/sport": "deportiva: el eje existe, falta esta tienda; #180 (1)",
+        "/kids/boys-9-14y/clothing/sport": "espejismo: devuelve el cubo de `kids_all`; #208",
         "/kids/boys-9-14y/clothing/swimwear": "baño: fuera del brief (1)",
         "/kids/boys-9-14y/clothing/view-all": "«Ver todo»: la rama entera (1)",
         "/kids/boys-9-14y/outerwear": "abrigo: fuera del brief (9)",
-        "/kids/boys-9-14y/sportswear": "deportiva: el eje existe, falta esta tienda; #180 (12)",
         "/kids/boys-9-14y/swimwear1": "baño: fuera del brief (1)",
         # --- niña 2-8 (/kids/girls) ---
         "/kids/girls/accessories": "complementos: ni ropa ni calzado (8)",
@@ -307,13 +313,12 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/girls/clothing/multipacks": "packs: varias prendas en una referencia (1)",
         "/kids/girls/clothing/party-occasion": "vista transversal por ocasión (1)",
         "/kids/girls/clothing/socks-tights": "calcetines: fuera del brief (1)",
-        "/kids/girls/clothing/sport": "deportiva: el eje existe, falta esta tienda; #180 (1)",
+        "/kids/girls/clothing/sport": "espejismo: devuelve el cubo de `kids_all`; #208",
         "/kids/girls/clothing/swimwear": "baño: fuera del brief (1)",
         "/kids/girls/clothing/view-all": "«Ver todo»: la rama entera (1)",
         "/kids/girls/h-m-adorables": "campaña «H&M Adorables», no categoría (1)",
         "/kids/girls/outerwear": "abrigo: fuera del brief (11)",
         "/kids/girls/school": "uniforme: medido, las 22 del brief ya entran; #189 (15)",
-        "/kids/girls/sportswear": "deportiva: el eje existe, falta esta tienda; #180 (15)",
         # --- niña 9-14 (/kids/girls-9-14y) ---
         "/kids/girls-9-14y/accessories": "complementos: ni ropa ni calzado (8)",
         "/kids/girls-9-14y/body-hair": "cuidado personal: no es ropa (1)",
@@ -327,11 +332,10 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         "/kids/girls-9-14y/clothing/multipacks": "packs: varias prendas en una referencia (1)",
         "/kids/girls-9-14y/clothing/party-occasion": "vista transversal por ocasión (1)",
         "/kids/girls-9-14y/clothing/socks-tights": "calcetines: fuera del brief (1)",
-        "/kids/girls-9-14y/clothing/sport": "deportiva: el eje existe, falta esta tienda; #180 (1)",
+        "/kids/girls-9-14y/clothing/sport": "espejismo: devuelve el cubo de `kids_all`; #208",
         "/kids/girls-9-14y/clothing/swimwear": "baño: fuera del brief (1)",
         "/kids/girls-9-14y/clothing/view-all": "«Ver todo»: la rama entera (1)",
         "/kids/girls-9-14y/outerwear": "abrigo: fuera del brief (10)",
-        "/kids/girls-9-14y/sportswear": "deportiva: el eje existe, falta esta tienda; #180 (15)",
         "/kids/girls-9-14y/swimwear1": "baño: fuera del brief (1)",
         # --- bebé niño (/baby/boys) ---
         "/baby/boys/accessories": "complementos: ni ropa ni calzado (5)",

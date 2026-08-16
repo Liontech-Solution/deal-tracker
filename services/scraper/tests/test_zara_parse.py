@@ -35,7 +35,10 @@ _CAT = next(
 )
 _DOMAIN = {"gender": _CAT.gender, "section": _CAT.section, "category": _CAT.category}
 # Los ámbitos que la tienda declara, que es lo que `list_catalog()` le pasa al residuo.
-_DECLARADOS = [ScrapeScope(c.gender, c.section, c.category) for c in CATEGORIES]
+# Tal y como los declara la tienda, no como se leen de `CATEGORIES`: desde #356 una hoja
+# `por_familia` no tiene ámbito propio sino todos los que su tabla puede emitir, y esa diferencia es
+# justo lo que `parse_listing_leftovers` mira. Derivarlo aquí a mano volvería a inventar la lista.
+_DECLARADOS = list(ZaraStore(Config(database_url="x", request_delay=0.0)).scopes())
 # Hoja de ropa (niña / pantalones) para comprobar que el parsing común también la cubre.
 _CAT_ROPA = next(
     c
@@ -449,11 +452,35 @@ def test_bebe_va_despues_de_las_hojas_con_genero() -> None:
     once hojas, 612 ya entraban por una hoja con género. Aquí gana la hoja CON género —es la que
     la web puede filtrar—, así que bebé va detrás. Invertirlo dejaría esos 612 como `unisex` y,
     de paso, los contaría como mudanza de ámbito en la primera pasada (#174).
+
+    Las hojas de saldo (#356) quedan fuera de este invariante y no lo debilitan: no tienen
+    categoría que disputar —la decide la familia— y se emiten al final de la pasada por el camino
+    del residuo, así que nunca le quitan el ámbito a nadie. Su orden lo fija su propio test.
     """
-    bebe = [i for i, c in enumerate(CATEGORIES) if c.gender == "unisex"]
-    con_genero = [i for i, c in enumerate(CATEGORIES) if c.gender != "unisex"]
+    categorizadas = [c for c in CATEGORIES if not c.por_familia]
+    bebe = [i for i, c in enumerate(categorizadas) if c.gender == "unisex"]
+    con_genero = [i for i, c in enumerate(categorizadas) if c.gender != "unisex"]
     assert bebe, "debe haber hojas de bebé"
     assert min(bebe) > max(con_genero)
+
+
+def test_las_hojas_de_saldo_van_las_ultimas_y_son_estacionales() -> None:
+    """El orden que hace barata la decisión de #356, y la marca que evita la issue semanal.
+
+    Las de saldo mezclan vocabulario y publican 3330 productos de los que 2087 ya entran por otra
+    hoja (medido el 16/08/2026). Yendo detrás de TODO, el residuo solo emite lo que nadie reclamó,
+    así que ninguno de esos 2087 puede cambiar de categoría ni de género por salir rebajado.
+
+    Y `estacional` no es decorativo: sin él, el fin de campaña apaga las 33 a la vez, `dead_ratio`
+    llega al 35 % y aborta la pasada de una tienda sana (ver `list_catalog`).
+    """
+    saldo = [i for i, c in enumerate(CATEGORIES) if c.por_familia]
+    resto = [i for i, c in enumerate(CATEGORIES) if not c.por_familia]
+    assert saldo, "debe haber hojas de saldo"
+    assert min(saldo) > max(resto), "las de saldo van detrás de todas las categorizadas"
+    assert all(CATEGORIES[i].estacional for i in saldo)
+    # Sin categoría ni sección: quien las decide es la familia de cada producto, no la hoja.
+    assert all(CATEGORIES[i].section == "" and CATEGORIES[i].category == "" for i in saldo)
 
 
 def _listado_con(*product_ids: str) -> dict[str, object]:
@@ -686,7 +713,7 @@ def test_familia_base_aguanta_la_tilde_que_hoy_no_existe() -> None:
     """
     assert _familia_base("PANTALÓN BEBÉ") == "PANTALON"
     assert _familia_base("JERSEY BEBÉ") == "JERSEY"
-    assert _FAMILIA_RESIDUAL[_familia_base("PANTALÓN BEBÉ")] == "pantalones"
+    assert _FAMILIA_RESIDUAL[_familia_base("PANTALÓN BEBÉ")] == ("ropa", "pantalones")
 
 
 def test_familia_base_no_da_por_hecho_el_espacio() -> None:
@@ -722,16 +749,23 @@ def test_familia_base_no_mueve_ni_un_producto_de_los_de_hoy() -> None:
     el catálogo, no la base: `PRENDA EXT.BEBE` cambia de base y sigue descartándose igual.
     """
     for familia, destino in [
-        ("PANTALON", "pantalones"),
-        ("PANTALON BEBE", "pantalones"),
-        ("LEGGINGS BEBE", "pantalones"),
-        ("BERMUDA BEBE", "pantalones"),
-        ("JERSEY BEBE", "sudaderas"),
-        ("CAMISETA BEBE", "camisetas"),
-        ("PELELE BEBE", "vestidos"),
-        ("FALDA BEBE", "vestidos"),
-        ("PETO BEBE", "vestidos"),
-        ("BODY BEBE", "ropa-interior"),
+        ("PANTALON", ("ropa", "pantalones")),
+        ("PANTALON BEBE", ("ropa", "pantalones")),
+        ("LEGGINGS BEBE", ("ropa", "pantalones")),
+        ("BERMUDA BEBE", ("ropa", "pantalones")),
+        ("JERSEY BEBE", ("ropa", "sudaderas")),
+        ("CAMISETA BEBE", ("ropa", "camisetas")),
+        ("PELELE BEBE", ("ropa", "vestidos")),
+        ("FALDA BEBE", ("ropa", "vestidos")),
+        ("PETO BEBE", ("ropa", "vestidos")),
+        ("BODY BEBE", ("ropa", "ropa-interior")),
+        # Las cuatro que #356 movió de la lista de abajo a la tabla, al medir la rama de saldo.
+        # Siguen aquí y no allí a propósito: son la prueba de que el cambio de #356 es un cambio
+        # de tabla y no de mecanismo — `_familia_base` les da la misma base que siempre.
+        ("CHANDAL BEBE", ("ropa", "conjuntos")),
+        ("VESTIDO BEBE", ("ropa", "vestidos")),
+        ("CAMISA BEBE", ("ropa", "camisetas")),
+        ("BAMBAS", ("zapateria", "zapatillas")),
     ]:
         assert _FAMILIA_RESIDUAL.get(_familia_base(familia)) == destino, familia
 
@@ -741,11 +775,108 @@ def test_familia_base_no_mueve_ni_un_producto_de_los_de_hoy() -> None:
         "CAZADORA BEBE",
         "PRENDA EXT.BEBE",
         "BRAGA/CALZONC.BEBE",
-        "CHANDAL BEBE",
-        "VESTIDO BEBE",
-        "CAMISA BEBE",
         "NEWBORN",
-        "BAMBAS",
         "",
     ]:
         assert _FAMILIA_RESIDUAL.get(_familia_base(familia)) is None, familia
+
+
+# --- las hojas de saldo (#356) ---------------------------------------------------------------
+
+_SALDO_BEBE = next(c for c in CATEGORIES if c.category_id == 2721427)
+
+
+def test_la_hoja_de_saldo_saca_seccion_y_categoria_de_la_familia() -> None:
+    """Una hoja `por_familia` no dice qué es cada prenda; lo dice la taxonomía de la tienda.
+
+    El fixture es real: `BEBÉ > REBAJAS > ZAPATOS | BOLSOS` (2721427), la hoja que mejor enseña el
+    caso porque mezcla las dos cosas que la tabla tiene que separar. Y enseña de paso por qué la
+    rama de saldo importa en este producto concreto: tres de sus cinco prendas son **barefoot**, y
+    la rama de bebé no tiene hoja barefoot propia (ver la nota de `CATEGORIES`), así que sin esto
+    no se veían por ningún lado.
+    """
+    listing = load_fixture("zara_category_2721427_saldo_bebe.json")
+    entradas = {e.retailer_product_id: e for e in parse_listing_entries(listing, _SALDO_BEBE)}
+    residuo = {
+        e.retailer_product_id: e for e in parse_listing_leftovers(listing, _SALDO_BEBE, _DECLARADOS)
+    }
+
+    # La hoja no emite nada por la vía normal: no tiene categoría que dar.
+    assert entradas == {}
+
+    assert (residuo["578290048"].section, residuo["578290048"].category) == (
+        "zapateria",
+        "zapatillas",
+    )  # BAMBAS
+    assert (residuo["569134510"].section, residuo["569134510"].category) == (
+        "zapateria",
+        "sandalias",
+    )  # SANDALIA
+    assert (residuo["555475078"].section, residuo["555475078"].category) == (
+        "zapateria",
+        "zapatos",
+    )  # ZAPATO
+    # El género SÍ es de la hoja: la rama de bebé no separa niño de niña.
+    assert residuo["578290048"].gender == "unisex"
+
+
+def test_la_hoja_de_saldo_descarta_lo_que_no_es_del_brief() -> None:
+    """La mitad conservadora: la rama de saldo es el saldo de la TIENDA, no de su ropa.
+
+    Medido el 16/08/2026: de los 1243 productos que la rama trae y no teníamos, 496 están fuera del
+    brief —bolsos, gorros, colonia, maquillaje, toallas—. Una familia que no esté en la tabla se
+    descarta, y eso es lo que impide que un cambio de campaña meta perfumería en el catálogo.
+    """
+    listing = load_fixture("zara_category_2721427_saldo_bebe.json")
+    residuo = {
+        e.retailer_product_id for e in parse_listing_leftovers(listing, _SALDO_BEBE, _DECLARADOS)
+    }
+    assert "554734587" not in residuo  # familia BOLSOS: «SET DE MATERNIDAD CUADROS»
+
+
+def test_la_hoja_de_saldo_no_inventa_un_ambito_que_la_tienda_no_publica() -> None:
+    """`vestidos` no existe para niño en esta tienda, y la tabla puede fabricarlo.
+
+    Son 32 productos medidos el 16/08/2026 en la rama de saldo de niño: `PELELE` y `PETO`, que la
+    tabla manda a `vestidos` por coherencia con la hoja `PETOS | MONOS`. Se descartan. La prenda
+    perdida sale más barata que un ámbito que ningún filtro de la web sabe enseñar, y que además
+    nunca podría darse de baja (ver `parse_listing_leftovers`).
+    """
+    saldo_nino = next(c for c in CATEGORIES if c.por_familia and c.gender == "niño")
+    saldo_nina = next(c for c in CATEGORIES if c.por_familia and c.gender == "niña")
+    peto = {
+        "productGroups": [
+            {
+                "elements": [
+                    {
+                        "commercialComponents": [
+                            {
+                                "seo": {"discernProductId": "999"},
+                                "familyName": "PETO BEBE",
+                                "name": "PETO VAQUERO",
+                                "detail": {"colors": [{"id": "1", "price": 1599}]},
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+    assert parse_listing_leftovers(peto, saldo_nino, _DECLARADOS) == []
+    recogido = parse_listing_leftovers(peto, saldo_nina, _DECLARADOS)
+    assert [e.category for e in recogido] == ["vestidos"]
+
+
+def test_los_ambitos_de_calzado_que_estrena_el_saldo_estan_declarados() -> None:
+    """Sin declararlos, el guardarraíl los mata: son ámbitos que ninguna hoja de `CATEGORIES` tiene.
+
+    Y declararlos es obligatorio en los dos sentidos: un ámbito que `scopes()` no devuelve no entra
+    en `safe_scopes` (`ingest.py`), así que sus productos no se podrían dar de baja **jamás**.
+    """
+    scopes = set(ZaraStore(Config(database_url="x", request_delay=0.0)).scopes())
+    for gender in ("niña", "niño", "unisex"):
+        assert ScrapeScope(gender, "zapateria", "sandalias") in scopes
+        assert ScrapeScope(gender, "zapateria", "botas") in scopes
+    assert ScrapeScope("unisex", "zapateria", "zapatillas") in scopes
+    # Y lo que NO se declara, que es la otra mitad de la decisión.
+    assert ScrapeScope("niño", "ropa", "vestidos") not in scopes

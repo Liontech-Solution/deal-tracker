@@ -4639,11 +4639,39 @@ padre se deja fuera 46 prendas, casi un cuarto. El «146» que circula por #180 
 declaraciones del vigía es la cifra del padre, no la de la rama. Las hijas se resuelven del menú en
 ejecución, que la pasada ya se descarga, en vez de escribirse.
 
-**La limitación honesta es la cobertura**: solo cinco de las nueve tiendas publican un cajón de
-deporte identificable. Zara, Hipercor, Springfield y Cacles no lo dicen, así que filtrar por el eje
-las excluye enteras. Eso no es un hueco que se rellene solo, y por eso la SPA lo dice en el propio
-interruptor en vez de esconderlo. Vacío **no** significa «no es deportiva»: significa «su tienda no
-lo declara», y ningún consumidor debe leerlo como una negación.
+**Esa trampa no es de Lefties: es de cualquier padre, y hay que medirla en cada tienda porque el
+resultado va de exacto a catastrófico.** Las tres medidas que hay (16/08/2026 las dos nuevas):
+
+| tienda | rama | padre | unión de sus hijas |
+|---|---|---:|---:|
+| Lefties | niña / niño | 77 / 69 | 93 / 99 |
+| H&M | `/kids/boys/sportswear` | **81** | **81** |
+| Zara | `REBAJAS` niño 6-14 | **8** | **749** |
+| Zara | `REBAJAS` niño mini | **7** | **650** |
+
+H&M es el caso bueno y es lo que convirtió #208 de ~50 peticiones por pasada en 4: el padre está
+exacto contra sus 11 hijas y además coincide con su propio `view-all`. Zara es el caso extremo y el
+que enseña por qué no basta con desconfiar «un poco» — sus dos ramas de saldo de niño servían OCHO
+y SIETE productos teniendo 749 y 650 detrás, así que la asimetría niña/niño que parecía un dato de
+catálogo era un artefacto del padre. La consecuencia de método: **un recuento de padre no es una
+medida de la rama hasta que se ha cruzado contra sus hijas**, y eso vale tanto para decidir si una
+rama merece mapearse como para escribir su cifra en una issue.
+
+**La limitación honesta es la cobertura**, y se estrecha de una en una. Lo alimentan **Sfera,
+Lefties, C&A y H&M** (#208, 16/08/2026); Zara, Hipercor, Springfield, Cacles y Deditos no publican
+ningún cajón identificable, así que filtrar por el eje las excluye enteras. Eso no es un hueco que
+se rellene solo, y por eso la SPA lo dice en el propio interruptor en vez de esconderlo. Vacío **no**
+significa «no es deportiva»: significa «su tienda no lo declara», y ningún consumidor debe leerlo
+como una negación.
+
+**Y Mango está medido y descartado a propósito, que no es lo mismo que «falta».** `dest_chandal_*`
+invita a mapearla —se rotula «kids.colecciones.ropadeportiva»— y el 16/08/2026 publica 46 productos
+en `nino`, 35 en `babynino`, 9 en `babynina` y un **404 en `nina`**. El motivo de fondo para dejarla
+fuera no es que rote con la campaña, es **a quién deja fuera**: un eje que la tienda aplica a niño y
+no a niña no es un eje, es un escaparate, y marcarlo haría que filtrar por «ropa deportiva»
+devolviera un catálogo de niño. Sumar una fuente asimétrica empeora el eje en vez de mejorarlo, y la
+advertencia de cobertura del interruptor es más honesta que eso. Es el mismo criterio con el que se
+rechazó la categoría `ropa-deportiva` en su día, aplicado ahora a una fuente del eje.
 
 ### Local
 
