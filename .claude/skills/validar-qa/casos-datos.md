@@ -232,6 +232,46 @@ Fíjate en que se parte de `retailer` con `LEFT JOIN`, igual que en D2 y por el 
 tienda con **cero productos** desaparece de un `JOIN` normal, y esa es precisamente la que hay que
 ver. Un `activos = 0` aquí es **P0**, y se corresponde con una tienda ausente de `/catalog/facets`.
 
+### D7b · y además resuelven: `image_url` poblada no es `image_url` viva
+
+D7 comprueba que el campo no sea nulo, y **una URL muerta pasa esa comprobación**. Por ahí se
+colaron las fotos de Cacles de #429: `image_url` al 100 % en las nueve tiendas y aun así ~12 % de su
+catálogo saliendo «SIN FOTO» en la tarjeta y en la ficha.
+
+```sql
+SELECT r.slug, p.image_url,
+       round(extract(epoch FROM (p.last_seen_at - p.last_detail_at))/86400) AS desfase
+FROM product p JOIN retailer r ON r.id = p.retailer_id
+WHERE p.delisted_at IS NULL AND p.image_url IS NOT NULL;
+```
+
+Muestrea por tienda (40 basta para ver un 10 %; Cacles entero son 424) y resuelve cada URL con un
+`HEAD`. **Tres reglas, y las tres se aprendieron fallando** (16/08/2026):
+
+- **Secuencial y con pausa.** A 6 en paralelo salieron 403 en 40/40 de Zara y 38/40 de Lefties, y
+  las mismas URL dieron 200 una a una. Medido así, este caso habría escrito un P0 sobre dos
+  catálogos enteros que están perfectamente.
+- **Solo `404`/`410` cuenta como muerta, y reintentando una vez.** Un 403, un 429, un 5xx o un
+  timeout son ritmo nuestro: van a «sin veredicto», que se reporta aparte y **no** es un hallazgo.
+  De los 9 403 de Zara, 2 dieron 200 al reintentar.
+- **La cifra es por tienda**, no global: el 11,6 % de Cacles desaparece diluido entre 16.844
+  productos.
+
+**P0 por encima del 20 % en una tienda** (mismo listón que D7: un catálogo sin fotos no es usable),
+**P1 entre el 5 % y el 20 %**, **P2 por debajo**. Y `sin veredicto > 25 %` en una tienda **no es un
+hallazgo, es una medición inválida**: se repite más despacio.
+
+**Cruza siempre con el desfase**, que es lo que separa las dos causas posibles y evita acusar a la
+tienda de lo que es nuestro:
+
+| desfase `last_seen_at - last_detail_at` | qué significa una foto muerta ahí |
+|---|---|
+| bajo (el producto pasó por detalle hace poco) | la **tienda** publica una URL que su CDN no sirve. Lo mismo que caza `⚠ [fotos]` del vigía |
+| alto | **nuestra** fila envejecida: el producto no vuelve a pasar por detalle, así que `image_url` no se reescribe (`_needs_detail`, `ingest.py`). Es #443, y mientras siga abierta esta es la causa probable |
+
+Medido en Cacles el 16/08/2026, y por eso el cruce está aquí: **49 de 424 muertas (11,6 %), y las
+49 con desfase ≥ 9 días**. Entre los 187 productos con detalle de ≤ 6 días, **cero**.
+
 ### Y de qué CDN salen: ningún host fuera de la tabla de anchos
 
 Las fotos van hotlinked desde el CDN de cada tienda, y a cada uno hay que pedirle el ancho con el
