@@ -1468,15 +1468,33 @@ publicada que no cubrimos», que es una decisión de alcance de producto pendien
 indistinguibles, `banadores-bebe` —cinco prendas de bebé, etiquetadas `prioridad-4` por el propio
 equipo— bloqueó v0.1.7 y v0.1.8 al mismo nivel que una tienda caída.
 
-Desde entonces `revisar_cobertura` y el aviso estacional marcan su hallazgo (`MARCA_COBERTURA`,
-`MARCA_ESTACIONAL`), y **eso convierte la salida del vigía en un contrato con un consumidor fuera de
-este código**: el listón de la skill lee la marca, no la frase. La consecuencia práctica para quien
-toque `vigia.py` es que reescribir esos dos mensajes sin la marca degrada la puerta de la release en
-silencio, así que hay un test que los fija — la del estacional ya estaba sujeta, la de cobertura no
-lo estaba por nada, y esa asimetría era justamente el agujero. Regla resultante: `✖` sin marca es
-P0; `✖ [cobertura]` es P1 salvo que la hoja caiga en una de las cinco del brief, y entonces P0;
-`⚠ [estacional]` está exento y no abre issue, porque el vigía ya declara en código que ese id vuelve
-con la campaña.
+Desde entonces los hallazgos del vigía marcan su clase, y **eso convierte la salida del vigía en un
+contrato con un consumidor fuera de este código**: el listón de la skill lee la marca, no la frase.
+La consecuencia práctica para quien toque `vigia.py` es que reescribir uno de esos mensajes sin la
+marca degrada la puerta de la release en silencio, así que hay un test que fija cada una. Regla
+resultante: `✖` sin marca es P0; `✖ [cobertura]` es P1 salvo que la hoja caiga en una de las cinco
+del brief, y entonces P0; `⚠ [estacional]` está exento y no abre issue, porque el vigía ya declara
+en código que ese id vuelve con la campaña.
+
+**Y el default es lo que obliga a marcar: un `⚠` sin marca es P1.** O sea que cada aviso nuevo que
+no traiga marca abre issue por sí solo, y eso convirtió dos avisos benignos por diseño en trabajo de
+relleno hasta que se les puso la suya (#430, 16/08/2026). Hoy las marcas son **cuatro**:
+`MARCA_COBERTURA`, `MARCA_ESTACIONAL`, `MARCA_DECLARACION_HUERFANA` (declaración de
+`COBERTURA_DECLARADA` que la tienda ya no publica, P2 exento — no esconde catálogo, solo envejece) y
+`MARCA_FOTO_MUERTA` (foto publicada que el CDN no sirve, P2). La regla para quien añada la quinta es
+esa: **si emites un `⚠` nuevo sin marca, acabas de subir el listón sin querer.**
+
+**Un instrumento de medida puede fabricar el fallo que busca, y aquí pasó dos veces el mismo día.**
+Al construir la comprobación de fotos (#429), resolver 40 URL por tienda **a 6 en paralelo** devolvió
+403 en 40/40 de Zara y 38/40 de Lefties; las mismas URL, una a una y con pausa, dieron 200 (16/08/
+2026). Medido así, el caso habría emitido un P0 sobre dos catálogos sanos — el mismo modo de fallo
+que #430 arregla en el otro extremo del listón. De ahí las tres reglas que gobiernan cualquier
+comprobación que salga a la red desde el validador o el vigía: **secuencial y con pausa con jitter**
+(y no solo por cortesía: hay tiendas que sirven sus fotos desde el mismo host que el catálogo, así
+que estas peticiones se suman a las del sondeo en el mismo contador), **solo un `404`/`410` cuenta
+como muerto** —un 403, un 429 o un timeout van a «sin veredicto», que se reporta aparte y no es un
+hallazgo—, y **la cifra es por tienda**, porque un 11,6 % en una se diluye a nada sobre 16.844
+productos.
 
 Lo que hace defendible el cambio, y conviene no perderlo: **con la regla nueva v0.1.8 habría sido
 NO APTO igual**, porque la otra hoja del mismo hallazgo (`punto-y-jerseis`) es `sudaderas/jerseys`.
@@ -4301,6 +4319,15 @@ parece). El cluster dev solo sirve para verificar el **despliegue**, y eso exige
   reintentar en bucle no arregla un bloqueo de la tienda y sí se come el presupuesto. Medido contra
   Zara real: 1ª pasada (2219 productos / 25623 variantes) ~30m18s, siguientes ~1m35s gracias al
   detalle condicional por huella.
+- **Detalle condicional por huella**: el ahorro de arriba se paga con que **todo campo que no entre
+  en `listing_signature` deja de refrescarse** en un producto sin cambios. `_needs_detail()` solo
+  pide detalle si el producto es nuevo, estaba de baja o cambió su huella, y esa huella es
+  precio+stock; un producto en `unchanged` recibe `_touch_seen()` y su fila no se reescribe, así que
+  el `COALESCE(EXCLUDED.image_url, …)` del upsert ni se ejecuta. Solo lo rescata
+  `_stale_refreshes()` por antigüedad. Medido en Cacles (16/08/2026): **49 de 424 `image_url` vivas
+  devuelven 404, y las 49 tienen ≥ 9 días sin detalle** — entre los 187 productos con detalle de ≤ 6
+  días, cero. No es de Cacles: le pasa a cualquier tienda cuyo CDN caduque URL, y Cacles solo es
+  donde se ve porque Shopify pone un `?v=<timestamp>` que muere al resustituir la imagen. Es #443.
 - **Promoción por digest en vez de rebuild**: QA no puede diferir de dev por un build no
   determinista. Coste: no se puede parchear QA sin pasar por dev.
 - **selfHeal de ArgoCD activado**: un `kubectl patch` en el cluster se revierte solo. Todo cambio de

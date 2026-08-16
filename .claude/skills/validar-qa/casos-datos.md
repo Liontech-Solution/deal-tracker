@@ -73,6 +73,26 @@ que es justo la que hay que ver.
 - `errors > 0` en una pasada `success` → **P1**, y **hay que abrirlo en D3**: reportar el número
   suelto no es un hallazgo, es un dato sin interpretar.
 - Última pasada de más de 8 días en QA (donde el ciclo es semanal) → **P1**.
+- **`message IS NOT NULL` en una pasada `success` → léelo ENTERO, no por el preview.** Hay anomalías
+  que **no suman en `errors`** y salen con `status='success'` y `errors=0`, así que decidir por
+  `errors` se las pierde. Y el `left(…, 60)` de arriba es solo para que la tabla se lea: `message`
+  es una lista de anomalías unida por ` · `, de hasta 500 caracteres (`_MAX_FAIL_MESSAGE`).
+
+  **Si empieza por `señal de stock sospechosa` o por `sondeo sin respuesta`, eso es lo primero que
+  hay que mirar.** Las dos alarmas del sondeo van delante del resto a propósito desde #456
+  (`_alarmas_del_sondeo`, `ingest.py`), y el motivo conviene conocerlo para no revertirlo: son
+  cortas y **no se pueden reconstruir desde ninguna otra columna**, mientras que las enumeraciones
+  de hojas y ámbitos que van detrás se autolimitan con su `+N` y tienen sus propios contadores. Lo
+  que el tope se coma será de esas, no de las alarmas.
+
+```sql
+SELECT r.slug, s.status, s.errors, s.message
+FROM retailer r
+JOIN LATERAL (
+  SELECT * FROM scrape_run WHERE retailer_id = r.id ORDER BY started_at DESC LIMIT 1
+) s ON true
+WHERE s.message IS NOT NULL;
+```
 
 Y una que esta consulta **no puede contestar**: un `success` reciente no dice **qué versión** escribió
 la fila. En QA el ciclo es semanal y las promociones son más frecuentes, así que lo normal es que la
@@ -80,6 +100,56 @@ la fila. En QA el ciclo es semanal y las promociones son más frecuentes, así q
 de `v0.1.9` mientras QA servía `v0.4.0`. Eso lo resuelve `qa-procedencia.sh` en la Fase 0 (#378), y
 **todo este frente descansa en su respuesta**: si el dato es de otra versión y la release toca
 `services/scraper/`, lo que se mide aquí abajo es el scraper anterior.
+
+## D2b · La señal de stock, que se lee en pareja o no se lee
+
+`scrape_run.variants_in_stock` (0043, #427) cuenta las variantes con stock **entre las que esa
+pasada escribió**, y su denominador es `variants_seen` de la misma fila. Sueltas no dicen nada:
+
+```sql
+SELECT r.slug, s.variants_seen, s.variants_in_stock,
+       round(100.0 * s.variants_in_stock / nullif(s.variants_seen, 0), 1) AS pct
+FROM retailer r
+JOIN LATERAL (
+  SELECT * FROM scrape_run WHERE retailer_id = r.id AND status = 'success'
+  ORDER BY started_at DESC LIMIT 1
+) s ON true
+ORDER BY pct NULLS FIRST;
+```
+
+| qué ves | qué es |
+|---|---|
+| `variants_in_stock = 0` **con `variants_seen = 0`** | la pasada no escribió nada. No es de stock: mírala en D2 |
+| `variants_in_stock = 0` **con `variants_seen > 0`** | **P0.** El parser de stock de esa tienda ha dejado de entender la respuesta |
+| proporción baja pero > 0 | normal. **No hay umbral que elegir** y por eso el caso no lo pone: la pasada con menos stock de la historia del proyecto (hipercor) trae 7 de 55, un **12,7 %**, así que ninguna pasada sana se acerca al cero |
+
+> **`column s.variants_in_stock does not exist` NO es un hallazgo.** La columna entra con la `0043`
+> (v0.6.0), y QA sirve semver: hasta que la release esté desplegada, la base de QA no la tiene.
+> Comprobado el 16/08/2026 — no existe ni en QA ni en `dev`, que iba por `sha-4adcbca`. Si el error
+> aparece, lo que hay que mirar es **qué versión está desplegada** (Fase 0, `qa-procedencia.sh`), y
+> el caso se declara **fuera de alcance de esa ejecución**, no P0. Es la misma trampa que D13 con su
+> dependencia de la Fase 1.
+
+**Por qué el cero es P0 y no una anomalía de datos**: mientras dure, el mecanismo de confirmación de
+bajas de esa tienda está **inoperante**. No produce bajas falsas —`UNBUYABLE` no descataloga nunca—
+pero deja de producir las verdaderas, y eso no se ve en ninguna otra cifra.
+
+La ingesta lo canta sola cuando se dan las dos mitades a la vez, con esta frase en `message`:
+
+```
+señal de stock sospechosa: {N} de {N} candidatos agotados y 0 de {M} variantes con stock en el listado
+```
+
+**Y esa frase NO suma en `errors`**: la pasada sale `status='success'`, `errors=0` y `message`
+distinto de NULL. Es exactamente el caso que la última viñeta de D2 persigue, y la razón de que
+haya que leer `message` entero en vez de por el preview. Exige **las dos mitades juntas** a
+propósito (`_success_message`, `ingest.py`): por separado cada una es un estado sano y frecuente.
+
+**Y va la primera del mensaje** desde #456, así que no hay que ir a buscarla al final. Ese arreglo
+salió de mirar este caso: hasta entonces la alarma se emitía la última y, medido sobre una pasada
+realista —6 hojas caídas y 4 ámbitos sospechosos, justo el tipo de pasada en la que además querrías
+enterarte de que el stock no se lee—, el mensaje llegaba a los 500 del tope y **la alarma se perdía
+entera**. Una alarma contra un fallo silencioso, fallando en silencio.
 
 ## D3 · Caracterizar lo que salió mal
 
@@ -231,6 +301,46 @@ Un catálogo de ropa sin fotos no es usable. **P0 por encima del 20 % en una tie
 Fíjate en que se parte de `retailer` con `LEFT JOIN`, igual que en D2 y por el mismo motivo: una
 tienda con **cero productos** desaparece de un `JOIN` normal, y esa es precisamente la que hay que
 ver. Un `activos = 0` aquí es **P0**, y se corresponde con una tienda ausente de `/catalog/facets`.
+
+### D7b · y además resuelven: `image_url` poblada no es `image_url` viva
+
+D7 comprueba que el campo no sea nulo, y **una URL muerta pasa esa comprobación**. Por ahí se
+colaron las fotos de Cacles de #429: `image_url` al 100 % en las nueve tiendas y aun así ~12 % de su
+catálogo saliendo «SIN FOTO» en la tarjeta y en la ficha.
+
+```sql
+SELECT r.slug, p.image_url,
+       round(extract(epoch FROM (p.last_seen_at - p.last_detail_at))/86400) AS desfase
+FROM product p JOIN retailer r ON r.id = p.retailer_id
+WHERE p.delisted_at IS NULL AND p.image_url IS NOT NULL;
+```
+
+Muestrea por tienda (40 basta para ver un 10 %; Cacles entero son 424) y resuelve cada URL con un
+`HEAD`. **Tres reglas, y las tres se aprendieron fallando** (16/08/2026):
+
+- **Secuencial y con pausa.** A 6 en paralelo salieron 403 en 40/40 de Zara y 38/40 de Lefties, y
+  las mismas URL dieron 200 una a una. Medido así, este caso habría escrito un P0 sobre dos
+  catálogos enteros que están perfectamente.
+- **Solo `404`/`410` cuenta como muerta, y reintentando una vez.** Un 403, un 429, un 5xx o un
+  timeout son ritmo nuestro: van a «sin veredicto», que se reporta aparte y **no** es un hallazgo.
+  De los 9 403 de Zara, 2 dieron 200 al reintentar.
+- **La cifra es por tienda**, no global: el 11,6 % de Cacles desaparece diluido entre 16.844
+  productos.
+
+**P0 por encima del 20 % en una tienda** (mismo listón que D7: un catálogo sin fotos no es usable),
+**P1 entre el 5 % y el 20 %**, **P2 por debajo**. Y `sin veredicto > 25 %` en una tienda **no es un
+hallazgo, es una medición inválida**: se repite más despacio.
+
+**Cruza siempre con el desfase**, que es lo que separa las dos causas posibles y evita acusar a la
+tienda de lo que es nuestro:
+
+| desfase `last_seen_at - last_detail_at` | qué significa una foto muerta ahí |
+|---|---|
+| bajo (el producto pasó por detalle hace poco) | la **tienda** publica una URL que su CDN no sirve. Lo mismo que caza `⚠ [fotos]` del vigía |
+| alto | **nuestra** fila envejecida: el producto no vuelve a pasar por detalle, así que `image_url` no se reescribe (`_needs_detail`, `ingest.py`). Es #443, y mientras siga abierta esta es la causa probable |
+
+Medido en Cacles el 16/08/2026, y por eso el cruce está aquí: **49 de 424 muertas (11,6 %), y las
+49 con desfase ≥ 9 días**. Entre los 187 productos con detalle de ≤ 6 días, **cero**.
 
 ### Y de qué CDN salen: ningún host fuera de la tabla de anchos
 
@@ -414,6 +524,8 @@ a terminar, el frente queda **NO CUBIERTO** — no se aprueba por silencio.
   que su id vuelve con la campaña.
 - `⚠ [huerfana]` (declaración de `COBERTURA_DECLARADA` que la tienda ya no publica) → **P2 exento,
   no abre issue**: no esconde catálogo, solo envejece, y muchas son de campaña.
+- `⚠ [fotos]` (foto publicada que el CDN devuelve 404) → **P2**, y solo abre issue si **D7b** lo
+  confirma: el vigía mira cinco productos y eso no es una prevalencia.
 - `⚠` sin marca → **P1**, como siempre.
 
 **Este caso depende de la Fase 1 del orquestador**, que es quien lanza el job. Si corres el frente
@@ -520,3 +632,38 @@ tope—, dejó 134 candidatas sin sondear y encontró 0 bajas reales**. La serie
 de la pasada es el `confirmación activa: N sondeos` que ya lee D3. Si `probes_over_cap` crece a la
 vez que esta tabla, la lectura es que las bajas de verdad se están quedando sin presupuesto detrás
 de una cola de prendas que siguen vivas. Va a **#357**.
+
+**Desde la v0.6.0 ese gasto ya no se repite entero, y el par de columnas lo dice** (0042, #412): a
+un candidato confirmado vivo hace poco no se le vuelve a preguntar, y eso se cuenta en
+`probes_skipped_fresh`. Léela **junto a `probes_over_cap`**, nunca sola: la primera subiendo con la
+segunda bajando es la ventana haciendo su trabajo; las dos a cero con `probes_sent` en el tope es
+que no está activa. Y no la sumes a los fallos — como `over_cap`, va bloqueada frente a la baja.
+
+> **Pendiente concreto para la validación de la v0.6.0**, que no se puede hacer en local porque
+> exige pasadas reales sobre un catálogo real: **medir `probes_over_cap` antes y después** de que la
+> ventana de #412 esté activa, contra el bloque `## Cifras` del informe de v0.5.0.
+>
+> **La línea de partida está publicada en #412 (PR #449)**, sobre las pasadas del 15/08: ahí es
+> «200 sondeos, 200 vivos, cero bajas, 504 candidatos sin sondear», con el pool de Zara creciendo
+> `134 (10/08) → 106 (14/08) → 195 (15/08)`. Se reproduce aquí para poder usarla sin salir del
+> caso, pero **la fuente es aquella**: si las dos no coinciden, manda el PR. Usa la del 15/08 y no
+> la del 10/08, que es más antigua y más benévola. No es cosa de una tienda — **cuatro de las nueve
+> estaban en el tope a la vez, y las cuatro encontraron cero bajas**.
+>
+> | tienda | `probes_sent` | `probes_over_cap` | `probes_dead` |
+> |---|---:|---:|---:|
+> | zara | 50 (tope) | **195** | 0 |
+> | mango | 50 (tope) | 146 | 0 |
+> | sfera | 50 (tope) | 90 | 0 |
+> | hipercor | 50 (tope) | 73 | 0 |
+>
+> Criterio de fallo, para que esto sea una prueba y no un recordatorio: si tras la v0.6.0
+> `over_cap` **no baja en estas cuatro** con `probes_skipped_fresh` subiendo, la ventana está puesta
+> y no ahorra nada — y eso es un hallazgo de la propia #412, no un número de adorno. El `dead = 0`
+> de las cuatro es lo que dice para qué se estaba gastando el tope.
+>
+> **Y no lo simplifiques a «`over_cap` baja», porque entonces deja de probar nada.** `over_cap` es
+> el pool de candidatas y puede encoger solo: si el catálogo de una tienda mengua, o si se cae una
+> hoja y su ámbito queda fuera de las bajas, baja sin que la ventana haya hecho nada. La condición
+> que **solo** puede mover la ventana es la otra, `probes_skipped_fresh` subiendo. Se exigen las dos
+> juntas por eso.

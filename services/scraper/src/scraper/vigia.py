@@ -49,11 +49,14 @@ from __future__ import annotations
 
 import argparse
 import itertools
+import random
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+
+import httpx
 
 from .avisos import AvisoGitHub
 from .config import Config, load_dotenv
@@ -98,6 +101,10 @@ MARCA_ESTACIONAL = "[estacional]"
 # `revisar_cobertura` ya declara benigno por diseño. En la validación de v0.5.0 hubo que bajarla a
 # P2 razonándolo a mano — que es justo lo que estas constantes existen para evitar.
 MARCA_DECLARACION_HUERFANA = "[huerfana]"
+# Y la cuarta, de #429: una foto que la tienda publica y su CDN no sirve. Marcada por lo mismo que
+# la anterior —un `⚠` sin marca es P1— y porque el modo de fallo de esta capa es dar un 404 que en
+# realidad era nuestro ritmo; ver `revisar_fotos`.
+MARCA_FOTO_MUERTA = "[fotos]"
 
 # Tiendas registradas a las que se les perdona no tener `check_leaves()`, **con el motivo escrito**.
 # Vacío a propósito: las cuatro de hoy lo implementan. Existe para que la excepción sea una decisión
@@ -920,7 +927,7 @@ def revisar_hojas(store: BaseStore, informe: Informe) -> None:
         )
 
 
-def revisar_parseo(store: BaseStore, informe: Informe, muestra: int) -> None:
+def revisar_parseo(store: BaseStore, informe: Informe, muestra: int) -> list[ScrapedProduct]:
     """Capa 2: la cadena entera —listado, detalle, parseo— sigue produciendo productos usables.
 
     Genérica a propósito: se apoya solo en `BaseStore`, así que **cubre también a las tiendas que
@@ -948,14 +955,14 @@ def revisar_parseo(store: BaseStore, informe: Informe, muestra: int) -> None:
             "el listado no devolvió ni una entrada: o la tienda nos ha cerrado la puerta o el "
             "endpoint de catálogo ha cambiado de forma"
         )
-        return
+        return []
 
     if not productos:
         informe.accionables.append(
             f"{len(entradas)} entradas en el listado pero ningún producto con detalle: el parseo "
             "se ha quedado sin nada que emitir"
         )
-        return
+        return []
 
     variantes = sum(len(p.variants) for p in productos)
     if not variantes:
@@ -963,7 +970,7 @@ def revisar_parseo(store: BaseStore, informe: Informe, muestra: int) -> None:
             f"{len(productos)} productos sin una sola variante: sin talla/color no hay nada que "
             "seguir ni precio que registrar"
         )
-        return
+        return []
 
     sin_precio = [v for p in productos for v in p.variants if v.price <= 0]
     if sin_precio:
@@ -971,12 +978,115 @@ def revisar_parseo(store: BaseStore, informe: Informe, muestra: int) -> None:
             f"{len(sin_precio)}/{variantes} variantes con precio <= 0: el precio ha cambiado de "
             "sitio o de unidad en el JSON de la tienda"
         )
-        return
+        return []
 
     informe.lineas.append(
         f"parseo: {len(entradas)} entradas -> {len(productos)} productos, {variantes} variantes, "
         "precios > 0"
     )
+    return productos
+
+
+# Lo único que cuenta como «foto muerta». Un 403, un 429, un 5xx o un timeout NO entran: son
+# nuestro ritmo o el CDN teniendo un mal minuto, y confundirlos con una foto perdida es el falso
+# positivo que #430 vino a arreglar en el otro extremo del listón. Medido el 16/08/2026 al preparar
+# esto: resolviendo 40 URL por tienda a 6 en paralelo salieron 403 en 40/40 de Zara y 38/40 de
+# Lefties, y las MISMAS URL daban 200 una a una y pausadas. La comprobación se estaba midiendo a sí
+# misma.
+_FOTO_MUERTA = frozenset({404, 410})
+
+
+def revisar_fotos(
+    productos: Sequence[ScrapedProduct],
+    informe: Informe,
+    config: Config,
+    resolver: Callable[[str], int | None] | None = None,
+) -> None:
+    """¿Las fotos que la tienda publica hoy se pueden pedir? (#429)
+
+    Es la mitad del problema que se ve **desde fuera**: la tienda publicando una URL que su propio
+    CDN no sirve. La otra mitad —que la URL guardada en `product` haya envejecido porque el
+    producto no vuelve a pasar por detalle— **esta capa no la puede ver**, porque el vigía no lee la
+    base a propósito (`vigia_historial` conecta, pero solo para persistir tiempos, y su cabecera
+    prohíbe que nada de ahí cueste el veredicto). Esa la mide el caso D7b del listón, contra QA.
+
+    `resolver` se inyecta para poder testear sin red. Devuelve el código HTTP, o `None` si la
+    petición ni siquiera llegó a contestar.
+
+    **Solo un 404/410 es un hallazgo**, y va como aviso marcado y no como accionable: una foto que
+    no resuelve no es «la tienda ha dejado de dejarnos entrar», que es la razón de ser del vigía, y
+    sobre una muestra de cinco productos un solo fallo no sostiene una cifra. Lo que sostiene la
+    cifra es D7b. Lo que no tenga veredicto se dice en una línea en vez de callarse: una
+    comprobación que no pudo comprobar nada no es una comprobación en verde.
+    """
+    urls = [p.image_url for p in productos if p.image_url]
+    if not urls:
+        informe.lineas.append("fotos: los productos de la muestra no traen imagen")
+        return
+
+    pedir = resolver if resolver is not None else _resolver_foto(config)
+    muertas: list[tuple[str, int]] = []
+    sin_veredicto = 0
+    for i, url in enumerate(urls):
+        if i:
+            _pausa_educada(config)
+        codigo = pedir(url)
+        if codigo is None:
+            sin_veredicto += 1
+        elif codigo in _FOTO_MUERTA:
+            muertas.append((url, codigo))
+        elif codigo != 200:
+            sin_veredicto += 1
+
+    informe.lineas.append(
+        f"fotos: {len(urls) - len(muertas) - sin_veredicto}/{len(urls)} resuelven"
+        + (f", {sin_veredicto} sin veredicto" if sin_veredicto else "")
+    )
+    if muertas:
+        informe.avisos.append(
+            f"{MARCA_FOTO_MUERTA} {len(muertas)}/{len(urls)} foto(s) de la muestra que la tienda "
+            "publica y su CDN no sirve (la ficha saldría «SIN FOTO»; la prevalencia real la mide "
+            "D7b del listón, no esta muestra):\n"
+            + "\n".join(f"  - HTTP {codigo} {url}" for url, codigo in muertas)
+        )
+
+
+def _pausa_educada(config: Config) -> None:
+    """La misma cortesía que gastan las tiendas (`_polite_pause`), y aquí no es cortesía: es lo que
+    separa un 404 de verdad de un 403 que nos hemos ganado nosotros.
+
+    **Con jitter, y por el mismo motivo que ellas**: una cadencia fija es más detectable. Parecía
+    de más mientras se pensaba solo en CDN de terceros (Shopify, `static.zara.net`), que son
+    infraestructura aparte con su propio ritmo — pero no todas las tiendas separan las dos cosas.
+    Deditos (#65) sirve sus fotos desde su propio dominio, o sea **el mismo LiteSpeed que acaba de
+    darnos el catálogo dos capas más arriba**, y ahí estas peticiones se suman a las del sondeo en
+    el mismo contador. Cinco de más no hunden a nadie; cinco de más *acompasadas* son otra cosa.
+    """
+    base = config.request_delay
+    if base > 0:
+        time.sleep(base * random.uniform(0.5, 1.5))
+
+
+def _resolver_foto(config: Config) -> Callable[[str], int | None]:
+    """Resolutor real. `HEAD` porque el cuerpo no interesa y son fotos de cientos de KB.
+
+    Sin `contexto_sin_alpn()`: eso es para el Cloudflare de Cacles en SU dominio, y aquí se habla
+    con CDN de imágenes, que son otro host y otra política. Si algún día un CDN nos ficha la huella,
+    el síntoma será `sin veredicto` y no un falso 404, que es el lado correcto por el que fallar.
+    """
+
+    def pedir(url: str) -> int | None:
+        try:
+            with httpx.Client(
+                headers={"User-Agent": config.user_agent},
+                timeout=config.request_timeout,
+                follow_redirects=True,
+            ) as client:
+                return client.head(url).status_code
+        except Exception:  # red, DNS, TLS, URL imposible: no hay veredicto, que no es lo mismo
+            return None
+
+    return pedir
 
 
 def cubierta(ruta: str, cubren: Iterable[str], sep: str) -> bool:
@@ -1155,10 +1265,18 @@ def revisar_tienda(slug: str, config: Config, muestra: int) -> Informe:
         # que apunta a la pista falsa es peor que uno que dice una sola cosa cierta.
         informe.avisos.append("parseo y cobertura omitidos: el sondeo de hojas ya falló")
         return informe
+    productos: list[ScrapedProduct] = []
     try:
-        revisar_parseo(store, informe, muestra)
+        productos = revisar_parseo(store, informe, muestra)
     except Exception as exc:
         informe.accionables.append(f"el smoke de parseo reventó — {type(exc).__name__}: {exc}")
+    # Las fotos van con lo ya parseado y nunca vuelven a pedir catálogo: si el parseo no emitió
+    # nada, esta capa no tiene nada que mirar y se calla en vez de inventarse una segunda pasada.
+    if productos:
+        try:
+            revisar_fotos(productos, informe, config)
+        except Exception as exc:
+            informe.avisos.append(f"la comprobación de fotos reventó — {type(exc).__name__}: {exc}")
     # La cobertura sí se intenta aunque el parseo haya fallado: son preguntas independientes —el
     # árbol se lee del menú o de la faceta, no del listado— y saber que la tienda publica una
     # categoría nueva sigue valiendo aunque hoy el detalle no se deje parsear.
