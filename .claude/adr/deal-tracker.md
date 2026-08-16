@@ -2928,8 +2928,8 @@ precomputado lee `product_agg`, cuyas `*_repr` están calculadas sobre **todas**
 del producto, así que un eje de variante que no esté en ese interruptor deja el producto
 correctamente filtrado —el `WHERE` sí se aplica— pero **el precio, el tachado y el veredicto de
 honestidad de la tarjeta son los de una variante que el filtro acaba de excluir**. O sea «Oferta
-real» apoyada en una talla que el usuario acaba de decir que no quiere ver: la misma familia que
-#436 con otra causa.
+real» apoyada en una talla que el usuario acaba de decir que no quiere ver: la misma familia que el
+elogio sin pruebas de #436, con otra causa.
 
 Y el spec de paridad de al lado **no lo caza, por construcción**. `ambos()` compara el camino por
 defecto contra el vivo forzado, así que en cuanto el eje está bien puesto los dos lados **son el
