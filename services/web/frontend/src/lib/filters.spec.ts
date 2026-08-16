@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { alternar, aplicarPatch } from './filters';
+import { alternar, aplicarPatch, patchSeccion } from './filters';
 
 describe('alternar (#329)', () => {
   it('añade el valor que no estaba', () => {
@@ -62,5 +62,48 @@ describe('aplicarPatch (#329)', () => {
   it('los escalares siguen escribiéndose como uno solo', () => {
     const out = aplicarPatch(new URLSearchParams('gender=niño'), { gender: 'niña' });
     expect(out.getAll('gender')).toEqual(['niña']);
+  });
+});
+
+describe('patchSeccion (#434)', () => {
+  it('conserva TODO lo demás de la búsqueda', () => {
+    // El fallo medido: la cabecera construía `/catalogo?section=ropa` y se llevaba por delante
+    // género, tienda, color, `q`, `sort` y el rango de precio.
+    const previo = new URLSearchParams(
+      'gender=niña&section=zapateria&color=azul&retailer=zara&q=botas&sort=descuento&minPrice=5&maxPrice=20&inStock=true',
+    );
+    const out = patchSeccion(previo, 'ropa');
+    expect(out.get('section')).toBe('ropa');
+    expect(out.get('gender')).toBe('niña');
+    expect(out.getAll('color')).toEqual(['azul']);
+    expect(out.getAll('retailer')).toEqual(['zara']);
+    expect(out.get('q')).toBe('botas');
+    expect(out.get('sort')).toBe('descuento');
+    expect(out.get('minPrice')).toBe('5');
+    expect(out.get('maxPrice')).toBe('20');
+    expect(out.get('inStock')).toBe('true');
+  });
+
+  it('limpia talla y categoría, que son los dos que cambian de significado', () => {
+    // `36-38` es un calcetín en ropa y un número de pie en zapatería; `pantalones` no existe allí.
+    const previo = new URLSearchParams('section=ropa&size=36-38&size=104&category=pantalones');
+    const out = patchSeccion(previo, 'zapateria');
+    expect(out.getAll('size')).toEqual([]);
+    expect(out.get('category')).toBeNull();
+  });
+
+  it('la cadena vacía es «sin sección», no un section vacío en la URL', () => {
+    const out = patchSeccion(new URLSearchParams('gender=niño&section=ropa&category=camisetas'), '');
+    expect(out.has('section')).toBe(false);
+    expect(out.get('gender')).toBe('niño');
+    // Y tampoco puede dejar una categoría de la sección que se acaba de quitar (síntoma 4 de #434).
+    expect(out.has('category')).toBe(false);
+  });
+
+  it('no muta los parámetros que recibe', () => {
+    const previo = new URLSearchParams('section=ropa&category=camisetas');
+    patchSeccion(previo, 'zapateria');
+    expect(previo.get('section')).toBe('ropa');
+    expect(previo.get('category')).toBe('camisetas');
   });
 });

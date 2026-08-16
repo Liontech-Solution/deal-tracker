@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 
 import type { Facets } from '../api/types';
 import { colorHex } from '../lib/colors';
-import { alternar } from '../lib/filters';
+import { alternar, parcheSeccion } from '../lib/filters';
 import { capitalize } from '../lib/format';
+import { SECCIONES } from '../lib/section';
 
 export interface CatalogFilters {
   gender: string;
@@ -80,12 +81,6 @@ function Chip({ label, selected, onClick, dot }: { label: string; selected: bool
     </button>
   );
 }
-
-/** Secciones del catálogo, en el orden en que las ofrece la cabecera. */
-const SECCIONES: Array<{ value: string; label: string }> = [
-  { value: 'ropa', label: 'Ropa' },
-  { value: 'zapateria', label: 'Zapatería' },
-];
 
 /**
  * Rango de precio: barra de dos topes + los dos campos, sobre el mismo estado (#290).
@@ -263,7 +258,62 @@ export function FilterPanel({ facets, value, onChange }: Props) {
         </Group>
       ) : null}
 
-      {facets?.categories.length ? (
+      {/*
+        La SECCIÓN es un grupo propio, y va aquí arriba porque es de quien dependen los dos ejes de
+        abajo (#434). Vivía escondida como sub-control del bloque de talla, o sea POR DEBAJO del
+        tipo de prenda al que condiciona, y de ahí salía todo: sin sección el panel ofrecía los 12
+        tipos de las dos secciones mezclados —«Camisetas» junto a «Plantillas»— y elegir sección
+        después borraba el que hubieras marcado. Con la elección delante no hay nada que borrar.
+
+        Las pestañas salen de `SECCIONES` (`lib/section.ts`, donde se unificó con la copia que
+        tenía la cabecera) y **no** de la faceta `sections`, que existe y nadie consume: el backend
+        la devuelve SIN acotar a propósito (`catalog.service.ts`) porque es el eje de navegación.
+        Consumirla no cambiaría lo que se pinta —las dos pestañas se ofrecen siempre— y ataría dos
+        botones fijos a una respuesta de red.
+      */}
+      <Group label="Sección">
+        <div style={{ display: 'flex', gap: 8, marginBottom: value.section ? 0 : 10 }}>
+          {SECCIONES.map((s) => (
+            <button
+              key={s.value}
+              role="tab"
+              aria-selected={value.section === s.value}
+              // Repulsar la activa la quita, como cualquier otro eje de valor único (`toggle`). El
+              // guard que lo impedía hacía de la sección el único chip del panel que no se podía
+              // soltar: la única salida era el aspa del chip activo o «Limpiar todo».
+              onClick={() => onChange(parcheSeccion(value.section === s.value ? '' : s.value))}
+              style={{
+                flex: 1,
+                padding: '9px 12px',
+                borderRadius: 'var(--r-pill)',
+                border: '1px solid ' + (value.section === s.value ? 'transparent' : 'var(--border)'),
+                background: value.section === s.value ? 'var(--accent-soft)' : 'var(--surface)',
+                color: value.section === s.value ? 'var(--accent)' : 'var(--text-muted)',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {!value.section ? (
+          <div style={{ fontSize: 12.5, color: 'var(--text-faint)', lineHeight: 1.45 }}>
+            Elige <strong>Ropa</strong> o <strong>Zapatería</strong> para ver los tipos de prenda y
+            las tallas: no son los mismos en una y en otra, y algunos se escriben igual significando
+            cosas distintas. Sin elegir, la rejilla sigue enseñando el catálogo entero.
+          </div>
+        ) : null}
+      </Group>
+
+      {/* La categoría recibe el mismo trato que la talla: no se ofrece hasta que haya sección. El
+          backend ya las devuelve segmentadas —6 tipos de ropa y 6 de zapatería (#292, la faceta
+          cruza por `p.section`)—, así que aquí no hay nada que filtrar, solo que esperar.
+          `barefoot` sale como un tipo más de zapatería: es una categoría, distinta de la columna
+          `product.barefoot`, y no es un error. */}
+      {value.section && facets?.categories.length ? (
         <Group label="Categoría">
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {facets.categories.map((c) => (
@@ -290,64 +340,31 @@ export function FilterPanel({ facets, value, onChange }: Props) {
       ) : null}
 
       {/*
-        La talla abre con dos pestañas, y no es una floritura: ropa y zapatería NO comparten
-        vocabulario, y lo grave es que **se solapan**. Sin sección elegida el panel ofrecía 205
-        chips de los cuales **36 son ambiguos** — `36-38` es un calcetín en ropa y un número de pie
-        en zapatería, y pinchar uno filtraba las dos cosas a la vez. Así que sin sección no se
-        ofrecen tallas: se ofrece la elección.
-      */}
-      <Group label="Talla">
-        <div style={{ display: 'flex', gap: 8, marginBottom: value.section ? 12 : 0 }}>
-          {SECCIONES.map((s) => (
-            <button
-              key={s.value}
-              role="tab"
-              aria-selected={value.section === s.value}
-              onClick={() => {
-                if (value.section === s.value) return;
-                // Cambiar de sección LIMPIA la talla y la categoría. Sin esto, un '36-38' elegido
-                // como calcetín se quedaría puesto al saltar a zapatería y pasaría a significar un
-                // número de pie sin que nadie lo haya pedido — que es justo la ambigüedad que estas
-                // pestañas existen para cortar. La categoría por lo mismo: `pantalones` no existe
-                // en zapatería y dejaría el catálogo vacío.
-                onChange({ section: s.value, size: [], category: '' });
-              }}
-              style={{
-                flex: 1,
-                padding: '9px 12px',
-                borderRadius: 'var(--r-pill)',
-                border: '1px solid ' + (value.section === s.value ? 'transparent' : 'var(--border)'),
-                background: value.section === s.value ? 'var(--accent-soft)' : 'var(--surface)',
-                color: value.section === s.value ? 'var(--accent)' : 'var(--text-muted)',
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
+        Sin sección no se ofrecen tallas, y eso no ha cambiado: ropa y zapatería NO comparten
+        vocabulario, y lo grave es que **se solapan**. Sin elegir, el panel ofrecía 205 chips de los
+        cuales **36 son ambiguos** — `36-38` es un calcetín en ropa y un número de pie en zapatería,
+        y pinchar uno filtraba las dos cosas a la vez.
 
-        {!value.section ? (
-          <div style={{ fontSize: 12.5, color: 'var(--text-faint)', lineHeight: 1.45 }}>
-            Elige <strong>Ropa</strong> o <strong>Zapatería</strong>: las tallas de una y otra no
-            son la misma cosa, y algunas se escriben igual significando cosas distintas.
-          </div>
-        ) : facets?.sizes.length ? (
-          <>
+        Lo que ha cambiado (#434) es dónde se hace esa elección: las dos pestañas eran de este
+        bloque, y ahora son el grupo «Sección» de arriba. El bloque entero desaparece mientras no
+        haya sección, en vez de quedarse pintado para explicar por qué está vacío — quien lo explica
+        ahora es el grupo que ofrece la elección.
+      */}
+      {value.section ? (
+        <Group label="Talla">
+          {facets?.sizes.length ? (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {facets.sizes.map((s) => (
                 <Chip key={s} label={s} selected={value.size.includes(s)} onClick={() => toggleMulti('size', s)} />
               ))}
             </div>
-          </>
-        ) : (
-          <div style={{ fontSize: 12.5, color: 'var(--text-faint)', lineHeight: 1.45 }}>
-            Con estos filtros no queda ninguna talla.
-          </div>
-        )}
-      </Group>
+          ) : (
+            <div style={{ fontSize: 12.5, color: 'var(--text-faint)', lineHeight: 1.45 }}>
+              Con estos filtros no queda ninguna talla.
+            </div>
+          )}
+        </Group>
+      ) : null}
 
       {facets?.colors.length ? (
         <Group label="Color">
