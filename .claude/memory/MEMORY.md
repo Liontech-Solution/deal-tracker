@@ -29,3 +29,4 @@
 - [token-de-prod-lo-dispara-el-usuario](token-de-prod-lo-dispara-el-usuario.md) — no hay `qa-token.sh` de prod y el token dura 300 s: el comando lo lanza el usuario con `!`, quitando el `Bearer` que ya trae pegado
 - [verificar-ui-que-depende-de-sesion](verificar-ui-que-depende-de-sesion.md) — las ramas del SPA con `auth.enabled` no se ven ni en local ni en dev (que además no tiene ingress), y apuntar el dev server a la API de QA cuelga el silent-SSO: se miden contra QA, y su realm es `deal-tracker-dev`
 - [la-shell-real-es-zsh-no-fish](la-shell-real-es-zsh-no-fish.md) — el entorno dice `/bin/fish` pero todo corre en zsh: la sintaxis de fish revienta el job, y la de bash itera una sola vez sin dar error
+- [migracion-ya-aplicada-no-se-reaplica](migracion-ya-aplicada-no-se-reaplica.md) — el aplicador es idempotente POR NÚMERO: editar una migración que los tests ya aplicaron no vuelve a entrar, y el test rojo acusa a tu código
