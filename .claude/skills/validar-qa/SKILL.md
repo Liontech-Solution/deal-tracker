@@ -167,9 +167,12 @@ barefoot colado en el catálogo por defecto · alta o baja de interés que no fu
 sin aplicar · los tres tags de imagen descuadrados · una tienda con la última pasada `failed`, en
 `running` colgada, o sin ninguna pasada · drift entre la versión pedida y la desplegada · caída de
 más del 30 % en las cifras de una tienda respecto al informe anterior · un `✖` **sin marca** del
-vigía · un «oferta real» sobre un PVP inflado · **una acusación de «Precio inflado» sobre una prenda
-con menos de 90 días de histórico** (#332: es afirmar un fraude sin haberlo comprobado, y el error
-simétrico del anterior) · **una combinación de filtros que el propio panel ofrece por encima de
+vigía · un «oferta real» sobre un PVP inflado · **una acusación de «Precio inflado» *por nuestro
+histórico* (`honestyBasis = 'observado'`) sobre una prenda que no lo cubre** (#332: es afirmar un
+fraude sin haberlo comprobado, y el error simétrico del anterior). **Ojo: solo por esa vía.** La
+acusación `'declarado'` de #354 no espera a nadie y su `trackedDays` bajo es lo normal — aplicarle
+este P0 es el falso positivo de #430, que en v0.5.0 apuntaba a 199 variantes correctas. Ver A31d y
+A31e · **una combinación de filtros que el propio panel ofrece por encima de
 10 s** · **dato escrito por una imagen anterior cuando la release toca `services/scraper/`** (#378:
 el frente de datos estaría midiendo el scraper de la versión pasada).
 
@@ -226,13 +229,14 @@ curl -s -o /dev/null -w '%{time_total}s\n' -H "Authorization: Bearer $TOKEN" "$B
 
 Su símbolo dice que pasa algo; **la marca dice de qué clase es**, y eso cambia la severidad. Se lee
 la marca y no se interpreta la prosa: `vigia.py` las emite como constantes (`MARCA_COBERTURA`,
-`MARCA_ESTACIONAL`) y hay un test que las fija.
+`MARCA_ESTACIONAL`, `MARCA_DECLARACION_HUERFANA`) y hay un test que fija cada una.
 
 | Qué trae el log | Severidad | Por qué |
 |---|---|---|
 | `✖` sin marca — hojas retiradas, parseo roto, ninguna hoja viva, un barrido que revienta | **P0** | Es la razón de ser del vigía: la tienda ha dejado de dejarnos entrar, y es el fallo silencioso que no se ve en ningún otro sitio |
 | `✖ [cobertura]` — hay una hoja publicada que no cubrimos | **P1**, y **P0 si alguna de las hojas que nombra cae en una de las cinco categorías del brief** (pantalones, camisetas, sudaderas/jerseys, vestidos, ropa interior) | No es que la tienda esté rota: es una decisión de alcance de producto, pendiente. Vale desde nada —un bañador— hasta prendas del brief que el usuario no ve |
 | `⚠ [estacional]` — hoja de campaña apagada | **P2**, exento: se anota y **no** se abre issue | El vigía ya declara en código que su id vuelve con la campaña (`LeafHealth.estacional`). Abrir issue por algo que la herramienta califica de benigno por diseño es el hallazgo de relleno que esta skill prohíbe |
+| `⚠ [huerfana]` — declaración de `COBERTURA_DECLARADA` que la tienda ya no publica | **P2**, exento: se anota y **no** se abre issue | Una huérfana **no esconde catálogo** —para eso está `✖ [cobertura]`— solo envejece, y muchas son de campaña: su ruta vuelve con la temporada. Hacerla accionable abriría issue dos veces al año para borrar y reescribir la misma decisión (#430) |
 | `⚠` sin marca — hojas sin veredicto, aviso de ritmo | **P1** | Sin cambios |
 
 Esta granularidad la trae #251, y **el motivo hay que conocerlo para no volver atrás**: el listón

@@ -93,6 +93,11 @@ _reloj = time.monotonic
 # que las fija para que eso se note aquí y no en una validación.
 MARCA_COBERTURA = "[cobertura]"
 MARCA_ESTACIONAL = "[estacional]"
+# La tercera la trae #430, y nació sin marca: el aviso de declaración huérfana existe desde v0.5.0
+# y el listón manda **P1 a todo `⚠` sin marca**, así que abría issue por algo que el comentario de
+# `revisar_cobertura` ya declara benigno por diseño. En la validación de v0.5.0 hubo que bajarla a
+# P2 razonándolo a mano — que es justo lo que estas constantes existen para evitar.
+MARCA_DECLARACION_HUERFANA = "[huerfana]"
 
 # Tiendas registradas a las que se les perdona no tener `check_leaves()`, **con el motivo escrito**.
 # Vacío a propósito: las cuatro de hoy lo implementan. Existe para que la excepción sea una decisión
@@ -1122,7 +1127,8 @@ def revisar_cobertura(store: BaseStore, informe: Informe) -> None:
     )
     if huerfanas:
         informe.avisos.append(
-            f"{len(huerfanas)} declaración(es) de COBERTURA_DECLARADA que la tienda ya no publica "
+            f"{MARCA_DECLARACION_HUERFANA} {len(huerfanas)} declaración(es) de "
+            "COBERTURA_DECLARADA que la tienda ya no publica "
             "(campaña apagada o ruta retirada; no es un hueco de catálogo):\n"
             + "\n".join(f"  - {r} «{declaradas[r].split(':')[0]}»" for r in huerfanas)
         )
