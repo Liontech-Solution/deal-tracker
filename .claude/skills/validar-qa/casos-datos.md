@@ -73,6 +73,20 @@ que es justo la que hay que ver.
 - `errors > 0` en una pasada `success` → **P1**, y **hay que abrirlo en D3**: reportar el número
   suelto no es un hallazgo, es un dato sin interpretar.
 - Última pasada de más de 8 días en QA (donde el ciclo es semanal) → **P1**.
+- **`message IS NOT NULL` en una pasada `success` → léelo ENTERO, no por el preview.** Hay anomalías
+  que **no suman en `errors`** y salen con `status='success'` y `errors=0`, así que decidir por
+  `errors` se las pierde. Y el `left(…, 60)` de arriba es solo para que la tabla se lea: `message`
+  es una lista de anomalías unida por ` · ` y **las más graves se emiten las últimas**
+  (`_success_message`, `ingest.py`), así que el preview puede cortar justo la que importa:
+
+```sql
+SELECT r.slug, s.status, s.errors, s.message
+FROM retailer r
+JOIN LATERAL (
+  SELECT * FROM scrape_run WHERE retailer_id = r.id ORDER BY started_at DESC LIMIT 1
+) s ON true
+WHERE s.message IS NOT NULL;
+```
 
 Y una que esta consulta **no puede contestar**: un `success` reciente no dice **qué versión** escribió
 la fila. En QA el ciclo es semanal y las promociones son más frecuentes, así que lo normal es que la
@@ -80,6 +94,50 @@ la fila. En QA el ciclo es semanal y las promociones son más frecuentes, así q
 de `v0.1.9` mientras QA servía `v0.4.0`. Eso lo resuelve `qa-procedencia.sh` en la Fase 0 (#378), y
 **todo este frente descansa en su respuesta**: si el dato es de otra versión y la release toca
 `services/scraper/`, lo que se mide aquí abajo es el scraper anterior.
+
+## D2b · La señal de stock, que se lee en pareja o no se lee
+
+`scrape_run.variants_in_stock` (0043, #427) cuenta las variantes con stock **entre las que esa
+pasada escribió**, y su denominador es `variants_seen` de la misma fila. Sueltas no dicen nada:
+
+```sql
+SELECT r.slug, s.variants_seen, s.variants_in_stock,
+       round(100.0 * s.variants_in_stock / nullif(s.variants_seen, 0), 1) AS pct
+FROM retailer r
+JOIN LATERAL (
+  SELECT * FROM scrape_run WHERE retailer_id = r.id AND status = 'success'
+  ORDER BY started_at DESC LIMIT 1
+) s ON true
+ORDER BY pct NULLS FIRST;
+```
+
+| qué ves | qué es |
+|---|---|
+| `variants_in_stock = 0` **con `variants_seen = 0`** | la pasada no escribió nada. No es de stock: mírala en D2 |
+| `variants_in_stock = 0` **con `variants_seen > 0`** | **P0.** El parser de stock de esa tienda ha dejado de entender la respuesta |
+| proporción baja pero > 0 | normal. **No hay umbral que elegir** y por eso el caso no lo pone: la pasada con menos stock de la historia del proyecto (hipercor) trae 7 de 55, un **12,7 %**, así que ninguna pasada sana se acerca al cero |
+
+> **`column s.variants_in_stock does not exist` NO es un hallazgo.** La columna entra con la `0043`
+> (v0.6.0), y QA sirve semver: hasta que la release esté desplegada, la base de QA no la tiene.
+> Comprobado el 16/08/2026 — no existe ni en QA ni en `dev`, que iba por `sha-4adcbca`. Si el error
+> aparece, lo que hay que mirar es **qué versión está desplegada** (Fase 0, `qa-procedencia.sh`), y
+> el caso se declara **fuera de alcance de esa ejecución**, no P0. Es la misma trampa que D13 con su
+> dependencia de la Fase 1.
+
+**Por qué el cero es P0 y no una anomalía de datos**: mientras dure, el mecanismo de confirmación de
+bajas de esa tienda está **inoperante**. No produce bajas falsas —`UNBUYABLE` no descataloga nunca—
+pero deja de producir las verdaderas, y eso no se ve en ninguna otra cifra.
+
+La ingesta lo canta sola cuando se dan las dos mitades a la vez, con esta frase en `message`:
+
+```
+señal de stock sospechosa: {N} de {N} candidatos agotados y 0 de {M} variantes con stock en el listado
+```
+
+**Y esa frase NO suma en `errors`**: la pasada sale `status='success'`, `errors=0` y `message`
+distinto de NULL. Es exactamente el caso que la última viñeta de D2 persigue, y la razón de que
+haya que leer `message` entero en vez de por el preview. Exige **las dos mitades juntas** a
+propósito (`_success_message`, `ingest.py`): por separado cada una es un estado sano y frecuente.
 
 ## D3 · Caracterizar lo que salió mal
 

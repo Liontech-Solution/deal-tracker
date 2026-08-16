@@ -164,7 +164,10 @@ veredicto a NO CONCLUYENTE. No se aprueba por silencio.
 **P0 — bloquea la promoción.** `/api/health` en 503 · cualquier 5xx · login roto · catálogo vacío o
 sin fotos · precios ≤ 0 · talla o color sin canonicalizar en proporción apreciable · calzado no
 barefoot colado en el catálogo por defecto · alta o baja de interés que no funciona · migraciones
-sin aplicar · los tres tags de imagen descuadrados · una tienda con la última pasada `failed`, en
+sin aplicar · los tres tags de imagen descuadrados · **`variants_in_stock = 0` con `variants_seen >
+0`** en una tienda (#427: su parser de stock se ha roto y la confirmación de bajas queda inoperante;
+sale con `errors = 0`, así que decidir por `errors` no lo ve — ver D2b) · una tienda con la última
+pasada `failed`, en
 `running` colgada, o sin ninguna pasada · drift entre la versión pedida y la desplegada · caída de
 más del 30 % en las cifras de una tienda respecto al informe anterior · un `✖` **sin marca** del
 vigía · un «oferta real» sobre un PVP inflado · **una acusación de «Precio inflado» *por nuestro
