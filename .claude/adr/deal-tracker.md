@@ -4230,6 +4230,50 @@ enteró. Eso es lo que hace el cambio fácil de revertir sin darse cuenta: un `c
 a un `INSERT` a secas, o un borrado físico reintroducido como endpoint, pasan los tests de contrato
 y solo se notan cuando alguien recibe dos veces el mismo aviso.
 
+### La notificabilidad de todo el sistema es UN join, y eso decide qué NO puede vivir en `interest` (#435)
+
+La única condición que hace que algo se avise por Telegram es el `JOIN interest i ON i.active` de
+`findCandidates` (`matching.service.ts`). No hay una segunda puerta, ni una bandera de «esto sí
+notifica»: **estar en `interest` con `active` es la definición operativa de «avisable»**. Es una
+propiedad cómoda mientras `interest` sea la única lista de usuario, y una trampa en cuanto deja de
+serlo.
+
+Los favoritos de #435 son ese momento. La forma barata —un `kind` en `interest`, o reutilizar
+`active` como «guardado pero sin avisar»— es la que hay que saber descartar, y los tres motivos son
+de naturaleza distinta:
+
+1. **`interest` no es «una prenda», es un CRITERIO.** Su alcance son ocho columnas y
+   `interest_target_present_chk` (`0004`) solo exige que una no sea `NULL`; en QA conviven intereses
+   de una tienda entera, de «género + talla + color» y de producto concreto. Un favorito es siempre
+   una prenda.
+2. **Colisionarían por identidad.** Por la sección anterior, el alcance ES la clave
+   (`interest_alcance_uniq`, `NULLS NOT DISTINCT`). «Favorito del producto X» y «seguimiento del
+   producto X» tienen alcance idéntico: serían **la misma fila**, así que un usuario no podría tener
+   las dos cosas sobre la misma prenda — que es justo lo que la funcionalidad pide. Meter `kind` en
+   la clave obliga a `DROP`+`ADD CONSTRAINT` sobre la restricción que sostiene la deduplicación de
+   avisos, y a rehacer el `target:[...]` del `onConflictDoUpdate`.
+3. **Y el modo de fallo sería el peor de los tres.** Una fila de favorito dentro de `interest`
+   **dispara avisos reales** salvo que alguien se acuerde de parchear ese join. El olvido es
+   silencioso para nosotros y ruidoso en el móvil del usuario: no hay test que falle, no hay error
+   en ningún log, y el síntoma le llega a un tercero.
+
+De ahí la regla que sobrevive a esta issue: **una lista de usuario que no deba notificar va en su
+propia tabla, y `matching.service.ts` no se toca.** Con `favorite` aparte (migración `0041`) la
+propiedad no depende de que nadie se acuerde de nada — es imposible por construcción. Y lo que
+`active` tampoco podía hacer: desde #149 el borrado de un seguimiento ya produce `active = false`,
+así que reusarlo confundiría «dejé de seguirlo» con «lo tengo guardado».
+
+Que eso se cumple **no se razona, se ejecuta**: hay un spec que siembra la bajada que sí produce
+aviso (39,99 → 19,99, dos puntos de histórico, usuario con `telegram_chat_id`), marca solo un
+favorito y llama a `MatchingService.run(false)` de verdad, esperando cero mensajes, cero filas en
+`notification` y cero en `interest`. Un test que se limitara a comprobar el endpoint de favoritos
+pasaría igual con el fallo dentro.
+
+Dos consecuencias menores que se derivan de la misma asimetría: el favorito se borra **físicamente**
+(de él no cuelga ningún historial que proteger, al revés que del interés) y su `product_id` va **sin
+FK dura**, como el de `interest`, porque `delisted_at` no borra nada pero la baja tiene que poder
+deshacerse sola sin que el usuario pierda lo que guardó.
+
 ### El vocabulario de categorías diverge entre tiendas, y es deliberado
 
 `sandalias` y `botas` existen en `cacles` y `lefties` —las dos tiendas que dan esa distinción
