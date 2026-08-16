@@ -16,6 +16,7 @@ import pytest
 
 from scraper import progreso as progreso_mod
 from scraper.ingest import (
+    _MAX_FAIL_MESSAGE,
     CatalogScanAborted,
     ProbeOutcome,
     _ExistingProduct,
@@ -1942,6 +1943,52 @@ def test_todos_agotados_Y_el_listado_sin_stock_si_es_alarma() -> None:
     assert mensaje is not None
     assert "señal de stock sospechosa" in mensaje
     assert "0 de 1200" in mensaje
+
+
+def test_la_alarma_de_stock_sobrevive_al_truncado_del_mensaje() -> None:
+    """La alarma no puede perderse por el tope de `_MAX_FAIL_MESSAGE`. Medido, no supuesto.
+
+    Se escribió porque **pasaba**: con la alarma emitida al final, una pasada con 6 hojas caídas y
+    4 ámbitos sospechosos —realista, y justo el tipo de pasada en la que además querrías enterarte
+    de que el stock no se lee— llegaba a los 500 caracteres exactos y la alarma se cortaba entera.
+    Un aviso de fallo silencioso que falla en silencio no sirve de nada.
+
+    Por eso las alarmas del sondeo van delante: son cortas y no se pueden reconstruir desde ninguna
+    otra columna, mientras que las enumeraciones de hojas y ámbitos ya se autolimitan con su `+N`.
+    """
+    report = ScanReport()
+    for _ in range(30):
+        report.leaf_ok()
+    for genero, seccion, categoria, hoja in [
+        ("niña", "ropa", "sudaderas", "ninos/nina/ropa/sudaderas-y-jerseys"),
+        ("niño", "ropa", "pantalones", "ninos/nino/ropa/pantalones-y-vaqueros"),
+        ("niña", "zapateria", "zapatos", "ninos/nina/zapateria/zapatillas-deportivas"),
+        ("niño", "zapateria", "botas", "ninos/nino/zapateria/botas-y-botines"),
+        ("unisex", "ropa", "ropa interior", "ninos/unisex/ropa/ropa-interior-y-pijamas"),
+        ("niña", "ropa", "vestidos", "ninos/nina/ropa/vestidos-y-monos"),
+    ]:
+        report.leaf_gone(ScrapeScope(genero, seccion, categoria), hoja)
+
+    mensaje = _success_message(
+        report,
+        suspicious={
+            ("niña", "ropa", "sudaderas"),
+            ("niño", "ropa", "pantalones"),
+            ("niña", "zapateria", "zapatos"),
+            ("unisex", "ropa", "ropa interior"),
+        },
+        gender_frozen=12,
+        rescued={("niña", "ropa", "vestidos")},
+        probe=ProbeOutcome(sent=33, unbuyable=33),
+        variants_seen=1200,
+        variants_in_stock=0,
+    )
+
+    assert mensaje is not None
+    assert len(mensaje) == _MAX_FAIL_MESSAGE, (
+        "el caso debe seguir llegando al tope, o no prueba nada"
+    )
+    assert "señal de stock sospechosa" in mensaje
 
 
 def test_una_pasada_sin_escribir_variantes_NO_dispara_la_alarma_de_stock() -> None:

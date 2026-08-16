@@ -1142,24 +1142,39 @@ def _success_message(
     if rescued:
         ambitos = sorted(_render_scope(s) for s in rescued)
         partes.append(f"ambitos remapeados: {', '.join(ambitos)}")
-    if probe is not None and probe.sent and probe.unresolved == probe.sent:
-        partes.append(f"sondeo sin respuesta: {probe.sent} de {probe.sent} sin veredicto")
+    if gender_frozen:
+        partes.append(f"generos conservados: {gender_frozen}")
+    # Las dos alarmas del sondeo van DELANTE de todo lo demás, y no es cosmética: el mensaje se
+    # trunca a `_MAX_FAIL_MESSAGE` y las listas de hojas y ámbitos son largas. Medido sobre un caso
+    # realista —6 hojas caídas y 4 ámbitos sospechosos— el mensaje llegaba justo a los 500 y la
+    # alarma de stock **se perdía entera**, que es precisamente el fallo silencioso que #427 existe
+    # para quitar. Estas dos son cortas y no se pueden reconstruir desde ninguna otra columna;
+    # las enumeraciones de abajo ya se autolimitan con su `+N` y tienen sus propios contadores.
+    return (
+        " · ".join(_alarmas_del_sondeo(probe, variants_seen, variants_in_stock) + partes)[
+            :_MAX_FAIL_MESSAGE
+        ]
+        or None
+    )
+
+
+def _alarmas_del_sondeo(
+    probe: ProbeOutcome | None, variants_seen: int, variants_in_stock: int
+) -> list[str]:
+    """Lo que hay que leer aunque el resto del mensaje no quepa (#151, #357, #427)."""
+    if probe is None or not probe.sent:
+        return []
+    alarmas: list[str] = []
+    if probe.unresolved == probe.sent:
+        alarmas.append(f"sondeo sin respuesta: {probe.sent} de {probe.sent} sin veredicto")
     # El «todos agotados» SOLO se nombra acompañado del catálogo entero sin stock (#427). Por
     # separado, cada mitad es un estado sano y frecuente; juntas no lo son.
-    if (
-        probe is not None
-        and probe.sent
-        and probe.unbuyable == probe.sent
-        and variants_seen > 0
-        and variants_in_stock == 0
-    ):
-        partes.append(
+    if probe.unbuyable == probe.sent and variants_seen > 0 and variants_in_stock == 0:
+        alarmas.append(
             f"señal de stock sospechosa: {probe.sent} de {probe.sent} candidatos agotados "
             f"y 0 de {variants_seen} variantes con stock en el listado"
         )
-    if gender_frozen:
-        partes.append(f"generos conservados: {gender_frozen}")
-    return " · ".join(partes)[:_MAX_FAIL_MESSAGE] if partes else None
+    return alarmas
 
 
 def _escribir_fila_fallida(
