@@ -198,7 +198,18 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
       VALUES ('zara', 'Zara', 'https://www.zara.com') RETURNING id`;
 
     // Oferta real: mínimo nuevo sobre un PVP creíble. La tienda declara un 50 %.
+    //
+    // El punto de hace 30 días es lo que da derecho a ELOGIAR (#436), y es el simétrico del de 120
+    // que más abajo da derecho a acusar: con los 2 días que tenía antes, «el precio más bajo de los
+    // últimos meses» se apoyaría en una sola observación.
     await seedProduct(r.id, 'Oferta real', [
+      { price: 40, list: 39.99, daysAgo: 30 },
+      { price: 19.99, list: 39.99, daysAgo: 0, discount: 50 },
+    ]);
+    // Bajada reciente: EXACTAMENTE la misma forma que 'Oferta real' —mínimo nuevo, mismo PVP
+    // creíble, mismo 50 % declarado— pero descubierta anteayer. Es el 71,5 % del catálogo de QA, y
+    // el único eje que la separa de la anterior es la cobertura (#436).
+    await seedProduct(r.id, 'Bajada reciente', [
       { price: 40, list: 39.99, daysAgo: 2 },
       { price: 19.99, list: 39.99, daysAgo: 0, discount: 50 },
     ]);
@@ -249,6 +260,8 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
       res.body.items.map((i: { name: string; honesty: string }) => [i.name, i.honesty]),
     );
     expect(byName.get('Oferta real')).toBe('real');
+    // La misma bajada sin cobertura para sostenerla (#436): ha bajado, pero no la llamamos honesta.
+    expect(byName.get('Bajada reciente')).toBe('reciente');
     expect(byName.get('Precio inflado')).toBe('suspicious');
     // Los dos veredictos que NO acusan, y que son cosas distintas (#332): en «Sin corroborar» hay
     // tachado y no podemos desmentirlo; en «Recién visto» no hay ni con qué empezar.
@@ -300,7 +313,8 @@ describe.skipIf(!TEST_DB)('descuento honesto · veredicto del catálogo (e2e)', 
     const res = await request(app.getHttpServer())
       .get('/api/catalog/products?onlyDeals=false')
       .expect(200);
-    expect(res.body.items).toHaveLength(5);
+    // Los seis sembrados: `reciente` NO se filtra del catálogo, solo se le retira el elogio (#436).
+    expect(res.body.items).toHaveLength(6);
   });
 
   it('sort=ofertas antepone la oferta real al mayor descuento declarado por la tienda', async () => {

@@ -8,6 +8,7 @@ import {
   honestDiscountPct,
   honestListPrice,
   honestyBasis,
+  REAL_EVIDENCE_DAYS,
 } from '../src/matching/deal-rule';
 import type { DealInput } from '../src/matching/deal-rule';
 import {
@@ -29,7 +30,7 @@ import { makeSql, TEST_DB } from './helpers';
  * La red que había era un test extremo a extremo sobre **cuatro productos sembrados a mano**
  * (`catalog.e2e.spec.ts`), y esa es la duda que #228 levantaba: cuatro casos no cubren los bordes
  * de una regla con seis entradas, cuatro de ellas nulables. Aquí se comparan los dos lados fila a
- * fila sobre el **producto cartesiano** de los valores interesantes de cada entrada — 5.760 casos,
+ * fila sobre el **producto cartesiano** de los valores interesantes de cada entrada — 23.040 casos,
  * incluidos todos los nulos y los dos lados del margen del 3 %.
  *
  * Cartesiano y no aleatorio a posta: es determinista (un fallo se reproduce siempre igual), no
@@ -50,6 +51,7 @@ const COLUMNAS: DealSqlColumns = {
   maxObserved: sql`max_observed`,
   priorPoints: sql`prior_points`,
   retailerMin30d: sql`retailer_min_30d`,
+  trackedDays: sql`tracked_days`,
 };
 
 interface Caso {
@@ -59,6 +61,7 @@ interface Caso {
   maxObserved: string | null;
   priorPoints: number;
   retailerMin30d: string | null;
+  trackedDays: number;
 }
 
 /**
@@ -89,19 +92,35 @@ const MAXIMOS = [null, '3.99', '19.99', '30.00', '39.99'];
 const MINIMOS = [null, '3.99', '24.00', '39.99'];
 const PUNTOS = [0, 1, 5];
 
+/**
+ * Días de cobertura, la séptima entrada — nueva con #436, que es la que separa `real` de `reciente`.
+ *
+ * Los cuatro valores caen **a los dos lados de `REAL_EVIDENCE_DAYS`** y pegados al borde
+ * (`13.99` / `14`), que es lo que hace que mover la constante en un solo lado rompa esta suite en
+ * vez de cambiar el catálogo en silencio. `0` es el caso mayoritario del catálogo de hoy y `120`
+ * cruza además el umbral de #332, para que la independencia entre los dos siga vigilada.
+ *
+ * `numeric` y no `int` a propósito: `tracked_days` sale de un `EXTRACT(EPOCH …) / 86400` y llega
+ * fraccionario, así que el borde real que hay que ejercitar no es entero.
+ */
+const COBERTURAS = [0, 13.99, 14, 120];
+
 const CASOS: Caso[] = PRECIOS.flatMap((price) =>
   TACHADOS.flatMap((listPrice) =>
     MAXIMOS.flatMap((maxObserved) =>
       MINIMOS.flatMap((recentMin) =>
         PUNTOS.flatMap((priorPoints) =>
-          MINIMOS_DECLARADOS.map((retailerMin30d) => ({
-            price,
-            listPrice,
-            recentMin,
-            maxObserved,
-            priorPoints,
-            retailerMin30d,
-          })),
+          MINIMOS_DECLARADOS.flatMap((retailerMin30d) =>
+            COBERTURAS.map((trackedDays) => ({
+              price,
+              listPrice,
+              recentMin,
+              maxObserved,
+              priorPoints,
+              retailerMin30d,
+              trackedDays,
+            })),
+          ),
         ),
       ),
     ),
@@ -109,7 +128,7 @@ const CASOS: Caso[] = PRECIOS.flatMap((price) =>
 );
 
 /** El mismo caso, como entrada de `classifyHonesty` con los parámetros que usa el catálogo. */
-function comoDealInput(c: Caso, trackedDays: number): DealInput {
+function comoDealInput(c: Caso, trackedDays: number = c.trackedDays): DealInput {
   return { ...c, trackedDays, minDiscountPct: 0, compareBase: 'recent_min' };
 }
 
@@ -123,31 +142,47 @@ describe.skipIf(!TEST_DB)('paridad de la regla de honestidad con su espejo SQL (
     client = makeSql();
     const db = drizzle(client);
 
-    // Un solo viaje a la base con los 5.760 casos como filas de un VALUES: la expresión que se
-    // ejercita es LA MISMA que compone `catalog.service.ts`, solo que apuntando a otras columnas.
-    const filas = sql.join(
-      CASOS.map(
-        (c, i) =>
-          sql`(${i}::int, ${c.price}::numeric, ${c.listPrice}::numeric, ${c.recentMin}::numeric,
-               ${c.maxObserved}::numeric, ${c.priorPoints}::int, ${c.retailerMin30d}::numeric)`,
-      ),
-      sql`, `,
-    );
-    const rows = (await db.execute(sql`
-      SELECT idx,
-             ${isRealDealSql(COLUMNAS)}      AS is_real_deal,
-             ${honestListPriceSql(COLUMNAS.listPrice, COLUMNAS.maxObserved, COLUMNAS.retailerMin30d)}
-               AS honest_list_price,
-             ${honestDiscountSql(COLUMNAS)}  AS honest_discount
-      FROM (VALUES ${filas})
-        AS t(idx, price, list_price, recent_min, max_observed, prior_points, retailer_min_30d)
-      ORDER BY idx
-    `)) as unknown as {
+    // Los 23.040 casos como filas de un VALUES, **en lotes**: la expresión que se ejercita es LA
+    // MISMA que compone `catalog.service.ts`, solo que apuntando a otras columnas.
+    //
+    // El troceo no es una optimización: `sql.join` construye la consulta recursivamente y con el
+    // cartesiano entero en una sola llamada drizzle se queda sin pila (`Maximum call stack size
+    // exceeded`) antes de mandar nada. 5.760 por viaje es el tamaño con el que este test vivió
+    // hasta #436, o sea el que ya se sabe que aguanta. Cubrir menos casos para ahorrarse esto sería
+    // pagar el borde del umbral con cobertura, que es justo lo que el test existe para tener.
+    const LOTE = 5_760;
+    const rows: {
       idx: number;
       is_real_deal: boolean;
       honest_list_price: string | null;
       honest_discount: string;
-    }[];
+    }[] = [];
+
+    for (let desde = 0; desde < CASOS.length; desde += LOTE) {
+      const lote = CASOS.slice(desde, desde + LOTE);
+      const filas = sql.join(
+        lote.map(
+          (c, i) =>
+            sql`(${desde + i}::int, ${c.price}::numeric, ${c.listPrice}::numeric,
+                 ${c.recentMin}::numeric, ${c.maxObserved}::numeric, ${c.priorPoints}::int,
+                 ${c.retailerMin30d}::numeric, ${c.trackedDays}::numeric)`,
+        ),
+        sql`, `,
+      );
+      rows.push(
+        ...((await db.execute(sql`
+          SELECT idx,
+                 ${isRealDealSql(COLUMNAS)}      AS is_real_deal,
+                 ${honestListPriceSql(COLUMNAS.listPrice, COLUMNAS.maxObserved, COLUMNAS.retailerMin30d)}
+                   AS honest_list_price,
+                 ${honestDiscountSql(COLUMNAS)}  AS honest_discount
+          FROM (VALUES ${filas})
+            AS t(idx, price, list_price, recent_min, max_observed, prior_points, retailer_min_30d,
+                 tracked_days)
+          ORDER BY idx
+        `)) as unknown as typeof rows),
+      );
+    }
 
     veredictosSql = rows.map((r) => Boolean(r.is_real_deal));
     // `numeric` viaja como string; el espejo TS devuelve números.
@@ -167,9 +202,9 @@ describe.skipIf(!TEST_DB)('paridad de la regla de honestidad con su espejo SQL (
     expect(reales).toBeLessThan(CASOS.length);
   });
 
-  it('SQL y TypeScript dan el mismo veredicto en los 5.760 casos', () => {
+  it('SQL y TypeScript dan el mismo veredicto en los 23.040 casos', () => {
     const discrepancias = CASOS.map((c, i) => ({ caso: c, sql: veredictosSql[i] }))
-      .filter(({ caso, sql: enSql }) => enSql !== (classifyHonesty(comoDealInput(caso, 0)) === 'real'))
+      .filter(({ caso, sql: enSql }) => enSql !== (classifyHonesty(comoDealInput(caso)) === 'real'))
       .slice(0, 5);
 
     // La lista de discrepancias sale en el mensaje del fallo: si esto rompe, lo primero que hace
@@ -216,20 +251,47 @@ describe.skipIf(!TEST_DB)('paridad de la regla de honestidad con su espejo SQL (
     expect(discrepancias).toEqual([]);
   });
 
-  it('el umbral de evidencia de #332 no puede mover el veredicto `real`', () => {
-    // La invariante que hace seguro el cambio de #332: el umbral solo condiciona `suspicious`, y
-    // el espejo SQL no calcula `suspicious`. Si alguien mete los días de cobertura en la regla del
-    // aviso, los dos lados se separan y esto lo caza antes de que el catálogo y el aviso se
-    // contradigan delante del usuario.
+  it('el umbral de evidencia de #332 sigue sin poder mover el veredicto `real`', () => {
+    // La invariante que hacía seguro el cambio de #332: su umbral solo condiciona `suspicious`, y
+    // el espejo SQL no calcula `suspicious`. Sigue en pie **por encima de la cobertura de #436**:
+    // una vez pasado `REAL_EVIDENCE_DAYS`, seguir sumando días no puede cambiar nada, y los tres
+    // valores de abajo cruzan `HONESTY_EVIDENCE_DAYS` (89 y 90) sin que el veredicto se mueva.
     //
-    // Revisado en #375 por el mismo sesgo de borde que tenía el margen: estos cinco valores sí
-    // caen a los dos lados de `HONESTY_EVIDENCE_DAYS` (89 y 90), así que aquí no hay punto ciego.
-    // Las otras dos constantes de la regla no lo tienen porque no entran en el espejo:
-    // `minDiscountPct` es 0 por contrato en todo el catálogo, y `EPSILON` solo actúa cuando ese
-    // umbral es mayor que 0, o sea nunca por este camino.
-    for (const dias of [0, 1, 89, 90, 10_000]) {
+    // Las otras dos constantes de la regla no entran en el espejo: `minDiscountPct` es 0 por
+    // contrato en todo el catálogo, y `EPSILON` solo actúa cuando ese umbral es mayor que 0.
+    const referencia = CASOS.map((c) => classifyHonesty(comoDealInput(c, 14)) === 'real');
+    for (const dias of [89, 90, 10_000]) {
       const enTs = CASOS.map((c) => classifyHonesty(comoDealInput(c, dias)) === 'real');
-      expect(enTs).toEqual(veredictosSql);
+      expect(enTs).toEqual(referencia);
+    }
+  });
+
+  it('la cobertura de #436 es lo ÚNICO que separa `real` de `reciente`', () => {
+    // El corte nuevo, y la red que exige la definición de hecho de la v0.6.0: mover
+    // `REAL_EVIDENCE_DAYS` en un solo lado tiene que romper la suite. Como `trackedDays` es ahora
+    // una dimensión del cartesiano, el test del veredicto de arriba ya compara los dos lados a
+    // ambos lados del borde (13,99 y 14); esto fija además que el corte no arrastra nada más.
+    for (const c of CASOS) {
+      const conCobertura = classifyHonesty(comoDealInput(c, REAL_EVIDENCE_DAYS));
+      const sinCobertura = classifyHonesty(comoDealInput(c, REAL_EVIDENCE_DAYS - 0.01));
+
+      if (conCobertura === 'real') {
+        // Lo único que puede pasarle a un `real` al quitarle cobertura es caer a `reciente`.
+        expect(sinCobertura).toBe('reciente');
+      } else {
+        // Y a nada más le afecta: quitar días no puede crear ni una acusación ni un elogio.
+        expect(sinCobertura).toBe(conCobertura);
+      }
+    }
+  });
+
+  it('`reciente` no aparece nunca sin una bajada real detrás', () => {
+    // El veredicto nuevo no es un cajón de sastre: es exactamente `real` sin cobertura. Si alguien
+    // lo usara para etiquetar cualquier otra cosa, el badge «Bajada reciente» empezaría a afirmar
+    // bajadas que no han ocurrido, que es el fallo simétrico del que #436 viene a arreglar.
+    for (const c of CASOS) {
+      if (classifyHonesty(comoDealInput(c)) !== 'reciente') continue;
+      expect(classifyHonesty(comoDealInput(c, REAL_EVIDENCE_DAYS))).toBe('real');
     }
   });
 
@@ -271,13 +333,16 @@ describe.skipIf(!TEST_DB)('paridad de la regla de honestidad con su espejo SQL (
     // acusación vale desde el primer día — incluido el arranque en frío, que en QA era un tercio de
     // los casos (104 de 291). Si alguien le aplicara el umbral «por coherencia», el apagón hasta
     // noviembre volvería entero y en silencio.
-    const caso = {
+    const caso: Caso = {
       price: '19.99',
       listPrice: '39.99',
       recentMin: null,
       maxObserved: null,
       priorPoints: 0,
       retailerMin30d: '3.99',
+      // Cero cobertura: es justo el punto del test — esta acusación no la necesita. Los dos usos de
+      // abajo lo pasan explícito a `comoDealInput`, así que este valor no decide nada.
+      trackedDays: 0,
     };
 
     expect(classifyHonesty(comoDealInput(caso, 0))).toBe('suspicious');

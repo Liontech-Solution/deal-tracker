@@ -9,12 +9,17 @@ import { discountInt, parseMoney } from './format';
  * es justo lo que el catálogo hacía 15.928 veces en producción, apoyándose en una media de 2,3
  * días de observación—. `none` es que no hay nada que decir.
  *
- * Es una guarda de tipo para que `HonestyBadge` siga aceptando solo los dos veredictos que sabe
- * pintar: así, si mañana aparece un quinto veredicto, el compilador obliga a decidir de qué lado
- * cae en vez de dejarlo colarse en el badge.
+ * `reciente` SÍ lleva, y con eso se estrenó la guarda (#436): es una afirmación que sí podemos
+ * sostener —la prenda ha bajado— con un rótulo que no dice ni «real» ni «honesta», porque eso es lo
+ * que no sabemos todavía. Es la simétrica de `unverified`: allí callamos una acusación, aquí
+ * rebajamos un elogio.
+ *
+ * Es una guarda de tipo para que `HonestyBadge` siga aceptando solo los veredictos que sabe pintar:
+ * así, si mañana aparece uno nuevo, el compilador obliga a decidir de qué lado cae en vez de
+ * dejarlo colarse en el badge.
  */
-export function llevaBadge(honesty: Honesty): honesty is 'real' | 'suspicious' {
-  return honesty === 'real' || honesty === 'suspicious';
+export function llevaBadge(honesty: Honesty): honesty is 'real' | 'reciente' | 'suspicious' {
+  return honesty === 'real' || honesty === 'reciente' || honesty === 'suspicious';
 }
 
 /**

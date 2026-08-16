@@ -136,6 +136,9 @@ const DEAL_COLUMNS: DealSqlColumns = {
   maxObserved: sql`max_observed_repr`,
   priorPoints: sql`prior_points_repr`,
   retailerMin30d: sql`retailer_min_30d_repr`,
+  // Sin migración: `tracked_days_repr` existe en `product_agg` desde la 0035 y ya viajaba en la CTE
+  // `agg`, solo que hasta #436 no la miraba nadie más que el TypeScript.
+  trackedDays: sql`tracked_days_repr`,
 };
 
 /**

@@ -201,14 +201,56 @@ export const HONESTY_WINDOW_DAYS = 90;
  */
 export const HONESTY_EVIDENCE_DAYS = HONESTY_WINDOW_DAYS;
 
+/**
+ * Días de histórico que hace falta cubrir para **elogiar** una bajada como «Oferta real» (#436).
+ *
+ * Es el simétrico de `HONESTY_EVIDENCE_DAYS`, y existe porque #332 le puso umbral a la acusación y
+ * no al elogio. `real` implica `price < recent_min`, o sea que **algo bajó**; lo que no garantiza es
+ * que la referencia contra la que se mide signifique nada. Con una sola observación previa, «el
+ * precio más bajo de los últimos meses» es *ayer*. Medido en QA el 16/08/2026: de los 246 productos
+ * con el badge, 176 (71,5 %) tenían **una sola** observación previa y los 246 menos de 90 días.
+ *
+ * **Por qué 14 y no 90.** No son el mismo número porque no afirman lo mismo: acusar a una tienda de
+ * inflar un tachado exige haber visto la prenda *fuera* de su temporada de rebajas (de ahí los 90
+ * días del calendario comercial), mientras que decir «esto ha bajado de verdad» solo exige que la
+ * serie contra la que se compara no sea un único punto. Y hay un dato que decide el valor concreto:
+ *
+ * | umbral | de las 246 sobreviven |
+ * |---|---|
+ * | ≥ 3 días  | 238 |
+ * | ≥ 7 días  | 212 |
+ * | ≥ 14 días | **26** |
+ * | ≥ 30 días | **0** |
+ *
+ * El histórico más largo de todo QA son 22,4 días, así que 30 apaga el elogio por completo y 7 no
+ * filtra casi nada. 14 es el único valor que separa de verdad sin apagarlo.
+ *
+ * Un solo eje, en días, y **no** un mínimo de observaciones además: exigir `priorPoints >= 3` sobre
+ * los 14 días baja de 26 productos a 13 y no compra nada que el umbral en días no dé ya. Ojo a que
+ * el eje mide cosas distintas según el entorno: QA pasa semanal y prod diario, así que 14 días son
+ * ~2-3 observaciones allí y ~14 aquí.
+ *
+ * Consecuencia asumida: lo que baja sin cobertura **no desaparece del catálogo**, cae al veredicto
+ * `reciente`. Sí desaparece de «Solo ofertas reales» y de la portada, que se quedan estrictos a
+ * propósito hasta que la serie madure.
+ */
+export const REAL_EVIDENCE_DAYS = 14;
+
 /** Etiqueta de honestidad del descuento que consume el catálogo (tarjetas y detalle). */
-export type HonestyVerdict = 'real' | 'suspicious' | 'unverified' | 'none';
+export type HonestyVerdict = 'real' | 'reciente' | 'suspicious' | 'unverified' | 'none';
 
 /**
  * Veredicto de "descuento honesto" para el catálogo, construido **sobre `evaluateDeal`** para que
  * catálogo y aviso de Telegram nunca digan cosas distintas de la misma prenda.
  *
- *  - `real`: el job avisaría (mínimo reciente con rebaja honesta contra el PVP creíble).
+ *  - `real`: el job avisaría (mínimo reciente con rebaja honesta contra el PVP creíble) **y**
+ *    llevamos observando la prenda lo bastante como para que esa referencia signifique algo
+ *    (`REAL_EVIDENCE_DAYS`).
+ *  - `reciente`: exactamente la misma bajada, pero sin esa cobertura (#436). Ha bajado —eso lo
+ *    sabemos— y no podemos llamarlo honesto, porque el único precio contra el que lo comparamos lo
+ *    vimos anteayer. Es la simétrica de `unverified`: allí no podemos sostener una acusación, aquí
+ *    no podemos sostener un elogio, y en los dos casos el catálogo dice lo que sabe en vez de
+ *    afirmar de más.
  *  - `suspicious`: la tienda muestra un tachado que **podemos desmentir** — está por encima del
  *    máximo que hemos observado y llevamos siguiendo la prenda lo bastante como para que ese
  *    máximo signifique algo (`HONESTY_EVIDENCE_DAYS`).
@@ -220,6 +262,11 @@ export type HonestyVerdict = 'real' | 'suspicious' | 'unverified' | 'none';
  * La asimetría entre `suspicious` y `unverified` es deliberada y es el fondo de #332: el aviso de
  * Telegram, ante la duda, **calla**, y eso está bien porque el coste es un aviso perdido; el
  * catálogo no puede reutilizar ese "ante la duda" como si fuera "ante la duda, acusa".
+ *
+ * **Y tampoco como "ante la duda, elogia"** (#436): eso es lo que añade el corte `real`/`reciente`.
+ * El veredicto que consume el **aviso de Telegram** no se mueve — `evaluateDeal` no mira
+ * `trackedDays` y sigue sin mirarlo—, así que esto cambia lo que el catálogo *afirma*, no a quién
+ * se avisa.
  */
 export function classifyHonesty(input: DealInput): HonestyVerdict {
   // La vía declarada se resuelve antes que nada porque **no depende de nuestro histórico** (#354):
@@ -232,7 +279,12 @@ export function classifyHonesty(input: DealInput): HonestyVerdict {
 
   const verdict = evaluateDeal({ ...input, minDiscountPct: 0, compareBase: 'recent_min' });
   if (verdict.reason === 'sin-historico') return declarado ? 'suspicious' : 'none';
-  if (verdict.notify) return 'real';
+  // Ha bajado. Que además podamos llamarlo «real» depende de si la referencia contra la que se ha
+  // medido significa algo, y eso lo decide la cobertura (#436). Ausente cuenta como cero, igual que
+  // en la vía acusatoria: el fallo por defecto es afirmar menos, nunca más.
+  if (verdict.notify) {
+    return (input.trackedDays ?? 0) >= REAL_EVIDENCE_DAYS ? 'real' : 'reciente';
+  }
 
   // No es una bajada real. Si la tienda no enseña tachado, no hay nada que juzgar.
   const price = num(input.price);

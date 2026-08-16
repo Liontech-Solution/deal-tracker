@@ -95,6 +95,8 @@ export function ProductCard({ p }: { p: ProductListItem }) {
           <span style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>desde</span>
           <span
             className="serif"
+            // `reciente` mantiene el acento: la prenda SÍ ha bajado, y eso no está en duda (#436).
+            // Lo que se le retira es el verde del porcentaje y la palabra «real» del badge.
             style={{ fontSize: 22, fontWeight: 600, color: suspicious ? 'var(--text)' : 'var(--accent)' }}
           >
             {price ?? '—'}

@@ -10,7 +10,7 @@
  * no es una bajada real, y **no podemos corroborar** que esté inflado». No es una acusación
  * suavizada — es la ausencia de prueba, y se pinta sin badge y sin culpar a nadie.
  */
-export type Honesty = 'real' | 'suspicious' | 'unverified' | 'none';
+export type Honesty = 'real' | 'reciente' | 'suspicious' | 'unverified' | 'none';
 
 /**
  * En qué se apoya una acusación (espejo de `HonestyBasis`, #354): en nuestro histórico
