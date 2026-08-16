@@ -251,7 +251,7 @@ function SearchBox({
   );
 }
 
-/** Menú de usuario autenticado: iniciales + desplegable con "Mis seguimientos" y "Cerrar sesión". */
+/** Menú de usuario autenticado: iniciales + desplegable con sus listas y "Cerrar sesión". */
 function UserMenu({ name, onLogout }: { name: string; onLogout: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -310,6 +310,11 @@ function UserMenu({ name, onLogout }: { name: string; onLogout: () => void }) {
           <div style={{ padding: '8px 12px', fontSize: 12.5, color: 'var(--text-faint)', fontWeight: 700, borderBottom: '1px solid var(--border)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {name}
           </div>
+          {/* Favoritos delante de seguimientos a propósito (#435): guardar es el gesto barato y el
+              que más gente hará; pedir aviso es el compromiso. */}
+          <MenuLink to="/favoritos" onClick={() => setOpen(false)}>
+            Mis favoritos
+          </MenuLink>
           <MenuLink to="/seguimientos" onClick={() => setOpen(false)}>
             Mis seguimientos
           </MenuLink>
