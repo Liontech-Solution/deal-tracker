@@ -176,6 +176,34 @@ def test_el_umbral_ajax_de_woocommerce_es_none_y_no_lista_vacia() -> None:
     assert parse_variaciones(html, "123") is None
 
 
+def test_el_id_se_encuentra_aunque_el_tema_reordene_o_separe_los_atributos() -> None:
+    """El emparejamiento lo acota el `<form>`, no la distancia ni el orden entre los dos atributos.
+
+    Un tema que meta atributos entre medias —o que ponga el id detrás— no puede dejar productos sin
+    refrescar en silencio, que es lo que haría un patrón con un hueco de tamaño fijo.
+    """
+    v = json.dumps([{"variation_id": 7, "display_price": "10.00", "is_in_stock": True}])
+    relleno = " ".join(f'data-relleno-{i}="{"x" * 60}"' for i in range(20))
+
+    invertido = f"<form data-product_variations='{v}' {relleno} data-product_id=\"77\"></form>"
+    assert parse_variaciones(invertido, "77") is not None
+
+    separado = f"<form data-product_id=\"77\" {relleno} data-product_variations='{v}'></form>"
+    assert parse_variaciones(separado, "77") is not None
+
+
+def test_el_id_de_un_formulario_no_se_lee_desde_el_de_al_lado() -> None:
+    """El troceo por `<form` es lo que impide que un id se emparente con variaciones ajenas."""
+    v = json.dumps([{"variation_id": 7, "display_price": "10.00"}])
+    html = (
+        f"<form data-product_id=\"11\" data-product_variations='{v}'></form>"
+        f"<form data-product_id=\"22\" data-product_variations='{v}'></form>"
+    )
+    assert parse_variaciones(html, "11") is not None
+    assert parse_variaciones(html, "22") is not None
+    assert parse_variaciones(html, "33") is None
+
+
 def test_una_ficha_con_json_roto_no_revienta() -> None:
     html = '<form data-product_id="123" data-product_variations="[{roto">'
     assert parse_variaciones(html, "123") is None
@@ -604,11 +632,14 @@ def test_un_producto_repetido_entre_paginas_se_emite_una_vez() -> None:
 
 
 def test_una_ficha_caida_omite_su_producto_pero_no_tumba_la_pasada() -> None:
-    """Sin variantes no se emite: decir «se ha quedado sin tallas» sería peor que no verlo."""
+    """Sin variantes no se emite: decir «se ha quedado sin tallas» sería peor que no verlo.
+
+    Y el resto del catálogo sigue saliendo — una ficha que no responde no puede llevarse por
+    delante a las demás. Lo que sí hace, si son muchas, es marcar la hoja (test aparte).
+    """
     store = _store_sirviendo({1: [_crudo(1), _crudo(2)]}, _fichas_de(1))  # falta la del 2
     ids = [e.retailer_product_id for e in store.list_catalog()]
     assert ids == ["1"]
-    assert store.scan_report().leaves_failed == 0
 
 
 def test_no_se_pide_la_ficha_de_un_producto_excluido() -> None:
@@ -628,6 +659,48 @@ def test_no_se_pide_la_ficha_de_un_producto_excluido() -> None:
     store._client = lambda: httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[method-assign]
     assert [e.retailer_product_id for e in store.list_catalog()] == ["2"]
     assert pedidas == [_crudo(2)["permalink"]]
+
+
+def test_una_ficha_suelta_que_falla_no_compromete_la_hoja() -> None:
+    """1 de 430 es rutina: es lo que dio la primera pasada real (el permalink que redirige)."""
+    store = _store_sirviendo(
+        {1: [_crudo(i) for i in range(1, 21)]},
+        _fichas_de(*range(2, 21)),  # falta solo la del 1
+    )
+    assert len(list(store.list_catalog())) == 19
+    informe = store.scan_report()
+    assert informe.leaves_total == 1 and informe.leaves_failed == 0
+
+
+def test_si_fallan_demasiadas_fichas_la_hoja_se_da_por_no_leida() -> None:
+    """Muchas a la vez no son rutina: o nos están mitigando, o la plantilla ha cambiado.
+
+    Callarse aquí es el fallo caro — la hoja responde 200, la pasada se cierra limpia y una parte
+    del catálogo deja de refrescar precio y stock sin que nada lo diga. Al marcarla comprometida
+    salen además sus ámbitos de las bajas, que es lo correcto: lo que no se ha leído no está
+    retirado.
+    """
+    store = _store_sirviendo(
+        {1: [_crudo(i) for i in range(1, 21)]},
+        _fichas_de(*range(1, 11)),  # fallan 10 de 20
+    )
+    assert len(list(store.list_catalog())) == 10
+    informe = store.scan_report()
+    assert informe.leaves_failed == 1
+    assert informe.failed_leaves == ["ninos"]
+    assert informe.failed_scopes == set(store.scopes())
+
+
+def test_los_excluidos_no_cuentan_como_fichas_fallidas() -> None:
+    """Un juguete no se pide, así que no puede inflar el ratio y tumbar una hoja sana."""
+    juguetes = []
+    for i in range(1, 11):
+        j = _crudo(i)
+        j["categories"] = [{"slug": "ninos"}, {"slug": "juguetes"}]
+        juguetes.append(j)
+    store = _store_sirviendo({1: [*juguetes, _crudo(50)]}, _fichas_de(50))
+    assert [e.retailer_product_id for e in store.list_catalog()] == ["50"]
+    assert store.scan_report().leaves_failed == 0
 
 
 def test_fetch_details_sirve_de_la_cache_sin_volver_a_la_red() -> None:

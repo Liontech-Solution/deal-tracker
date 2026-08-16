@@ -123,6 +123,23 @@ _PAGINA_INICIAL = 1
 # veinte dan margen para que el catálogo se multiplique por cuatro.
 _MAX_PAGES = 20
 
+# Qué proporción de fichas puede fallar en una hoja antes de considerar que no la hemos leído.
+#
+# Aquí la ficha es la única fuente del precio y del stock (punto 1 de la cabecera), así que un
+# producto cuya ficha falla NO se emite. Uno suelto es rutina y lo absorbe la histéresis de bajas:
+# la primera pasada real tuvo exactamente uno de 430, el del `permalink` que redirige (punto 3).
+# Muchos a la vez son otra cosa —un WAF que empieza a mitigar a la petición N, o una plantilla que
+# cambia y rompe el parseo de una parte del catálogo— y ahí callarse sería el fallo: la hoja
+# respondería 200, la pasada se cerraría limpia y una porción del catálogo dejaría de refrescar
+# precio y stock semana tras semana, con la única huella en el log de un pod que se recicla.
+#
+# El 10 % es deliberadamente estrecho comparado con el 34 % de `SCRAPER_SCAN_MAX_DEAD_RATIO`,
+# porque no mide lo mismo: allí se cuentan hojas que la tienda declara muertas, y aquí fichas que
+# no hemos sabido leer. Al cruzarlo, la hoja se marca comprometida, lo que además **saca sus
+# ámbitos de las bajas** — que es la respuesta correcta cuando no has podido mirar: lo que no se ha
+# leído no está retirado.
+_MAX_RATIO_FICHAS_FALLIDAS = 0.10
+
 # Hoja inventada con la que se comprueba, en cada barrido, que un cero significa algo. Ver el
 # punto 4 de la cabecera: aquí una categoría retirada responde 200 con lista vacía, así que sin
 # esta comprobación el sondeo no puede distinguir «hoja muerta» de «el filtro ha dejado de
@@ -212,14 +229,18 @@ _CATEGORIAS_DE_NINA = frozenset({"merceditas-zapatos-ninos", "ceremonia-mercedit
 _TAXONOMIAS_DE_COLOR: tuple[str, ...] = ("pa_color", "pa_modelo")
 _TAXONOMIA_TALLA = "pa_talla"
 
-# El atributo de la ficha que trae las variaciones, y el id que dice de quién son. Se buscan por
-# separado y emparejados: una ficha trae varios formularios (punto 3 de la cabecera).
-_RE_FORMULARIO = re.compile(
-    r"data-product_id=(?P<c1>['\"])(?P<pid>\d+)(?P=c1)"
-    r".{0,400}?"
-    r"data-product_variations=(?P<c2>['\"])(?P<var>.*?)(?P=c2)",
-    re.S,
-)
+# Los dos atributos de la ficha: el que trae las variaciones y el que dice de quién son. Van por
+# separado y se emparejan **acotando por el `<form>` que los contiene**, no por distancia ni por
+# orden entre ellos. Escribirlo como un solo patrón «id, luego hasta 400 caracteres, luego
+# variaciones» funciona con la plantilla de hoy —los dos van pegados— y se rompe en silencio en
+# cuanto el tema meta un atributo entre medias o los reordene: `parse_variaciones` devolvería
+# `None` para los productos afectados y esos productos dejarían de refrescarse.
+#
+# El troceo por `<form` es seguro porque el valor del atributo va HTML-escapado: un `<` dentro del
+# JSON aparece como `&lt;`, así que ningún `<form` literal puede caer dentro de una variación.
+_RE_VARIACIONES = re.compile(r"data-product_variations=(?P<c>['\"])(?P<var>.*?)(?P=c)", re.S)
+_RE_ID = re.compile(r"data-product_id=(?P<c>['\"])(?P<pid>\d+)(?P=c)")
+_MARCA_FORMULARIO = "<form"
 
 
 @dataclass(frozen=True)
@@ -395,10 +416,16 @@ def parse_variaciones(html: str, product_id: str) -> list[Mapping[str, Any]] | N
     daría de baja el catálogo entero.
 
     Se elige el formulario **por `data-product_id`** y no por posición: la ficha trae entre 5 y 9,
-    los demás son prendas relacionadas (punto 3 de la cabecera).
+    los demás son prendas relacionadas, y uno de ellos puede ser directamente de otro producto
+    cuando el `permalink` redirige (punto 3 de la cabecera). El id se busca dentro del `<form>` que
+    contiene a las variaciones, sin suponerle orden ni distancia a los dos atributos.
     """
-    for m in _RE_FORMULARIO.finditer(html):
-        if m.group("pid") != product_id:
+    for m in _RE_VARIACIONES.finditer(html):
+        inicio = html.rfind(_MARCA_FORMULARIO, 0, m.start())
+        fin = html.find(_MARCA_FORMULARIO, m.end())
+        trozo = html[inicio if inicio != -1 else 0 : fin if fin != -1 else len(html)]
+        propietario = _RE_ID.search(trozo)
+        if propietario is None or propietario.group("pid") != product_id:
             continue
         crudo = html_mod.unescape(m.group("var"))
         if crudo.strip() in ("false", ""):
@@ -784,6 +811,7 @@ class DeditosStore:
                 slug = cat.category_slug
                 viva = False
                 truncada = True  # solo deja de serlo al ver el final real de la paginación
+                pedidas = fallidas = 0  # fichas: ver `_MAX_RATIO_FICHAS_FALLIDAS`
                 for page in range(_PAGINA_INICIAL, _PAGINA_INICIAL + _MAX_PAGES):
                     crudos = self._pagina(client, slug, page)
                     if not crudos:
@@ -805,8 +833,12 @@ class DeditosStore:
                         pid = raw.get("id")
                         if pid is None or str(pid) in emitted:
                             continue
+                        if esta_excluido(_slugs_de_categoria(raw)):
+                            continue  # ni se pide la ficha ni cuenta como fallo: no es nuestro
+                        pedidas += 1
                         producto = self._producto_completo(client, raw)
                         if producto is None:
+                            fallidas += 1
                             continue
                         pid = producto.retailer_product_id
                         emitted.add(pid)
@@ -833,7 +865,26 @@ class DeditosStore:
                         f"{slug!r} agotó el tope de {_MAX_PAGES} páginas sin llegar al final, "
                         "así que el catálogo leído está incompleto",
                     )
+                elif viva and fallidas and fallidas / pedidas > _MAX_RATIO_FICHAS_FALLIDAS:
+                    self._hoja_comprometida(
+                        slug,
+                        f"{fallidas} de {pedidas} fichas de {slug!r} no se pudieron leer "
+                        f"(> {_MAX_RATIO_FICHAS_FALLIDAS:.0%}), así que el catálogo leído está "
+                        "incompleto y no se sabe de qué parte",
+                    )
                 elif viva:
+                    if fallidas:
+                        # Por debajo del umbral: se sigue, pero queda dicho cuántas y sobre cuántas.
+                        # Sin este recuento, «una ficha falló» y «cuarenta fichas fallaron» se leen
+                        # igual de mal en un log por producto.
+                        logger.warning(
+                            "deditos: %d de %d fichas de %r no se pudieron leer; por debajo del "
+                            "%.0f%% se sigue, y esos productos se omiten de esta pasada",
+                            fallidas,
+                            pedidas,
+                            slug,
+                            _MAX_RATIO_FICHAS_FALLIDAS * 100,
+                        )
                     self._scan.leaf_ok()
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
