@@ -412,6 +412,8 @@ a terminar, el frente queda **NO CUBIERTO** — no se aprueba por silencio.
   alcance de producto pendiente.
 - `⚠ [estacional]` (hoja de campaña apagada) → **P2 exento, no abre issue**: el propio vigía declara
   que su id vuelve con la campaña.
+- `⚠ [huerfana]` (declaración de `COBERTURA_DECLARADA` que la tienda ya no publica) → **P2 exento,
+  no abre issue**: no esconde catálogo, solo envejece, y muchas son de campaña.
 - `⚠` sin marca → **P1**, como siempre.
 
 **Este caso depende de la Fase 1 del orquestador**, que es quien lanza el job. Si corres el frente

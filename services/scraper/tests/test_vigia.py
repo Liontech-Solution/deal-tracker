@@ -30,6 +30,7 @@ from scraper.vigia import (
     COBERTURA_DECLARADA,
     COBERTURA_SIN_VIGILAR,
     MARCA_COBERTURA,
+    MARCA_DECLARACION_HUERFANA,
     MARCA_ESTACIONAL,
     SIN_VIGILANCIA_DE_HOJAS,
     Informe,
@@ -590,6 +591,35 @@ def test_una_declaracion_que_la_tienda_ya_no_publica_avisa_sin_abrir_issue() -> 
     assert len(informe.avisos) == 1
     assert "ninos/nina/rebajas-verano" in informe.avisos[0]
     assert "ninos/nina/bano" not in informe.avisos[0], "esa sigue publicada"
+
+
+def test_la_declaracion_huerfana_se_marca_como_exenta() -> None:
+    """La tercera marca, y la que faltaba (#430).
+
+    Sin ella el listón la lee como `⚠` sin marca, que su tabla de severidad manda a **P1**, o sea
+    abre issue por algo que el propio código de arriba declara benigno por diseño — el «hallazgo de
+    relleno» que la skill prohíbe. En la validación de v0.5.0 hubo que bajarla a P2 razonándolo a
+    mano, que es exactamente lo que la marca existe para evitar: que la severidad la decida el
+    validador de turno y no el emisor.
+    """
+    tienda = TiendaConArbol(
+        {"ninos/nina": [_nodo("ninos/nina/bano")]},
+        mapeadas=[],
+    )
+    informe = Informe("falsa")
+
+    COBERTURA_DECLARADA["falsa"] = {
+        "ninos/nina/bano": "no es del brief",
+        "ninos/nina/rebajas-verano": "campaña: 5/0/5",
+    }
+    try:
+        revisar_cobertura(tienda, informe)  # type: ignore[arg-type]
+    finally:
+        del COBERTURA_DECLARADA["falsa"]
+
+    assert informe.esta_bien, "la marca clasifica, no cambia el veredicto"
+    assert informe.avisos[0].startswith(MARCA_DECLARACION_HUERFANA)
+    assert f"⚠ {MARCA_DECLARACION_HUERFANA}" in informe.render()
 
 
 def test_una_declaracion_de_una_rama_que_aun_tiene_hijas_no_es_huerfana() -> None:
