@@ -441,7 +441,8 @@ def main(argv: list[str] | None = None) -> int:
         f"run #{result.scrape_run_id} OK — "
         f"{result.products_in_catalog} en catálogo "
         f"({result.details_fetched} con detalle, {result.products_unchanged} sin cambios), "
-        f"{result.variants_seen} variantes, {result.prices_recorded} precios; "
+        f"{result.variants_seen} variantes ({result.variants_in_stock} con stock), "
+        f"{result.prices_recorded} precios; "
         f"bajas: {result.products_delisted} productos / {result.variants_delisted} variantes"
     )
     if result.barefoot_counts:
