@@ -25,10 +25,23 @@ disallows `/api`, so the listing and the product sheet are read from the `dataLa
 `ld+json` each page embeds), **H&M** (REST API on `api.hm.com`, outside the Akamai that guards
 the storefront, so plain `httpx` gets in), **Mango Kids** (the only store that *publishes its own
 category tree*: a public menu endpoint hands out the `catalogId` the listing API consumes, so no leaf
-is guessed) and **Springfield** (the first listed by **sitemap** — its `robots.txt` bans the SFCC
+is guessed), **Springfield** (the first listed by **sitemap** — its `robots.txt` bans the SFCC
 grid — which also hands over `lastmod` for free, though measuring it two days apart showed it is a
-batch stamp of the sitemap generator and worthless as a signature, #227). That closes the retailer
-list from the brief.
+batch stamp of the sitemap generator and worthless as a signature, #227) and **Deditos Barefoot**
+(WooCommerce **Store API**, and the second *natively* barefoot store, so `barefoot='si'` is declared
+per-store like Cacles — a premise that was **re-measured before being coded**: 92 of its 431
+children's products are conventional brands (Mustang, Joma, Gioseppo), but 88 of those 92 are the
+store's own barefoot lines, named as such). Springfield closed the retailer list from the brief;
+Deditos is catalogue on top of it.
+
+Deditos is the one store where **there is no cheap fingerprint at all**. Its listing publishes
+neither price nor stock per size, and its `price_range` is null on 276 of 431 products *including*
+ones whose sizes differ in price — measured. So `list_catalog()` fetches every product sheet and
+`fetch_details()` serves from cache (the Cacles shape, for the opposite reason), and conditional
+detail saves nothing here by design. Two more traps live in its header: prices arrive in minor
+units from the API and as serialized PHP floats from the sheet, and one sheet carries 5-9
+`variations_form` blocks — the related products' — so the right one is picked by `data-product_id`,
+never by position.
 
 H&M is the only store so far whose **dead leaf is invisible**: an unresolvable `pageId` returns 200
 with a full, plausible page — the whole `categoryId` bucket. It is detected with a *canary*: one

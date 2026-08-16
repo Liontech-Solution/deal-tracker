@@ -768,6 +768,45 @@ COBERTURA_DECLARADA: dict[str, dict[str, str]] = {
         # padre no devuelve el subárbol. Los 14 exclusivos siguen fuera del catálogo a propósito:
         # su categoría real no la dice nadie (ver `lefties.TagLeaf`).
     },
+    # El árbol de Deditos SÍ anida (`deditos.parse_categorias` reconstruye la ruta), así que
+    # declarar una rama calla a sus hijas y las 84 categorías de la tienda se cubren con once
+    # entradas. Lo que ingerimos es `ninos` entera, que ya sale por `mapped_leaves()`.
+    # Medido el 16/08/2026 sobre las 84 que publica el árbol.
+    "deditos": {
+        "adultos": (
+            "el catálogo de adulto (241 productos): este producto sigue ropa y calzado INFANTIL, "
+            "que es lo que dice el brief"
+        ),
+        "juguetes": "juguetes: ni ropa ni calzado",
+        "accesorios": (
+            "complementos. Los calcetines y las plantillas infantiles ya se ingieren, porque la "
+            "tienda los publica también bajo `ninos` y esa es la hoja que listamos; lo que queda "
+            "fuera —mochilas, chubasqueros, botellas, cuidado del calzado— no es ni ropa ni "
+            "calzado"
+        ),
+        "tarjeta-regalo": "una tarjeta regalo no tiene precio que vigilar",
+        "segunda-vida": (
+            "segunda mano: el mismo modelo se republica con id nuevo cada vez que entra un par "
+            "usado, así que su identificador no es estable y el histórico no significaría nada"
+        ),
+        "sin-categorizar": "el cajón de sastre de WooCommerce, no es una categoría de la tienda",
+        # Las transversales: describen temporada, campaña o precio, no qué es la prenda. Sus
+        # productos ya entran por `ninos` cuando son infantiles.
+        "otono-invierno": "temporada, no categoría: sus productos infantiles ya entran por `ninos`",
+        "primavera-verano": "temporada, no categoría: ídem",
+        "outlet": "vista transversal por precio, no categoría",
+        "preventa": "vista transversal por disponibilidad, no categoría",
+        "vuelta-al-cole": "campaña transversal, no categoría",
+        "unisex": (
+            "eje de género, no categoría; y aquí no aporta: esta tienda apenas publica género, "
+            "así que `deditos._genero()` ya emite `unisex` por defecto"
+        ),
+        "deditos": "la marca propia de la tienda, no una categoría de producto",
+        "running-barefoot": "vista transversal por uso; su calzado infantil ya entra por `ninos`",
+        "calzado-barefoot-ceremonia": "vista transversal por ocasión, no categoría",
+        "calzado-barefoot-de-transicion": "vista transversal por tipo de horma, no categoría",
+        "calzado-barefoot-lowcost": "vista transversal por precio, no categoría",
+    },
 }
 
 # Cuántos productos se llevan hasta el final (listado -> detalle -> parseo) por tienda. Cinco basta
