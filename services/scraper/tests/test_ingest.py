@@ -730,18 +730,147 @@ def test_sondeo_respeta_el_tope_y_no_da_de_baja_lo_no_sondeado(db_conn: Any) -> 
     assert _scalar(db_conn, "SELECT count(*) FROM product WHERE delisted_at IS NULL") == 2
 
 
+def test_no_se_repregunta_a_quien_ya_contesto_hace_poco(db_conn: Any) -> None:
+    """#412: el veredicto deja rastro, así que la siguiente pasada no vuelve a gastar la petición.
+
+    Sin esto `_rescue()` pone la racha a 0 y dos pasadas después la misma prenda vuelve a la cola:
+    medido en QA, 200 sondeos de cuatro tiendas devolvieron 200 «sigue a la venta» y 0 bajas.
+    """
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    # T2: B falta y el sondeo dice que sigue a la venta -> se le anota la fecha.
+    primera = ProbingFakeStore(_solo_a(), {"A": "a1"}, {"B": ProbeVerdict.ALIVE})
+    r2 = ingest(db_conn, primera, run_ts=T2, delist_min_misses=1, delist_probe_cooldown_days=7)
+    assert (r2.probes_sent, r2.probes_alive) == (1, 1)
+    assert primera.probed == ["B"]
+    assert _scalar(db_conn, "SELECT last_probe_at FROM product WHERE retailer_product_id='B'") == T2
+
+    # T3: sigue faltando y vuelve a ser candidato, pero ya contestó ayer: no se le pregunta.
+    segunda = ProbingFakeStore(_solo_a(), {"A": "a1"}, {"B": ProbeVerdict.ALIVE})
+    r3 = ingest(db_conn, segunda, run_ts=T3, delist_min_misses=1, delist_probe_cooldown_days=7)
+    assert segunda.probed == [], "no debería haberse hecho ni una petición"
+    assert (r3.probes_sent, r3.probes_skipped_fresh) == (0, 1)
+
+
+def test_el_excluido_por_la_ventana_sigue_protegido_de_la_baja(db_conn: Any) -> None:
+    """La regresión que importa de #412, y el fallo que la issue invitaba a cometer.
+
+    `_delist()` NO descataloga a partir de la lista de candidatos: lo hace con su propio `WHERE`
+    excluyendo únicamente `blocked_ids`. O sea que filtrar los «frescos» dentro de
+    `_load_delist_candidates` —que es lo que la issue proponía literalmente— no los protegería:
+    los descatalogaría SIN sondeo, que es exactamente la baja falsa masiva que esta sesión tiene
+    prohibido producir.
+
+    Se monta con la tienda diciendo `DEAD` a propósito: si el producto se sondeara, caería. Que
+    siga vivo prueba que ni se preguntó ni se dio por retirado.
+    """
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+    primera = ProbingFakeStore(_solo_a(), {"A": "a1"}, {"B": ProbeVerdict.ALIVE})
+    ingest(db_conn, primera, run_ts=T2, delist_min_misses=1, delist_probe_cooldown_days=7)
+
+    segunda = ProbingFakeStore(_solo_a(), {"A": "a1"}, {"B": ProbeVerdict.DEAD})
+    r3 = ingest(db_conn, segunda, run_ts=T3, delist_min_misses=1, delist_probe_cooldown_days=7)
+
+    assert segunda.probed == []
+    assert r3.products_delisted == 0, "un candidato no sondeado NO puede darse de baja"
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='B'") is None
+    assert (
+        _scalar(
+            db_conn,
+            "SELECT count(*) FROM variant v JOIN product p ON p.id=v.product_id "
+            "WHERE p.retailer_product_id='B' AND v.delisted_at IS NOT NULL",
+        )
+        == 0
+    )
+
+
+def test_la_ventana_caduca_y_se_vuelve_a_preguntar(db_conn: Any) -> None:
+    """El contraste: la ventana aplaza la pregunta, no la cancela.
+
+    Sin este test, «no se sondea nunca más» pasaría por bueno — y eso sí sería un mecanismo de
+    bajas apagado, que es peor que el desperdicio que #412 vino a quitar.
+    """
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+    primera = ProbingFakeStore(_solo_a(), {"A": "a1"}, {"B": ProbeVerdict.ALIVE})
+    ingest(db_conn, primera, run_ts=T2, delist_min_misses=1, delist_probe_cooldown_days=1)
+
+    # T4 son dos días después de T2: la ventana de 1 día ya expiró.
+    tardia = ProbingFakeStore(_solo_a(), {"A": "a1"}, {"B": ProbeVerdict.DEAD})
+    r4 = ingest(db_conn, tardia, run_ts=T4, delist_min_misses=1, delist_probe_cooldown_days=1)
+
+    assert tardia.probed == ["B"]
+    assert (r4.probes_sent, r4.probes_skipped_fresh) == (1, 0)
+    assert r4.products_delisted == 1  # confirmada la retirada, la baja sigue su curso
+
+
+def test_el_sondeo_sin_veredicto_no_se_anota_y_se_vuelve_a_preguntar(db_conn: Any) -> None:
+    """Solo los veredictos CONCLUYENTES cuentan: si la tienda no contestó, no hay nada que recordar.
+
+    Anotar un `unresolved` sería lo peor de los dos mundos — dejaríamos de preguntar por lo único
+    de lo que no sabemos nada, y encima la tienda bloqueada saldría «atendida».
+    """
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    muda = ProbingFakeStore(_solo_a(), {"A": "a1"}, {}, explode=True)
+    ingest(db_conn, muda, run_ts=T2, delist_min_misses=1, delist_probe_cooldown_days=7)
+    marca = "SELECT last_probe_at FROM product WHERE retailer_product_id='B'"
+    assert _scalar(db_conn, marca) is None
+
+    segunda = ProbingFakeStore(_solo_a(), {"A": "a1"}, {"B": ProbeVerdict.ALIVE})
+    r3 = ingest(db_conn, segunda, run_ts=T3, delist_min_misses=1, delist_probe_cooldown_days=7)
+    assert segunda.probed == ["B"]
+    assert (r3.probes_sent, r3.probes_skipped_fresh) == (1, 0)
+
+
+def test_con_la_ventana_a_cero_se_repregunta_como_antes(db_conn: Any) -> None:
+    """`SCRAPER_DELIST_PROBE_COOLDOWN_DAYS=0` devuelve el comportamiento previo, sin sorpresas."""
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+    primera = ProbingFakeStore(_solo_a(), {"A": "a1"}, {"B": ProbeVerdict.ALIVE})
+    ingest(db_conn, primera, run_ts=T2, delist_min_misses=1, delist_probe_cooldown_days=0)
+
+    segunda = ProbingFakeStore(_solo_a(), {"A": "a1"}, {"B": ProbeVerdict.ALIVE})
+    r3 = ingest(db_conn, segunda, run_ts=T3, delist_min_misses=1, delist_probe_cooldown_days=0)
+    assert segunda.probed == ["B"]
+    assert (r3.probes_sent, r3.probes_skipped_fresh) == (1, 0)
+
+
 def _sondeos(conn: Any, run_ts: Any) -> tuple[Any, ...]:
-    """`(errors, sent, alive, dead, over_cap, unresolved, unbuyable, limpia)` de esa pasada."""
+    """`(errors, sent, alive, dead, over_cap, unresolved, unbuyable, fresh, limpia)`."""
     with conn.cursor() as cur:
         cur.execute(
             "SELECT errors, probes_sent, probes_alive, probes_dead, probes_over_cap, "
-            "probes_unresolved, probes_unbuyable, message IS NULL FROM scrape_run "
-            "WHERE started_at = %s",
+            "probes_unresolved, probes_unbuyable, probes_skipped_fresh, message IS NULL "
+            "FROM scrape_run WHERE started_at = %s",
             (run_ts,),
         )
         row = cur.fetchone()
     assert row is not None
     return tuple(row)
+
+
+def test_los_no_repreguntados_no_cuentan_como_error_y_tienen_su_columna(db_conn: Any) -> None:
+    """#412: `probes_skipped_fresh` se persiste, y la pasada sigue limpia.
+
+    Se afirma sobre la FILA y no sobre `IngestResult` por lo mismo que #261: el valor de la
+    columna es que «¿la ventana está funcionando?» se responda con una consulta, sin abrir el log
+    de un pod que se recicla. Y `message` tiene que seguir a NULL — esto no es una anomalía.
+    """
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+    primera = ProbingFakeStore(_solo_a(), {"A": "a1"}, {"B": ProbeVerdict.ALIVE})
+    ingest(db_conn, primera, run_ts=T2, delist_min_misses=1, delist_probe_cooldown_days=7)
+
+    segunda = ProbingFakeStore(_solo_a(), {"A": "a1"}, {"B": ProbeVerdict.ALIVE})
+    ingest(db_conn, segunda, run_ts=T3, delist_min_misses=1, delist_probe_cooldown_days=7)
+
+    errors, sent, _alive, _dead, over_cap, unresolved, _unb, fresh, limpia = _sondeos(db_conn, T3)
+    assert (sent, over_cap, unresolved, fresh) == (0, 0, 0, 1)
+    assert errors == 0 and limpia
 
 
 def test_fuera_del_tope_no_cuenta_como_error_y_queda_en_su_columna(db_conn: Any) -> None:
@@ -767,7 +896,7 @@ def test_fuera_del_tope_no_cuenta_como_error_y_queda_en_su_columna(db_conn: Any)
     )
 
     # errors = 0 y `message` a NULL: la pasada está limpia, que es justo lo que antes no se veía.
-    assert _sondeos(db_conn, T2) == (0, 1, 1, 0, 1, 0, 0, True)
+    assert _sondeos(db_conn, T2) == (0, 1, 1, 0, 1, 0, 0, 0, True)
 
 
 def test_agotado_no_cuenta_como_error_y_queda_en_su_columna(db_conn: Any) -> None:
@@ -790,7 +919,9 @@ def test_agotado_no_cuenta_como_error_y_queda_en_su_columna(db_conn: Any) -> Non
     )
     result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
 
-    errors, sent, alive, dead, over_cap, unresolved, unbuyable, limpia = _sondeos(db_conn, T2)
+    errors, sent, alive, dead, over_cap, unresolved, unbuyable, _fresh, limpia = _sondeos(
+        db_conn, T2
+    )
     assert (sent, alive, dead, over_cap, unresolved, unbuyable) == (1, 0, 0, 0, 0, 1)
     assert errors == 0 and limpia, "no es un fallo: la tienda ha contestado, y con claridad"
 
@@ -813,7 +944,7 @@ def test_sondeo_sin_veredicto_si_cuenta_como_error(db_conn: Any) -> None:
     store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={}, explode=True)
     ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
 
-    errors, sent, _alive, _dead, over_cap, unresolved, _unbuyable, _limpia = _sondeos(db_conn, T2)
+    errors, sent, _alive, _dead, over_cap, unresolved, _unb, _fresh, _limpia = _sondeos(db_conn, T2)
     assert (sent, over_cap, unresolved) == (1, 0, 1)
     assert errors == 1  # el sondeo sin veredicto sí suma
 
@@ -843,7 +974,7 @@ def test_pasada_limpia_deja_los_sondeos_a_cero(db_conn: Any) -> None:
     both, sigs = _dos_productos()
     ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
 
-    assert _sondeos(db_conn, T1) == (0, 0, 0, 0, 0, 0, 0, True)
+    assert _sondeos(db_conn, T1) == (0, 0, 0, 0, 0, 0, 0, 0, True)
 
 
 def test_sondeo_desactivado_vuelve_a_la_histeresis(db_conn: Any) -> None:

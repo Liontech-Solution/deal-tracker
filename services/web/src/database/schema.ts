@@ -75,6 +75,20 @@ export const product = pgTable(
      * lo único que hace que una prenda de precio estable se re-observe y tenga serie temporal.
      */
     lastDetailAt: timestamp('last_detail_at', { withTimezone: true }),
+    /**
+     * Cuándo contestó la tienda por última vez a un sondeo de confirmación de baja (migración
+     * 0042, #412). De la ingesta también, y solo con veredicto CONCLUYENTE — si la tienda no
+     * contestó, no hay nada que recordar.
+     *
+     * Existe porque el sondeo tiraba su propio veredicto: `_rescue()` pone la racha a 0 y dos
+     * pasadas después se repregunta lo mismo, así que el presupuesto se gastaba en reconfirmar
+     * prendas ya conocidas (200 sondeos / 200 vivos / 0 bajas / 504 sin sondear, QA 16/08/2026).
+     *
+     * **No es un criterio de baja.** A un producto dentro de la ventana no se le repregunta, pero
+     * sigue bloqueado frente a la descatalogación exactamente igual que los que no caben en el
+     * tope: lo que se ahorra es la petición, no la confirmación. El web no la lee.
+     */
+    lastProbeAt: timestamp('last_probe_at', { withTimezone: true }),
   },
   (t) => [unique().on(t.retailerId, t.retailerProductId)],
 );
@@ -227,11 +241,16 @@ export const productAgg = pgTable(
  * una FK contra esta tabla, y el matching se apoya en sus ids para saber qué pasadas ya evaluó
  * (`matching_scanned_run`, #240). Faltaba desde la 0001 (#364).
  *
- * Los seis `probes_*` son el desglose del sondeo de bajas de una pasada: `probes_sent +
- * probes_over_cap` es el pool de candidatas y `probes_dead` el drenaje real (ver la 0028).
- * `probes_unbuyable` (0040, #197) es la tienda contestando que el producto existe pero sin talla
- * comprable: ni rescate ni baja, y NO cuenta como error — al contrario que `probes_unresolved`,
- * que es la tienda negándose a contestar.
+ * Los siete `probes_*` son el desglose del sondeo de bajas de una pasada: `probes_sent +
+ * probes_over_cap + probes_skipped_fresh` es el pool de candidatas y `probes_dead` el drenaje real
+ * (ver la 0028). `probes_unbuyable` (0040, #197) es la tienda contestando que el producto existe
+ * pero sin talla comprable: ni rescate ni baja, y NO cuenta como error — al contrario que
+ * `probes_unresolved`, que es la tienda negándose a contestar.
+ *
+ * `probes_skipped_fresh` (0042, #412) es el cuarto que no es un error: candidatos a los que no se
+ * ha preguntado porque ya contestaron hace poco. Se separa de `probes_over_cap` porque responden a
+ * preguntas distintas —«no cupo» contra «no hacía falta»— y juntas no dejarían ver si la ventana
+ * funciona. Lo que comparten es lo que importa: **las dos van bloqueadas frente a la baja**.
  */
 export const scrapeRun = pgTable('scrape_run', {
   id: bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
@@ -252,6 +271,7 @@ export const scrapeRun = pgTable('scrape_run', {
   probesOverCap: integer('probes_over_cap').notNull().default(0),
   probesUnresolved: integer('probes_unresolved').notNull().default(0),
   probesUnbuyable: integer('probes_unbuyable').notNull().default(0),
+  probesSkippedFresh: integer('probes_skipped_fresh').notNull().default(0),
 });
 
 export const priceHistory = pgTable('price_history', {

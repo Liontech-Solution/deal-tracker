@@ -36,6 +36,16 @@ class Config:
     # `delist_probe_max` acota el gasto de peticiones extra por pasada.
     delist_probe: bool = True
     delist_probe_max: int = 50
+    # Ventana de silencio del sondeo (#412): a un candidato que ya contestó hace menos de estos
+    # días no se le vuelve a preguntar, porque el veredicto se tiraba y el presupuesto se gastaba
+    # en reconfirmar lo ya sabido (200 sondeos / 200 vivos / 0 bajas / 504 sin sondear, medido en
+    # QA el 16/08/2026). Queda BLOQUEADO frente a las bajas igual que los que no caben en el tope:
+    # ahorrarse la pregunta no es darlo por retirado. Con 0 se desactiva y se sondea como antes.
+    #
+    # El valor tiene un techo que no es de gusto: debe ser bastante MENOR que el tiempo en que una
+    # prenda retirada de verdad dejaría de responder, o se retrasan bajas legítimas. Con
+    # `delist_min_misses=2` y una pasada diaria, 7 días son ~5 pasadas de margen.
+    delist_probe_cooldown_days: int = 7
     # Refresco periódico forzado del detalle: una prenda de precio estable nunca cambia de huella
     # de listado, así que sin esto no se volvería a observar jamás (y sin re-observaciones no hay
     # histórico con el que corroborar un descuento, ni stock por talla al día). Se pide el detalle
@@ -151,6 +161,7 @@ class Config:
             delist_min_misses=int(env.get("SCRAPER_DELIST_MIN_MISSES", "2")),
             delist_probe=env.get("SCRAPER_DELIST_PROBE", "1") not in ("0", "false", "False"),
             delist_probe_max=int(env.get("SCRAPER_DELIST_PROBE_MAX", "50")),
+            delist_probe_cooldown_days=int(env.get("SCRAPER_DELIST_PROBE_COOLDOWN_DAYS", "7")),
             detail_max_age_days=int(env.get("SCRAPER_DETAIL_MAX_AGE_DAYS", "7")),
             detail_refresh_max=int(env.get("SCRAPER_DETAIL_REFRESH_MAX", "100")),
             detail_refresh_all=env.get("SCRAPER_DETAIL_REFRESH_ALL", "0")
