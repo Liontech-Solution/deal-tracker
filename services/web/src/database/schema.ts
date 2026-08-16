@@ -205,16 +205,36 @@ export const productAgg = pgTable(
      *
      * ⚠️ Toda lectura tiene que fijar el ámbito. Sin el predicado salen las dos filas del mismo
      * producto y el catálogo lo duplica sin decir nada.
+     *
+     * Y ojo con la cabecera de la 0038, que se ha quedado desfasada en un punto: dice que ese
+     * riesgo lo sujeta «que hay un solo lector». **Ya son dos** — `agregadoPrecomputado` en
+     * `catalog.service.ts` y `FavoritesService.list()` desde #435 —, y los dos fijan el ámbito.
      */
     scope: text('scope').notNull(),
     retailerId: bigint('retailer_id', { mode: 'number' })
       .notNull()
       .references(() => retailer.id),
+    /**
+     * El mínimo de precio sobre las variantes del ámbito, **sin mirar el stock**: el catálogo
+     * publicado.
+     *
+     * ⚠️ **No es lo que la tarjeta enseña.** El «desde» es `priceRepr` desde #402, porque en el
+     * ámbito `'todas'` esta columna puede ser el precio de una talla agotada. Se conserva porque es
+     * lo que hace comparables los dos caminos de la 0035 con un `EXCEPT`, y porque sigue
+     * significando algo distinto que a nadie le sobra.
+     */
     priceFrom: numeric('price_from', { precision: 10, scale: 2 }),
     listFrom: numeric('list_from', { precision: 10, scale: 2 }),
     discountFrom: numeric('discount_from', { precision: 5, scale: 2 }),
     maxDiscount: numeric('max_discount', { precision: 5, scale: 2 }),
     anyInStock: boolean('any_in_stock'),
+    /**
+     * Precio de la variante representativa (`in_stock DESC, price ASC, variant_id`), o sea **lo más
+     * barato comprable**, con respaldo al mínimo a secas cuando ninguna tiene stock.
+     *
+     * Es el «desde» que pinta la tarjeta y el que ordena `sort=precio-asc` (#402), y el que hace que
+     * el precio y el tachado de una tarjeta sean de la misma prenda.
+     */
     priceRepr: numeric('price_repr', { precision: 10, scale: 2 }),
     recentMinRepr: numeric('recent_min_repr', { precision: 10, scale: 2 }),
     maxObservedRepr: numeric('max_observed_repr', { precision: 10, scale: 2 }),

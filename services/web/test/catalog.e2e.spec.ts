@@ -2010,3 +2010,107 @@ describe.skipIf(!TEST_DB)('talla concreta dentro de la banda · segundo piso (e2
     expect(items.map((i) => [i.name, i.variantCount])).toEqual([['P-104', 1]]);
   });
 });
+
+/**
+ * El buscador no casa el género por subcadena (#408).
+ *
+ * El seed de los otros bloques no sirve para esto y conviene decir por qué: sus prendas se llaman
+ * «Botas niña» o «Sandalia de niño», así que el término `ni` casa por el **nombre** y el colapso del
+ * género queda tapado. Aquí los tres nombres y las tres categorías están elegidos para **no
+ * contener `ni`**, de forma que lo único que puede hacerlos aparecer es el género.
+ *
+ * Contra `deal_tracker_qa` el 14/08/2026 esto valía 16.844 de 16.844 productos con `ni` y 14.918
+ * con `nin`; en un seed de tres, 3 y 2.
+ */
+describe.skipIf(!TEST_DB)('búsqueda · el género no casa por subcadena (#408)', () => {
+  let sql: postgres.Sql;
+  let app: INestApplication;
+
+  async function seedPrenda(
+    retailerId: number,
+    name: string,
+    gender: string,
+    category: string,
+  ): Promise<void> {
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${retailerId}, ${name}, ${name}, ${gender}, 'zapateria', ${category}, 'si',
+              'https://x')
+      RETURNING id`;
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p.id}, ${name + '-v'}, '24', 'azul', ${name + '-sku'})
+      RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${v.id}, 19.90, 19.90, 0, true, now())`;
+  }
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    const [r] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('zara', 'Zara', 'https://www.zara.com') RETURNING id`;
+    // Ni los nombres ni las categorías contienen 'ni'. Es la condición del experimento.
+    await seedPrenda(r.id, 'Botas de agua', 'niña', 'botas');
+    await seedPrenda(r.id, 'Zapato colegial', 'niño', 'zapatos');
+    await seedPrenda(r.id, 'Chanclas de playa', 'unisex', 'sandalias');
+    await refrescarAgregado(sql);
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  const buscar = async (q: string): Promise<string[]> => {
+    const res = await request(app.getHttpServer())
+      .get(`/api/catalog/products?q=${encodeURIComponent(q)}`)
+      .expect(200);
+    return res.body.items.map((i: { name: string }) => i.name).sort();
+  };
+
+  it('un prefijo que no es un género completo ya no arrastra el catálogo', async () => {
+    // Antes de #408: `ni` devolvía los tres (está dentro de niño, niña Y unisex) y `nin` los dos
+    // primeros. La SPA busca según se teclea, así que quien escribe «niña» pasaba por los dos.
+    expect(await buscar('ni')).toEqual([]);
+    expect(await buscar('nin')).toEqual([]);
+    expect(await buscar('uni')).toEqual([]);
+    // Y el sufijo tampoco, que es el mismo defecto por el otro lado.
+    expect(await buscar('sex')).toEqual([]);
+  });
+
+  it('el género entero se sigue buscando, que es lo que #229 midió y hay que preservar', async () => {
+    expect(await buscar('niña')).toEqual(['Botas de agua']);
+    expect(await buscar('nina')).toEqual(['Botas de agua']); // tecleado sin la ñ
+    expect(await buscar('niño')).toEqual(['Zapato colegial']);
+    expect(await buscar('nino')).toEqual(['Zapato colegial']);
+    expect(await buscar('unisex')).toEqual(['Chanclas de playa']);
+  });
+
+  it('cada término se resuelve por su cuenta: uno por texto y otro por género', async () => {
+    // El caso que motivó meter el género en la búsqueda (PR #38): «botas niña» = categoría + género.
+    expect(await buscar('botas nina')).toEqual(['Botas de agua']);
+    expect(await buscar('nina botas')).toEqual(['Botas de agua']);
+    expect(await buscar('agua nina')).toEqual(['Botas de agua']); // nombre + género
+    expect(await buscar('botas nino')).toEqual([]); // la categoría es de la otra
+    // Y un término no puede casar a caballo entre el texto y el género.
+    expect(await buscar('aguanina')).toEqual([]);
+  });
+
+  it('la faceta entiende lo tecleado igual que el listado', async () => {
+    const facetas = async (q: string): Promise<string[]> => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/catalog/facets?q=${encodeURIComponent(q)}`)
+        .expect(200);
+      return (res.body.genders as string[]).slice().sort();
+    };
+    // Si esto devolviera los tres géneros, el panel ofrecería chips que el listado no puede llenar
+    // — que es exactamente el fallo que la duplicación de esta condición hacía posible.
+    expect(await facetas('ni')).toEqual([]);
+    expect(await facetas('nina')).toEqual(['niña']);
+  });
+});

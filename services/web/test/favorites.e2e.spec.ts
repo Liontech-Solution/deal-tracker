@@ -94,6 +94,39 @@ describe.skipIf(!TEST_DB)('favoritos (e2e)', () => {
     }
   });
 
+  /**
+   * `/favoritos` tiene que decir el mismo «desde» que la tarjeta desde la que se guardó (#402).
+   *
+   * Son dos lectores de `product_agg` desde #435, y el riesgo no es que uno se equivoque: es que
+   * los dos lean **columnas distintas** y nadie lo note, porque cada pantalla por separado parece
+   * coherente. Aquí se le añade a la prenda una talla más barata **agotada**, que es el caso que
+   * separa `price_from` de `price_repr`.
+   */
+  it('el "desde" del favorito es lo comprable, no la talla agotada más barata', async () => {
+    const [v2] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${ids.productId}, 'ZARA-1-25-verde', '25', 'verde', 'SKU25')
+      RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${Number(v2.id)}, 9.99, 39.99, 75, false, now())`;
+    await refrescarAgregado(sql);
+
+    const user = await seedUser(sql, 'kc-fav-desde');
+    const app = await makeApp(user);
+    try {
+      await request(app.getHttpServer())
+        .post('/api/favorites')
+        .send({ productId: ids.productId })
+        .expect(201);
+      const listed = await request(app.getHttpServer()).get('/api/favorites').expect(200);
+      // 19.99 es la comprable; 9.99 es la agotada, y es lo que se enseñaba antes de #402.
+      expect(listed.body[0].priceFrom).toBe('19.99');
+    } finally {
+      await app.close();
+    }
+  });
+
   it('marcar dos veces el mismo producto no falla ni duplica', async () => {
     const user = await seedUser(sql, 'kc-fav-idem');
     const app = await makeApp(user);

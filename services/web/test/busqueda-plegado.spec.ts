@@ -39,11 +39,19 @@ describe.each(BASES_CANON)('plegado de la búsqueda · $nombre', ({ url }) => {
    * `nombre + categoría + género`, así que sembrarlos todos en la misma categoría haría casar
    * cualquier término con todo.
    */
-  const PRODUCTOS: Array<[string, string]> = [
-    ['PANTALÓN VAQUERO', 'pantalones'], // zara, mayúscula acentuada — el caso de #105
-    ['Pantalón chino', 'pantalones'], // la misma prenda escrita en minúsculas
-    ['CAMISETA ALGODÓN', 'camisetas'], // otra mayúscula acentuada, para que no case por casualidad
-    ['Vestido liso', 'vestidos'], // sin acento: el control
+  const PRODUCTOS: Array<[string, string, string]> = [
+    ['PANTALÓN VAQUERO', 'pantalones', 'niña'], // zara, mayúscula acentuada — el caso de #105
+    ['Pantalón chino', 'pantalones', 'niña'], // la misma prenda escrita en minúsculas
+    ['CAMISETA ALGODÓN', 'camisetas', 'niña'], // otra mayúscula acentuada, para que no case por casualidad
+    ['Vestido liso', 'vestidos', 'niña'], // sin acento: el control
+    // El género del OTRO lado, para #408: la comparación del género es ahora una igualdad sobre
+    // `fold(gender)`, y una igualdad es mucho menos indulgente que un `position()`. Ninguno de los
+    // cinco nombres ni ninguna de las categorías contiene 'ni', así que lo único que puede
+    // devolverlos tecleando un género es el género.
+    //
+    // La categoría NO es `sudaderas`: el test de más abajo usa 'sudadera' como control de "esto no
+    // lo tiene nadie", y ponérsela aquí lo dejaría mintiendo.
+    ['CAZADORA VAQUERA', 'chaquetas', 'niño'],
   ];
 
   const buscar = async (q: string): Promise<string[]> => {
@@ -61,10 +69,11 @@ describe.each(BASES_CANON)('plegado de la búsqueda · $nombre', ({ url }) => {
       INSERT INTO retailer (slug, name, base_url)
       VALUES ('zara', 'Zara', 'https://www.zara.com')
       RETURNING id`;
-    for (const [i, [name, categoria]] of PRODUCTOS.entries()) {
+    for (const [i, [name, categoria, genero]] of PRODUCTOS.entries()) {
       const [p] = await sql<{ id: number }[]>`
         INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category, url)
-        VALUES (${r.id}, ${`ZARA-${i}`}, ${name}, 'niña', 'ropa', ${categoria}, ${`https://x/${i}`})
+        VALUES (${r.id}, ${`ZARA-${i}`}, ${name}, ${genero}, 'ropa', ${categoria},
+                ${`https://x/${i}`})
         RETURNING id`;
       const [v] = await sql<{ id: number }[]>`
         INSERT INTO variant (product_id, retailer_variant_id, size, color)
@@ -97,5 +106,31 @@ describe.each(BASES_CANON)('plegado de la búsqueda · $nombre', ({ url }) => {
     expect(await buscar('pantalon vaquero')).toEqual(['PANTALÓN VAQUERO']);
     expect(await buscar('pantalon algodon')).toEqual([]);
     expect(await buscar('sudadera')).toEqual([]);
+  });
+
+  /**
+   * El género, que desde #408 se casa por **igualdad** sobre `fold(gender)` y no por subcadena.
+   *
+   * Está aquí y no solo en `catalog.e2e.spec.ts` porque una igualdad plegada es justo lo que el
+   * ctype `C` puede romper de la forma de #105, y porque este es el único spec que corre contra las
+   * dos bases. Un `fold()` que dejara de bajar una letra convertiría la igualdad en un `false`
+   * silencioso: el buscador dejaría de encontrar por género y no fallaría nada más.
+   */
+  it('el género se busca entero y pliega igual en las dos bases', async () => {
+    expect(await buscar('niño')).toEqual(['CAZADORA VAQUERA']);
+    expect(await buscar('nino')).toEqual(['CAZADORA VAQUERA']); // tecleado sin la ñ
+    expect(await buscar('NIÑO')).toEqual(['CAZADORA VAQUERA']); // y con la Ñ en mayúscula
+    expect(await buscar('nina')).toEqual([
+      'CAMISETA ALGODÓN',
+      'PANTALÓN VAQUERO',
+      'Pantalón chino',
+      'Vestido liso',
+    ]);
+    // Y el prefijo ya no arrastra el catálogo, que es #408: 'ni' está dentro de los dos géneros.
+    expect(await buscar('ni')).toEqual([]);
+    expect(await buscar('nin')).toEqual([]);
+    // Un término sigue teniendo que casar entero: género + palabra del nombre.
+    expect(await buscar('nino vaquera')).toEqual(['CAZADORA VAQUERA']);
+    expect(await buscar('nina vaquera')).toEqual([]);
   });
 });

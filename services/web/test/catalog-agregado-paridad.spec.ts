@@ -277,14 +277,65 @@ describe.skipIf(!TEST_DB)('paridad entre el agregado precomputado y el vivo (#31
     // de verdad se ha vuelto a elegir la representativa.
     const sinFiltro = await ambos((q) => (q.q = 'agotada'));
     expect(sinFiltro.precomputado.items).toEqual(sinFiltro.vivo.items);
-    expect(sinFiltro.precomputado.items[0].priceFrom).toBe('10.00');
+    // Este `expect` decía 10,00 y pasaba A PROPÓSITO, documentando el defecto de #402: el "desde"
+    // era un MIN() ciego al stock, así que la tarjeta anunciaba la verde agotada mientras el
+    // tachado, el % y el veredicto hablaban de la negra. Ahora los cuatro salen de la misma prenda.
+    expect(sinFiltro.precomputado.items[0].priceFrom).toBe('40.00');
     expect(sinFiltro.precomputado.items[0].colorRepr).toBe('negro');
 
     const conFiltro = await ambos((q) => ((q.q = 'agotada'), (q.inStock = true)));
     expect(conFiltro.precomputado.items).toEqual(conFiltro.vivo.items);
-    // La barata desaparece del agregado: el "desde" ya no puede ser un precio que no se puede pagar.
+    // Y con el filtro puesto sale lo mismo, que es lo que tiene que pasar desde #402: el ámbito
+    // 'con_stock' ya no es la única forma de no enseñar un precio que no se puede pagar.
     expect(conFiltro.precomputado.items[0].priceFrom).toBe('40.00');
     expect(conFiltro.precomputado.items[0].colorRepr).toBe('negro');
+  });
+
+  /**
+   * El respaldo de #402, que es la mitad que ninguna de las dos issues escribe.
+   *
+   * `price_repr` es "la más barata CON stock, y la más barata a secas si no hay ninguna". Esa
+   * segunda mitad la ejercita Z-SINSTOCK (18,00, todo agotado): si el "desde" se hubiera hecho con
+   * un `MIN(price) FILTER (WHERE in_stock)` —que es la forma en la que uno piensa este arreglo—,
+   * aquí saldría `null` y la portada pintaría un hueco en 344 productos de QA.
+   */
+  it('un producto con TODO agotado conserva su "desde" en vez de quedarse sin él', async () => {
+    const { precomputado, vivo } = await ambos((q) => (q.q = 'sin stock'));
+    expect(precomputado.items).toEqual(vivo.items);
+    expect(precomputado.items).toHaveLength(1);
+    expect(precomputado.items[0].priceFrom).toBe('18.00');
+    // Y va acompañado de lo que la tarjeta usa para pintar el badge, que es lo que hace honesto el
+    // respaldo: se enseña un precio que no se puede pagar, pero diciendo que no se puede.
+    expect(precomputado.items[0].anyInStock).toBe(false);
+  });
+
+  /**
+   * Las dos consecuencias de #402 fuera de la tarjeta. Van juntas porque son el mismo argumento:
+   * ordenar o filtrar por una columna mientras se enseña otra es peor que el defecto de partida.
+   *
+   * Z-AGOTADA es el único del seed donde las dos columnas difieren (10,00 contra 40,00), así que es
+   * el único que puede acusar la diferencia.
+   */
+  it('el orden por precio y el rango filtran por el "desde" que se enseña', async () => {
+    const { items } = await servicio.listProducts(
+      Object.assign(new ProductQueryDto(), {
+        sort: 'precio-asc' as const,
+        barefoot: 'all' as const,
+        limit: 100,
+      }),
+    );
+    const agotada = items.find((i) => i.name.includes('agotada la barata'))!;
+    expect(agotada.priceFrom).toBe('40.00');
+    // Ordenado por lo que se ve: nadie con un "desde" mayor puede ir delante.
+    const posiciones = items.map((i) => Number(i.priceFrom));
+    expect(posiciones).toEqual([...posiciones].sort((a, b) => a - b));
+
+    // Y el rango: con el MIN ciego, "hasta 20 €" devolvía una prenda cuya tarjeta dice 40.
+    const { items: baratos } = await servicio.listProducts(
+      Object.assign(new ProductQueryDto(), { maxPrice: 20, barefoot: 'all' as const, limit: 100 }),
+    );
+    expect(baratos.map((i) => i.name)).not.toContain(agotada.name);
+    expect(baratos.every((i) => Number(i.priceFrom) <= 20)).toBe(true);
   });
 
   it('un producto con todo agotado no sale con inStock, y sí sin él', async () => {

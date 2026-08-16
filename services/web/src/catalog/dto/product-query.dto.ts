@@ -41,9 +41,11 @@ export class ProductQueryDto extends CatalogFilterDto {
   onlyDeals?: boolean;
 
   /**
-   * Rango de precio (#290), sobre `price_from` — el precio de la variante más barata del producto,
-   * que es el que la tarjeta enseña. Filtrar por otro haría que el catálogo devolviera prendas cuyo
-   * precio visible cae fuera del rango pedido.
+   * Rango de precio (#290), sobre el **«desde»** que la tarjeta enseña — o sea el precio de la
+   * variante más barata **con stock** (`price_repr`) desde #402, y no el mínimo a secas. Filtrar por
+   * otro haría que el catálogo devolviera prendas cuyo precio visible cae fuera del rango pedido,
+   * que es justo lo que pasaba con `price_from` en los 28 productos cuya talla más barata está
+   * agotada.
    *
    * Ambos extremos **incluyen**, que es lo que espera quien escribe "hasta 20 €".
    *
