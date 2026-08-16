@@ -415,6 +415,7 @@ def main(argv: list[str] | None = None) -> int:
                 delist_min_misses=config.delist_min_misses,
                 delist_probe=config.delist_probe,
                 delist_probe_max=config.delist_probe_max,
+                delist_probe_cooldown_days=config.delist_probe_cooldown_days,
                 detail_max_age_days=config.detail_max_age_days,
                 detail_refresh_max=config.detail_refresh_max,
                 detail_refresh_all=refresh_all,
@@ -481,7 +482,12 @@ def main(argv: list[str] | None = None) -> int:
             f"ausentes pendientes de confirmar (histéresis, umbral {config.delist_min_misses}): "
             f"{result.products_missing} productos / {result.variants_missing} variantes"
         )
-    if result.probes_sent or result.probes_over_cap or result.probes_unresolved:
+    if (
+        result.probes_sent
+        or result.probes_over_cap
+        or result.probes_unresolved
+        or result.probes_skipped_fresh
+    ):
         # `over_cap` y `unresolved` se dicen por separado (#261): el primero es la cola normal de
         # una tienda con muchos candidatos, el segundo es la tienda sin contestar. Solo el segundo
         # suma en `errors`, así que leerlos juntos era lo que hacía ilegible el número.
@@ -497,6 +503,14 @@ def main(argv: list[str] | None = None) -> int:
             f"{result.probes_over_cap} fuera del tope de {config.delist_probe_max}: "
             f"entran los primeros en la siguiente pasada"
         )
+        # Aparte del paréntesis y aparte de `over_cap` (#412): no es un veredicto ni una cola, es
+        # trabajo que NO se ha hecho porque no hacía falta. Se dice solo cuando la ventana está
+        # activa, o sería una línea de ruido en toda pasada de las tiendas que no la usan.
+        if result.probes_skipped_fresh:
+            print(
+                f"  · {result.probes_skipped_fresh} no repreguntados: ya contestaron hace menos "
+                f"de {config.delist_probe_cooldown_days} días (siguen protegidos de la baja)"
+            )
     if result.skipped_scopes:
         print(
             f"⚠ {result.skipped_scopes}/{result.scanned_scopes} ámbitos con caída sospechosa"

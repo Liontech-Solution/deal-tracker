@@ -74,6 +74,8 @@ DEFAULT_DELIST_DROP_RATIO = 0.5
 DEFAULT_DELIST_MIN_MISSES = 2
 # Confirmación activa: tope de sondeos por pasada (ver `_confirm_candidates`).
 DEFAULT_DELIST_PROBE_MAX = 50
+# Días que un veredicto concluyente vale antes de volver a preguntar (#412). Ver `Config`.
+DEFAULT_DELIST_PROBE_COOLDOWN_DAYS = 7
 # Refresco forzado: edad a partir de la cual un detalle se considera rancio, y tope de
 # refrescos por pasada (ver `_stale_refreshes`).
 DEFAULT_DETAIL_MAX_AGE_DAYS = 7
@@ -161,6 +163,11 @@ class IngestResult:
     probes_over_cap: int  # no cabían en el tope: rutina, entran los primeros en la siguiente
     probes_unresolved: int  # sondeados y sin veredicto (fallo de red, bloqueo o respuesta ambigua)
     probes_unbuyable: int  # la tienda los reconoce pero no queda talla comprable (#197)
+    # Candidatos no sondeados por haber contestado hace poco (#412). No es un error ni una baja
+    # evitada: es «no hacía falta repreguntar». Van bloqueados frente a `_delist` igual que
+    # `probes_over_cap`, así que esta cifra subiendo con `probes_over_cap` bajando es la ventana
+    # haciendo su trabajo; las dos a cero con `probes_sent` en el tope es que no está activa.
+    probes_skipped_fresh: int
     # Reparto si/no/desconocido del calzado ACTIVO de la tienda tras la pasada. Es el informe que
     # pide #30, y va aquí en vez de en una consulta a mano porque es la cifra que dice si el foco
     # barefoot tiene contenido: una zapatería que se queda en 0 productos `si` no es un detalle
@@ -797,6 +804,12 @@ class ProbeOutcome:
     rutina de una tienda con muchos candidatos, mientras que quedarse sin veredicto es la tienda
     negándose a contestar. Solo el segundo suma en `errors`.
 
+    `skipped_fresh` es el cuarto y tampoco es un error (#412): son candidatos a los que NO se ha
+    preguntado porque ya contestaron hace menos de la ventana. Se cuentan aparte de `over_cap`
+    porque las dos cifras responden a preguntas distintas —«no cupo» contra «no hacía falta»— y
+    juntas no dejarían ver si la ventana está funcionando. Lo que comparten, y es lo que importa,
+    es que **también van a `blocked_ids`**: ahorrarse la pregunta no es darlos por retirados.
+
     `unbuyable` es el tercero de esa familia y por el mismo motivo: la tienda **sí** ha contestado,
     y lo que dice es que el producto existe pero no queda talla que comprar (#197). Confundirlo con
     `unresolved` sería el error de #261 otra vez, y peor: son 33 productos de Lefties hoy, en TODAS
@@ -810,6 +823,7 @@ class ProbeOutcome:
     over_cap: int = 0  # no cabían en el tope de sondeos: rutina, se sondean en la siguiente
     unresolved: int = 0  # sondeados y sin veredicto: fallo de red, bloqueo o respuesta ambigua
     unbuyable: int = 0  # existe pero sin talla comprable: ni rescate ni baja (#197)
+    skipped_fresh: int = 0  # contestaron hace poco: no se repregunta, pero siguen bloqueados (#412)
     blocked_ids: list[int] = field(default_factory=list)  # `product.id` que NO se dan de baja
 
 
@@ -819,12 +833,19 @@ def _load_delist_candidates(
     run_ts: datetime,
     safe_scopes: list[ScrapeScope],
     min_misses: int,
-) -> list[tuple[int, str, str | None]]:
-    """Los que `_delist` descatalogaría en esta pasada, con el más ausente primero."""
+) -> list[tuple[int, str, str | None, datetime | None]]:
+    """Los que `_delist` descatalogaría en esta pasada, con el más ausente primero.
+
+    Devuelve TODOS los candidatos, incluidos los que ya contestaron hace poco. Filtrarlos aquí
+    sería el error de bulto de #412: `_delist()` no descataloga a partir de esta lista sino con su
+    propio `WHERE`, excluyendo únicamente los `blocked_ids`. Un candidato que desapareciera de aquí
+    no quedaría protegido — quedaría descatalogado SIN sondeo. Quién se sondea y quién solo se
+    bloquea lo decide `_confirm_candidates`, que es quien puede meterlos en `blocked_ids`.
+    """
     clause, params = _scope_conditions(safe_scopes)
     cur.execute(
         f"""
-        SELECT id, retailer_product_id, url
+        SELECT id, retailer_product_id, url, last_probe_at
         FROM product
         WHERE retailer_id = %s AND delisted_at IS NULL AND last_seen_at < %s
           AND missing_streak >= %s AND ({clause})
@@ -832,7 +853,20 @@ def _load_delist_candidates(
         """,
         [retailer_id, run_ts, min_misses, *params],
     )
-    return [(row[0], row[1], row[2]) for row in cur.fetchall()]
+    return [(row[0], row[1], row[2], row[3]) for row in cur.fetchall()]
+
+
+def _marcar_sondeados(cur: psycopg.Cursor, product_ids: list[int], run_ts: datetime) -> None:
+    """Anota que la tienda contestó por estos productos (#412).
+
+    Solo veredictos concluyentes. Sin esto el sondeo tira su propio resultado y la misma prenda
+    vuelve a la cola dos pasadas después, que es todo el desperdicio que la issue mide.
+    """
+    if not product_ids:
+        return
+    cur.execute(
+        "UPDATE product SET last_probe_at = %s WHERE id = ANY(%s::int[])", (run_ts, product_ids)
+    )
 
 
 def _rescue(cur: psycopg.Cursor, product_ids: list[int]) -> None:
@@ -858,12 +892,19 @@ def _confirm_candidates(
     safe_scopes: list[ScrapeScope],
     min_misses: int,
     max_probes: int,
+    cooldown_days: int = 0,
 ) -> ProbeOutcome:
     """(#4) Pregunta a la tienda por los candidatos a baja antes de descatalogarlos.
 
     Solo se da de baja lo confirmado como retirado: sin veredicto (fallo de red, bloqueo,
     o candidatos que se salen del tope de sondeos) el producto queda bloqueado para esta
     pasada, conserva su racha y se reintenta en la siguiente.
+
+    Con `cooldown_days > 0` los que ya contestaron hace menos de esa ventana no se repreguntan
+    (#412). **Van a `blocked_ids` como todos los demás no sondeados**, que es la única forma
+    segura de saltárselos: `_delist()` no descataloga a partir de esta lista, sino con su propio
+    `WHERE` excluyendo `blocked_ids`, así que un candidato simplemente omitido se descatalogaría
+    sin confirmación. El ahorro es de peticiones, nunca de garantías.
     """
     if not safe_scopes or max_probes <= 0 or not isinstance(store, SupportsAliveProbe):
         return ProbeOutcome()
@@ -872,27 +913,44 @@ def _confirm_candidates(
     if not candidates:
         return ProbeOutcome()
 
+    # Los que contestaron hace poco salen del reparto ANTES del tope: de eso se trata, de que el
+    # presupuesto de sondeos lo gasten los que no sabemos.
+    frescos: list[tuple[int, str, str | None, datetime | None]] = []
+    if cooldown_days > 0:
+        umbral = run_ts - timedelta(days=cooldown_days)
+        pendientes = []
+        for candidate in candidates:
+            if candidate[3] is not None and candidate[3] >= umbral:
+                frescos.append(candidate)
+            else:
+                pendientes.append(candidate)
+        candidates = pendientes
+
     # Lo que no cabe en el tope se queda sin sondear: tampoco se da de baja (se reintenta).
     over_cap = candidates[max_probes:]
     candidates = candidates[:max_probes]
     outcome = ProbeOutcome(
         sent=len(candidates),
         over_cap=len(over_cap),
-        blocked_ids=[product_id for product_id, _pid, _url in over_cap],
+        skipped_fresh=len(frescos),
+        blocked_ids=[product_id for product_id, _pid, _url, _probe in over_cap + frescos],
     )
 
     try:
         verdicts = store.probe_alive(
-            DelistCandidate(retailer_product_id=pid, url=url) for _id, pid, url in candidates
+            DelistCandidate(retailer_product_id=pid, url=url)
+            for _id, pid, url, _probe in candidates
         )
     except Exception:  # un sondeo roto no debe tumbar la ingesta: todo queda sin veredicto
         verdicts = {}
 
     alive_ids: list[int] = []
-    for product_id, retailer_product_id, _url in candidates:
+    concluyentes: list[int] = []
+    for product_id, retailer_product_id, _url, _probe in candidates:
         verdict = verdicts.get(retailer_product_id)
         if verdict is ProbeVerdict.ALIVE:
             alive_ids.append(product_id)
+            concluyentes.append(product_id)
             outcome.alive += 1
         elif verdict is ProbeVerdict.DEAD:
             outcome.dead += 1
@@ -902,11 +960,17 @@ def _confirm_candidates(
             # puede sumar en `errors`. Que no quede stock hoy no prueba que la prenda se haya
             # retirado; darla de baja por eso es como se producen bajas falsas masivas.
             outcome.blocked_ids.append(product_id)
+            concluyentes.append(product_id)
             outcome.unbuyable += 1
         else:  # no concluyente: ni se rescata ni se da de baja
             outcome.blocked_ids.append(product_id)
             outcome.unresolved += 1
     _rescue(cur, alive_ids)
+    # `DEAD` queda fuera a propósito: el producto se descataloga en esta misma transacción, así que
+    # anotarle la fecha no cambia nada. Lo que importa es que un `unresolved` NO se anote — si la
+    # tienda no contestó no hay nada que recordar, y anotarlo sería dejar de preguntar por algo que
+    # nunca respondió.
+    _marcar_sondeados(cur, concluyentes, run_ts)
     return outcome
 
 
@@ -1147,6 +1211,7 @@ def ingest(
     delist_min_misses: int = DEFAULT_DELIST_MIN_MISSES,
     delist_probe: bool = True,
     delist_probe_max: int = DEFAULT_DELIST_PROBE_MAX,
+    delist_probe_cooldown_days: int = DEFAULT_DELIST_PROBE_COOLDOWN_DAYS,
     detail_max_age_days: int = DEFAULT_DETAIL_MAX_AGE_DAYS,
     detail_refresh_max: int = DEFAULT_DETAIL_REFRESH_MAX,
     detail_refresh_all: bool = False,
@@ -1333,6 +1398,7 @@ def ingest(
                 safe_scopes,
                 delist_min_misses,
                 delist_probe_max if delist_probe else 0,
+                delist_probe_cooldown_days,
             )
             products_delisted, variants_delisted = _delist(
                 cur, retailer_id, run_ts, safe_scopes, delist_min_misses, probe.blocked_ids
@@ -1351,7 +1417,8 @@ def ingest(
                 SET finished_at = clock_timestamp(), status = 'success',
                     products_seen = %s, variants_seen = %s, errors = %s, message = %s,
                     probes_sent = %s, probes_alive = %s, probes_dead = %s,
-                    probes_over_cap = %s, probes_unresolved = %s, probes_unbuyable = %s
+                    probes_over_cap = %s, probes_unresolved = %s, probes_unbuyable = %s,
+                    probes_skipped_fresh = %s
                 WHERE id = %s
                 """,
                 (
@@ -1379,6 +1446,7 @@ def ingest(
                     probe.over_cap,
                     probe.unresolved,
                     probe.unbuyable,
+                    probe.skipped_fresh,
                     run_id,
                 ),
             )
@@ -1421,6 +1489,7 @@ def ingest(
             probes_over_cap=probe.over_cap,
             probes_unresolved=probe.unresolved,
             probes_unbuyable=probe.unbuyable,
+            probes_skipped_fresh=probe.skipped_fresh,
             barefoot_counts=barefoot_counts,
             tag_counts=tag_counts,
             # `sin-marcar` para el género ausente, igual que `_barefoot_counts`: una tienda que no
