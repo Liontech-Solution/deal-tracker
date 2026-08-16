@@ -128,9 +128,21 @@ export async function seedCatalog(sql: postgres.Sql): Promise<SeedIds> {
     VALUES (${p.id}, 'ZARA-1-24-rojo', '24', 'rojo', 'SKU24')
     RETURNING id`;
   // Dos puntos de precio: el último (más reciente) es 19.99.
+  //
+  // La DISTANCIA entre los dos está encajada entre dos límites, y moverla rompe uno u otro:
+  //
+  //  - por abajo, `REAL_EVIDENCE_DAYS` (14, #436): con menos cobertura la bajada se etiqueta
+  //    `reciente` en vez de `real`, porque el precio del que baja lo habríamos visto una sola vez.
+  //    Con los 2 días que tenía este seed, los specs del catálogo veían `reciente`.
+  //  - por arriba, la ventana del interés que siembra `matching.e2e.spec.ts` (`window_days: 30`):
+  //    a 30 días exactos el punto anterior se sale de la ventana, `recent_min` deja de existir y
+  //    el job no detecta la bajada. Con 30 caía el spec de la pasada rezagada de #240.
+  //
+  // 20 despeja los dos. Para ejercer el lado `reciente` hay un producto sembrado a propósito en
+  // `catalog.e2e.spec.ts`, que no depende de este seed.
   await sql`
     INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
-    VALUES (${v.id}, 39.99, 39.99, 0, true, now() - interval '2 days'),
+    VALUES (${v.id}, 39.99, 39.99, 0, true, now() - interval '20 days'),
            (${v.id}, 19.99, 39.99, 50, true, now())`;
   return { retailerId: r.id, productId: p.id, variantId: v.id };
 }

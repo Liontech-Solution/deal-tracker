@@ -37,6 +37,23 @@ export interface ProductListItem {
   discountFrom: string | null;
   /** Mayor descuento entre las variantes del producto (para orden/badge). */
   maxDiscount: string | null;
+  /**
+   * PVP **creíble** de la variante "mejor oferta" y el descuento que se sostiene contra él (#436).
+   *
+   * Hasta ahora la regla los calculaba para decidir el veredicto y para ordenar «Ofertas», pero no
+   * salían de la API: la tarjeta pintaba `listFrom`/`discountFrom` —lo que declara la tienda— en
+   * verde aunque la regla acabara de descartar ese tachado por inflado. Medido en QA el 16/08/2026,
+   * eso pasaba en 88 de los 246 productos con badge, enseñando un 51,7 % medio donde la regla
+   * sostiene un 24,4 %.
+   *
+   * `honestListPrice` es `null` en arranque en frío: sin nada observado antes no hay ninguna
+   * referencia creíble, y ahí **no se cae de vuelta al tachado de la tienda** — es justo el caso que
+   * este producto delata. Quien lo pinte tiene que tratar ese `null` como «no podemos sostener
+   * ninguna cifra», nunca como «usa la de la tienda».
+   */
+  honestListPrice: string | null;
+  /** Descuento en % contra `honestListPrice`; `0` cuando no hay ninguno que sostener. */
+  honestDiscountPct: number;
   /** Veredicto de descuento honesto de la variante "mejor oferta" (misma regla que el aviso). */
   honesty: HonestyVerdict;
   anyInStock: boolean;
@@ -108,6 +125,13 @@ export interface VariantWithPrice {
    * texto de una acusación `declarado`, que cita la cifra en vez de limitarse a etiquetar.
    */
   retailerMin30d: string | null;
+  /**
+   * PVP creíble de ESTA variante y el descuento que se sostiene contra él (#436). Mismo criterio y
+   * mismo `null` que en `ProductListItem`; aquí sí sale en la ficha, que es donde el usuario compara
+   * la cifra con el tachado que la tienda le enseña al lado.
+   */
+  honestListPrice: string | null;
+  honestDiscountPct: number;
   /** Veredicto de descuento honesto de esta variante (misma regla que el aviso). */
   honesty: HonestyVerdict;
   /**
@@ -141,6 +165,8 @@ export interface ProductDetail
     | 'listFrom'
     | 'discountFrom'
     | 'maxDiscount'
+    | 'honestListPrice'
+    | 'honestDiscountPct'
     | 'honesty'
     | 'anyInStock'
     | 'variantCount'

@@ -6,6 +6,7 @@ import {
   honestListPrice,
   honestyBasis,
   HONESTY_EVIDENCE_DAYS,
+  REAL_EVIDENCE_DAYS,
 } from './deal-rule';
 import type { DealInput } from './deal-rule';
 
@@ -23,6 +24,11 @@ function deal(overrides: Partial<DealInput> = {}): DealInput {
     recentMin: '24.00',
     maxObserved: '39.99',
     priorPoints: 5,
+    // Cobertura de sobra a propósito (#436): esta prenda representa una seguida con normalidad, y
+    // sin este valor cada test de otro eje —el margen, el techo de 30 días, el umbral del aviso—
+    // estaría midiendo de paso el umbral de `real`, que es lo que se le pasa a `deal()` cuando se
+    // quiere ejercer.
+    trackedDays: 120,
     minDiscountPct: '20',
     compareBase: 'recent_min',
     ...overrides,
@@ -221,6 +227,48 @@ describe('classifyHonesty · veredicto del catálogo (misma regla que el aviso)'
 });
 
 /**
+ * #436. El simétrico de #332: aquel le puso umbral de evidencia a la **acusación** y no al
+ * **elogio**, así que el catálogo estampaba «Oferta real» con una sola observación previa y la
+ * ficha remataba con «es el precio más bajo de los últimos meses» — que con dos puntos de histórico
+ * es *ayer*. Medido en QA el 16/08/2026: 176 de los 246 productos con el badge (71,5 %) tenían UNA
+ * observación previa, y los 246 menos de 90 días.
+ */
+describe('no elogiar sin poder sostenerlo (#436)', () => {
+  it('la misma bajada es `real` con cobertura y `reciente` sin ella', () => {
+    // Un único caso con el eje movido y nada más: es exactamente lo que separa los dos veredictos.
+    expect(classifyHonesty(deal({ trackedDays: REAL_EVIDENCE_DAYS }))).toBe('real');
+    expect(classifyHonesty(deal({ trackedDays: REAL_EVIDENCE_DAYS - 0.01 }))).toBe('reciente');
+  });
+
+  it('la prenda recién descubierta que baja al día siguiente ya no se llama oferta real', () => {
+    // El caso del 71,5 % del catálogo: dos filas en `price_history`, la de ayer y la de hoy.
+    expect(classifyHonesty(deal({ priorPoints: 1, trackedDays: 1 }))).toBe('reciente');
+  });
+
+  it('la cobertura ausente cuenta como cero, nunca como suficiente', () => {
+    // Mismo criterio que la vía acusatoria: el fallo por defecto es afirmar de menos. Si un
+    // llamante olvida pasar `trackedDays`, lo que sale es el veredicto prudente.
+    const { trackedDays: _omitido, ...sinCobertura } = deal();
+    expect(classifyHonesty(sinCobertura)).toBe('reciente');
+  });
+
+  it('`reciente` es una bajada, no un cajón de sastre: sin bajada no aparece', () => {
+    // Está a 30 € habiendo llegado a 24 €: no es mínimo nuevo, así que no es ni `real` ni
+    // `reciente` por mucha o poca cobertura que haya.
+    expect(classifyHonesty(deal({ price: '30.00', trackedDays: 1 }))).not.toBe('reciente');
+    expect(classifyHonesty(deal({ price: '30.00', trackedDays: 400 }))).not.toBe('reciente');
+  });
+
+  it('el aviso de Telegram NO se mueve: evaluateDeal sigue sin mirar la cobertura', () => {
+    // Lo que #436 cambia es lo que el catálogo **afirma**, no a quién se avisa. Si esto rompe, es
+    // que el umbral se ha colado en la regla del aviso y hay usuarios que han dejado de recibirlo.
+    for (const dias of [0, 1, REAL_EVIDENCE_DAYS, 1000]) {
+      expect(evaluateDeal(deal({ trackedDays: dias })).notify).toBe(true);
+    }
+  });
+});
+
+/**
  * #332. `max_observed` no es "lo que la prenda ha costado jamás", es "lo más caro que la hemos
  * visto desde que la descubrimos". En una prenda descubierta **ya rebajada** las dos cosas no
  * coinciden, y la regla anterior las confundía: bastaba una segunda pasada para acusar a la tienda
@@ -296,10 +344,13 @@ describe('classifyHonesty · no acusar sin poder desmentir (#332)', () => {
     expect(conMargen('10.31')).toBe('suspicious');
   });
 
-  it('el veredicto `real` no se mueve por el umbral, ni siquiera con cero días', () => {
-    // La garantía que hace seguro este cambio: `real` ya implica max_observed > price, así que el
-    // umbral no puede tocarlo. Si esto rompe, es que alguien movió la regla del aviso.
-    expect(classifyHonesty(deal({ trackedDays: 0 }))).toBe('real');
+  it('el umbral de ACUSACIÓN de #332 sigue sin poder mover `real`', () => {
+    // La garantía que hacía seguro el cambio de #332: `real` ya implica max_observed > price, así
+    // que su umbral no puede tocarlo. Sigue en pie — lo que cambia con #436 es que `real` tiene
+    // ahora un umbral **propio** y distinto, y por eso el caso de cero días se mide abajo y no
+    // aquí. Cruzar los 90 días de #332 no mueve nada.
+    expect(classifyHonesty(deal({ trackedDays: 89 }))).toBe('real');
+    expect(classifyHonesty(deal({ trackedDays: 90 }))).toBe('real');
     expect(classifyHonesty(deal({ trackedDays: 1000 }))).toBe('real');
   });
 

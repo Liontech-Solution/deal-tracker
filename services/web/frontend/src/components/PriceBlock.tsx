@@ -2,8 +2,8 @@ import { HonestyBadge, StockBadge } from './Badges';
 import type { Stock } from './Badges';
 import { AlertIcon, CheckIcon, ClockIcon } from './icons';
 import type { Honesty, HonestyBasis } from '../api/types';
-import { discountInt, eurStr } from '../lib/format';
-import { llevaBadge } from '../lib/honesty';
+import { eurStr } from '../lib/format';
+import { cifrasDeRebaja, llevaBadge } from '../lib/honesty';
 
 interface Props {
   price: string | null;
@@ -17,6 +17,9 @@ interface Props {
   honestyBasis: HonestyBasis | null;
   /** Mínimo de 30 días declarado por la tienda. Lo CITA el texto de una acusación `declarado`. */
   retailerMin30d: string | null;
+  /** PVP creíble y descuento sostenible (#436). Es lo que se pinta cuando difiere de lo declarado. */
+  honestListPrice: string | null;
+  honestDiscountPct: number;
 }
 
 export function PriceBlock({
@@ -28,15 +31,28 @@ export function PriceBlock({
   trackedDays,
   honestyBasis,
   retailerMin30d,
+  honestListPrice,
+  honestDiscountPct,
 }: Props) {
   const suspicious = honesty === 'suspicious';
   const unverified = honesty === 'unverified';
+  const reciente = honesty === 'reciente';
+  // `reciente` se pinta con el mismo tono neutro que `unverified` (#436): los dos son «no podemos
+  // sostenerlo», uno por el lado del elogio y otro por el de la acusación.
+  const neutro = unverified || reciente;
   const priceStr = eurStr(price);
-  const listStr = eurStr(listPrice);
-  const disc = discountInt(discountPct);
+  // El tachado y el porcentaje que se PINTAN salen de la regla, no de la tienda (#436). El tachado
+  // declarado no se esconde: sigue abajo, rotulado «PVP declarado», que es donde no lo avalamos.
+  const cifras = cifrasDeRebaja({ listPrice, discountPct, honestListPrice, honestDiscountPct });
+  const listStr = eurStr(cifras.tachado);
+  const declaradoStr = eurStr(listPrice);
+  const disc = cifras.descuento;
   // La cifra que cita una acusación `declarado` (#354). Si faltara —no debería: la vía declarada no
   // puede dispararse sin ella— el texto cae al de siempre en vez de enseñar un hueco.
   const min30Str = eurStr(retailerMin30d);
+  // Un solo sitio donde se declina el plural: tres textos distintos lo usan y ya se escribió mal una
+  // vez al añadir el segundo.
+  const diasStr = `${trackedDays} ${trackedDays === 1 ? 'día' : 'días'}`;
   const hasMarkdown = disc !== null && disc > 0 && listStr !== null;
 
   return (
@@ -60,8 +76,8 @@ export function PriceBlock({
                 el porcentaje se pinta en neutro: ni lo celebramos ni lo denunciamos. */}
             <span
               style={{
-                background: unverified ? 'var(--surface-2)' : suspicious ? 'var(--warn-soft)' : 'var(--good-soft)',
-                color: unverified ? 'var(--text-muted)' : suspicious ? 'var(--warn-text)' : 'var(--good-text)',
+                background: unverified || !cifras.sostenido ? 'var(--surface-2)' : suspicious ? 'var(--warn-soft)' : 'var(--good-soft)',
+                color: unverified || !cifras.sostenido ? 'var(--text-muted)' : suspicious ? 'var(--warn-text)' : 'var(--good-text)',
                 borderRadius: 999,
                 padding: '4px 11px',
                 fontSize: 14,
@@ -76,7 +92,9 @@ export function PriceBlock({
 
       <div style={{ marginTop: 12, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <StockBadge state={stock} />
-        {listStr && <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>PVP declarado: {listStr}</span>}
+        {declaradoStr && (
+          <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>PVP declarado: {declaradoStr}</span>
+        )}
       </div>
 
       {/* El texto solo afirma lo observado (#332). `unverified` es el caso que antes se colaba en
@@ -90,23 +108,31 @@ export function PriceBlock({
             marginTop: 12,
             display: 'flex',
             gap: 10,
-            background: unverified ? 'var(--surface-2)' : suspicious ? 'var(--warn-soft)' : 'var(--good-soft)',
-            border: '1px solid ' + (unverified ? 'var(--border)' : suspicious ? 'color-mix(in srgb,var(--warn) 30%,transparent)' : 'color-mix(in srgb,var(--good) 30%,transparent)'),
+            background: neutro ? 'var(--surface-2)' : suspicious ? 'var(--warn-soft)' : 'var(--good-soft)',
+            border: '1px solid ' + (neutro ? 'var(--border)' : suspicious ? 'color-mix(in srgb,var(--warn) 30%,transparent)' : 'color-mix(in srgb,var(--good) 30%,transparent)'),
             borderRadius: 12,
             padding: '11px 13px',
           }}
         >
-          <span style={{ color: unverified ? 'var(--text-faint)' : suspicious ? 'var(--warn-text)' : 'var(--good-text)', flex: 'none', marginTop: 1 }}>
-            {unverified ? <ClockIcon size={17} /> : suspicious ? <AlertIcon size={17} /> : <CheckIcon size={17} sw={2.6} />}
+          <span style={{ color: neutro ? 'var(--text-faint)' : suspicious ? 'var(--warn-text)' : 'var(--good-text)', flex: 'none', marginTop: 1 }}>
+            {neutro ? <ClockIcon size={17} /> : suspicious ? <AlertIcon size={17} /> : <CheckIcon size={17} sw={2.6} />}
           </span>
-          <span style={{ fontSize: 13, lineHeight: 1.5, color: unverified ? 'var(--text-muted)' : suspicious ? 'var(--warn-text)' : 'var(--good-text)', fontWeight: 600 }}>
+          <span style={{ fontSize: 13, lineHeight: 1.5, color: neutro ? 'var(--text-muted)' : suspicious ? 'var(--warn-text)' : 'var(--good-text)', fontWeight: 600 }}>
             {unverified
-              ? `Descuento sin confirmar: ${trackedDays === 0 ? 'acabamos de empezar a seguir esta prenda' : `llevamos ${trackedDays} ${trackedDays === 1 ? 'día' : 'días'} siguiéndola`} y su historial todavía no da para saber si el precio tachado es el que costaba de verdad.`
-              : suspicious
-                ? honestyBasis === 'declarado' && min30Str !== null
-                  ? `Descuento no real: la propia tienda declara haber vendido esta prenda a ${min30Str} en los últimos 30 días, por debajo de lo que pides ahora. No ha bajado de verdad.`
-                  : 'Descuento no real: el precio tachado está inflado respecto a su historial. No ha bajado de verdad.'
-                : 'Rebaja honesta: es el precio más bajo de los últimos meses. Buen momento para comprar.'}
+              ? `Descuento sin confirmar: ${trackedDays === 0 ? 'acabamos de empezar a seguir esta prenda' : `llevamos ${diasStr} siguiéndola`} y su historial todavía no da para saber si el precio tachado es el que costaba de verdad.`
+              : reciente
+                ? // Afirma la bajada, que sí la sabemos, y NO la llama honesta, que no lo sabemos.
+                  // El número de días va delante a propósito: es la única prueba que tenemos, y
+                  // enseñarla es lo que permite al usuario juzgar por su cuenta.
+                  `Ha bajado de precio: es lo más barato que la hemos visto, pero solo llevamos ${diasStr} siguiéndola. Todavía no podemos decir si es una rebaja de verdad o su precio de siempre.`
+                : suspicious
+                  ? honestyBasis === 'declarado' && min30Str !== null
+                    ? `Descuento no real: la propia tienda declara haber vendido esta prenda a ${min30Str} en los últimos 30 días, por debajo de lo que pides ahora. No ha bajado de verdad.`
+                    : 'Descuento no real: el precio tachado está inflado respecto a su historial. No ha bajado de verdad.'
+                  : // «los últimos meses» era falso mientras el badge se daba con dos puntos de
+                    // histórico (#436). Ahora hace falta cobertura para llegar aquí, así que la
+                    // frase puede decir cuánta, que es más honesto y además más útil.
+                    `Rebaja honesta: es el precio más bajo en los ${diasStr} que llevamos siguiéndola. Buen momento para comprar.`}
           </span>
         </div>
       )}

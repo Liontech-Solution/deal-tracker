@@ -14,13 +14,27 @@
  * histórico generado en vez de sobre cuatro productos sembrados a mano (#228). Mismo trato que
  * `database/schema.ts` frente a `db/migrations`: espejo declarado, con una prueba que lo vigila.
  *
- * **El umbral de evidencia de #332 no vive aquí, y no es un olvido.** Solo condiciona el veredicto
- * `suspicious`, que este fichero no calcula: aquí únicamente se decide `real` (para `onlyDeals` y
- * `sort=ofertas`) y el descuento honesto con el que se ordena. Y `real` no puede verse afectado por
- * ese umbral, porque ya implica `max_observed > price`: si el máximo observado no supera al precio
- * actual, tampoco lo supera `recent_min` —que es un mínimo sobre las mismas observaciones— y la
- * condición A cae antes. `deal-rule-paridad.spec.ts` fija esa implicación como invariante, para que
- * el día que alguien mueva `real` se entere de que arrastra la acusación.
+ * **Aquí viven dos umbrales, y son distintos a propósito.**
+ *
+ * El de #332 (`HONESTY_EVIDENCE_DAYS`, 90 días) **no** está aquí, y no es un olvido: solo condiciona
+ * el veredicto `suspicious`, que este fichero no calcula. La implicación que lo justificaba sigue
+ * siendo cierta y conviene no perderla — `real` implica `max_observed > price`, porque si el máximo
+ * observado no supera al precio actual tampoco lo supera `recent_min`, que es un mínimo sobre las
+ * mismas observaciones, y la condición A cae antes. `deal-rule-paridad.spec.ts` la fija como
+ * invariante.
+ *
+ * El de #436 (`REAL_EVIDENCE_DAYS`, 14 días) **sí** está aquí, porque condiciona `real` y `real` es
+ * justo lo que este fichero decide. Cuidado con leerlo como una versión suave del otro: el de #332
+ * pone el listón para **acusar** a una tienda y el de aquí para **elogiarla**, y son afirmaciones
+ * distintas con evidencias distintas (la de arriba tiene el porqué del 14 escrito al lado de la
+ * constante). Lo que sí comparten es la mecánica: se importa, no se repite, exactamente como
+ * `INFLATED_LIST_MARGIN` desde #375 — mientras fueron dos números, moverlo en un lado compilaba,
+ * pasaba los tests y cambiaba el catálogo sin que nadie se enterara.
+ *
+ * El veredicto `reciente` que nace con ese umbral **no se calcula aquí**, y tampoco es un olvido:
+ * `onlyDeals` y `sort=ofertas` se quedan estrictos en `real`. Ensancharlos sería una decisión de
+ * producto —haría que «Solo ofertas reales» dejara de significar lo que dice— y no un detalle de
+ * implementación de este fichero.
  *
  * **Y el veredicto no es lo único que hay que comparar.** `honestDiscountSql` alimenta el `ORDER BY`
  * de `sort=ofertas` sobre TODAS las filas, no solo las `real`, así que su espejo es
@@ -46,7 +60,7 @@
 
 import { sql, type SQL } from 'drizzle-orm';
 
-import { INFLATED_LIST_MARGIN } from './deal-rule';
+import { INFLATED_LIST_MARGIN, REAL_EVIDENCE_DAYS } from './deal-rule';
 
 /**
  * El margen del PVP inflado, como **literal SQL** y no como parámetro ligado.
@@ -56,6 +70,14 @@ import { INFLATED_LIST_MARGIN } from './deal-rule';
  * exacta que la comparación tenía cuando el 1.03 estaba escrito a mano aquí.
  */
 const MARGEN = sql.raw(String(INFLATED_LIST_MARGIN));
+
+/**
+ * El umbral de cobertura de `real` (#436), como literal SQL y por el mismo motivo que `MARGEN`: un
+ * número ligado viaja como `float8` y compararlo contra el `numeric` de `tracked_days` no redondea
+ * igual. Importado de `deal-rule.ts`, nunca repetido — es lo que hace que moverlo en un solo lado
+ * rompa la suite en vez de cambiar el catálogo en silencio.
+ */
+const COBERTURA_REAL = sql.raw(String(REAL_EVIDENCE_DAYS));
 
 /**
  * Columnas (o expresiones) de la variante "mejor oferta" contra las que se evalúa la regla. Son las
@@ -77,6 +99,14 @@ export interface DealSqlColumns {
    * no lo publican. Entra como techo del PVP creíble (#354).
    */
   retailerMin30d: SQL;
+  /**
+   * Días que llevamos observando la variante. Condiciona `real` desde #436.
+   *
+   * Obligatorio, como `retailerMin30d` y por el mismo motivo: un campo opcional aquí es el vector de
+   * deriva que este fichero existe para cerrar — quien lo olvidara se llevaría la regla vieja,
+   * compilando y sin decir nada.
+   */
+  trackedDays: SQL;
 }
 
 /**
@@ -111,6 +141,9 @@ export function honestListPriceSql(listPrice: SQL, maxObserved: SQL, retailerMin
  *  - PVP honesto no nulo               → si no, `'sin-historico'`.
  *  - `recent_min` no nulo y `price <`  → condición A: solo mínimos nuevos, no rebajas permanentes.
  *  - `honest > 0 AND honest > price`   → condición B: descuento > 0 contra el PVP creíble.
+ *  - `tracked_days >= REAL_EVIDENCE_DAYS` → cobertura: sin ella la bajada es `reciente`, no `real`
+ *    (#436). Es la ÚNICA condición que distingue los dos veredictos; todo lo de arriba lo cumplen
+ *    los dos por igual.
  */
 export function isRealDealSql(c: DealSqlColumns): SQL {
   const honest = honestListPriceSql(c.listPrice, c.maxObserved, c.retailerMin30d);
@@ -122,6 +155,7 @@ export function isRealDealSql(c: DealSqlColumns): SQL {
     AND ${honest} IS NOT NULL
     AND ${honest} > 0
     AND ${honest} > ${c.price}
+    AND COALESCE(${c.trackedDays}, 0) >= ${COBERTURA_REAL}
   )`;
 }
 

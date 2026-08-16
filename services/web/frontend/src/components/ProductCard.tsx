@@ -6,8 +6,8 @@ import { BellIcon } from './icons';
 import { ProductImage } from './ProductImage';
 import type { ProductListItem } from '../api/types';
 import { useSeguirPrenda } from '../auth/useSeguirPrenda';
-import { discountInt, eurStr } from '../lib/format';
-import { llevaBadge } from '../lib/honesty';
+import { eurStr } from '../lib/format';
+import { cifrasDeRebaja, llevaBadge } from '../lib/honesty';
 
 export function ProductCard({ p }: { p: ProductListItem }) {
   const navigate = useNavigate();
@@ -16,8 +16,17 @@ export function ProductCard({ p }: { p: ProductListItem }) {
   const honesty = p.honesty;
   const suspicious = honesty === 'suspicious';
   const price = eurStr(p.priceFrom);
-  const list = eurStr(p.listFrom);
-  const disc = discountInt(p.discountFrom);
+  // Lo que se pinta NO es sin más lo que declara la tienda (#436): cuando la regla ha descartado su
+  // tachado, la tarjeta enseña el PVP creíble y el descuento que ese PVP sostiene. Misma decisión
+  // que la ficha, tomada en el mismo sitio.
+  const cifras = cifrasDeRebaja({
+    listPrice: p.listFrom,
+    discountPct: p.discountFrom,
+    honestListPrice: p.honestListPrice,
+    honestDiscountPct: p.honestDiscountPct,
+  });
+  const list = eurStr(cifras.tachado);
+  const disc = cifras.descuento;
 
   return (
     <>
@@ -86,6 +95,8 @@ export function ProductCard({ p }: { p: ProductListItem }) {
           <span style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>desde</span>
           <span
             className="serif"
+            // `reciente` mantiene el acento: la prenda SÍ ha bajado, y eso no está en duda (#436).
+            // Lo que se le retira es el verde del porcentaje y la palabra «real» del badge.
             style={{ fontSize: 22, fontWeight: 600, color: suspicious ? 'var(--text)' : 'var(--accent)' }}
           >
             {price ?? '—'}
@@ -100,7 +111,13 @@ export function ProductCard({ p }: { p: ProductListItem }) {
               style={{
                 fontSize: 12,
                 fontWeight: 800,
-                color: suspicious ? 'var(--warn-text)' : 'var(--good-text)',
+                // El verde afirma «esto es una ganga». Sin PVP creíble no lo sabemos, así que el
+                // porcentaje sale en neutro: ni lo celebramos ni lo denunciamos.
+                color: suspicious
+                  ? 'var(--warn-text)'
+                  : cifras.sostenido
+                    ? 'var(--good-text)'
+                    : 'var(--text-muted)',
               }}
             >
               -{disc}%

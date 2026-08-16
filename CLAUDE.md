@@ -172,7 +172,11 @@ compares now is three things, because **the `real` verdict is the least sensitiv
 margin cannot move `real` on any row the database can actually produce, so it is the credible RRP
 and the honest discount (which orders `sort=ofertas`) that see a divergence. The
 `revisor-espejo-honestidad` subagent catches it before the fact, and is what you use on any change
-touching either file, their consumers in `catalog.service.ts`, or its `stats` CTEs.
+touching either file, their consumers in `catalog.service.ts`, or its `stats` CTEs. Since #436 the
+parity spec runs a **seventh axis** (`trackedDays`) and its cartesian no longer fits in one
+round-trip — drizzle builds the query recursively and blows the stack — so it goes in batches of
+5,760. Cutting cases to avoid that would pay for the convenience with the very coverage the spec
+exists to have.
 
 **And the rule now has an input that is not ours** (#354). C&A and Springfield publish the 30-day
 minimum the Ómnibus directive obliges them to (`price_history.retailer_min_30d`, there since `0018`
@@ -185,6 +189,21 @@ were already accusable in QA on 14/08/2026, a third of them on the first pass we
 the accusation text differs by basis (`honestyBasis`), because saying "inflated against its history"
 about a garment discovered yesterday would be false. What does *not* move is `real`: the ceiling can
 only lower the credible RRP, so it can only remove a deal, never invent one.
+
+**And since #436 the praise has a threshold too, which is what `real` never had.** #332 put one on
+the accusation (`HONESTY_EVIDENCE_DAYS`, 90 d) and left the other side open, so the catalogue
+stamped "Oferta real" off **one** prior observation — 176 of the 246 badged products in QA on
+16/08/2026, all 246 under 90 days. `REAL_EVIDENCE_DAYS` (14 d) now gates it, and below that the drop
+falls to a **third verdict, `reciente`** ("Bajada reciente"), which is the same drop with a label
+that claims less. The two numbers are deliberately different because they assert different things —
+accusing needs to have seen the garment outside its sale season, praising only needs the series it
+compares against not to be a single point — and 14 is measured, not picked: of those 246, 238 survive
+a 3-day bar, 212 a 7-day one, **26** a 14-day one and **0** a 30-day one. Three things worth knowing
+before reading the catalogue: `onlyDeals` and `sort=ofertas` stay **strict** on `real` (so the home
+rail shows its already-written empty state for weeks, on purpose), the **Telegram alert does not
+move** — `evaluateDeal` still never looks at coverage, so this changed what the catalogue *claims*,
+not who gets notified — and the card no longer paints a discount green once the rule has thrown out
+the store's strikethrough, which was the other half of #436 and hit 88 of those 246.
 
 **Migrations have two appliers, both idempotent**: the scraper (`--migrate`) and the web
 (`pnpm migrate` / `node dist/database/migrate.js`, which runs as an initContainer in the cluster).

@@ -238,7 +238,7 @@ export function ProductPage() {
           {/* precio */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: 20, marginBottom: 20 }}>
             {current ? (
-              <PriceBlock price={current.price} listPrice={current.listPrice} discountPct={current.discountPct} stock={stockOf(current)} honesty={honesty} trackedDays={current.trackedDays ?? 0} honestyBasis={current.honestyBasis ?? null} retailerMin30d={current.retailerMin30d ?? null} />
+              <PriceBlock price={current.price} listPrice={current.listPrice} discountPct={current.discountPct} stock={stockOf(current)} honesty={honesty} trackedDays={current.trackedDays ?? 0} honestyBasis={current.honestyBasis ?? null} retailerMin30d={current.retailerMin30d ?? null} honestListPrice={current.honestListPrice ?? null} honestDiscountPct={current.honestDiscountPct ?? 0} />
             ) : (
               <div style={{ color: 'var(--text-muted)' }}>Sin precio disponible.</div>
             )}
