@@ -238,6 +238,27 @@ class CategoryConfig:
 # `babynina`, `babynino`, sin `nina`—, que es la asimetría típica de una promoción y no de una
 # taxonomía. En Sfera la hoja del mismo nombre resultó ser sudaderas y en C&A una vista transversal;
 # aquí es promoción.
+#
+# **#208 volvió a mirarla para decidir si alimenta el eje `deportiva`, y la respuesta es NO.** Se
+# vuelve a medir aquí porque aquella issue pedía explícitamente que, si no compensaba, se escribiera
+# — la vuelta cuenta tanto como la ida. Medido el 16/08/2026:
+#
+#   dest_chandal_nino       46 productos
+#   dest_chandal_babynino   35
+#   dest_chandal_babynina    9
+#   dest_chandal_nina       404 Not Found     ← no existe, y no es que falte del menú
+#
+# El motivo de fondo no es que rote, es **a quién deja fuera**: un eje que la tienda aplica a niño y
+# no a niña no es un eje, es un escaparate. Marcando esos 90 productos, filtrar por «ropa deportiva»
+# devolvería un catálogo de niño y de bebé, y el usuario leería que Mango no viste de deporte a las
+# niñas — que es falso. El eje vale exactamente lo que vale su honestidad, así que sumar esta tienda
+# lo empeoraría en vez de mejorarlo, y la advertencia de cobertura de la SPA es más honesta que
+# marcar la mitad del catálogo.
+#
+# El 404 de `nina` es además la prueba de que es promoción y no taxonomía: sus vecinas de la familia
+# `dest_` el mismo día son `dest_ramadam_nina`, `dest_toystory_babynino`, `dest_winter_looks_*` y
+# `dest_prespring_*` — campaña pura, y algunas ya caducadas en agosto. Quien alimenta el eje son
+# ramas que la tienda mantiene simétricas: Sfera, Lefties, C&A y ahora H&M (#208).
 CATEGORIES: list[CategoryConfig] = [
     # --- nina (niña) ---
     CategoryConfig("prendas_nina.camisas_nina", "niña", "ropa", "camisetas"),

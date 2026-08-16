@@ -14,7 +14,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from scraper.config import Config
-from scraper.stores.hm import CATEGORIES, HMStore, parse_category_tree
+from scraper.stores.hm import CATEGORIES, HOJAS_ETIQUETA, HMStore, parse_category_tree
 
 FIXTURES = Path(__file__).parent / "fixtures"
 _CFG = Config(database_url="postgresql://unused", request_delay=0.0)
@@ -121,11 +121,19 @@ def test_una_raiz_que_el_menu_no_publica_da_lista_vacia() -> None:
 # --- El contrato de la tienda ---------------------------------------------------------------
 
 
-def test_mapped_leaves_son_las_hojas_de_categories_tal_cual() -> None:
-    """Sin red: no resuelve contra el árbol, al revés que Zara."""
+def test_mapped_leaves_son_las_hojas_de_categories_y_las_de_etiqueta() -> None:
+    """Sin red: no resuelve contra el árbol, al revés que Zara.
+
+    Las de etiqueta cuentan aunque no ingieran nada (#208): la pregunta de esta capa es «¿qué
+    publica la tienda que no estemos mirando?», y de esas cuatro ramas sí sacamos algo —el eje
+    `deportiva`—. Es además lo que las retira de `vigia.COBERTURA_DECLARADA` sin dejar hueco.
+    """
     store = HMStore(_CFG)
 
-    assert list(store.mapped_leaves()) == [c.page_id for c in CATEGORIES]
+    assert list(store.mapped_leaves()) == [c.page_id for c in CATEGORIES] + [
+        h.page_id for h in HOJAS_ETIQUETA
+    ]
+    assert all(h.page_id.endswith("/sportswear") for h in HOJAS_ETIQUETA)
 
 
 def test_las_raices_del_vigia_son_ramas_de_categories() -> None:

@@ -128,11 +128,13 @@ import httpx
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
 from ..progreso import Latido
+from ..tags import TAG_DEPORTIVA
 from .base import (
     CategoryNode,
     FiltroDeHoja,
     LeafHealth,
     ListingEntry,
+    ProductTags,
     ScanReport,
     ScrapedImage,
     ScrapedProduct,
@@ -243,6 +245,49 @@ _SOLO_CONJUNTOS = FiltroDeHoja(
     re.compile(r"\A(Conjunto\b|\d+-piece\b.*\bset\b)", re.IGNORECASE),
     excepto=re.compile(r"disfraz|fancy.dress|costume", re.IGNORECASE),
 )
+
+
+@dataclass(frozen=True)
+class TagLeaf:
+    """Hoja que solo aporta un eje transversal (`scraper.tags`), sin ingerir nada.
+
+    Ver el porqué completo en `stores/lefties.py::TagLeaf`, que es donde vive el razonamiento: no
+    emite entradas, no aparece en `scopes()` —y por tanto no puede provocar bajas— y sus productos
+    exclusivos se quedan fuera porque su categoría real no la dice nadie.
+    """
+
+    page_id: str
+    gender: str  # niño | niña — solo para describirla en `check_leaves()`; no crea ámbito
+    tag: str
+
+
+# «Sportswear», una hoja por género y tramo de edad (#180, #208). Es el mismo hallazgo que en C&A y
+# Lefties: casi todo lo que publican **ya entra** por su categoría, o sea que como categoría no
+# aportarían casi nada; como eje sí, porque es la tienda quien dice que esa prenda es deportiva.
+#
+# Medido el 16/08/2026 contra el catálogo real (3768 productos): **224 modelos** entre las cuatro y
+# **156 marcados (69,6 %)** — pantalones 79, camisetas 43, vestidos 16, ropa-interior 7,
+# sudaderas 8, conjuntos 1, zapatos 2. Los 68 exclusivos se quedan fuera, y mirando qué son se ve
+# que es la respuesta correcta y no una pérdida: calcetines de deporte, mallas de danza,
+# calentadores, gorras,
+# cintas del pelo, medias de fútbol y toda la colección de esquí — accesorio y abrigo, las dos
+# ya declaradas fuera del brief en `CATEGORIES`.
+#
+# **Basta con el padre, y eso hubo que medirlo** porque en Lefties no bastaba (el padre daba 77/69 y
+# la unión de sus seis hijas 93/99: 46 prendas perdidas). Aquí no: contra las 11 hijas de
+# `/kids/boys/sportswear` el padre da **81 y la unión 81**, cero diferencia, y en las cuatro
+# ramas el padre coincide con su propio `view-all`. Son 4 peticiones por pasada en vez de las ~50
+# que temía #208.
+#
+# Y las otras cuatro rutas que #208 enumeraba —`/kids/{boys,girls}[-9-14y]/clothing/sport`— **no son
+# hojas**: las cuatro devuelven el cubo de `kids_all` (espejismo). Están en el menú y no resuelven,
+# así que siguen declaradas en `vigia.COBERTURA_DECLARADA`, pero con ese motivo y no con el viejo.
+HOJAS_ETIQUETA: list[TagLeaf] = [
+    TagLeaf("/kids/girls/sportswear", "niña", TAG_DEPORTIVA),  # 114 modelos
+    TagLeaf("/kids/boys/sportswear", "niño", TAG_DEPORTIVA),  # 81
+    TagLeaf("/kids/girls-9-14y/sportswear", "niña", TAG_DEPORTIVA),  # 127
+    TagLeaf("/kids/boys-9-14y/sportswear", "niño", TAG_DEPORTIVA),  # 103
+]
 
 
 # Las 59 hojas, **preguntadas a la tienda y verificadas una a una con el canario** (02/08/2026), no
@@ -749,10 +794,17 @@ class HMStore:
     name = "H&M"
     base_url = BASE_URL
 
-    def __init__(self, config: Config, categories: list[CategoryConfig] | None = None) -> None:
+    def __init__(
+        self,
+        config: Config,
+        categories: list[CategoryConfig] | None = None,
+        tag_leaves: list[TagLeaf] | None = None,
+    ) -> None:
         self._config = config
         self._categories = categories if categories is not None else CATEGORIES
+        self._tag_leaves = tag_leaves if tag_leaves is not None else HOJAS_ETIQUETA
         self._scan = ScanReport()  # lo rellena list_catalog(); ver `scan_report()`
+        self._tags = ProductTags()  # ídem; ver `product_tags()`
         self._cache: dict[str, ScrapedProduct] = {}
         self._canario: list[str] | None = None
         self._menu: str | None = None  # el escaparate del que sale el árbol; ver `_menu_html()`
@@ -854,6 +906,7 @@ class HMStore:
         navegador), pero es también la del catálogo más grande del proyecto.
         """
         self._scan = ScanReport()
+        self._tags = ProductTags()
         self._cache = {}
         self._canario = None
         filas_por_raiz: dict[str, list[Fila]] = {}
@@ -862,6 +915,7 @@ class HMStore:
         total_hojas = len(self._categories)
 
         with self._client() as client:
+            self._lee_hojas_etiqueta(client)
             for n_hoja, cat in enumerate(self._categories, start=1):
                 # Al ENTRAR en la hoja y no al salir: si la pasada se atasca, lo que hace falta
                 # saber es en cuál se ha quedado, no cuál fue la última que terminó bien.
@@ -961,6 +1015,76 @@ class HMStore:
                 self._scan.filtro_vacio(scope, cat.page_id)
         return acumuladas
 
+    def _lee_hojas_etiqueta(self, client: httpx.Client) -> None:
+        """Recorre las hojas que solo aportan eje transversal (ver `TagLeaf`).
+
+        No usa `_leer_hoja()` a propósito, aunque la paginación sea la misma: aquella cuenta la hoja
+        en `_scan` y saca su ámbito de las bajas, y estas **no tienen ámbito**, así que no pueden
+        dejar a nadie sin bajas ni contar para el `dead_ratio`.
+
+        Lo que sí comparten es el canario, que aquí es la señal de hoja muerta: en esta tienda una
+        ruta que no resuelve devuelve **200 con el cubo entero** (~9700 productos). Sin cotejarlo,
+        la rama de deporte parecería enorme y marcaría `deportiva` en media tienda.
+
+        Y una hoja que falla retira su eje de `fiables`, que es lo que impide el fallo silencioso:
+        la reconciliación de la ingesta BORRA las etiquetas que la tienda ya no declara, así que una
+        rama caída se leería como «H&M ya no publica nada deportivo» y se llevaría por delante las
+        marcas de los 156 productos. Ver `ProductTags`.
+        """
+        self._tags.fiables = {hoja.tag for hoja in self._tag_leaves}
+        for hoja in self._tag_leaves:
+            try:
+                marcados = 0
+                for page in range(_PAGINA_INICIAL, _PAGINA_INICIAL + _MAX_PAGES):
+                    payload = self._get_json(client, hoja.page_id, page)
+                    ids = ids_de_pagina(payload)
+                    if page == _PAGINA_INICIAL and es_espejismo(ids, self._ids_canario(client)):
+                        logger.warning(
+                            "%s: la hoja de etiqueta %s devolvió el cubo de %r (espejismo); "
+                            "`%s` no se reconcilia",
+                            SLUG,
+                            hoja.page_id,
+                            _CATEGORY_ID,
+                            hoja.tag,
+                        )
+                        self._tags.fiables.discard(hoja.tag)
+                        break
+                    if not ids:
+                        break
+                    for fila in parse_filas(payload):
+                        self._tags.anota(fila.raiz, hoja.tag)
+                        marcados += 1
+                    if len(ids) < _PAGE_SIZE or not (payload.get("pagination") or {}).get(
+                        "nextPageNum"
+                    ):
+                        break
+                else:
+                    # Se agotó el tope sin ver el final: se ha leído solo una parte de la rama, así
+                    # que reconciliar borraría las marcas de lo que no ha dado tiempo a mirar.
+                    logger.warning(
+                        "%s: la hoja de etiqueta %s agotó el tope de %d páginas; `%s` no se "
+                        "reconcilia",
+                        SLUG,
+                        hoja.page_id,
+                        _MAX_PAGES,
+                        hoja.tag,
+                    )
+                    self._tags.fiables.discard(hoja.tag)
+            except Exception as exc:  # noqa: BLE001 — misma red ancha que en el listado
+                logger.warning(
+                    "%s: hoja de etiqueta %s ilegible (%s: %s); `%s` no se reconcilia",
+                    SLUG,
+                    hoja.page_id,
+                    type(exc).__name__,
+                    exc,
+                    hoja.tag,
+                )
+                self._tags.fiables.discard(hoja.tag)
+
+    def product_tags(self) -> ProductTags:
+        """Ver `stores.base.SupportsProductTags` (válido con `list_catalog()` ya consumido)."""
+        return self._tags
+
     def _hoja_comprometida(self, scope: ScrapeScope, leaf: str, motivo: str) -> None:
         """Cuenta la hoja como caída y saca su ámbito —y el `unisex` equivalente— de las bajas.
 
@@ -1027,8 +1151,15 @@ class HMStore:
         que hay que decir entonces es que la hoja ha muerto, y eso lo dice `check_leaves()` con su
         canario y con el veredicto que corresponde. Omitirla aquí solo conseguiría que además
         apareciese como hueco de cobertura, que es el mismo hecho contado dos veces y peor.
+
+        Las hojas de etiqueta cuentan como mapeadas aunque no ingieran nada (#208): la pregunta de
+        esta capa es «¿qué publica la tienda que no estemos mirando?», y una rama de la que sí
+        sacamos el eje `deportiva` sí la estamos mirando. Es lo mismo que ya hacen Lefties y C&A, y
+        es además lo que retira las cuatro `sportswear` de `vigia.COBERTURA_DECLARADA`.
         """
-        return [cat.page_id for cat in self._categories]
+        return [cat.page_id for cat in self._categories] + [
+            hoja.page_id for hoja in self._tag_leaves
+        ]
 
     def tree_separator(self) -> str:
         """Ver `stores.base.SupportsCategoryTree`. H&M anida sus rutas con `/`, y son suyas."""
@@ -1109,6 +1240,29 @@ class HMStore:
                             bool(ids),
                             f"{len(ids)} productos en la 1ª página (la tienda declara {total})",
                         )
+            # Las hojas de etiqueta se sondean igual (#208), y su ámbito va sin sección ni categoría
+            # porque no la tienen: eso es lo que las hace transversales. No ingieren nada, así que
+            # su muerte no vacía ninguna categoría — pero dejaría de marcarse un eje entero **en
+            # silencio**, que es exactamente el fallo que el vigía existe para no tener.
+            for hoja in self._tag_leaves:
+                scope = ScrapeScope(hoja.gender, None, None)
+                try:
+                    payload = self._get_json(client, hoja.page_id, _PAGINA_INICIAL)
+                    ids = ids_de_pagina(payload)
+                except httpx.HTTPStatusError as exc:
+                    yield LeafHealth(scope, hoja.page_id, None, f"HTTP {exc.response.status_code}")
+                except (httpx.TransportError, ValueError) as exc:
+                    yield LeafHealth(scope, hoja.page_id, None, f"{type(exc).__name__}: {exc}")
+                else:
+                    espejismo = es_espejismo(ids, canario)
+                    yield LeafHealth(
+                        scope,
+                        hoja.page_id,
+                        not espejismo and bool(ids),
+                        f"espejismo: devuelve el cubo de {_CATEGORY_ID!r}"
+                        if espejismo
+                        else f"eje `{hoja.tag}`: {len(ids)} productos en la 1ª página",
+                    )
 
 
 def _ambito(hojas: Sequence[CategoryConfig]) -> ScrapeScope:
