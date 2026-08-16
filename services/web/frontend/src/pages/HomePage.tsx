@@ -8,6 +8,7 @@ import { ProductCard } from '../components/ProductCard';
 import { ErrorState, ProductGridSkeleton } from '../components/States';
 import { useToast } from '../components/Toast';
 import { useFacets, useProducts } from '../api/hooks';
+import { patchSeccion } from '../lib/filters';
 import { sectionBg, stripeBg } from '../lib/section';
 
 const HOW = [
@@ -149,7 +150,11 @@ export function HomePage() {
           // parece un botón, así que el emparejamiento se hace a mano junto al `background`.
           <button
             key={hs.section}
-            onClick={() => navigate(`/catalogo?section=${hs.section}`)}
+            // Por el mismo helper que la cabecera y el panel (#434). Aquí **hoy sale la misma URL**
+            // —la home no lleva filtros puestos que conservar—, y se cambia igualmente para que la
+            // regla de «qué implica elegir sección» esté escrita una sola vez: tenerla copiada en
+            // tres sitios es lo que hizo que los tres se comportaran distinto.
+            onClick={() => navigate({ pathname: '/catalogo', search: patchSeccion(new URLSearchParams(), hs.section).toString() })}
             className="card-hover"
             style={{ textAlign: 'left', border: '1px solid var(--border)', background: 'var(--surface)', color: 'inherit', borderRadius: 'var(--r-lg)', padding: 0, overflow: 'hidden', cursor: 'pointer', display: 'flex', alignItems: 'stretch', minHeight: 150 }}
           >

@@ -50,3 +50,37 @@ export function aplicarPatch(
   }
   return next;
 }
+
+/**
+ * Cambiar de sección conservando el resto de la búsqueda (#434).
+ *
+ * **Existe porque el mismo eje tenía tres controles con tres comportamientos.** El del panel
+ * parcheaba y conservaba; los enlaces Ropa/Zapatería de la cabecera (`Layout.tsx`) y el de la home
+ * (`HomePage.tsx`) construían la URL entera —`/catalogo?section=<s>`—, y como React Router
+ * sustituye el `search` completo se llevaban por delante **género, categoría, talla, color, tienda,
+ * `q`, `sort` y el rango de precio**. Medido: desde `?gender=niña&section=zapateria`, pulsar «Ropa»
+ * en la cabecera dejaba `?section=ropa` y el género se había ido por el camino.
+ *
+ * Se limpian `size` y `category`, y **es lo único que se limpia**: ropa y zapatería no comparten
+ * vocabulario de talla y encima **se solapan** —`36-38` es un calcetín en una y un número de pie en
+ * la otra—, así que arrastrar la talla al saltar de sección le cambiaría el significado sin que
+ * nadie lo haya pedido. La categoría por lo mismo: `pantalones` no existe en zapatería y dejaría el
+ * catálogo vacío.
+ *
+ * `section: ''` es «sin sección»: quita ese eje y deja el resto intacto. Desde #434 se alcanza
+ * repulsando la pestaña activa, igual que en cualquier otro eje de valor único.
+ *
+ * Se parte en dos porque los tres controles no hablan el mismo idioma: el panel emite un **parche
+ * de filtros** y los dos enlaces de fuera manejan **la query string**. La regla se escribe una vez
+ * y cada uno la consume por su lado; que estuviera escrita tres veces es lo que produjo tres
+ * comportamientos.
+ */
+export function parcheSeccion(section: string): { section: string; size: string[]; category: string } {
+  return { section, size: [], category: '' };
+}
+
+/** La misma regla, aplicada sobre la query string: es lo que consumen los dos enlaces de fuera del
+ *  panel, que no tienen a mano el objeto de filtros sino la URL. */
+export function patchSeccion(params: URLSearchParams, section: string): URLSearchParams {
+  return aplicarPatch(params, parcheSeccion(section));
+}

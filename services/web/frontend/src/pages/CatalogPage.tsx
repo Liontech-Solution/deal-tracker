@@ -6,7 +6,8 @@ import type { ProductQuery, ProductSort } from '../api/types';
 import { FilterPanel } from '../components/FilterPanel';
 import type { CatalogFilters } from '../components/FilterPanel';
 import { CloseIcon, FilterIcon } from '../components/icons';
-import { aplicarPatch } from '../lib/filters';
+import { aplicarPatch, parcheSeccion } from '../lib/filters';
+import { etiquetaSeccion } from '../lib/section';
 import { ProductCard } from '../components/ProductCard';
 import { EmptyState, ErrorState, ProductGridSkeleton } from '../components/States';
 import { capitalize } from '../lib/format';
@@ -104,7 +105,12 @@ export function CatalogPage() {
   if (search) chips.push({ label: `«${search}»`, clear: () => setFilters({ q: '' }) });
   if (filters.onlyDeals) chips.push({ label: 'Solo ofertas reales', clear: () => setFilters({ onlyDeals: false }) });
   if (filters.gender) chips.push({ label: capitalize(filters.gender), clear: () => setFilters({ gender: '' }) });
-  if (filters.section) chips.push({ label: capitalize(filters.section), clear: () => setFilters({ section: '' }) });
+  // Quitar la sección arrastra talla y categoría, por el mismo helper que las pestañas del panel
+  // (#434). Limpiando solo su propio eje dejaba puesta una categoría de la sección que se acababa
+  // de quitar —`?section=zapateria&category=zapatos` → `?category=zapatos`—, que es exactamente el
+  // estado inverso al que el reset de las pestañas existe para evitar.
+  if (filters.section)
+    chips.push({ label: etiquetaSeccion(filters.section), clear: () => setFilters(parcheSeccion('')) });
   if (filters.category) chips.push({ label: capitalize(filters.category), clear: () => setFilters({ category: '' }) });
   // Un chip POR VALOR, cada uno con su aspa (#329). Un solo chip que dijera «Talla 4 años, 104,
   // 36-38» solo se podría quitar entero, y con tres tallas puestas lo normal es querer soltar una.

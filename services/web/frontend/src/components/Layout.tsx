@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthProvider';
+import { patchSeccion } from '../lib/filters';
+import { SECCIONES } from '../lib/section';
 import { FootIcon, GridIcon, HomeIcon, MoonIcon, SearchIcon, SunIcon, BellIcon } from './icons';
 import { useTheme } from './ThemeProvider';
 import { useToast } from './Toast';
@@ -10,11 +12,10 @@ import { useToast } from './Toast';
  * Sección = navegación, no filtro. Antes vivía en una barra de pestañas pegada debajo de otra de
  * género, con dos "Todos/Todas" contiguos que nadie sabía distinguir. Ahora es un eje de la nav
  * principal, y el género bajó al panel de filtros con el resto (talla, color, tienda).
+ *
+ * La lista es la de `lib/section.ts` desde #434: estaba escrita aquí y en el panel, con los mismos
+ * valores, y eran dos controles del mismo eje que se comportaban distinto.
  */
-const SECTION_NAV: Array<{ label: string; section: string }> = [
-  { label: 'Ropa', section: 'ropa' },
-  { label: 'Zapatería', section: 'zapateria' },
-];
 
 function Logo() {
   return (
@@ -103,11 +104,24 @@ export function Layout() {
             <Link to="/" style={navBtn(location.pathname === '/')}>
               Inicio
             </Link>
-            {SECTION_NAV.map((s) => (
+            {/* El destino se PARCHEA sobre lo que ya hay puesto (#434). Con la URL escrita entera,
+                React Router sustituye el `search` completo y este enlace se llevaba por delante
+                género, categoría, talla, color, tienda, `q`, `sort` y el rango de precio: desde
+                `?gender=niña&section=zapateria`, pulsar «Ropa» dejaba `?section=ropa` a secas. Es
+                el mismo helper que usan las pestañas del panel, que sí conservaban el resto — que
+                dos controles del mismo eje se comportaran distinto era la mitad del fallo.
+
+                El `inCatalog ? params : undefined` es el mismo de `SearchBox` (:189) y por el mismo
+                motivo: fuera del catálogo lo que hay en la URL no son filtros, y arrastrarlo hasta
+                `/catalogo` colaría parámetros de otra página. */}
+            {SECCIONES.map((s) => (
               <Link
-                key={s.section}
-                to={`/catalogo?section=${s.section}`}
-                style={navBtn(inCatalog && curSection === s.section)}
+                key={s.value}
+                to={{
+                  pathname: '/catalogo',
+                  search: patchSeccion(new URLSearchParams(inCatalog ? params : undefined), s.value).toString(),
+                }}
+                style={navBtn(inCatalog && curSection === s.value)}
               >
                 {s.label}
               </Link>
