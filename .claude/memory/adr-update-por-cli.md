@@ -109,3 +109,24 @@ negativo que parece exactamente lo mismo que haber perdido la publicación. Medi
 tres sesiones republicando por turnos. Antes de usar una frase como testigo, compruébala en el
 fichero (`grep -c "<frase>" .claude/adr/<proyecto>.md`): si ahí ya da 0, el problema es el testigo y
 no el grafo.
+
+**Y «republicar desde `main` fusionado» tiene un agujero que lo convierte en el arma: borra lo
+publicado desde una rama SIN mergear.** El 16/08/2026 publiqué después de otra sesión, desde `main`
+ya actualizado, siguiendo la regla de arriba al pie de la letra — y le borré sus dos secciones. El
+motivo: esa sesión había publicado **desde su rama**, con su PR todavía abierto, así que su
+contenido no estaba en `main` y mi `--mode update` lo reemplazó por una versión que legítimamente no
+lo tenía. Ninguno de los dos lados dio error, y `sections` tampoco lo habría cazado: sus secciones
+faltaban del listado, pero para notarlo hay que saber de memoria qué secciones debería haber.
+
+Lo destapó **buscar un testigo suyo concreto**, y solo se me ocurrió porque me había dicho por
+mensaje qué había metido. Sin ese mensaje se pierde en silencio.
+
+La regla correcta es más estricta que «desde `main`»: **publica desde un árbol que contenga todo lo
+ya publicado por otros**. En la práctica, o se publica solo tras mergear (y entonces `main` sí lo
+conserva), o el que publica segundo rebasa su rama sobre `main` y publica desde ahí. Y la
+verificación por contenido tiene que llevar **un testigo propio y uno ajeno**: comprobar solo el
+tuyo confirma que publicaste, no que no borraste a nadie.
+
+**How to apply:** antes de republicar, `gh pr list --state open` y `git worktree list` para ver quién
+tiene trabajo sin mergear; si alguien publicó desde una rama abierta, pídele el testigo de su
+contenido y compruébalo en el grafo **después** de publicar tú.
