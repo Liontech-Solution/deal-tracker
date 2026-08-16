@@ -641,7 +641,20 @@ que no está activa. Y no la sumes a los fallos — como `over_cap`, va bloquead
 
 > **Pendiente concreto para la validación de la v0.6.0**, que no se puede hacer en local porque
 > exige pasadas reales sobre un catálogo real: **medir `probes_over_cap` antes y después** de que la
-> ventana de #412 esté activa, contra el bloque `## Cifras` del informe de v0.5.0. La línea de
-> partida está ahí: la última pasada de Zara en QA mandó 50 sondeos —el tope— y dejó 134 candidatas
-> sin sondear. Si tras la v0.6.0 `over_cap` no baja con `probes_skipped_fresh` subiendo, la ventana
-> está puesta pero no está ahorrando nada, y eso es un hallazgo de la propia #412.
+> ventana de #412 esté activa, contra el bloque `## Cifras` del informe de v0.5.0.
+>
+> **La línea de partida, medida el 16/08/2026 sobre las pasadas del 15/08** (usa ésta y no la del
+> 10/08, que es más antigua y más benévola). No es cosa de una tienda: **cuatro de las nueve
+> estaban en el tope a la vez, y las cuatro encontraron cero bajas**.
+>
+> | tienda | `probes_sent` | `probes_over_cap` | `probes_dead` |
+> |---|---:|---:|---:|
+> | zara | 50 (tope) | **195** | 0 |
+> | mango | 50 (tope) | 146 | 0 |
+> | sfera | 50 (tope) | 90 | 0 |
+> | hipercor | 50 (tope) | 73 | 0 |
+>
+> Criterio de fallo, para que esto sea una prueba y no un recordatorio: si tras la v0.6.0
+> `over_cap` **no baja en estas cuatro** con `probes_skipped_fresh` subiendo, la ventana está puesta
+> y no ahorra nada — y eso es un hallazgo de la propia #412, no un número de adorno. El `dead = 0`
+> de las cuatro es lo que dice para qué se estaba gastando el tope.
