@@ -488,6 +488,29 @@ la tienda llega a existir — la ingesta es atómica, así que pasarse no es per
 el catálogo no se pueble **nunca**. Hipercor consumió el 115 % de su deadline (no cabía) y Lefties
 el 5 % del suyo.
 
+**Una tienda entra en TRES sitios del repo de manifiestos, no en uno, y cada entorno tiene su
+propio mapa de franjas.** El CronJob va en `base/` (y listado en su `resources:`), y encima lleva un
+patch por tienda en `overlays/qa` **y en `overlays/prod`** — `overlays/dev` es el único que no tiene
+patches por tienda, a propósito, porque allí las pasadas se disparan a mano. Los tres horarios son
+distintos y no se pueden heredar unos de otros: `base` diario 03:00→07:00, `qa` **los lunes**
+03:00→07:00, y `prod` diario de madrugada 21:00→08:00. Además QA cruzó dos a propósito respecto de
+base (hipercor `0 4`→`0 3` por ser la pasada más larga; springfield `0 3`→`0 4`), así que copiar el
+`schedule` de base a un overlay es una colisión probable, no una improbable.
+
+**Y el fallo de listado no degrada: tumba el despliegue entero.** Si un CronJob desaparece de
+`resources:` en `base` mientras su patch sigue en `patches:` del overlay, la intuición —«esa tienda
+no se despliega»— es falsa. Un patch sin destino es error duro de Kustomize, no un no-op:
+`kubectl kustomize overlays/qa` aborta con `error: no resource matches strategic merge patch
+"CronJob.v1.batch/deal-tracker-scraper-<slug>"` (medido el 16/08/2026 sobre una copia). Con
+auto-sync, eso es ArgoCD marcando la Application `ComparisonError` y **dejando de sincronizar
+deal-tracker por completo**: lo desplegado se congela en la última revisión buena y ninguna release
+posterior llega, no solo la de esa tienda. La asimetría es lo que hay que retener — quitar *también*
+el patch convierte ese fallo ruidoso en el silencioso de siempre (la tienda desaparece del cluster
+sin que nada avise), así que el estruendo y el silencio están **a una línea de distancia**. De ahí
+que la comprobación barata sea `kubectl kustomize` sobre cada overlay, que es local, no toca el
+cluster y vale por la paridad entera; el subagente `revisor-cronjobs-manifiestos` la lleva de
+primer paso.
+
 **Base de datos real**: cluster CNPG `platform-postgres-dev` en el namespace `data-dev` — *no* el
 `postgresql-generic` del cluster. **Los tres entornos lo comparten**, con una base por entorno
 (`deal_tracker`, `deal_tracker_qa`, `deal_tracker_prod`); prod no estrenó cluster por coste, y el

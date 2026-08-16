@@ -119,3 +119,12 @@ contra una foto congelada de la web.
 
 `just vigia --retailer <slug>` es la comprobación de que la tienda queda **vigilada**: si la salida
 dice `sin vigilancia de hojas`, te falta `check_leaves()` (§4b) y `just check` ya está en rojo.
+
+Y cuando el scraper ya esté verde, quedan **dos revisiones que los tests no hacen**:
+
+- `revisor-robustez-scraper` — identificadores inestables, bajas falsas, educación con el servidor.
+- `revisor-cronjobs-manifiestos` — que la tienda **llegue a correr**. Registrarla aquí no la
+  despliega: sin CronJob en el repo de manifiestos no se ejecuta nunca, y el aviso no lo da nadie
+  porque ningún CI ve los dos repos a la vez. Es también quien caza el error fácil de este paso,
+  que no es olvidar el CronJob sino copiar el de otra tienda y heredar su `schedule`: las franjas
+  de QA no son las de base.
