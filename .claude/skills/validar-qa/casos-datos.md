@@ -562,3 +562,9 @@ tope—, dejó 134 candidatas sin sondear y encontró 0 bajas reales**. La serie
 de la pasada es el `confirmación activa: N sondeos` que ya lee D3. Si `probes_over_cap` crece a la
 vez que esta tabla, la lectura es que las bajas de verdad se están quedando sin presupuesto detrás
 de una cola de prendas que siguen vivas. Va a **#357**.
+
+**Desde la v0.6.0 ese gasto ya no se repite entero, y el par de columnas lo dice** (0042, #412): a
+un candidato confirmado vivo hace poco no se le vuelve a preguntar, y eso se cuenta en
+`probes_skipped_fresh`. Léela **junto a `probes_over_cap`**, nunca sola: la primera subiendo con la
+segunda bajando es la ventana haciendo su trabajo; las dos a cero con `probes_sent` en el tope es
+que no está activa. Y no la sumes a los fallos — como `over_cap`, va bloqueada frente a la baja.

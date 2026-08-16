@@ -70,7 +70,7 @@ de 40 candidatos ausentes 14+ días, **39 seguían con stock**. Así que:
 
 ```sql
 SELECT probes_sent, probes_alive, probes_dead, probes_over_cap, probes_unresolved,
-       probes_unbuyable
+       probes_unbuyable, probes_skipped_fresh
   FROM scrape_run WHERE id = …;
 ```
 
@@ -81,10 +81,23 @@ SELECT probes_sent, probes_alive, probes_dead, probes_over_cap, probes_unresolve
   Eso es P2 y se contrasta contra el `## Cifras` anterior, no P0.
 - **`probes_unresolved > 0` sí es un hallazgo.** Son sondeos hechos a los que la tienda no contestó:
   bloqueo, red o respuesta ambigua. Es la tienda negándose a entrar, que es el fallo silencioso.
-- **`probes_unbuyable` NO es un error, y en Lefties se espera distinto de cero** (0040, #197). Es la
-  tienda contestando que el producto existe pero sin ninguna talla comprable: ni se rescata ni se da
-  de baja. Medido el 15/08/2026, 33 de los 58 productos de sus hojas de campaña estaban así. Dos
-  lecturas que hay que hacer bien:
+- **`probes_skipped_fresh` NO es un error y NO es una baja evitada** (0042, #412). Son candidatos a
+  los que no se sondeó porque ya contestaron hace poco, y va **bloqueado frente a la baja igual que
+  `probes_over_cap`**: si sumas para juzgar si el sondeo está sano, ésta suma en el **pool**, no en
+  los fallos. La lectura útil es la pareja: `probes_skipped_fresh` subiendo con `probes_over_cap`
+  bajando es la ventana funcionando; **las dos a cero con `probes_sent` en el tope** es que la
+  ventana no está activa. El valor lo fija el código, así que contrástalo ahí antes de juzgarlo.
+- **`probes_unbuyable` NO es un error, y se espera distinto de cero en Lefties, Zara y Sfera**
+  (0040 y #197 para Lefties; #426 sumó las otras dos). Es la tienda contestando que el producto
+  existe pero sin ninguna talla comprable: ni se rescata ni se da de baja. Medido el 15/08/2026, 33
+  de los 58 productos de las hojas de campaña de Lefties estaban así.
+
+  **Ojo al diff de cifras de la v0.6.0**: `probes_unbuyable` **sube** respecto a v0.5.0 porque
+  hasta #426 solo lo emitía Lefties. En Zara son 13 candidatos que antes salían `ALIVE`. **No es una
+  regresión: es el fenómeno haciéndose visible**, y no juzgues la subida sin mirar antes qué tiendas
+  la aportan.
+
+  Dos lecturas más que hay que hacer bien:
   - **No lo confundas con `probes_unresolved`.** Son diagnósticos opuestos —«no contesta» contra
     «contesta que está agotado»— y solo el primero suma en `errors`. Un `probes_unbuyable` alto con
     `errors = 0` es el comportamiento correcto, no una contradicción.
