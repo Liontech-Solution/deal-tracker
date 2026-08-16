@@ -549,6 +549,41 @@ def _descripciones(entry: dict[str, Any]) -> list[str]:
     ]
 
 
+def _comprabilidad(detail: list[Any]) -> bool | None:
+    """¿Queda alguna talla comprable? `True` sí, `False` no, `None` si no se sabe (#426).
+
+    Se apoya en `availability`, que es la MISMA señal con la que `parse_detail_product` puebla
+    `ScrapedVariant.in_stock` unas líneas más abajo. Que sea la misma no es casualidad ni ahorro:
+    si algún día Zara le cambia el nombre o los valores, lo que no puede pasar es que el catálogo
+    y el sondeo dejen de estar de acuerdo — uno diría que no hay stock y el otro que sí.
+
+    **Tres estados y no dos**, por lo mismo que `stock_verdict()` en Sfera. La versión de dos
+    colapsaba «he leído las tallas y ninguna se puede comprar» con «no he sabido leer la
+    respuesta», y las dos salían `UNBUYABLE`. Eso importa justo en el caso que hay que cazar: si
+    Zara renombrara el campo, TODO candidato saldría `UNBUYABLE` —un veredicto que no suma en
+    `errors` a propósito— y el mecanismo se apagaría **sin que saltara ninguna alarma**, porque la
+    que existe mira `unresolved`. Con `None` ese escenario sale por la puerta de «la tienda no ha
+    contestado», que sí se ve.
+
+    Por eso la señal de «sé leer esto» es que **exista la clave** `availability`, no que haya
+    tallas: una lista de tallas sin esa clave es exactamente la firma de un renombrado, y contarla
+    como «agotado» sería creerse un dato que no está.
+    """
+    con_senal = False
+    comprable = False
+    for entry in detail:
+        if not isinstance(entry, dict):
+            continue
+        for color in (entry.get("detail") or {}).get("colors") or []:
+            for size in color.get("sizes") or []:
+                if not isinstance(size, dict) or "availability" not in size:
+                    continue
+                con_senal = True
+                if size["availability"] == "in_stock":
+                    comprable = True
+    return comprable if con_senal else None
+
+
 def parse_detail_product(
     entry: dict[str, Any], *, gender: str | None, section: str | None, category: str | None
 ) -> ScrapedProduct | None:
@@ -878,20 +913,38 @@ class ZaraStore:
                     )
                     yield LeafHealth(scope, leaf, True, f"HTTP 200, {cuantos} productos")
 
-    def _probe_one(self, client: httpx.Client, product_id: str) -> bool | None:
-        """¿Sigue a la venta? True/False; None si la tienda no da una respuesta utilizable."""
+    def _probe_one(self, client: httpx.Client, product_id: str) -> ProbeVerdict | None:
+        """El veredicto del sondeo, o `None` si la tienda no da una respuesta utilizable.
+
+        Distingue «existe» de «se puede comprar» (#426) **sin una sola petición extra**: la
+        respuesta que este sondeo ya se descarga es la misma que consume `fetch_details()`, así que
+        trae la disponibilidad talla a talla. Zara es la tienda con más población del fenómeno
+        —248 productos vivos sin ninguna talla comprable en QA el 16/08/2026, 13 de ellos ya
+        candidatos a baja— y hasta aquí todos salían `ALIVE`, con `_rescue()` poniéndoles la racha
+        a cero y dejándolos en el catálogo con su último precio.
+
+        `UNBUYABLE` no rescata ni da de baja: que hoy no quede talla no prueba una retirada.
+        """
         url = _DETAILS_URL.format(product_id=product_id)
         try:
             detail = self._get_json(client, url)
         except httpx.HTTPStatusError as exc:
             # 404 es un veredicto ("ese producto ya no existe"); el resto, tras agotar los
             # reintentos, es un fallo nuestro: no vale como prueba de retirada.
-            return False if exc.response.status_code == 404 else None
+            return ProbeVerdict.DEAD if exc.response.status_code == 404 else None
         except (httpx.TransportError, ValueError):  # red caída o respuesta no-JSON
             return None
         if not isinstance(detail, list):
             return None  # forma inesperada: no arriesgamos una baja con esto
-        return bool(detail)  # lista vacía = Zara ya no conoce ese id
+        if not detail:
+            return ProbeVerdict.DEAD  # lista vacía = Zara ya no conoce ese id
+        comprable = _comprabilidad(detail)
+        if comprable is None:
+            # La tienda contesta, pero su respuesta no habla de stock: ni rescate ni acusación.
+            # Sale como «sin veredicto», que es el único estado de los cuatro que SÍ suma en
+            # `errors` — o sea el único que se ve si esto empieza a pasarle a todos los candidatos.
+            return None
+        return ProbeVerdict.ALIVE if comprable else ProbeVerdict.UNBUYABLE
 
     def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:
         """Confirmación activa (ver `stores.base.SupportsAliveProbe`): un GET por candidato."""
@@ -900,9 +953,7 @@ class ZaraStore:
             for candidate in candidates:
                 verdict = self._probe_one(client, candidate.retailer_product_id)
                 if verdict is not None:  # sin veredicto -> se omite del mapa
-                    verdicts[candidate.retailer_product_id] = (
-                        ProbeVerdict.ALIVE if verdict else ProbeVerdict.DEAD
-                    )
+                    verdicts[candidate.retailer_product_id] = verdict
         return verdicts
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
