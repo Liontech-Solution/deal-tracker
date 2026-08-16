@@ -3059,8 +3059,11 @@ Dos consecuencias que no son evidentes y conviene tener escritas:
   tercio de refresco por un caso que nadie hace.
 
   El riesgo que introduce la forma, y que conviene tener escrito: **una lectura que olvide el
-  predicado de `scope` duplica filas en silencio**. Lo sujeta que hay un solo lector
-  (`agregadoPrecomputado`) y que la paridad lo cubre. Y cambió un contrato que sí tenía consumidor
+  predicado de `scope` duplica filas en silencio**. Lo sujetaba que hubiera un solo lector
+  (`agregadoPrecomputado`) y que la paridad lo cubriera; desde #435 son **dos** —`FavoritesService`
+  lee el mismo agregado para pintar `/favoritos`— y los dos fijan el ámbito. La cabecera de la
+  `0038` se quedó afirmando lo primero, así que la corrección vive en el comentario de `schema.ts`,
+  que es donde se lee. Y cambió un contrato que sí tenía consumidor
   fuera del web: `refresh_product_agg` devuelve ahora filas producto×ámbito, así que el número casi
   se dobla — tres asserts de `test_ingest.py` pasaron de 2 a 4.
 
@@ -3099,6 +3102,104 @@ toque `product_agg`, más el control inverso de que sin filtros de variante **s�
 precomputado; sin ese control pasaría con un interruptor siempre cierto, que es deshacer la 0035 en
 silencio. Se verificó quitando `sizeExact` del interruptor y comprobando que **falla**, que es lo
 único que distingue una red de un verde de adorno.
+
+### La columna que contesta una pregunta puede llevar años calculada con otro nombre (#402)
+
+El «desde» de la tarjeta era `price_from`, un `MIN(price)` sobre todas las variantes vivas **sin
+mirar el stock**, así que un producto cuya talla más barata estaba agotada anunciaba un precio que
+nadie podía pagar. #402 lo planteó como una decisión de producto con tres salidas y una migración
+posible (la épica de la v0.6.0 le reservó el número `0046` por si había que tocar
+`refresh_product_agg`).
+
+**No hizo falta ninguna de las dos cosas, y el porqué es el patrón que merece quedar escrito.** La
+variante representativa se elige con `ORDER BY in_stock DESC, price ASC, variant_id`, así que
+`price_repr` *ya era* «la más barata con stock, y la más barata a secas si no hay ninguna» — es
+decir, la respuesta exacta a la pregunta de #402, **incluido el respaldo** que el caso «todo
+agotado» necesita y que un `MIN(price) FILTER (WHERE in_stock)` —la forma en la que uno piensa este
+arreglo— habría dejado en `NULL` en 344 productos de QA. El cambio fue de qué columna se lee.
+
+La consecuencia general: en una tabla agregada, **dos columnas que parecen intercambiables pueden
+responder preguntas distintas**, y el nombre no lo dice. `price_from` es el catálogo *publicado* y
+`price_repr` el catálogo *comprable*; se sigue calculando el primero porque es lo que hace
+comparables los dos caminos con un `EXCEPT`, pero ya no sale a pantalla. Antes de añadir columna o
+migración a un agregado, mirar si el orden con el que ya se elige la fila representativa no contesta
+ya lo que se pregunta.
+
+**Y arreglaba de paso una asimetría que la issue no llegaba a nombrar**, que es la parte que más
+vale saber: el tachado, el porcentaje y el veredicto de honestidad **ya salían** de la
+representativa. Enseñar al lado un `MIN` de otra variante hacía que la tarjeta pintara el precio de
+una prenda con el descuento de otra — la misma familia que la invariante de `filtroDeVariante` de
+arriba, pero dentro de una sola fila y sin filtro de por medio.
+
+**Lo medido, que corrige la premisa del cuerpo de la issue** (`deal_tracker_qa`, 16/08/2026):
+
+| | |
+|---|---:|
+| productos con agregado | 17.489 |
+| **enseñaban un precio impagable** | **28 (0,16 %)** |
+| salto medio / máximo | 4,35 € / 12,57 € |
+
+La issue esperaba una población grande porque el 27,28 % de las variantes vivas están agotadas. No
+es así, y el motivo importa: **el techo del defecto es la dispersión de precios, no el stock**. Solo
+**272 productos (1,6 %)** tienen variantes que no valen todas lo mismo; en el resto la agotada más
+barata empata en precio con una comprable y las dos columnas coinciden. Un catálogo donde cada
+prenda cuesta lo mismo en todas sus tallas es inmune a esto por construcción.
+
+Que sean 28 no lo hace cosmético —el peor caso anunciaba **5,38 €** una prenda cuya talla más barata
+comprable costaba **17,95 €**, en un producto que se vende como detector de descuentos inventados—
+pero sí hace barato lo que arrastra: el orden `precio-asc` y el rango `minPrice`/`maxPrice` pasan a
+usar la misma columna que se pinta (ordenar o filtrar por una y enseñar otra es peor que el defecto
+de partida), y como mucho reordenan esos 28.
+
+### Meter un eje de filtrado en la búsqueda por texto sale caro cuando su cardinalidad es baja (#229, #408)
+
+El buscador casa por subcadena sobre `name || categoría || género`. El género entra porque es como
+la gente teclea —«botas niña»— y los nombres de las tiendas casi nunca lo llevan; #229 midió que
+merece la pena y decidió conservarlo. Pero `gender` tiene **tres valores**, y los tres contienen
+`ni`: `ni`ño, `ni`ña y u`ni`sex.
+
+Resultado, medido sobre los productos vivos de `deal_tracker_qa`: teclear `ni` devolvía **el
+catálogo entero** (17.489 de 17.489) y `nin` el 88 %. Y no es un caso de borde, porque **la SPA
+busca según se teclea**: quien escribe «niña» pasa por `n`, `ni` y `nin`, y en dos de esos tres ve
+el catálogo completo.
+
+El patrón, que vale para cualquier eje que se meta en un `position()`: **una subcadena contra un
+campo de baja cardinalidad no filtra, colapsa**. Cuantos menos valores distintos tenga la columna,
+más probable es que un prefijo corto esté dentro de todos. Un campo libre (el nombre) no tiene ese
+problema porque sus valores son muchos y largos.
+
+El arreglo es sacar el eje del pajar y compararlo por **igualdad**, ya plegado: el término casa si
+está en el nombre/categoría **o** si *es* el género entero. Lo que hace segura esa forma es que es
+**estrictamente más estrecha** que la anterior —todo lo que casa ahora casaba antes—, así que no
+puede inventar resultados; solo deja de casar los prefijos que no son un valor completo. Comprobado
+ejecutando las dos condiciones sobre los mismos 17.489 productos:
+
+| tecleado | antes | ahora |
+|---|---:|---:|
+| `ni` | 17.489 | **2.527** |
+| `nin` | 15.474 | **1.513** |
+| `nina` | 9.071 | 9.071 |
+| `nino` | 6.443 | 6.443 |
+| `unisex` | 2.047 | 2.047 |
+| `botas nina` | 64 | 64 |
+| `vestido nina` | 1.548 | 1.548 |
+
+Cambian los dos prefijos rotos y **nada más**: lo que #229 midió y había que preservar sale idéntico
+hasta la unidad. Esa tabla es la forma de validar un cambio así — no razonar sobre la condición,
+sino ejecutar las dos sobre el catálogo real y exigir que las consultas legítimas no se muevan.
+
+Dos cosas que **no** cambia y conviene no confundir con esto. La asimetría que #229 aceptó a
+sabiendas sigue en pie: teclear un género suelto devuelve ese catálogo entero (9.071 productos) sin
+que la barra de filtros aplicados lo refleje; lo que se arregla es que lo devolvieran también dos
+letras. Y la salida grande —que el género deje de ser texto y pase a la búsqueda facetada— sigue
+siendo de #229; esto es independiente y seguiría haciendo falta igual mientras el resto de campos se
+casen por subcadena.
+
+Por último, la condición vivía **duplicada literalmente** en `listProducts` y en `getFacets`, con un
+comentario en la segunda pidiendo que se movieran juntas. Ahora es una función (`searchCondition`),
+porque el fallo que permitía la duplicación es concreto: si el listado y la faceta no entienden lo
+tecleado igual, **el panel ofrece chips que el listado no puede llenar**. Es el mismo argumento del
+espejo de la honestidad, un piso más abajo.
 
 ### `array_agg(... ORDER BY …)[1]` elige a suertes si el orden no desempata (#314)
 
