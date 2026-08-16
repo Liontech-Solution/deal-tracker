@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 988a575e-48f6-4310-87fc-2eee639eea1a
-  modified: 2026-08-13T09:52:01.754Z
+  modified: 2026-08-16T21:52:24.443Z
 ---
 
 En `deal-tracker` la protección de rama **no exige ningún check**, así que
@@ -25,6 +25,18 @@ de `gh pr checks`: si aparece un `CheckRun` en `QUEUED`/`IN_PROGRESS`, espera co
 bueno: sigue el run equivalente en `main` hasta verlo verde y dilo. Ver también
 [[gh-pr-merge-desde-worktree]], que es el otro error de `gh pr merge` que llega después de haber
 hecho la operación.
+
+**Y al leer el rollup, mira `status`, NO `conclusion`.** Mientras el check corre, `conclusion` llega
+como **cadena vacía**, no como `null` — y el `//` de jq solo sustituye `null` y `false`, así que un
+`"\(.conclusion // .status)"` imprime la cadena vacía y el check parece terminado sin decir nada.
+Medido el 16/08/2026 en el PR #470: un bucle que esperaba a que no quedara ningún
+`QUEUED|IN_PROGRESS` salió a los 20 s dando `lint-type-test: ` con el job **`IN_PROGRESS`**. La
+forma que sí funciona es sacar los dos campos por separado y decidir por `status`:
+
+```bash
+gh pr view <n> --json statusCheckRollup \
+  --jq '.statusCheckRollup[] | "\(.name)\t\(.status)\t\(.conclusion)"'
+```
 
 **Y no descartes ningún check por su nombre.** El job se llama
 **`build & push (multiarch en main)`** y eso invita a leerlo como que en un PR no corre — CLAUDE.md
