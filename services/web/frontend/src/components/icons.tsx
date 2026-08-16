@@ -47,6 +47,19 @@ export const BellIcon = (p: P) => (
     <path d="M13.7 21a2 2 0 0 1-3.4 0" />
   </Icon>
 );
+/**
+ * El corazón de favoritos (#435). A diferencia del resto de iconos de este fichero, admite
+ * `filled`: el estado marcado/sin marcar es justo lo que este control tiene que comunicar de un
+ * vistazo, y hacerlo solo con el color lo dejaría ilegible para quien no distingue el acento.
+ */
+export const HeartIcon = (p: P & { filled?: boolean }) => (
+  <Icon size={p.size} sw={p.sw ?? 2.2}>
+    <path
+      d="M12 20.5s-7.5-4.7-7.5-10A4.5 4.5 0 0 1 12 7.5a4.5 4.5 0 0 1 7.5 3c0 5.3-7.5 10-7.5 10z"
+      fill={p.filled ? 'currentColor' : 'none'}
+    />
+  </Icon>
+);
 export const FilterIcon = (p: P) => (
   <Icon {...p} sw={p.sw ?? 2.4}>
     <path d="M3 5h18M6 12h12M10 19h4" />

@@ -7,7 +7,7 @@
  * drizzle-kit para generar migraciones.
  *
  * Reparto: `retailer/product/variant/price_history/scrape_run/vigia_run` los escribe el scraper
- * (aquí solo se leen); `app_user/interest/notification` son propiedad del servicio web.
+ * (aquí solo se leen); `app_user/interest/favorite/notification` son propiedad del servicio web.
  *
  * **El espejo declara el contrato entero, no solo lo que el web consulta.** Que una tabla o una
  * columna no se lea desde aquí no es motivo para omitirla: omitirla es justo lo que hace que el
@@ -349,6 +349,32 @@ export const interest = pgTable(
   ],
 );
 
+/**
+ * Prendas guardadas por el usuario **sin pedir aviso** (migración 0041, #435).
+ *
+ * Deliberadamente **fuera de `interest`**, y el motivo que manda no es de modelado sino de daño:
+ * la única condición de notificabilidad de todo el sistema es el `JOIN interest i ON i.active` de
+ * `matching.service.ts`, así que una fila de favorito viviendo en `interest` dispararía avisos de
+ * Telegram. Con tabla aparte eso es imposible por construcción.
+ *
+ * `productId` **sin `references()`**, igual que `interest.productId`: el producto lo posee el
+ * scraper y el favorito tiene que sobrevivir a una baja (`delisted_at`) y a su resurrección.
+ */
+export const favorite = pgTable(
+  'favorite',
+  {
+    id: bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
+    userId: bigint('user_id', { mode: 'number' })
+      .notNull()
+      .references(() => appUser.id, { onDelete: 'cascade' }),
+    productId: bigint('product_id', { mode: 'number' }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  // El favorito es del PRODUCTO entero (un corazón por producto, sin talla), y esta clave es la que
+  // hace idempotente el alta: marcar dos veces el mismo corazón no falla ni duplica.
+  (t) => [unique('favorite_user_product_uniq').on(t.userId, t.productId)],
+);
+
 export const notification = pgTable(
   'notification',
   {
@@ -429,6 +455,7 @@ export const schema = {
   vigiaRun,
   appUser,
   interest,
+  favorite,
   notification,
   jobState,
   matchingScannedRun,
@@ -442,3 +469,4 @@ export const schema = {
 export type AppUser = typeof appUser.$inferSelect;
 export type Interest = typeof interest.$inferSelect;
 export type NewInterest = typeof interest.$inferInsert;
+export type Favorite = typeof favorite.$inferSelect;

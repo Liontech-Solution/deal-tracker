@@ -58,6 +58,10 @@ export class InterestsService {
         // null en un interés que apunta a una prenda. La usa el hueco de la foto para su fondo.
         directProductSection: product.section,
         variantProductSection: variantProduct.section,
+        // La baja de la prenda seguida (#435). Se seleccionan las dos y se resuelven abajo, igual
+        // que el resto del par directo/vía-variante: un interés apunta a una o a la otra.
+        directProductDelistedAt: product.delistedAt,
+        variantProductDelistedAt: variantProduct.delistedAt,
         // La talla CANÓNICA, no la de la tienda (#223). `variant.size` guarda el texto crudo
         // ('2 años (92 cm)'), y esta etiqueta la lee el usuario en dos sitios: su lista de
         // seguimientos y —vía `variantLabel`, ver abajo— el aviso de Telegram. Devolverla cruda
@@ -108,6 +112,14 @@ export class InterestsService {
       // un caso raro.
       imageUrl: r.colorImage ?? r.directProductImage ?? r.variantProductImage ?? null,
       productSection: r.directProductSection ?? r.variantProductSection ?? null,
+      // Se mira la marca de LA MISMA prenda que `targetProductId`, no un `??` entre las dos: aquí
+      // un NULL significa «no está de baja», no «no hay dato», así que encadenarlas haría que un
+      // interés con producto vivo Y variante de otro producto de baja se pintara apagado. Un
+      // interés por filtros no apunta a ninguna prenda y sale `false`, que es lo correcto:
+      // 'toda la ropa de niña' no puede estar de baja.
+      delisted:
+        (r.interest.productId !== null ? r.directProductDelistedAt : r.variantProductDelistedAt) !==
+        null,
     }));
   }
 

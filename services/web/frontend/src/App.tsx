@@ -8,6 +8,7 @@ import { ThemeProvider } from './components/ThemeProvider';
 import { ToastProvider } from './components/Toast';
 import { AccessPage } from './pages/AccessPage';
 import { CatalogPage } from './pages/CatalogPage';
+import { FavoritesPage } from './pages/FavoritesPage';
 import { HomePage } from './pages/HomePage';
 import { InterestsPage } from './pages/InterestsPage';
 import { ProductPage } from './pages/ProductPage';
@@ -25,9 +26,9 @@ const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { index: true, element: <HomePage /> },
-      // Las dos rutas que enseñan catálogo van tras el candado de #309. `/seguimientos` y
-      // `/ajustes` no lo necesitan: ya resuelven la sesión dentro de la página, y subirlas aquí
-      // significaría borrar esas ramas, que es trabajo de #302.
+      // Las dos rutas que enseñan catálogo van tras el candado de #309. `/seguimientos`,
+      // `/favoritos` y `/ajustes` no lo necesitan: ya resuelven la sesión dentro de la página, y
+      // subirlas aquí significaría borrar esas ramas, que es trabajo de #302.
       {
         path: 'catalogo',
         element: (
@@ -46,6 +47,7 @@ const router = createBrowserRouter([
       },
       { path: 'acceso', element: <AccessPage /> },
       { path: 'seguimientos', element: <InterestsPage /> },
+      { path: 'favoritos', element: <FavoritesPage /> },
       { path: 'ajustes', element: <SettingsPage /> },
     ],
   },

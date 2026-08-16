@@ -61,6 +61,44 @@ describe.skipIf(!TEST_DB)('migraciones', () => {
     ]);
   });
 
+  it('0041 crea `favorite` sin FK al producto, con su clave de idempotencia y su índice', async () => {
+    await runMigrations(sql);
+
+    const cols = await sql<{ column_name: string }[]>`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'favorite'`;
+    expect(cols.map((c) => c.column_name).sort()).toEqual([
+      'created_at',
+      'id',
+      'product_id',
+      'user_id',
+    ]);
+
+    // Las dos claves foráneas NO son simétricas y esa asimetría es el diseño (#435): el favorito
+    // se va con el usuario, pero NO cuelga del producto — tiene que sobrevivir a una baja y a su
+    // resurrección, igual que `interest.product_id`. Una FK a `product` aquí haría que cualquier
+    // limpieza futura del catálogo se llevara por delante lo que el usuario guardó.
+    const fks = await sql<{ column_name: string; foreign_table: string }[]>`
+      SELECT kcu.column_name, ccu.table_name AS foreign_table
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.key_column_usage kcu
+        ON kcu.constraint_name = tc.constraint_name
+      JOIN information_schema.constraint_column_usage ccu
+        ON ccu.constraint_name = tc.constraint_name
+      WHERE tc.table_name = 'favorite' AND tc.constraint_type = 'FOREIGN KEY'`;
+    expect(fks).toEqual([{ column_name: 'user_id', foreign_table: 'app_user' }]);
+
+    // La que hace idempotente el alta: marcar dos veces el mismo corazón no puede duplicar.
+    const uniq = await sql<{ constraint_name: string }[]>`
+      SELECT constraint_name FROM information_schema.table_constraints
+      WHERE table_name = 'favorite' AND constraint_type = 'UNIQUE'`;
+    expect(uniq.map((u) => u.constraint_name)).toEqual(['favorite_user_product_uniq']);
+
+    const idx = await sql<{ indexname: string }[]>`
+      SELECT indexname FROM pg_indexes WHERE tablename = 'favorite' AND indexname = 'ix_favorite_user'`;
+    expect(idx).toHaveLength(1);
+  });
+
   it('es idempotente (re-ejecutar no aplica nada nuevo)', async () => {
     const applied = await runMigrations(sql);
     expect(applied).toEqual([]);

@@ -11,6 +11,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { validateEnv } from './config/configuration';
 import { PublicConfigModule } from './config/public-config.module';
 import { DatabaseModule } from './database/database.module';
+import { FavoritesModule } from './favorites/favorites.module';
 import { HealthModule } from './health/health.module';
 import { InterestsModule } from './interests/interests.module';
 import { SettingsModule } from './settings/settings.module';
@@ -47,6 +48,7 @@ function staticModule(): DynamicModule[] {
     PublicConfigModule,
     CatalogModule,
     InterestsModule,
+    FavoritesModule,
     SettingsModule,
     TelegramModule,
     HealthModule,

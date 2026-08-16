@@ -12,6 +12,7 @@ import type {
   CreateInterestInput,
   Facets,
   FacetQuery,
+  FavoriteView,
   InterestView,
   PricePoint,
   ProductDetail,
@@ -125,6 +126,59 @@ export function useDeleteInterest() {
   return useMutation({
     mutationFn: (id: number) => apiSend<void>('DELETE', `/interests/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: INTERESTS_KEY }),
+  });
+}
+
+// --- Favoritos (requieren sesión; el token lo adjunta el cliente HTTP) ---
+
+const FAVORITES_KEY = ['favorites'];
+
+/**
+ * Lista de favoritos del usuario. `enabled` para no pedir sin sesión.
+ *
+ * **Incluye los de baja**: el backend no filtra por `delisted_at` a propósito, para que la página
+ * pueda pintarlos apagados en vez de hacerlos desaparecer sin explicación.
+ */
+export function useFavorites(enabled: boolean) {
+  return useQuery({
+    queryKey: FAVORITES_KEY,
+    enabled,
+    queryFn: () => apiGetAuth<FavoriteView[]>('/favorites'),
+  });
+}
+
+/**
+ * Los ids favoritos del usuario, para que cada corazón sepa si va relleno.
+ *
+ * **Es la MISMA query que `useFavorites`**, no otra: comparte `queryKey`, así que react-query la
+ * pide una sola vez aunque la consulten las N tarjetas de una rejilla, y `select` solo transforma
+ * lo ya cacheado. Esa es la razón de que no exista un `GET /favorites/ids`: haría falta un endpoint
+ * más para no ahorrar ninguna petición.
+ */
+export function useFavoriteIds(enabled: boolean) {
+  return useQuery({
+    queryKey: FAVORITES_KEY,
+    enabled,
+    queryFn: () => apiGetAuth<FavoriteView[]>('/favorites'),
+    select: (favs) => new Set(favs.map((f) => f.productId)),
+  });
+}
+
+export function useAddFavorite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (productId: number) =>
+      apiSend<FavoriteView>('POST', '/favorites', { productId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: FAVORITES_KEY }),
+  });
+}
+
+/** Quitar el corazón va por `productId`: quien lo pulsa sabe qué prenda mira, no qué fila es. */
+export function useRemoveFavorite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (productId: number) => apiSend<void>('DELETE', `/favorites/${productId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: FAVORITES_KEY }),
   });
 }
 
