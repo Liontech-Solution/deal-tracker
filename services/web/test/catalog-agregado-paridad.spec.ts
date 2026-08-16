@@ -201,6 +201,11 @@ describe.skipIf(!TEST_DB)('paridad entre el agregado precomputado y el vivo (#31
    *
    * `sizeExact` (#367) es el que lo estrena, pero la lista está para que el siguiente eje de
    * variante que se añada tenga dónde caerse.
+   *
+   * **Esto protege dos cosas, y la segunda no se lee sola:** que el listado no mienta en el precio,
+   * y que el **veredicto de honestidad describa la variante que el usuario ha filtrado** y no otra
+   * del mismo producto. Lo segundo es lo que hace que un eje de variante mal puesto sea de la misma
+   * familia que #436 —elogiar sin que lo elogiado sea lo que se está mirando— con otra causa.
    */
   it('cada filtro de variante manda al camino vivo, y no al precomputado', async () => {
     const ejes: Array<[string, (q: ProductQueryDto) => void]> = [
