@@ -129,6 +129,31 @@ export class CatalogFilterDto {
   @MaxLength(MAX_LONGITUD_VALOR, { each: true })
   size?: string[];
 
+  /**
+   * La talla **concreta** dentro de la banda, que es el segundo piso del filtro (#367).
+   *
+   * `size` pliega a `size_band` en `ropa` —21 chips en vez de 181— y ese plegado se aplica también
+   * a lo que llega por la URL, así que con él **es imposible pedir un valor concreto**: `?size=104`
+   * se convierte en su banda y devuelve los cuatro vocabularios de esa edad. Este eje es la
+   * contrapartida que #325 dejó anotada y sin marcar: elegida la banda `4 años`, permite pedir
+   * `4-5 años`, `4 años`, `4-6 años` o `104` — medido en QA, son 4 valores y no una lista larga.
+   *
+   * Se pliega a `size_canon` y **no** a `size_band`, que es justo lo que lo distingue de `size`.
+   * Los dos se pueden mandar a la vez y **se cruzan (AND)**: la banda es donde estás y la concreta
+   * lo que pides dentro. Que un enlace viejo traiga una pareja incoherente devuelve vacío, que es
+   * lo correcto — el error está en el enlace, no en el catálogo.
+   *
+   * No tiene equivalente en color a propósito: la familia «azul» contiene 466 colores concretos
+   * (medido, #444), así que ahí un segundo piso no es una lista, es el problema de #291 otra vez.
+   */
+  @IsOptional()
+  @Transform(aLista)
+  @IsArray()
+  @ArrayMaxSize(MAX_VALORES_POR_EJE)
+  @IsString({ each: true })
+  @MaxLength(MAX_LONGITUD_VALOR, { each: true })
+  sizeExact?: string[];
+
   @IsOptional()
   @Transform(aLista)
   @IsArray()

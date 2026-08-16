@@ -194,6 +194,11 @@ export interface Facets {
   sections: string[];
   categories: string[];
   sizes: string[];
+  /**
+   * Las tallas concretas de la banda ya elegida (#367). **Vacía si no hay banda**, y vacía siempre
+   * en `zapateria`, donde el primer piso ya es la canónica.
+   */
+  sizeValues: string[];
   colors: string[];
   retailers: RetailerFacet[];
 }

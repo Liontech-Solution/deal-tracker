@@ -6,7 +6,7 @@ import type { ProductQuery, ProductSort } from '../api/types';
 import { FilterPanel } from '../components/FilterPanel';
 import type { CatalogFilters } from '../components/FilterPanel';
 import { CloseIcon, FilterIcon } from '../components/icons';
-import { aplicarPatch, parcheSeccion } from '../lib/filters';
+import { aplicarPatch, parcheBanda, parcheSeccion } from '../lib/filters';
 import { etiquetaSeccion } from '../lib/section';
 import { ProductCard } from '../components/ProductCard';
 import { EmptyState, ErrorState, ProductGridSkeleton } from '../components/States';
@@ -31,6 +31,7 @@ export function CatalogPage() {
     // llegaría el primero — el catálogo filtraría por una talla mientras el panel enseña tres
     // marcadas.
     size: params.getAll('size'),
+    sizeExact: params.getAll('sizeExact'),
     color: params.getAll('color'),
     retailer: params.getAll('retailer'),
     inStock: params.get('inStock') === 'true',
@@ -55,6 +56,7 @@ export function CatalogPage() {
     section: filters.section || undefined,
     category: filters.category || undefined,
     size: filters.size.length ? filters.size : undefined,
+    sizeExact: filters.sizeExact.length ? filters.sizeExact : undefined,
     color: filters.color.length ? filters.color : undefined,
     retailer: filters.retailer.length ? filters.retailer : undefined,
     deportiva: filters.deportiva || undefined,
@@ -70,6 +72,7 @@ export function CatalogPage() {
     section: filters.section || undefined,
     category: filters.category || undefined,
     size: filters.size.length ? filters.size : undefined,
+    sizeExact: filters.sizeExact.length ? filters.sizeExact : undefined,
     color: filters.color.length ? filters.color : undefined,
     retailer: filters.retailer.length ? filters.retailer : undefined,
     inStock: filters.inStock || undefined,
@@ -115,7 +118,18 @@ export function CatalogPage() {
   // Un chip POR VALOR, cada uno con su aspa (#329). Un solo chip que dijera «Talla 4 años, 104,
   // 36-38» solo se podría quitar entero, y con tres tallas puestas lo normal es querer soltar una.
   for (const s of filters.size) {
-    chips.push({ label: `Talla ${s}`, clear: () => setFilters({ size: filters.size.filter((x) => x !== s) }) });
+    // Quitar la banda suelta también sus tallas concretas (#367), igual que hace el chip del panel:
+    // si no, el segundo piso deja de pintarse y su filtro se queda puesto sin que nada lo diga.
+    chips.push({
+      label: `Talla ${s}`,
+      clear: () => setFilters(parcheBanda(filters.size.filter((x) => x !== s))),
+    });
+  }
+  for (const s of filters.sizeExact) {
+    chips.push({
+      label: `Talla exacta ${s}`,
+      clear: () => setFilters({ sizeExact: filters.sizeExact.filter((x) => x !== s) }),
+    });
   }
   for (const c of filters.color) {
     chips.push({ label: capitalize(c), clear: () => setFilters({ color: filters.color.filter((x) => x !== c) }) });
@@ -143,6 +157,7 @@ export function CatalogPage() {
       section: '',
       category: '',
       size: [],
+      sizeExact: [],
       color: [],
       retailer: [],
       inStock: false,
