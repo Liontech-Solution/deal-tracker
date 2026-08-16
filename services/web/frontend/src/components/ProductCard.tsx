@@ -1,17 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 
 import { HonestyBadge, StockBadge, StoreBadge } from './Badges';
-import { FollowModal } from './FollowModal';
-import { BellIcon } from './icons';
+import { HeartIcon } from './icons';
 import { ProductImage } from './ProductImage';
 import type { ProductListItem } from '../api/types';
-import { useSeguirPrenda } from '../auth/useSeguirPrenda';
+import { useFavorito } from '../auth/useFavorito';
 import { eurStr } from '../lib/format';
 import { cifrasDeRebaja, llevaBadge } from '../lib/honesty';
 
 export function ProductCard({ p }: { p: ProductListItem }) {
   const navigate = useNavigate();
-  const seguir = useSeguirPrenda();
+  const favorito = useFavorito(p.id);
 
   const honesty = p.honesty;
   const suspicious = honesty === 'suspicious';
@@ -29,7 +28,6 @@ export function ProductCard({ p }: { p: ProductListItem }) {
   const disc = cifras.descuento;
 
   return (
-    <>
     <div
       className="card-hover"
       onClick={() => navigate(`/producto/${p.id}`)}
@@ -50,15 +48,22 @@ export function ProductCard({ p }: { p: ProductListItem }) {
             <HonestyBadge kind={honesty} />
           </div>
         )}
-        {/* Abre el mismo modal que la ficha, con alcance de producto entero: desde la rejilla no
-            hay talla ni color elegidos, así que el aviso cubre «todas las tallas y colores», que es
-            un caso que `FollowModal` ya contempla. El `stopPropagation` sigue siendo necesario:
-            toda la tarjeta navega a la ficha. */}
+        {/* Guardar la prenda, sin pedir aviso (#435). Aquí va el CORAZÓN y no la campana, y la
+            razón está medida: a los 200 px a los que baja la rejilla (`CatalogPage`), dos botones
+            de 38 px dejan 96 px para el badge de honestidad, y los tres rótulos lo pasan —«Oferta
+            real» 96,2, «Precio inflado» 111,4 y «Bajada reciente» 120,2—. O sea que los dos no
+            caben, y la salida que #435 declaraba preferida es dejar el corazón: la campana sigue
+            entera en la ficha y en `/favoritos`, donde además se puede elegir talla.
+
+            El `stopPropagation` es imprescindible: toda la tarjeta navega a la ficha. */}
         <button
-          aria-label="Seguir prenda"
+          aria-label={favorito.esFavorito ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+          title={favorito.esFavorito ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+          aria-pressed={favorito.esFavorito}
+          disabled={favorito.ocupado}
           onClick={(e) => {
             e.stopPropagation();
-            seguir.abrir();
+            favorito.alternar();
           }}
           style={{
             position: 'absolute',
@@ -76,7 +81,7 @@ export function ProductCard({ p }: { p: ProductListItem }) {
             boxShadow: 'var(--shadow-1)',
           }}
         >
-          <BellIcon size={18} />
+          <HeartIcon size={18} filled={favorito.esFavorito} />
         </button>
       </div>
 
@@ -129,15 +134,5 @@ export function ProductCard({ p }: { p: ProductListItem }) {
         </div>
       </div>
     </div>
-
-    {/* Hermano de la tarjeta y no hijo suyo: el modal es una capa fija, así que da igual dónde
-        cuelgue, pero dentro de la tarjeta cualquier clic suyo burbujearía hasta el `onClick` que
-        navega a la ficha y el modal se cerraría llevándote a otra página. */}
-    <FollowModal
-      open={seguir.abierto}
-      onClose={seguir.cerrar}
-      target={{ productId: p.id, productName: p.name }}
-    />
-    </>
   );
 }
