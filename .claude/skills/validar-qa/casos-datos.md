@@ -643,8 +643,11 @@ que no está activa. Y no la sumes a los fallos — como `over_cap`, va bloquead
 > exige pasadas reales sobre un catálogo real: **medir `probes_over_cap` antes y después** de que la
 > ventana de #412 esté activa, contra el bloque `## Cifras` del informe de v0.5.0.
 >
-> **La línea de partida, medida el 16/08/2026 sobre las pasadas del 15/08** (usa ésta y no la del
-> 10/08, que es más antigua y más benévola). No es cosa de una tienda: **cuatro de las nueve
+> **La línea de partida está publicada en #412 (PR #449)**, sobre las pasadas del 15/08: ahí es
+> «200 sondeos, 200 vivos, cero bajas, 504 candidatos sin sondear», con el pool de Zara creciendo
+> `134 (10/08) → 106 (14/08) → 195 (15/08)`. Se reproduce aquí para poder usarla sin salir del
+> caso, pero **la fuente es aquella**: si las dos no coinciden, manda el PR. Usa la del 15/08 y no
+> la del 10/08, que es más antigua y más benévola. No es cosa de una tienda — **cuatro de las nueve
 > estaban en el tope a la vez, y las cuatro encontraron cero bajas**.
 >
 > | tienda | `probes_sent` | `probes_over_cap` | `probes_dead` |
@@ -658,3 +661,9 @@ que no está activa. Y no la sumes a los fallos — como `over_cap`, va bloquead
 > `over_cap` **no baja en estas cuatro** con `probes_skipped_fresh` subiendo, la ventana está puesta
 > y no ahorra nada — y eso es un hallazgo de la propia #412, no un número de adorno. El `dead = 0`
 > de las cuatro es lo que dice para qué se estaba gastando el tope.
+>
+> **Y no lo simplifiques a «`over_cap` baja», porque entonces deja de probar nada.** `over_cap` es
+> el pool de candidatas y puede encoger solo: si el catálogo de una tienda mengua, o si se cae una
+> hoja y su ámbito queda fuera de las bajas, baja sin que la ventana haya hecho nada. La condición
+> que **solo** puede mover la ventana es la otra, `probes_skipped_fresh` subiendo. Se exigen las dos
+> juntas por eso.
