@@ -174,7 +174,16 @@ separates the two hypotheses. The measured detail lives in the ADR.
 conditional detail fetching by signature. **That first figure tracks the catalogue, so it carries a
 date**: it read ~30 min / 2219 products until the store's catalogue doubled under it, and nothing
 said so. This is why the cluster CronJob carries a generous `activeDeadlineSeconds` and only one
-retry.
+retry. And #356 moved it again on purpose — mapping Zara's sale branch takes the listing from 62
+leaves to **95** and the catalogue from 4778 to **5507 products** (measured 16/08/2026), so the next
+cold pass will be longer than that ~58 min and the figure above is due a re-measure.
+
+**A parent category leaf is not proof of what hangs below it.** Zara's `REBAJAS` leaf for boys
+serves **8** products while its own by-age children serve **749**; the girls' one under-serves by 41.
+Lefties had the same shape (parent 77/69, children 93/99) and it cost 46 garments. So when a branch
+is worth ingesting, measure the parent **against the union of its children** before believing either
+— and note it cuts both ways: H&M's `sportswear` parent is exactly complete (81 = 81 over its 11
+children), which is what turned #208 from ~50 requests per pass into 4.
 
 **The Drizzle schema is a mirror, not the source of truth.** `db/migrations` is. Three places can
 drift silently: the SQL migrations, `services/web/src/database/schema.ts`, and the raw SQL in
