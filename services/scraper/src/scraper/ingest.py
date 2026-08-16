@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter, defaultdict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -1064,8 +1064,29 @@ def _success_message(
     return " · ".join(partes)[:_MAX_FAIL_MESSAGE] if partes else None
 
 
-def _record_failed_run(
+def _escribir_fila_fallida(
     conn: psycopg.Connection, store: BaseStore, run_ts: datetime, exc: BaseException
+) -> None:
+    """La escritura en sí, aparte para poder intentarla sobre DOS conexiones distintas."""
+    with conn.cursor() as cur:
+        retailer_id = _upsert_retailer(cur, store)
+        cur.execute(
+            """
+            INSERT INTO scrape_run (retailer_id, started_at, finished_at, status, errors,
+                                    message)
+            VALUES (%s, %s, now(), 'failed', 1, %s)
+            """,
+            (retailer_id, run_ts, f"{type(exc).__name__}: {exc}"[:_MAX_FAIL_MESSAGE]),
+        )
+    conn.commit()
+
+
+def _record_failed_run(
+    conn: psycopg.Connection,
+    store: BaseStore,
+    run_ts: datetime,
+    exc: BaseException,
+    reconnect: Callable[[], psycopg.Connection] | None = None,
 ) -> None:
     """Deja constancia en `scrape_run` de una pasada que no llegó a escribir nada.
 
@@ -1079,31 +1100,41 @@ def _record_failed_run(
     #169 — si la pasada murió por un `lock_timeout`, este `_upsert_retailer` choca con el MISMO
     lock y agota otro timeout antes de rendirse. O sea que una pasada bloqueada tarda ~2× el
     `lock_timeout` en morir; sigue siendo segundos frente a las cinco horas de antes.
+
+    **Y hay una familia de fallos en la que la conexión recibida no sirve para nada** (#411): si lo
+    que mató a la pasada fue la pérdida de la sesión —la mató el servidor por
+    `idle_in_transaction_session_timeout`, se cayó el backend, se fue la red—, aquí no se puede
+    escribir ni abrir transacción, así que la promesa del párrafo anterior se incumplía justo en el
+    caso donde no hay pod al que preguntar, que es para el que existe. De ahí `reconnect`: una
+    conexión LIMPIA con la que reintentar una vez. Es el mismo recurso, y por el mismo motivo, que
+    ya usan `db.transacciones_abiertas()` y `db.retenedores_del_lock()`.
+
+    Se reintenta **una sola vez** y solo si el primer intento falló: en el camino normal —una pasada
+    que muere con la conexión sana— la fila se escribe por `conn` y `reconnect` no se llega a
+    llamar, así que esto no añade ni una conexión al caso frecuente.
+
+    Ojo con el caso #169 otra vez: si la pasada murió por `lock_timeout`, la conexión nueva choca
+    con el MISMO lock y agota su propia espera antes de rendirse. No cuelga —`db.connect()` le pone
+    el `lock_timeout` de la config a la sesión entera— pero es el motivo de que el reintento sea
+    uno y no un bucle: cada vuelta cuesta un timeout completo.
     """
     try:
-        with conn.cursor() as cur:
-            retailer_id = _upsert_retailer(cur, store)
-            cur.execute(
-                """
-                INSERT INTO scrape_run (retailer_id, started_at, finished_at, status, errors,
-                                        message)
-                VALUES (%s, %s, now(), 'failed', 1, %s)
-                """,
-                (retailer_id, run_ts, f"{type(exc).__name__}: {exc}"[:_MAX_FAIL_MESSAGE]),
-            )
-        conn.commit()
+        _escribir_fila_fallida(conn, store, run_ts, exc)
+        return
     except Exception:
         # Protegido por lo mismo que el `except` de `ingest()` (#411), y es el SEGUNDO sitio donde
         # pasaba: sobre una conexión muerta este rollback también eleva, y al estar dentro del
         # `except` esa excepción sale de la función y vuelve a sustituir a la original. Con el de
         # arriba arreglado y éste no, el síntoma no se movía ni un poco — lo cazó el test de #210.
-        #
-        # El docstring de arriba promete una fila, y con la conexión perdida esa promesa NO se
-        # cumple: el `_upsert_retailer` es lo primero que falla. Lo que se salva aquí es el
-        # diagnóstico, que se propague la causa real; que la fila llegue a escribirse necesita una
-        # conexión nueva, y eso es un cambio de diseño que #411 deja fuera a propósito.
         with suppress(Exception):
             conn.rollback()
+
+    if reconnect is None:
+        return
+    # Segundo y último intento, sobre una conexión que no arrastra la transacción abortada. Se
+    # traga todo por lo mismo de siempre: el error que importa es el que se está propagando.
+    with suppress(Exception), reconnect() as fresh:
+        _escribir_fila_fallida(fresh, store, run_ts, exc)
 
 
 def ingest(
@@ -1121,8 +1152,16 @@ def ingest(
     detail_refresh_all: bool = False,
     scan_max_dead_ratio: float = DEFAULT_SCAN_MAX_DEAD_RATIO,
     progress_every_seconds: float = DEFAULT_PROGRESS_EVERY_SECONDS,
+    reconnect: Callable[[], psycopg.Connection] | None = None,
 ) -> IngestResult:
-    """Ejecuta una pasada completa del scraper y persiste el resultado. Atómico."""
+    """Ejecuta una pasada completa del scraper y persiste el resultado. Atómico.
+
+    `reconnect` abre una conexión NUEVA y solo se usa en el camino de error, para que la fila de
+    `scrape_run` llegue a escribirse aunque la conexión de la pasada haya muerto (#411, ver
+    `_record_failed_run`). Va como callable y no como `Config` a propósito: esta función no depende
+    de la configuración —`run.py` le pasa los campos sueltos— y el doble de un test es un `lambda`.
+    Sin él, el comportamiento es el de antes: con la conexión perdida no hay fila.
+    """
     run_ts = run_ts or datetime.now(UTC)
     latido = Latido(progress_every_seconds, store.slug, _LOG)
     # Sin mirar el reloj: es lo que distingue «listando» de «colgada antes de empezar», que hoy se
@@ -1404,5 +1443,5 @@ def ingest(
         # el diagnóstico bueno.
         with suppress(Exception):
             conn.rollback()
-        _record_failed_run(conn, store, run_ts, exc)
+        _record_failed_run(conn, store, run_ts, exc, reconnect)
         raise

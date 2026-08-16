@@ -420,6 +420,11 @@ def main(argv: list[str] | None = None) -> int:
                 detail_refresh_all=refresh_all,
                 scan_max_dead_ratio=config.scan_max_dead_ratio,
                 progress_every_seconds=config.progress_every_seconds,
+                # Para el camino de error y nada más (#411): si la pasada muere con la conexión
+                # perdida, la fila de `scrape_run` se escribe por una nueva. Es lo único que se le
+                # pasa como callable en vez de como valor, porque lo que hace falta ahí no es un
+                # dato de la config sino la capacidad de volver a conectarse.
+                reconnect=lambda: db.connect(config),
             )
         except CatalogScanAborted as exc:
             # Un traceback aquí no aporta nada: el mensaje ya dice qué pasó y qué mirar.

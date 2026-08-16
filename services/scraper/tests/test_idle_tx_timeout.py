@@ -124,10 +124,38 @@ def test_una_pasada_cuyo_listado_pasa_del_tope_muere(db_conn: Any) -> None:
     uno: el `except` de `ingest()` y el de `_record_failed_run`; con el primero arreglado y el
     segundo no, el síntoma no se movía nada.
 
-    Lo que este test NO afirma, porque sigue sin cumplirse: que la pasada deje fila en `scrape_run`.
-    Con la conexión perdida `_record_failed_run` no puede escribirla —su `_upsert_retailer` es lo
-    primero que falla— y arreglarlo pide una conexión nueva, que es cambio de diseño. #411 se cerró
-    a propósito sobre la mitad del diagnóstico.
+    Y desde la segunda mitad de #411 afirma **también la fila en `scrape_run`**, que es la otra
+    promesa de `_record_failed_run` y la que seguía sin cumplirse: con la conexión perdida su
+    `_upsert_retailer` era lo primero que fallaba, así que el registro de fallos se apagaba justo
+    en la familia de fallos donde no hay pod al que preguntar. La escribe una conexión NUEVA, que
+    es lo que `reconnect` aporta; sin él el comportamiento sigue siendo el de antes (ver
+    `test_sin_reconnect_no_hay_fila_y_el_diagnostico_se_mantiene`).
+    """
+    url = _test_url()
+    with (
+        db.connect(_config(url, idle=_OCIOSO)) as conn,
+        pytest.raises(psycopg.errors.IdleInTransactionSessionTimeout),
+    ):
+        ingest(conn, TiendaLenta(_OCIOSO * 4), reconnect=lambda: db.connect(_config(url)))
+
+    # Conexión aparte: la de la pasada se la llevó el servidor.
+    with db.connect(_config(url)) as conn, conn.cursor() as cur:
+        cur.execute("SELECT status, errors, message FROM scrape_run ORDER BY id DESC LIMIT 1")
+        fila = cur.fetchone()
+    assert fila is not None, "la pasada muerta tiene que dejar fila en scrape_run"
+    status, errors, message = fila
+    assert (status, errors) == ("failed", 1)
+    # El mensaje lleva la causa REAL, no un «the connection is lost» que no dice nada.
+    assert "IdleInTransactionSessionTimeout" in message
+
+
+def test_sin_reconnect_no_hay_fila_y_el_diagnostico_se_mantiene(db_conn: Any) -> None:
+    """El contraste de arriba: `reconnect` es lo que añade la fila, no un efecto colateral.
+
+    Sin él la mitad del diagnóstico se sigue cumpliendo —la excepción que sale es la buena— y la
+    de la fila no. Está escrito como test porque es exactamente la diferencia que #411 tardó dos
+    intentos en medir: con la conexión muerta, propagar la causa y dejar rastro en BD son dos
+    promesas distintas y solo una se arreglaba sola.
     """
     url = _test_url()
     with (
@@ -135,6 +163,11 @@ def test_una_pasada_cuyo_listado_pasa_del_tope_muere(db_conn: Any) -> None:
         pytest.raises(psycopg.errors.IdleInTransactionSessionTimeout),
     ):
         ingest(conn, TiendaLenta(_OCIOSO * 4))
+
+    with db.connect(_config(url)) as conn, conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM scrape_run WHERE status = 'failed'")
+        fila = cur.fetchone()
+    assert fila is not None and fila[0] == 0
 
 
 def test_la_misma_pasada_sobrevive_con_margen(db_conn: Any) -> None:
