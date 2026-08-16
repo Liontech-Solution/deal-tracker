@@ -40,4 +40,19 @@ export interface InterestView extends Interest {
   imageUrl: string | null;
   /** Sección del producto apuntado, para el fondo del hueco de la foto. NO es `section`, que es la del filtro. */
   productSection: string | null;
+  /**
+   * **La prenda seguida ya no aparece en las pasadas** (`product.delisted_at IS NOT NULL`), para
+   * poder pintar la fila apagada. `false` también en un interés por filtros, que no apunta a
+   * ninguna prenda y por tanto no puede estar de baja.
+   *
+   * Se añadió con #435 (favoritos): `/seguimientos` arrastraba el mismo defecto que la lista nueva
+   * venía a evitar —enseñar como viva una prenda que lleva N pasadas sin aparecer— y dejar a las
+   * dos listas hermanas diciendo cosas distintas de la misma prenda era peor que arreglarlo.
+   *
+   * No significa «ya no existe»: la baja es conservadora y **se deshace sola** en cuanto una pasada
+   * vuelve a ver el producto (`ingest.py`, `ON CONFLICT ... delisted_at = NULL`). Por eso el
+   * seguimiento no se cancela ni se borra: `interest.product_id` no tiene FK dura justamente para
+   * que pueda sobrevivir a esto.
+   */
+  delisted: boolean;
 }

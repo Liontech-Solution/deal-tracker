@@ -6,7 +6,7 @@ import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthProvider';
 import { BellIcon, CloseIcon } from '../components/icons';
 import { ProductImage } from '../components/ProductImage';
-import { ErrorState } from '../components/States';
+import { Centered, Chip, Empty, ErrorState } from '../components/States';
 import { useToast } from '../components/Toast';
 import { capitalize, etiquetaVariante } from '../lib/format';
 
@@ -110,7 +110,7 @@ function InterestCard({
   const prenda = interest.targetProductId !== null ? `/producto/${interest.targetProductId}` : null;
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 13, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '14px 16px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 13, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '14px 16px', opacity: interest.delisted ? 0.55 : 1 }}>
       {prenda && (
         <Link
           to={prenda}
@@ -136,6 +136,10 @@ function InterestCard({
           <Chip>{interest.compareBase === 'list_price' ? 'vs PVP' : 'vs mínimo reciente'}</Chip>
           <Chip>Últimos {interest.windowDays} días</Chip>
           {interest.retailerName && <Chip>{interest.retailerName}</Chip>}
+          {/* La prenda lleva N pasadas sin aparecer (#435). El seguimiento NO se cancela: la baja
+              se deshace sola si el producto vuelve, y `interest.product_id` no tiene FK dura
+              justamente para que pueda sobrevivir a esto. */}
+          {interest.delisted && <Chip>Ya no disponible</Chip>}
         </div>
       </div>
       <button
@@ -172,24 +176,3 @@ function formatPct(v: string): string {
   return Number.isFinite(n) ? String(n) : v;
 }
 
-function Chip({ children }: { children: React.ReactNode }) {
-  return (
-    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-pill)', padding: '4px 10px' }}>
-      {children}
-    </span>
-  );
-}
-
-function Centered({ children }: { children: React.ReactNode }) {
-  return <section style={{ padding: '60px 0', display: 'grid', placeItems: 'center' }}>{children}</section>;
-}
-
-function Empty({ title, text, children }: { title: string; text: string; children?: React.ReactNode }) {
-  return (
-    <div style={{ textAlign: 'center', maxWidth: 400 }}>
-      <div className="serif" style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>{title}</div>
-      <div style={{ color: 'var(--text-muted)', fontSize: 14.5, lineHeight: 1.5 }}>{text}</div>
-      {children}
-    </div>
-  );
-}

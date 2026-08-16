@@ -410,4 +410,36 @@ describe.skipIf(!TEST_DB)('intereses (e2e)', () => {
       await app.close();
     }
   });
+
+  /**
+   * La gemela de #435: `/seguimientos` arrastraba el mismo defecto que la lista de favoritos venía
+   * a evitar —enseñar como viva una prenda que lleva N pasadas sin aparecer—. Deja la marca en su
+   * sitio al terminar, porque este spec siembra el catálogo UNA vez en `beforeAll`.
+   */
+  it('marca `delisted` cuando la prenda seguida está de baja, y la quita si vuelve (#435)', async () => {
+    const user = await seedUser(sql, 'kc-sub-delisted');
+    const app = await makeApp(user);
+    try {
+      await request(app.getHttpServer())
+        .post('/api/interests')
+        .send({ productId: ids.productId })
+        .expect(201);
+
+      const vivo = await request(app.getHttpServer()).get('/api/interests').expect(200);
+      expect(vivo.body[0].delisted).toBe(false);
+
+      await sql`UPDATE product SET delisted_at = now() WHERE id = ${ids.productId}`;
+      const deBaja = await request(app.getHttpServer()).get('/api/interests').expect(200);
+      expect(deBaja.body[0].delisted).toBe(true);
+      // El seguimiento NO se cancela ni desaparece de la lista: la baja se deshace sola.
+      expect(deBaja.body[0].active).toBe(true);
+
+      await sql`UPDATE product SET delisted_at = NULL WHERE id = ${ids.productId}`;
+      const revivido = await request(app.getHttpServer()).get('/api/interests').expect(200);
+      expect(revivido.body[0].delisted).toBe(false);
+    } finally {
+      await sql`UPDATE product SET delisted_at = NULL WHERE id = ${ids.productId}`;
+      await app.close();
+    }
+  });
 });

@@ -229,6 +229,29 @@ export interface InterestView {
   targetProductId: number | null;
   imageUrl: string | null;
   productSection: string | null;
+  /**
+   * La prenda seguida lleva N pasadas sin aparecer (#435). No es «ya no existe»: la baja se deshace
+   * sola si el producto vuelve, así que la fila se pinta apagada pero el seguimiento no se cancela.
+   */
+  delisted: boolean;
+}
+
+/** Favorito enriquecido tal y como lo devuelve `GET /favorites` (espejo de `FavoriteView`). */
+export interface FavoriteView {
+  id: number;
+  userId: number;
+  productId: number;
+  createdAt: string;
+  productName: string | null;
+  retailerName: string | null;
+  imageUrl: string | null;
+  productSection: string | null;
+  /** El «desde» del producto, con el mismo ámbito que enseña el catálogo (`scope = 'todas'`). */
+  priceFrom: string | null;
+  /** La prenda lleva N pasadas sin aparecer: la fila va apagada, pero NO se borra sola. */
+  delisted: boolean;
+  /** Ya hay un seguimiento activo del mismo producto: no se ofrece crear otro igual. */
+  seguido: boolean;
 }
 
 /** Estado del vínculo de Telegram (espejo de `TelegramSettingsView` del backend). */

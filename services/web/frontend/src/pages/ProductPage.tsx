@@ -5,9 +5,10 @@ import { usePriceHistory, useProduct } from '../api/hooks';
 import type { Honesty, VariantWithPrice } from '../api/types';
 import { StoreBadge } from '../components/Badges';
 import type { Stock } from '../components/Badges';
+import { useFavorito } from '../auth/useFavorito';
 import { useSeguirPrenda } from '../auth/useSeguirPrenda';
 import { FollowModal } from '../components/FollowModal';
-import { ArrowLeftIcon, BellIcon, ExternalIcon } from '../components/icons';
+import { ArrowLeftIcon, BellIcon, ExternalIcon, HeartIcon } from '../components/icons';
 import { PriceBlock } from '../components/PriceBlock';
 import { PriceHistoryChart } from '../components/PriceHistoryChart';
 import { ProductImage } from '../components/ProductImage';
@@ -90,6 +91,9 @@ export function ProductPage() {
   // La ficha de la tienda de la referencia elegida: junto al color, es lo que la identifica.
   const [refUrl, setRefUrl] = useState<string | null>(null);
   const seguir = useSeguirPrenda();
+  // El corazón es de PRODUCTO, no de la variante seleccionada: guardar es «esta prenda me gusta»,
+  // y la talla se elige después y solo si se convierte en seguimiento (#435).
+  const favorito = useFavorito(productId);
 
   const variants = useMemo(() => product?.variants ?? [], [product]);
   const sizes = useMemo(() => distinctSizes(variants), [variants]);
@@ -342,6 +346,22 @@ export function ProductPage() {
             >
               <BellIcon size={18} />
               Seguir esta variante
+            </button>
+            <button
+              onClick={favorito.alternar}
+              disabled={favorito.ocupado}
+              aria-pressed={favorito.esFavorito}
+              aria-label={favorito.esFavorito ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+              title={favorito.esFavorito ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+              className="btn btn-secondary"
+              style={{
+                flex: 'none',
+                padding: '15px 20px',
+                fontSize: 15,
+                color: favorito.esFavorito ? 'var(--accent)' : undefined,
+              }}
+            >
+              <HeartIcon size={18} filled={favorito.esFavorito} />
             </button>
             <a
               href={current?.url ?? product.url ?? '#'}

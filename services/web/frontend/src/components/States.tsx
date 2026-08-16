@@ -27,6 +27,37 @@ export function ProductGridSkeleton({ count = 8 }: { count?: number }) {
   );
 }
 
+/**
+ * Los tres helpers que `InterestsPage` tenía duplicados dentro del fichero y sin exportar. Se
+ * suben aquí en #435 en vez de copiarlos por tercera vez a `/favoritos`: las dos páginas son
+ * hermanas —misma cabecera, mismos estados de sesión, misma fila con miniatura— y tenerlos en dos
+ * sitios es exactamente cómo dejan de parecerse.
+ *
+ * Son deliberadamente más pequeños que `ErrorState`/`EmptyState` de abajo: aquellos son los del
+ * CATÁLOGO, con su copy y su botón; estos son los genéricos de una página de usuario.
+ */
+export function Centered({ children }: { children: ReactNode }) {
+  return <section style={{ padding: '60px 0', display: 'grid', placeItems: 'center' }}>{children}</section>;
+}
+
+export function Empty({ title, text, children }: { title: string; text: string; children?: ReactNode }) {
+  return (
+    <div style={{ textAlign: 'center', maxWidth: 400 }}>
+      <div className="serif" style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>{title}</div>
+      <div style={{ color: 'var(--text-muted)', fontSize: 14.5, lineHeight: 1.5 }}>{text}</div>
+      {children}
+    </div>
+  );
+}
+
+export function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-pill)', padding: '4px 10px' }}>
+      {children}
+    </span>
+  );
+}
+
 function Panel({ children, dashed = false }: { children: ReactNode; dashed?: boolean }) {
   return (
     <div
