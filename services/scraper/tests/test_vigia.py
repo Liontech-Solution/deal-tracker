@@ -46,6 +46,9 @@ from scraper.vigia import (
 from scraper.vigia_historial import Base
 
 _CFG = Config(database_url="postgresql://unused")
+# La capa de fotos pausa entre peticiones (con jitter), y en un test eso son segundos de reloj
+# por nada: el resolutor es de pega y no hay a quién ser educado.
+_CFG_SIN_PAUSA = Config(database_url="postgresql://unused", request_delay=0.0)
 _AMBITO = ScrapeScope("niña", "zapateria", "zapatos")
 
 
@@ -466,7 +469,7 @@ def test_una_foto_que_el_cdn_no_sirve_avisa_marcada_y_sin_abrir_issue() -> None:
     revisar_fotos(
         productos,
         informe,
-        _CFG,
+        _CFG_SIN_PAUSA,
         _resolutor({"https://cdn.invalid/viva.jpg": 200, "https://cdn.invalid/muerta.jpg": 404}),  # type: ignore[arg-type]
     )
 
@@ -497,7 +500,7 @@ def test_un_403_no_es_una_foto_muerta_sino_una_sin_veredicto() -> None:
     revisar_fotos(
         productos,
         informe,
-        _CFG,
+        _CFG_SIN_PAUSA,
         _resolutor(  # type: ignore[arg-type]
             {
                 "https://cdn.invalid/frenada.jpg": 403,
@@ -516,7 +519,7 @@ def test_una_muestra_sin_fotos_lo_dice_en_vez_de_pasar_en_verde() -> None:
     """Una comprobación que no pudo comprobar nada no es una comprobación en verde."""
     informe = Informe("falsa")
 
-    revisar_fotos([_producto("1")], informe, _CFG, _resolutor({}))  # type: ignore[arg-type]
+    revisar_fotos([_producto("1")], informe, _CFG_SIN_PAUSA, _resolutor({}))  # type: ignore[arg-type]
 
     assert not informe.avisos
     assert "fotos: los productos de la muestra no traen imagen" in informe.render()

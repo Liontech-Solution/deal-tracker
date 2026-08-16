@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import argparse
 import itertools
+import random
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Sequence
@@ -1052,9 +1053,18 @@ def revisar_fotos(
 
 def _pausa_educada(config: Config) -> None:
     """La misma cortesía que gastan las tiendas (`_polite_pause`), y aquí no es cortesía: es lo que
-    separa un 404 de verdad de un 403 que nos hemos ganado nosotros."""
-    if config.request_delay > 0:
-        time.sleep(config.request_delay)
+    separa un 404 de verdad de un 403 que nos hemos ganado nosotros.
+
+    **Con jitter, y por el mismo motivo que ellas**: una cadencia fija es más detectable. Parecía
+    de más mientras se pensaba solo en CDN de terceros (Shopify, `static.zara.net`), que son
+    infraestructura aparte con su propio ritmo — pero no todas las tiendas separan las dos cosas.
+    Deditos (#65) sirve sus fotos desde su propio dominio, o sea **el mismo LiteSpeed que acaba de
+    darnos el catálogo dos capas más arriba**, y ahí estas peticiones se suman a las del sondeo en
+    el mismo contador. Cinco de más no hunden a nadie; cinco de más *acompasadas* son otra cosa.
+    """
+    base = config.request_delay
+    if base > 0:
+        time.sleep(base * random.uniform(0.5, 1.5))
 
 
 def _resolver_foto(config: Config) -> Callable[[str], int | None]:
