@@ -2,8 +2,8 @@ import { HonestyBadge, StockBadge } from './Badges';
 import type { Stock } from './Badges';
 import { AlertIcon, CheckIcon, ClockIcon } from './icons';
 import type { Honesty, HonestyBasis } from '../api/types';
-import { discountInt, eurStr } from '../lib/format';
-import { llevaBadge } from '../lib/honesty';
+import { eurStr } from '../lib/format';
+import { cifrasDeRebaja, llevaBadge } from '../lib/honesty';
 
 interface Props {
   price: string | null;
@@ -17,6 +17,9 @@ interface Props {
   honestyBasis: HonestyBasis | null;
   /** Mínimo de 30 días declarado por la tienda. Lo CITA el texto de una acusación `declarado`. */
   retailerMin30d: string | null;
+  /** PVP creíble y descuento sostenible (#436). Es lo que se pinta cuando difiere de lo declarado. */
+  honestListPrice: string | null;
+  honestDiscountPct: number;
 }
 
 export function PriceBlock({
@@ -28,12 +31,18 @@ export function PriceBlock({
   trackedDays,
   honestyBasis,
   retailerMin30d,
+  honestListPrice,
+  honestDiscountPct,
 }: Props) {
   const suspicious = honesty === 'suspicious';
   const unverified = honesty === 'unverified';
   const priceStr = eurStr(price);
-  const listStr = eurStr(listPrice);
-  const disc = discountInt(discountPct);
+  // El tachado y el porcentaje que se PINTAN salen de la regla, no de la tienda (#436). El tachado
+  // declarado no se esconde: sigue abajo, rotulado «PVP declarado», que es donde no lo avalamos.
+  const cifras = cifrasDeRebaja({ listPrice, discountPct, honestListPrice, honestDiscountPct });
+  const listStr = eurStr(cifras.tachado);
+  const declaradoStr = eurStr(listPrice);
+  const disc = cifras.descuento;
   // La cifra que cita una acusación `declarado` (#354). Si faltara —no debería: la vía declarada no
   // puede dispararse sin ella— el texto cae al de siempre en vez de enseñar un hueco.
   const min30Str = eurStr(retailerMin30d);
@@ -60,8 +69,8 @@ export function PriceBlock({
                 el porcentaje se pinta en neutro: ni lo celebramos ni lo denunciamos. */}
             <span
               style={{
-                background: unverified ? 'var(--surface-2)' : suspicious ? 'var(--warn-soft)' : 'var(--good-soft)',
-                color: unverified ? 'var(--text-muted)' : suspicious ? 'var(--warn-text)' : 'var(--good-text)',
+                background: unverified || !cifras.sostenido ? 'var(--surface-2)' : suspicious ? 'var(--warn-soft)' : 'var(--good-soft)',
+                color: unverified || !cifras.sostenido ? 'var(--text-muted)' : suspicious ? 'var(--warn-text)' : 'var(--good-text)',
                 borderRadius: 999,
                 padding: '4px 11px',
                 fontSize: 14,
@@ -76,7 +85,9 @@ export function PriceBlock({
 
       <div style={{ marginTop: 12, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <StockBadge state={stock} />
-        {listStr && <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>PVP declarado: {listStr}</span>}
+        {declaradoStr && (
+          <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>PVP declarado: {declaradoStr}</span>
+        )}
       </div>
 
       {/* El texto solo afirma lo observado (#332). `unverified` es el caso que antes se colaba en

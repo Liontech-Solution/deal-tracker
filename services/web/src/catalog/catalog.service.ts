@@ -3,7 +3,13 @@ import { sql, type SQL } from 'drizzle-orm';
 
 import { Database, DRIZZLE } from '../database/database.module';
 import { variantLabel } from '../interests/interests.service';
-import { classifyHonesty, honestyBasis, HONESTY_WINDOW_DAYS } from '../matching/deal-rule';
+import {
+  classifyHonesty,
+  honestDiscountPct,
+  honestListPrice,
+  honestyBasis,
+  HONESTY_WINDOW_DAYS,
+} from '../matching/deal-rule';
 import { honestDiscountSql, isRealDealSql, type DealSqlColumns } from '../matching/deal-rule.sql';
 import { GENERO_UNISEX, generoCondition } from './gender.sql';
 import type {
@@ -482,7 +488,24 @@ export class CatalogService {
       LIMIT ${q.limit} OFFSET ${q.offset}
     `);
 
-    const items: ProductListItem[] = (rows as unknown as Record<string, unknown>[]).map((row) => ({
+    const items: ProductListItem[] = (rows as unknown as Record<string, unknown>[]).map((row) => {
+      // Las mismas entradas para las tres preguntas —qué veredicto, contra qué PVP y cuánto
+      // descuento se sostiene—, montadas una sola vez, igual que en la ficha: si se construyeran por
+      // separado podrían divergir y la tarjeta acabaría etiquetando con unos precios y pintando
+      // otros, que es media #436.
+      const entrada = {
+        price: (row.price_repr as string | null) ?? null,
+        listPrice: (row.list_from as string | null) ?? null,
+        recentMin: (row.recent_min_repr as string | null) ?? null,
+        maxObserved: (row.max_observed_repr as string | null) ?? null,
+        retailerMin30d: (row.retailer_min_30d_repr as string | null) ?? null,
+        priorPoints: Number(row.prior_points_repr ?? 0),
+        trackedDays: Number(row.tracked_days_repr ?? 0),
+        minDiscountPct: 0,
+        compareBase: 'recent_min' as const,
+      };
+      const honesto = honestListPrice(entrada.listPrice, entrada.maxObserved, entrada.retailerMin30d);
+      return {
       id: Number(row.id),
       retailerId: Number(row.retailer_id),
       retailerSlug: String(row.retailer_slug),
@@ -501,20 +524,17 @@ export class CatalogService {
       listFrom: (row.list_from as string | null) ?? null,
       discountFrom: (row.discount_from as string | null) ?? null,
       maxDiscount: (row.max_discount as string | null) ?? null,
-      honesty: classifyHonesty({
-        price: (row.price_repr as string | null) ?? null,
-        listPrice: (row.list_from as string | null) ?? null,
-        recentMin: (row.recent_min_repr as string | null) ?? null,
-        maxObserved: (row.max_observed_repr as string | null) ?? null,
-        retailerMin30d: (row.retailer_min_30d_repr as string | null) ?? null,
-        priorPoints: Number(row.prior_points_repr ?? 0),
-        trackedDays: Number(row.tracked_days_repr ?? 0),
-        minDiscountPct: 0,
-        compareBase: 'recent_min',
-      }),
+      // Se calcula en TypeScript y no se lee de la CTE `scored` a propósito, aunque `honest_discount`
+      // ya esté ahí para ordenar: lo que la tarjeta pinta tiene que salir de la MISMA llamada que la
+      // etiqueta, no de un espejo que puede derivar. El espejo SQL sigue siendo el que filtra y
+      // ordena, y `deal-rule-paridad.spec.ts` es quien vigila que los dos digan lo mismo.
+      honestListPrice: honesto === null ? null : honesto.toFixed(2),
+      honestDiscountPct: honestDiscountPct(entrada.price, honesto),
+      honesty: classifyHonesty(entrada),
       anyInStock: Boolean(row.any_in_stock),
       variantCount: Number(row.variant_count),
-    }));
+      };
+    });
 
     await this.applyReprImages(items);
     return { items, limit: q.limit, offset: q.offset };
@@ -667,8 +687,9 @@ export class CatalogService {
     `)) as unknown as Record<string, unknown>[];
 
     const variants: VariantWithPrice[] = variantRows.map((row) => {
-      // Las mismas entradas para las dos preguntas —qué veredicto y en qué se apoya—, montadas una
-      // sola vez: si se construyeran por separado podrían divergir sin que nada lo dijera.
+      // Las mismas entradas para las tres preguntas —qué veredicto, en qué se apoya y contra qué PVP
+      // se mide—, montadas una sola vez: si se construyeran por separado podrían divergir sin que
+      // nada lo dijera.
       const entrada = {
         price: (row.price as string | null) ?? null,
         listPrice: (row.list_price as string | null) ?? null,
@@ -680,6 +701,7 @@ export class CatalogService {
         minDiscountPct: 0,
         compareBase: 'recent_min' as const,
       };
+      const honesto = honestListPrice(entrada.listPrice, entrada.maxObserved, entrada.retailerMin30d);
       return {
       id: Number(row.id),
       retailerVariantId: String(row.retailer_variant_id),
@@ -720,6 +742,10 @@ export class CatalogService {
       // acusación `declarado` lo cita —«la propia tienda dice haberla vendido a 4,24 €»—, que es lo
       // que la convierte en una afirmación comprobable en vez de una etiqueta.
       retailerMin30d: (row.retailer_min_30d as string | null) ?? null,
+      // El PVP que sí podemos sostener, y el descuento contra él (#436). La ficha los enseña en
+      // lugar del tachado de la tienda cuando la regla ha descartado ese tachado.
+      honestListPrice: honesto === null ? null : honesto.toFixed(2),
+      honestDiscountPct: honestDiscountPct(entrada.price, honesto),
       honesty: classifyHonesty(entrada),
       honestyBasis: honestyBasis(entrada),
       };

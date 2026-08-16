@@ -54,6 +54,16 @@ export interface ProductListItem {
   listFrom: string | null;
   discountFrom: string | null;
   maxDiscount: string | null;
+  /**
+   * PVP **creíble** de la variante que enseña la tarjeta, y el descuento que se sostiene contra él
+   * (#436). Espejo de los dos campos del backend.
+   *
+   * `honestListPrice` a `null` significa «no podemos sostener ninguna referencia» (arranque en
+   * frío), **no** «usa la de la tienda»: ahí el tachado de `listFrom` no está corroborado por nada,
+   * y pintarlo en verde es exactamente lo que este producto denuncia.
+   */
+  honestListPrice: string | null;
+  honestDiscountPct: number;
   honesty: Honesty;
   anyInStock: boolean;
   variantCount: number;
@@ -100,6 +110,9 @@ export interface VariantWithPrice {
   trackedDays: number;
   /** Mínimo de 30 días declarado por la tienda (#354); `null` salvo en C&A y Springfield. */
   retailerMin30d: string | null;
+  /** PVP creíble de ESTA variante y su descuento sostenible (#436). Mismo criterio que el listado. */
+  honestListPrice: string | null;
+  honestDiscountPct: number;
   honesty: Honesty;
   honestyBasis: HonestyBasis | null;
 }
