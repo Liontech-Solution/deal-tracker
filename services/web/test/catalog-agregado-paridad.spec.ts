@@ -185,6 +185,70 @@ describe.skipIf(!TEST_DB)('paridad entre el agregado precomputado y el vivo (#31
     expect(enElServicio).toHaveLength(9);
   });
 
+  /**
+   * **Todo filtro de VARIANTE tiene que mandar al camino vivo**, y esto lo vigila eje por eje.
+   *
+   * El precomputado lee `product_agg`, cuyas columnas `*_repr` están calculadas sobre TODAS las
+   * variantes vivas del producto. Si un filtro de variante no entra en `filtroDeVariante`, el
+   * producto sale correctamente filtrado —el WHERE sí se aplica— pero el precio, el tachado y el
+   * **veredicto de honestidad** de la tarjeta son los de una variante que el filtro acaba de
+   * excluir: «Oferta real» apoyada en una talla que el usuario ha dicho que no quiere ver.
+   *
+   * No lo caza la paridad de arriba, y conviene entender por qué: `ambos()` compara el camino por
+   * defecto contra el vivo forzado, así que en cuanto el eje está bien puesto **los dos lados son
+   * el vivo** y la comparación se vuelve tautológica. Lo que hay que afirmar es cuál de los dos se
+   * elige, y eso solo se ve en el SQL emitido. Es un test de forma, como el del desempate.
+   *
+   * `sizeExact` (#367) es el que lo estrena, pero la lista está para que el siguiente eje de
+   * variante que se añada tenga dónde caerse.
+   *
+   * **Esto protege dos cosas, y la segunda no se lee sola:** que el listado no mienta en el precio,
+   * y que el **veredicto de honestidad describa la variante que el usuario ha filtrado** y no otra
+   * del mismo producto. Lo segundo es lo que hace que un eje de variante mal puesto sea de la misma
+   * familia que #436 —elogiar sin que lo elogiado sea lo que se está mirando— con otra causa.
+   */
+  it('cada filtro de variante manda al camino vivo, y no al precomputado', async () => {
+    const ejes: Array<[string, (q: ProductQueryDto) => void]> = [
+      ['size', (q) => (q.size = ['4 años'])],
+      ['sizeExact', (q) => (q.sizeExact = ['104'])],
+      ['color', (q) => (q.color = ['azul'])],
+      ['inStock=false', (q) => (q.inStock = false)],
+    ];
+
+    for (const [nombre, ajusta] of ejes) {
+      const capturadas: string[] = [];
+      const espia = {
+        execute: (c: unknown) => {
+          capturadas.push(JSON.stringify(c));
+          return Promise.resolve([]);
+        },
+      };
+      const q = new ProductQueryDto();
+      q.barefoot = 'si';
+      q.sort = 'ofertas';
+      ajusta(q);
+      await new CatalogService(espia as never).listProducts(q);
+      // El camino vivo agrega variantes en tiempo de consulta; el precomputado lee la tabla.
+      expect(capturadas[0], `${nombre} se fue por el precomputado`).not.toContain('product_agg');
+    }
+
+    // Y el control: sin ningún filtro de variante SÍ se usa el precomputado, que es lo que hace
+    // barata la petición ancha. Sin esto, el test de arriba pasaría con un `filtroDeVariante` que
+    // fuera siempre cierto, o sea deshaciendo la 0035 sin que nada chistara.
+    const capturadas: string[] = [];
+    const espia = {
+      execute: (c: unknown) => {
+        capturadas.push(JSON.stringify(c));
+        return Promise.resolve([]);
+      },
+    };
+    const q = new ProductQueryDto();
+    q.barefoot = 'si';
+    q.sort = 'ofertas';
+    await new CatalogService(espia as never).listProducts(q);
+    expect(capturadas[0]).toContain('product_agg');
+  });
+
   it('el mínimo declarado llega igual por los dos caminos, y acusa (#354)', async () => {
     const { precomputado, vivo } = await ambos((q) => (q.q = 'declarado'));
 

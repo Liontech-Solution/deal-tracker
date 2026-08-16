@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import type { Facets } from '../api/types';
 import { colorHex } from '../lib/colors';
-import { alternar, parcheSeccion } from '../lib/filters';
+import { alternar, parcheBanda, parcheSeccion } from '../lib/filters';
 import { capitalize } from '../lib/format';
 import { SECCIONES } from '../lib/section';
 
@@ -18,6 +18,8 @@ export interface CatalogFilters {
    * C&A, que mide en centímetros y llama `104` a esa misma talla.
    */
   size: string[];
+  /** El segundo piso de la talla (#367): la concreta dentro de la banda. Solo se usa en `ropa`. */
+  sizeExact: string[];
   color: string[];
   retailer: string[];
   inStock: boolean;
@@ -241,8 +243,10 @@ export function FilterPanel({ facets, value, onChange }: Props) {
   const toggle = (key: 'gender' | 'category', v: string) =>
     onChange({ [key]: value[key] === v ? '' : v });
   /** Ejes multiseleccionables (#329): el chip suma o resta de la lista. */
-  const toggleMulti = (key: 'size' | 'color' | 'retailer', v: string) =>
+  const toggleMulti = (key: 'sizeExact' | 'color' | 'retailer', v: string) =>
     onChange({ [key]: alternar(value[key], v) });
+  /** La banda arrastra su segundo piso (#367): ver `parcheBanda`. */
+  const toggleBanda = (v: string) => onChange(parcheBanda(alternar(value.size, v)));
 
   return (
     <div>
@@ -355,7 +359,7 @@ export function FilterPanel({ facets, value, onChange }: Props) {
           {facets?.sizes.length ? (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {facets.sizes.map((s) => (
-                <Chip key={s} label={s} selected={value.size.includes(s)} onClick={() => toggleMulti('size', s)} />
+                <Chip key={s} label={s} selected={value.size.includes(s)} onClick={() => toggleBanda(s)} />
               ))}
             </div>
           ) : (
@@ -363,6 +367,35 @@ export function FilterPanel({ facets, value, onChange }: Props) {
               Con estos filtros no queda ninguna talla.
             </div>
           )}
+
+          {/*
+            El SEGUNDO PISO de la talla (#367): las tallas concretas que contiene la banda elegida.
+
+            Es la contrapartida que #325 dejó anotada al plegar 181 tallas a 21 bandas — se ganó un
+            panel usable y se perdió poder pedir «4-5 años» y no toda la banda de 4. Aparece solo con
+            la banda ya elegida, y eso es el diseño: ofrecer los concretos de entrada sería deshacer
+            el plegado. Medido en QA, la banda `4 años` contiene cuatro valores.
+
+            Quién decide que se pinta es el backend, no este componente: `sizeValues` llega vacía sin
+            banda y vacía en zapatería, donde el primer piso ya ES la talla concreta.
+          */}
+          {facets?.sizeValues.length ? (
+            <div style={{ marginTop: 12, paddingLeft: 10, borderLeft: '2px solid var(--border)' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-faint)', marginBottom: 8 }}>
+                Cómo lo mide cada tienda:
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {facets.sizeValues.map((s) => (
+                  <Chip
+                    key={s}
+                    label={s}
+                    selected={value.sizeExact.includes(s)}
+                    onClick={() => toggleMulti('sizeExact', s)}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
         </Group>
       ) : null}
 

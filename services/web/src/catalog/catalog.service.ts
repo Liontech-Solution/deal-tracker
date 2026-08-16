@@ -199,6 +199,7 @@ export class CatalogService {
     const section = q.section ?? null;
     const category = q.category ?? null;
     const size = q.size ?? null;
+    const sizeExact = q.sizeExact ?? null;
     const color = q.color ?? null;
     const retailer = q.retailer ?? null;
     const inStock = q.inStock ?? null;
@@ -266,7 +267,11 @@ export class CatalogService {
     // `inStock === false` («enséñame lo agotado») sí se queda aquí: no hay ámbito para eso y la SPA
     // no lo pide (`CatalogPage` manda `inStock: filters.inStock || undefined`).
     const filtroDeVariante =
-      forzarAgregadoVivo || Boolean(size?.length) || Boolean(color?.length) || inStock === false;
+      forzarAgregadoVivo ||
+      Boolean(size?.length) ||
+      Boolean(sizeExact?.length) ||
+      Boolean(color?.length) ||
+      inStock === false;
 
     // Los filtros de producto se montan **una sola vez** y los usan los dos caminos. No es estilo:
     // es lo que impide que se bifurquen, que es el riesgo que se asume al tener dos caminos.
@@ -341,6 +346,12 @@ export class CatalogService {
           -- la función se evalúa una vez por variante y esta consulta pasa de 1,4 ms a 1 segundo
           -- (medido sobre una copia de dev con 33.311 variantes).
           AND ${ejeMultiple(size, sql`${sql.raw(plegadoTalla(section))}(v.size)`, plegadoTalla(section))}
+          -- Segundo piso de la talla (#367): la CONCRETA dentro de la banda. Se cruza con la de
+          -- arriba en vez de sustituirla —la banda es dónde estás, esta es lo que pides dentro—, y
+          -- se apoya en el mismo índice de la 0014 que la canónica de zapatería, que sigue vivo
+          -- porque la 0033 no lo tocó. En zapateria los dos ejes pliegan igual y este sobra, pero
+          -- no estorba: la SPA no lo manda ahí.
+          AND ${ejeMultiple(sizeExact, sql`size_canon(v.size)`, 'size_canon')}
           -- Color por FAMILIA (#291, migración 0029), no por color canónico. El panel ofrecía 2.859
           -- chips —el 85,2 % compuestos tipo 'amarillo claro/bluey'— y en un móvil eso es
           -- inservible; ahora ofrece las ~19 familias que deja color_family.
@@ -466,6 +477,11 @@ export class CatalogService {
                  AND v2.delisted_at IS NULL
                  AND EXISTS (SELECT 1 FROM price_history ph WHERE ph.variant_id = v2.id)
                  AND ${ejeMultiple(size, sql`${sql.raw(plegadoTalla(section))}(v2.size)`, plegadoTalla(section))}
+                 -- El segundo piso de la talla (#367) también, y por el mismo motivo que la línea
+                 -- de abajo: este recuento tiene que repetir TODOS los filtros de variante o
+                 -- declara comprables prendas que el filtro puesto ya ha descartado. Es el fallo
+                 -- que #326 arregló en el color, un eje más tarde.
+                 AND ${ejeMultiple(sizeExact, sql`size_canon(v2.size)`, 'size_canon')}
                  -- Por FAMILIA, igual que el WHERE de matched (#326). Se quedó en color_canon
                  -- cuando #291 movió el filtro a color_family, y eso hacía que un producto que el
                  -- catálogo devuelve por la familia 'azul' declarase CERO prendas comprables si
@@ -852,6 +868,7 @@ export class CatalogService {
     const section = q.section ?? null;
     const category = q.category ?? null;
     const size = q.size ?? null;
+    const sizeExact = q.sizeExact ?? null;
     const color = q.color ?? null;
     const retailer = q.retailer ?? null;
 
@@ -871,7 +888,7 @@ export class CatalogService {
       : sql`TRUE`;
 
     /** El eje que la faceta que se está pidiendo NO debe acotarse a sí misma. */
-    type Eje = 'gender' | 'category' | 'size' | 'color' | 'retailer';
+    type Eje = 'gender' | 'category' | 'size' | 'sizeExact' | 'color' | 'retailer';
 
     /** Filtros de VARIANTE sobre el alias que se pase, omitiendo el eje pedido. */
     const deVariante = (alias: string, excepto: Eje | null): SQL[] => {
@@ -880,6 +897,13 @@ export class CatalogService {
       if (size?.length && excepto !== 'size') {
         const pliegue = plegadoTalla(section);
         cs.push(ejeMultiple(size, sql`${sql.raw(pliegue)}(${a}.size)`, pliegue));
+      }
+      // La banda SÍ acota la lista de tallas concretas —es de lo que va el segundo piso—, pero la
+      // concreta no se acota a sí misma: si lo hiciera, marcar `104` dejaría la lista en `104` y no
+      // habría forma de añadir `4-5 años` sin quitar antes lo puesto. Es el mismo motivo por el que
+      // `pickSizes` se pide con `excepto: 'size'`.
+      if (sizeExact?.length && excepto !== 'sizeExact') {
+        cs.push(ejeMultiple(sizeExact, sql`size_canon(${a}.size)`, 'size_canon'));
       }
       if (color?.length && excepto !== 'color') {
         cs.push(ejeMultiple(color, sql`color_family(${a}.color)`, 'color_family'));
@@ -1013,6 +1037,43 @@ export class CatalogService {
     };
 
     /**
+     * Tallas CONCRETAS dentro de la banda ya elegida — el segundo piso del filtro (#367).
+     *
+     * Es la contrapartida que #325 dejó anotada al plegar la talla a 21 bandas: quien quiere
+     * `4-5 años` de una tienda concreta, y no toda la banda de 4, no lo podía pedir. Medido contra
+     * `deal_tracker_qa` el 16/08/2026, la banda `4 años` contiene exactamente cuatro valores —
+     * `4-5 años` (2.407 productos), `4 años` (2.233), `4-6 años` (1.031) y `104` (428)—, así que
+     * desplegarla es una lista corta y no otro panel.
+     *
+     * **Vacía mientras no haya banda elegida, y eso es el diseño, no una optimización.** Es lo que
+     * hace que el filtro sea de dos pasos: sin banda, `ropa` tiene 181 tallas concretas y ofrecerlas
+     * todas sería deshacer #325. El color no tiene equivalente por esto mismo llevado al extremo: la
+     * familia «azul» contiene 466 concretos incluso después de elegirla (#444).
+     *
+     * **Vacía también en `zapateria`**, donde `plegadoTalla` ya devuelve la canónica: allí el primer
+     * piso ES el concreto y un segundo piso repetiría la misma lista.
+     *
+     * Se pide con `excepto: 'sizeExact'` para que marcar un valor no colapse la lista a ese valor.
+     */
+    const pickSizeValues = async (): Promise<string[]> => {
+      if (plegadoTalla(section) !== 'size_band' || !size?.length) return [];
+      const rows = (await this.db.execute(sql`
+        WITH crudas AS (
+          SELECT DISTINCT v.size AS cruda
+          FROM variant v
+          JOIN product p ON p.id = v.product_id
+          JOIN retailer r ON r.id = p.retailer_id
+          WHERE v.size IS NOT NULL
+            AND v.delisted_at IS NULL AND p.delisted_at IS NULL
+            AND ${donde('sizeExact', 'v')}
+        )
+        SELECT value FROM (SELECT DISTINCT size_canon(cruda) AS value FROM crudas) t
+        ORDER BY size_sort(value), value
+      `)) as unknown as Record<string, unknown>[];
+      return rows.map((r) => String(r.value));
+    };
+
+    /**
      * FAMILIAS de color distintas entre variantes vivas de productos activos (#49 y #291).
      *
      * Devolvía el color canónico, y eran **2.859 chips** en `ropa` —63 KB de payload, el 85,2 %
@@ -1080,14 +1141,17 @@ export class CatalogService {
     const pickGenders = async (): Promise<string[]> =>
       (await pick('gender', 'gender')).filter((g) => g !== GENERO_UNISEX);
 
-    const [genders, sections, categories, sizes, colors, retailers] = await Promise.all([
+    const [genders, sections, categories, sizes, sizeValues, colors, retailers] = await Promise.all([
       pickGenders(),
       pick('section', null, true),
       pick('category', 'category'),
       pickSizes(),
+      // Entra en el mismo `Promise.all` y no en una petición aparte: el endpoint cuesta lo que la
+      // más lenta, y esta se va en 0 sin tocar la base mientras no haya banda elegida.
+      pickSizeValues(),
       pickColors(),
       pickRetailers(),
     ]);
-    return { genders, sections, categories, sizes, colors, retailers };
+    return { genders, sections, categories, sizes, sizeValues, colors, retailers };
   }
 }

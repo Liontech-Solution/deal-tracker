@@ -75,12 +75,33 @@ export function aplicarPatch(
  * y cada uno la consume por su lado; que estuviera escrita tres veces es lo que produjo tres
  * comportamientos.
  */
-export function parcheSeccion(section: string): { section: string; size: string[]; category: string } {
-  return { section, size: [], category: '' };
+export function parcheSeccion(
+  section: string,
+): { section: string; size: string[]; sizeExact: string[]; category: string } {
+  // `sizeExact` cae con la banda que lo contenía (#367): ver `parcheBanda`.
+  return { section, ...parcheBanda([]), category: '' };
 }
 
 /** La misma regla, aplicada sobre la query string: es lo que consumen los dos enlaces de fuera del
  *  panel, que no tienen a mano el objeto de filtros sino la URL. */
 export function patchSeccion(params: URLSearchParams, section: string): URLSearchParams {
   return aplicarPatch(params, parcheSeccion(section));
+}
+
+/**
+ * Tocar la BANDA de talla suelta las tallas concretas que había dentro (#367).
+ *
+ * Es la misma regla que `parcheSeccion` un piso más abajo, y por el mismo motivo: la talla concreta
+ * solo significa algo dentro de la banda desde la que se eligió. Sin esto, quitar la banda `4 años`
+ * dejaría un `?sizeExact=104` puesto que **el panel ya no pinta** —el segundo piso desaparece con la
+ * banda— y el catálogo seguiría filtrando por él sin que nada lo diga. Un filtro invisible es peor
+ * que un filtro perdido.
+ *
+ * Se limpia al tocar la banda, no solo al quitarla, porque el panel no puede saber a qué banda
+ * pertenece cada concreta: esa correspondencia la calcula `size_band` en la base y solo llega, para
+ * la selección de ese momento, dentro de la faceta `sizeValues`. Elegir a ojo cuáles sobreviven
+ * sería adivinar; soltarlas todas es predecible y se ve.
+ */
+export function parcheBanda(bandas: string[]): { size: string[]; sizeExact: string[] } {
+  return { size: bandas, sizeExact: [] };
 }

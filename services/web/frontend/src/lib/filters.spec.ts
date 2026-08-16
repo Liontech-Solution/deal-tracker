@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { alternar, aplicarPatch, patchSeccion } from './filters';
+import { alternar, aplicarPatch, parcheBanda, parcheSeccion, patchSeccion } from './filters';
 
 describe('alternar (#329)', () => {
   it('añade el valor que no estaba', () => {
@@ -105,5 +105,35 @@ describe('patchSeccion (#434)', () => {
     patchSeccion(previo, 'zapateria');
     expect(previo.get('section')).toBe('ropa');
     expect(previo.get('category')).toBe('camisetas');
+  });
+
+  it('se lleva también la talla concreta, que vivía dentro de la banda', () => {
+    const out = patchSeccion(new URLSearchParams('section=ropa&size=4 años&sizeExact=104'), 'zapateria');
+    expect(out.getAll('size')).toEqual([]);
+    expect(out.getAll('sizeExact')).toEqual([]);
+  });
+});
+
+describe('parcheBanda (#367)', () => {
+  it('tocar la banda suelta las tallas concretas de dentro', () => {
+    // Sin esto, quitar la banda dejaría un `?sizeExact=104` que el panel ya NO pinta —el segundo
+    // piso desaparece con la banda— y el catálogo seguiría filtrando por él en silencio.
+    expect(parcheBanda([])).toEqual({ size: [], sizeExact: [] });
+    expect(parcheBanda(['6 años'])).toEqual({ size: ['6 años'], sizeExact: [] });
+  });
+
+  it('también al AÑADIR una banda, no solo al quitarla', () => {
+    // El panel no sabe a qué banda pertenece cada concreta: esa correspondencia la calcula
+    // `size_band` en la base. Soltarlas todas es predecible; adivinar cuáles sobreviven, no.
+    expect(parcheBanda(['4 años', '6 años']).sizeExact).toEqual([]);
+  });
+
+  it('parcheSeccion hereda la regla', () => {
+    expect(parcheSeccion('zapateria')).toEqual({
+      section: 'zapateria',
+      size: [],
+      sizeExact: [],
+      category: '',
+    });
   });
 });

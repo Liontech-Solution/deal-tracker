@@ -1873,3 +1873,140 @@ describe.skipIf(!TEST_DB)('dos medidas bajo una misma talla . ficha (e2e)', () =
     expect(vs.map((v) => v.sizeCanon)).toEqual(['0-1 meses', '0-1 meses']);
   });
 });
+
+/**
+ * El segundo piso de la talla (#367): la CONCRETA dentro de la banda.
+ *
+ * `size` pliega a `size_band` en ropa y ese plegado se aplica también a lo que llega por la URL, así
+ * que sin este eje **no hay forma de pedir un valor concreto**: `?size=104` devuelve la banda entera.
+ * Es la contrapartida que #325 dejó anotada y sin marcar al plegar 181 tallas a 21 bandas.
+ *
+ * El fixture es el caso real medido en QA: la banda `4 años` la publican cuatro vocabularios
+ * distintos —`4 años`, `4-5 años`, `4-6 años` y `104`—, que es exactamente lo que hace que el
+ * plegado sea necesario y lo que este eje permite volver a distinguir.
+ */
+describe.skipIf(!TEST_DB)('talla concreta dentro de la banda · segundo piso (e2e)', () => {
+  let app: INestApplication;
+  let sql: postgres.Sql;
+
+  async function seed(name: string, size: string, category = 'pantalones'): Promise<void> {
+    const [r] = await sql<{ id: number }[]>`
+      SELECT id FROM retailer WHERE slug = 'zara'`;
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category, url)
+      VALUES (${r.id}, ${name}, ${name}, 'niña', 'ropa', ${category}, 'https://x')
+      RETURNING id`;
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p.id}, ${name + '-v'}, ${size}, 'azul', ${name + '-sku'}) RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${v.id}, 19.99, 39.99, 50, true, now())`;
+  }
+
+  beforeAll(async () => {
+    sql = makeSql();
+    await resetSchema(sql);
+    await sql`
+      INSERT INTO retailer (slug, name, base_url) VALUES ('zara', 'Zara', 'https://www.zara.com')`;
+    // Las cuatro formas de decir «4 años», una por producto, más una prenda de otra banda.
+    await seed('P-4-anios', '4 años');
+    await seed('P-4-5', '4-5 años');
+    await seed('P-4-6', '4-6 años');
+    await seed('P-104', '104');
+    await seed('P-6', '6 años');
+    // Una de zapatería, donde el primer piso YA es la talla concreta.
+    const [r] = await sql<{ id: number }[]>`
+      INSERT INTO retailer (slug, name, base_url)
+      VALUES ('cacles', 'Cacles', 'https://cacles.example') RETURNING id`;
+    const [p] = await sql<{ id: number }[]>`
+      INSERT INTO product (retailer_id, retailer_product_id, name, gender, section, category,
+                           barefoot, url)
+      VALUES (${r.id}, 'Z-26', 'Bota', 'niña', 'zapateria', 'botas', 'si', 'https://x')
+      RETURNING id`;
+    const [v] = await sql<{ id: number }[]>`
+      INSERT INTO variant (product_id, retailer_variant_id, size, color, sku)
+      VALUES (${p.id}, 'Z-26-v', '26', 'negro', 'Z-26-sku') RETURNING id`;
+    await sql`
+      INSERT INTO price_history (variant_id, price, list_price, discount_pct, in_stock, scraped_at)
+      VALUES (${v.id}, 19.99, 39.99, 50, true, now())`;
+
+    await refrescarAgregado(sql);
+    app = await makeApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await sql.end();
+  });
+
+  const nombres = async (query: string): Promise<string[]> => {
+    const res = await request(app.getHttpServer()).get(`/api/catalog/products${query}`).expect(200);
+    return (res.body.items as { name: string }[]).map((i) => i.name).sort();
+  };
+
+  const facetas = async (query: string) => {
+    const res = await request(app.getHttpServer()).get(`/api/catalog/facets${query}`).expect(200);
+    return res.body as { sizes: string[]; sizeValues: string[] };
+  };
+
+  it('la banda sigue devolviendo los cuatro vocabularios: es lo que #325 vino a hacer', async () => {
+    expect(await nombres('?section=ropa&size=4%20a%C3%B1os')).toEqual([
+      'P-104',
+      'P-4-5',
+      'P-4-6',
+      'P-4-anios',
+    ]);
+  });
+
+  it('la talla CONCRETA devuelve solo la suya, que hasta ahora era imposible pedir', async () => {
+    expect(await nombres('?section=ropa&sizeExact=104')).toEqual(['P-104']);
+    expect(await nombres('?section=ropa&sizeExact=4-5%20a%C3%B1os')).toEqual(['P-4-5']);
+  });
+
+  it('varias concretas se unen, como todo eje multiseleccionable (#329)', async () => {
+    expect(await nombres('?section=ropa&sizeExact=104&sizeExact=4%20a%C3%B1os')).toEqual([
+      'P-104',
+      'P-4-anios',
+    ]);
+  });
+
+  it('banda y concreta se CRUZAN, no se sustituyen', async () => {
+    // La banda es dónde estás; la concreta, lo que pides dentro.
+    expect(await nombres('?section=ropa&size=4%20a%C3%B1os&sizeExact=104')).toEqual(['P-104']);
+    // Y una pareja incoherente devuelve vacío, que es lo correcto: el error está en el enlace.
+    expect(await nombres('?section=ropa&size=6%20a%C3%B1os&sizeExact=104')).toEqual([]);
+  });
+
+  it('la faceta ofrece las concretas de la banda elegida, y NADA sin banda', async () => {
+    // Sin banda estaría ofreciendo las 181 tallas de ropa, o sea deshaciendo #325.
+    expect((await facetas('?section=ropa')).sizeValues).toEqual([]);
+    expect((await facetas('?section=ropa&size=4%20a%C3%B1os')).sizeValues).toEqual([
+      '4 años',
+      '4-5 años',
+      '4-6 años',
+      '104',
+    ]);
+  });
+
+  it('la faceta de concretas NO se acota a sí misma', async () => {
+    // Si lo hiciera, marcar `104` dejaría `104` como única opción y no habría forma de añadir otra
+    // sin limpiar antes. Es la misma regla que ya sujeta a las demás facetas.
+    const f = await facetas('?section=ropa&size=4%20a%C3%B1os&sizeExact=104');
+    expect(f.sizeValues).toEqual(['4 años', '4-5 años', '4-6 años', '104']);
+  });
+
+  it('en zapatería no hay segundo piso: el primero ya es la talla concreta', async () => {
+    const f = await facetas('?section=zapateria&size=26');
+    expect(f.sizes).toEqual(['26']);
+    expect(f.sizeValues).toEqual([]);
+  });
+
+  it('el recuento de variantes que casan respeta la concreta (el fallo de #326, un eje después)', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/catalog/products?section=ropa&size=4%20a%C3%B1os&sizeExact=104')
+      .expect(200);
+    const items = res.body.items as { name: string; variantCount: number }[];
+    expect(items.map((i) => [i.name, i.variantCount])).toEqual([['P-104', 1]]);
+  });
+});

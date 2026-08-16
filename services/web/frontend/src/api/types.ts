@@ -169,6 +169,12 @@ export interface Facets {
   sections: string[];
   categories: string[];
   sizes: string[];
+  /**
+   * Las tallas concretas de la banda ya elegida (#367). **Vacía si no hay banda**, y vacía siempre
+   * en `zapateria`, donde el primer piso ya es la canónica. El panel pinta el segundo nivel solo
+   * cuando esta lista trae algo, así que no necesita saber ninguna de las dos reglas.
+   */
+  sizeValues: string[];
   colors: string[];
   retailers: RetailerFacet[];
 }
@@ -184,7 +190,7 @@ export interface Facets {
  */
 export type FacetQuery = Pick<
   ProductQuery,
-  'q' | 'gender' | 'section' | 'category' | 'size' | 'color' | 'retailer' | 'deportiva'
+  'q' | 'gender' | 'section' | 'category' | 'size' | 'sizeExact' | 'color' | 'retailer' | 'deportiva'
 >;
 
 /** Base de comparación de la regla de aviso (espejo de `interest.compare_base`). */
@@ -298,6 +304,12 @@ export interface ProductQuery {
    * `gender`, `section` y `category` se quedan de un solo valor a propósito — ver el DTO.
    */
   size?: string[];
+  /**
+   * La talla **concreta** dentro de la banda (#367). Se cruza con `size`, no la sustituye: la banda
+   * es dónde estás y esta lo que pides dentro. Solo tiene sentido en `ropa`, que es donde `size` se
+   * pliega a bandas.
+   */
+  sizeExact?: string[];
   color?: string[];
   retailer?: string[];
   inStock?: boolean;
