@@ -1,0 +1,892 @@
+{
+ "productGroups": [
+  {
+   "elements": [
+    {
+     "commercialComponents": [
+      {
+       "id": 578290048,
+       "reference": "18809830-I2026",
+       "type": "Product",
+       "kind": "Other",
+       "brand": {
+        "brandId": 1,
+        "brandGroupId": 1,
+        "brandGroupCode": "zara"
+       },
+       "xmedia": [],
+       "name": "BAMBA BAREFOOT PIEL",
+       "description": "",
+       "price": 2595,
+       "section": 3,
+       "sectionName": "KID",
+       "familyName": "BAMBAS",
+       "subfamilyName": "Z3:NEW CONCEPT",
+       "detail": {
+        "reference": "18809830-I2026",
+        "displayReference": "8809/830",
+        "colors": [
+         {
+          "id": "001",
+          "productId": 578290048,
+          "name": "Blanco",
+          "stylingId": "71",
+          "outfitId": "EDITION",
+          "xmedia": [
+           {
+            "datatype": "xmedia",
+            "set": 73,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/df9b/1f30/7b9648e08260/e093e0706918/18809830001-e1",
+            "name": "18809830001-e1",
+            "width": 2048,
+            "height": 3071,
+            "timestamp": "1785489518495",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e1",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "df9b1f307b9648e08260e093e0706918",
+             "deliveryUrl": "https://static.zara.net/assets/public/df9b/1f30/7b9648e08260/e093e0706918/18809830001-e1/18809830001-e1.jpg?ts=1785489518495",
+             "deliveryPath": "/assets/public/df9b/1f30/7b9648e08260/e093e0706918/18809830001-e1/18809830001-e1.jpg?ts=1785489518495"
+            },
+            "url": "https://static.zara.net/assets/public/df9b/1f30/7b9648e08260/e093e0706918/18809830001-e1/18809830001-e1.jpg?ts=1785489518495&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/df9b/1f30/7b9648e08260/e093e0706918/meta.json?ts=1785489520122"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 73,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/420d/a81b/4afc46489ff3/50b17b4972ed/18809830001-e2",
+            "name": "18809830001-e2",
+            "width": 2048,
+            "height": 3071,
+            "timestamp": "1785489520158",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e2",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "420da81b4afc46489ff350b17b4972ed",
+             "deliveryUrl": "https://static.zara.net/assets/public/420d/a81b/4afc46489ff3/50b17b4972ed/18809830001-e2/18809830001-e2.jpg?ts=1785489520158",
+             "deliveryPath": "/assets/public/420d/a81b/4afc46489ff3/50b17b4972ed/18809830001-e2/18809830001-e2.jpg?ts=1785489520158"
+            },
+            "url": "https://static.zara.net/assets/public/420d/a81b/4afc46489ff3/50b17b4972ed/18809830001-e2/18809830001-e2.jpg?ts=1785489520158&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/420d/a81b/4afc46489ff3/50b17b4972ed/meta.json?ts=1785489521553"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 73,
+            "type": "image",
+            "kind": "other",
+            "path": "/assets/public/fe03/526e/2a5e4453a171/766ae9a17d6f/18809830001-f1",
+            "name": "18809830001-f1",
+            "width": 2048,
+            "height": 3071,
+            "timestamp": "1785489519276",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "f1",
+             "availableZooms": [
+              "ZOOM3"
+             ],
+             "assetId": "fe03526e2a5e4453a171766ae9a17d6f",
+             "deliveryUrl": "https://static.zara.net/assets/public/fe03/526e/2a5e4453a171/766ae9a17d6f/18809830001-f1/18809830001-f1.jpg?ts=1785489519276",
+             "deliveryPath": "/assets/public/fe03/526e/2a5e4453a171/766ae9a17d6f/18809830001-f1/18809830001-f1.jpg?ts=1785489519276"
+            },
+            "url": "https://static.zara.net/assets/public/fe03/526e/2a5e4453a171/766ae9a17d6f/18809830001-f1/18809830001-f1.jpg?ts=1785489519276&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/fe03/526e/2a5e4453a171/766ae9a17d6f/meta.json?ts=1785489520418"
+           }
+          ],
+          "pdpMedia": {
+           "datatype": "xmedia",
+           "set": 73,
+           "type": "image",
+           "kind": "other",
+           "path": "/assets/public/fe03/526e/2a5e4453a171/766ae9a17d6f/18809830001-f1",
+           "name": "18809830001-f1",
+           "width": 2048,
+           "height": 3071,
+           "timestamp": "1785489519276",
+           "allowedScreens": [
+            "small",
+            "large"
+           ],
+           "extraInfo": {
+            "originalName": "f1",
+            "assetId": "fe03526e2a5e4453a171766ae9a17d6f",
+            "deliveryUrl": "https://static.zara.net/assets/public/fe03/526e/2a5e4453a171/766ae9a17d6f/18809830001-f1/18809830001-f1.jpg?ts=1785489519276",
+            "deliveryPath": "/assets/public/fe03/526e/2a5e4453a171/766ae9a17d6f/18809830001-f1/18809830001-f1.jpg?ts=1785489519276"
+           },
+           "url": "https://static.zara.net/assets/public/fe03/526e/2a5e4453a171/766ae9a17d6f/18809830001-f1/18809830001-f1.jpg?ts=1785489519276&w={width}",
+           "metaUrl": "https://static.zara.net/assets/public/fe03/526e/2a5e4453a171/766ae9a17d6f/meta.json?ts=1785489520418"
+          },
+          "price": 2595,
+          "availability": "in_stock",
+          "reference": "C18809830001071-I2026",
+          "extraInfo": {
+           "highlightPrice": false
+          },
+          "canonicalReference": "18809830001-I2026"
+         }
+        ]
+       },
+       "seo": {
+        "keyword": "bamba-barefoot-piel",
+        "seoProductId": "18809830",
+        "discernProductId": 578290048
+       },
+       "availability": "in_stock",
+       "tagTypes": [],
+       "extraInfo": {
+        "highlightPrice": false,
+        "hideProductInfo": false,
+        "duplicateReference": false
+       },
+       "availableColors": [
+        {
+         "colorName": "Blanco",
+         "hexColor": "#DAD4C7"
+        }
+       ],
+       "gridPosition": 1,
+       "zoomedGridPosition": 1,
+       "preservedBlockPosition": 1,
+       "athleticzPosition": 1,
+       "productTag": [],
+       "colorList": "",
+       "isDivider": false,
+       "hasXmediaDouble": false,
+       "showExtraImageOnHover": false,
+       "showAvailability": false,
+       "priceUnavailable": false
+      },
+      {
+       "id": 569134510,
+       "reference": "18802830-I2026",
+       "type": "Product",
+       "kind": "Other",
+       "brand": {
+        "brandId": 1,
+        "brandGroupId": 1,
+        "brandGroupCode": "zara"
+       },
+       "xmedia": [],
+       "name": "SANDALIA TÉCNICA MULTICOLORES BAREFOOT",
+       "description": "",
+       "price": 1299,
+       "oldPrice": 1995,
+       "displayDiscountPercentage": 34,
+       "discountPercentage": "34%",
+       "discountLabel": "-34%",
+       "section": 3,
+       "sectionName": "KID",
+       "familyName": "SANDALIA",
+       "subfamilyName": "Z3:NEW CONCEPT",
+       "detail": {
+        "reference": "18802830-I2026",
+        "displayReference": "8802/830",
+        "colors": [
+         {
+          "id": "400",
+          "productId": 569134510,
+          "name": "Azul",
+          "stylingId": "0",
+          "outfitId": "BASESTYLE",
+          "xmedia": [
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/dc10/d735/1e394e55a493/170da7dcd146/18802830400-e1",
+            "name": "18802830400-e1",
+            "width": 2048,
+            "height": 3071,
+            "timestamp": "1778053060590",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e1",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "dc10d7351e394e55a493170da7dcd146",
+             "deliveryUrl": "https://static.zara.net/assets/public/dc10/d735/1e394e55a493/170da7dcd146/18802830400-e1/18802830400-e1.jpg?ts=1778053060590",
+             "deliveryPath": "/assets/public/dc10/d735/1e394e55a493/170da7dcd146/18802830400-e1/18802830400-e1.jpg?ts=1778053060590"
+            },
+            "url": "https://static.zara.net/assets/public/dc10/d735/1e394e55a493/170da7dcd146/18802830400-e1/18802830400-e1.jpg?ts=1778053060590&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/dc10/d735/1e394e55a493/170da7dcd146/meta.json?ts=1778053062037"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/c960/8d0a/26ea4c4c9021/9b76a250f1e8/18802830400-e2",
+            "name": "18802830400-e2",
+            "width": 2048,
+            "height": 3071,
+            "timestamp": "1778053060672",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e2",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "c9608d0a26ea4c4c90219b76a250f1e8",
+             "deliveryUrl": "https://static.zara.net/assets/public/c960/8d0a/26ea4c4c9021/9b76a250f1e8/18802830400-e2/18802830400-e2.jpg?ts=1778053060672",
+             "deliveryPath": "/assets/public/c960/8d0a/26ea4c4c9021/9b76a250f1e8/18802830400-e2/18802830400-e2.jpg?ts=1778053060672"
+            },
+            "url": "https://static.zara.net/assets/public/c960/8d0a/26ea4c4c9021/9b76a250f1e8/18802830400-e2/18802830400-e2.jpg?ts=1778053060672&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/c960/8d0a/26ea4c4c9021/9b76a250f1e8/meta.json?ts=1778053062233"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "other",
+            "path": "/assets/public/7cfb/7068/ca7a46ccb9fa/77fc91185eb1/18802830400-f1",
+            "name": "18802830400-f1",
+            "width": 2048,
+            "height": 3071,
+            "timestamp": "1778053062496",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "f1",
+             "availableZooms": [
+              "ZOOM3"
+             ],
+             "assetId": "7cfb7068ca7a46ccb9fa77fc91185eb1",
+             "deliveryUrl": "https://static.zara.net/assets/public/7cfb/7068/ca7a46ccb9fa/77fc91185eb1/18802830400-f1/18802830400-f1.jpg?ts=1778053062496",
+             "deliveryPath": "/assets/public/7cfb/7068/ca7a46ccb9fa/77fc91185eb1/18802830400-f1/18802830400-f1.jpg?ts=1778053062496"
+            },
+            "url": "https://static.zara.net/assets/public/7cfb/7068/ca7a46ccb9fa/77fc91185eb1/18802830400-f1/18802830400-f1.jpg?ts=1778053062496&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/7cfb/7068/ca7a46ccb9fa/77fc91185eb1/meta.json?ts=1778053064952"
+           }
+          ],
+          "pdpMedia": {
+           "datatype": "xmedia",
+           "set": 2,
+           "type": "image",
+           "kind": "other",
+           "path": "/assets/public/7cfb/7068/ca7a46ccb9fa/77fc91185eb1/18802830400-f1",
+           "name": "18802830400-f1",
+           "width": 2048,
+           "height": 3071,
+           "timestamp": "1778053062496",
+           "allowedScreens": [
+            "small",
+            "large"
+           ],
+           "extraInfo": {
+            "originalName": "f1",
+            "assetId": "7cfb7068ca7a46ccb9fa77fc91185eb1",
+            "deliveryUrl": "https://static.zara.net/assets/public/7cfb/7068/ca7a46ccb9fa/77fc91185eb1/18802830400-f1/18802830400-f1.jpg?ts=1778053062496",
+            "deliveryPath": "/assets/public/7cfb/7068/ca7a46ccb9fa/77fc91185eb1/18802830400-f1/18802830400-f1.jpg?ts=1778053062496"
+           },
+           "url": "https://static.zara.net/assets/public/7cfb/7068/ca7a46ccb9fa/77fc91185eb1/18802830400-f1/18802830400-f1.jpg?ts=1778053062496&w={width}",
+           "metaUrl": "https://static.zara.net/assets/public/7cfb/7068/ca7a46ccb9fa/77fc91185eb1/meta.json?ts=1778053064952"
+          },
+          "price": 1299,
+          "oldPrice": 1995,
+          "displayDiscountPercentage": 34,
+          "discountPercentage": "34%",
+          "discountLabel": "-34%",
+          "availability": "in_stock",
+          "reference": "C18802830400000-I2026",
+          "extraInfo": {
+           "highlightPrice": true
+          },
+          "canonicalReference": "18802830400-I2026"
+         }
+        ]
+       },
+       "seo": {
+        "keyword": "sandalia-tecnica-multicolor-barefoot",
+        "seoProductId": "18802830",
+        "discernProductId": 569134510
+       },
+       "availability": "in_stock",
+       "tagTypes": [
+        {
+         "displayName": "DEL 14.07 AL 30.11",
+         "type": "SPECIAL_PRICE_ECOMLOAD_SEASON_PROMO_SEMANA_29_86290_ZARA_ES"
+        }
+       ],
+       "extraInfo": {
+        "highlightPrice": true,
+        "hideProductInfo": false,
+        "duplicateReference": false
+       },
+       "availableColors": [
+        {
+         "colorName": "Azul",
+         "hexColor": "#E6E6DF"
+        }
+       ],
+       "gridPosition": 1,
+       "zoomedGridPosition": 5,
+       "preservedBlockPosition": 5,
+       "athleticzPosition": 5,
+       "productTag": [
+        "DEL 14.07 AL 30.11"
+       ],
+       "colorList": "",
+       "isDivider": false,
+       "hasXmediaDouble": false,
+       "showExtraImageOnHover": false,
+       "showAvailability": false,
+       "priceUnavailable": false,
+       "isOnSale": true
+      },
+      {
+       "id": 555475078,
+       "reference": "18825830-I2026",
+       "type": "Product",
+       "kind": "Other",
+       "brand": {
+        "brandId": 1,
+        "brandGroupId": 1,
+        "brandGroupCode": "zara"
+       },
+       "xmedia": [],
+       "name": "NÁUTICO PIEL",
+       "description": "",
+       "price": 3595,
+       "section": 3,
+       "sectionName": "KID",
+       "familyName": "ZAPATO",
+       "subfamilyName": "Z3:NEW CONCEPT",
+       "detail": {
+        "reference": "18825830-I2026",
+        "displayReference": "8825/830",
+        "colors": [
+         {
+          "id": "004",
+          "productId": 555475078,
+          "name": "Gris",
+          "stylingId": "0",
+          "outfitId": "BASESTYLE",
+          "xmedia": [
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/f0ad/fe42/3b5048a79dea/b57db9965997/16549830004-e1",
+            "name": "16549830004-e1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1785307343678",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e1",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "f0adfe423b5048a79deab57db9965997",
+             "deliveryUrl": "https://static.zara.net/assets/public/f0ad/fe42/3b5048a79dea/b57db9965997/16549830004-e1/16549830004-e1.jpg?ts=1785307343678",
+             "deliveryPath": "/assets/public/f0ad/fe42/3b5048a79dea/b57db9965997/16549830004-e1/16549830004-e1.jpg?ts=1785307343678"
+            },
+            "url": "https://static.zara.net/assets/public/f0ad/fe42/3b5048a79dea/b57db9965997/16549830004-e1/16549830004-e1.jpg?ts=1785307343678&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/f0ad/fe42/3b5048a79dea/b57db9965997/meta.json?ts=1785307345327"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/a667/dbb5/c8594151b2fb/5a3a6dff12b4/16549830004-e2",
+            "name": "16549830004-e2",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1785307343150",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e2",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "a667dbb5c8594151b2fb5a3a6dff12b4",
+             "deliveryUrl": "https://static.zara.net/assets/public/a667/dbb5/c8594151b2fb/5a3a6dff12b4/16549830004-e2/16549830004-e2.jpg?ts=1785307343150",
+             "deliveryPath": "/assets/public/a667/dbb5/c8594151b2fb/5a3a6dff12b4/16549830004-e2/16549830004-e2.jpg?ts=1785307343150"
+            },
+            "url": "https://static.zara.net/assets/public/a667/dbb5/c8594151b2fb/5a3a6dff12b4/16549830004-e2/16549830004-e2.jpg?ts=1785307343150&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/a667/dbb5/c8594151b2fb/5a3a6dff12b4/meta.json?ts=1785307344714"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "other",
+            "path": "/assets/public/a4d9/8f96/0454407da4b4/b90cf43ee902/16549830004-f1",
+            "name": "16549830004-f1",
+            "width": 2048,
+            "height": 3072,
+            "timestamp": "1785307341278",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "f1",
+             "availableZooms": [
+              "ZOOM3"
+             ],
+             "assetId": "a4d98f960454407da4b4b90cf43ee902",
+             "deliveryUrl": "https://static.zara.net/assets/public/a4d9/8f96/0454407da4b4/b90cf43ee902/16549830004-f1/16549830004-f1.jpg?ts=1785307341278",
+             "deliveryPath": "/assets/public/a4d9/8f96/0454407da4b4/b90cf43ee902/16549830004-f1/16549830004-f1.jpg?ts=1785307341278"
+            },
+            "url": "https://static.zara.net/assets/public/a4d9/8f96/0454407da4b4/b90cf43ee902/16549830004-f1/16549830004-f1.jpg?ts=1785307341278&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/a4d9/8f96/0454407da4b4/b90cf43ee902/meta.json?ts=1785307342899"
+           }
+          ],
+          "pdpMedia": {
+           "datatype": "xmedia",
+           "set": 2,
+           "type": "image",
+           "kind": "other",
+           "path": "/assets/public/a4d9/8f96/0454407da4b4/b90cf43ee902/16549830004-f1",
+           "name": "16549830004-f1",
+           "width": 2048,
+           "height": 3072,
+           "timestamp": "1785307341278",
+           "allowedScreens": [
+            "small",
+            "large"
+           ],
+           "extraInfo": {
+            "originalName": "f1",
+            "assetId": "a4d98f960454407da4b4b90cf43ee902",
+            "deliveryUrl": "https://static.zara.net/assets/public/a4d9/8f96/0454407da4b4/b90cf43ee902/16549830004-f1/16549830004-f1.jpg?ts=1785307341278",
+            "deliveryPath": "/assets/public/a4d9/8f96/0454407da4b4/b90cf43ee902/16549830004-f1/16549830004-f1.jpg?ts=1785307341278"
+           },
+           "url": "https://static.zara.net/assets/public/a4d9/8f96/0454407da4b4/b90cf43ee902/16549830004-f1/16549830004-f1.jpg?ts=1785307341278&w={width}",
+           "metaUrl": "https://static.zara.net/assets/public/a4d9/8f96/0454407da4b4/b90cf43ee902/meta.json?ts=1785307342899"
+          },
+          "price": 3595,
+          "availability": "in_stock",
+          "reference": "C18825830004000-I2026",
+          "extraInfo": {
+           "highlightPrice": false
+          },
+          "canonicalReference": "18825830004-I2026"
+         }
+        ]
+       },
+       "seo": {
+        "keyword": "nautico-piel",
+        "seoProductId": "18825830",
+        "discernProductId": 555475078
+       },
+       "availability": "in_stock",
+       "tagTypes": [],
+       "extraInfo": {
+        "highlightPrice": false,
+        "hideProductInfo": false,
+        "duplicateReference": false
+       },
+       "availableColors": [
+        {
+         "colorName": "Gris",
+         "hexColor": "#514B44"
+        }
+       ],
+       "gridPosition": 2,
+       "zoomedGridPosition": 10,
+       "preservedBlockPosition": 10,
+       "athleticzPosition": 10,
+       "productTag": [],
+       "colorList": "",
+       "isDivider": false,
+       "hasXmediaDouble": false,
+       "showExtraImageOnHover": false,
+       "showAvailability": false,
+       "priceUnavailable": false
+      },
+      {
+       "id": 578290049,
+       "reference": "18805830-I2026",
+       "type": "Product",
+       "kind": "Other",
+       "brand": {
+        "brandId": 1,
+        "brandGroupId": 1,
+        "brandGroupCode": "zara"
+       },
+       "xmedia": [],
+       "name": "ZAPATILLA DEPORTIVA BAREFOOT",
+       "description": "",
+       "price": 2795,
+       "section": 3,
+       "sectionName": "KID",
+       "familyName": "DEPORTIVO",
+       "subfamilyName": "Z3:NEW CONCEPT",
+       "detail": {
+        "reference": "18805830-I2026",
+        "displayReference": "8805/830",
+        "colors": [
+         {
+          "id": "202",
+          "productId": 578290049,
+          "name": "Multicolor",
+          "stylingId": "71",
+          "outfitId": "EDITION",
+          "xmedia": [
+           {
+            "datatype": "xmedia",
+            "set": 73,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/60d6/7bc4/7fa9484d954d/6ff902fb6638/18805830202-e1",
+            "name": "18805830202-e1",
+            "width": 2048,
+            "height": 3071,
+            "timestamp": "1785247568106",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e1",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "60d67bc47fa9484d954d6ff902fb6638",
+             "deliveryUrl": "https://static.zara.net/assets/public/60d6/7bc4/7fa9484d954d/6ff902fb6638/18805830202-e1/18805830202-e1.jpg?ts=1785247568106",
+             "deliveryPath": "/assets/public/60d6/7bc4/7fa9484d954d/6ff902fb6638/18805830202-e1/18805830202-e1.jpg?ts=1785247568106"
+            },
+            "url": "https://static.zara.net/assets/public/60d6/7bc4/7fa9484d954d/6ff902fb6638/18805830202-e1/18805830202-e1.jpg?ts=1785247568106&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/60d6/7bc4/7fa9484d954d/6ff902fb6638/meta.json?ts=1785247569392"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 73,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/3830/8f72/4bc94edf8abb/fc755494fae8/18805830202-e2",
+            "name": "18805830202-e2",
+            "width": 2048,
+            "height": 3071,
+            "timestamp": "1784191528982",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e2",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "38308f724bc94edf8abbfc755494fae8",
+             "deliveryUrl": "https://static.zara.net/assets/public/3830/8f72/4bc94edf8abb/fc755494fae8/18805830202-e2/18805830202-e2.jpg?ts=1784191528982",
+             "deliveryPath": "/assets/public/3830/8f72/4bc94edf8abb/fc755494fae8/18805830202-e2/18805830202-e2.jpg?ts=1784191528982"
+            },
+            "url": "https://static.zara.net/assets/public/3830/8f72/4bc94edf8abb/fc755494fae8/18805830202-e2/18805830202-e2.jpg?ts=1784191528982&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/3830/8f72/4bc94edf8abb/fc755494fae8/meta.json?ts=1784191530261"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 73,
+            "type": "image",
+            "kind": "other",
+            "path": "/assets/public/38c9/299c/730f4ffc8f56/d42699747f4b/18805830202-f1",
+            "name": "18805830202-f1",
+            "width": 2048,
+            "height": 3071,
+            "timestamp": "1784191529143",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "f1",
+             "availableZooms": [
+              "ZOOM3"
+             ],
+             "assetId": "38c9299c730f4ffc8f56d42699747f4b",
+             "deliveryUrl": "https://static.zara.net/assets/public/38c9/299c/730f4ffc8f56/d42699747f4b/18805830202-f1/18805830202-f1.jpg?ts=1784191529143",
+             "deliveryPath": "/assets/public/38c9/299c/730f4ffc8f56/d42699747f4b/18805830202-f1/18805830202-f1.jpg?ts=1784191529143"
+            },
+            "url": "https://static.zara.net/assets/public/38c9/299c/730f4ffc8f56/d42699747f4b/18805830202-f1/18805830202-f1.jpg?ts=1784191529143&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/38c9/299c/730f4ffc8f56/d42699747f4b/meta.json?ts=1784191530332"
+           }
+          ],
+          "pdpMedia": {
+           "datatype": "xmedia",
+           "set": 73,
+           "type": "image",
+           "kind": "other",
+           "path": "/assets/public/38c9/299c/730f4ffc8f56/d42699747f4b/18805830202-f1",
+           "name": "18805830202-f1",
+           "width": 2048,
+           "height": 3071,
+           "timestamp": "1784191529143",
+           "allowedScreens": [
+            "small",
+            "large"
+           ],
+           "extraInfo": {
+            "originalName": "f1",
+            "assetId": "38c9299c730f4ffc8f56d42699747f4b",
+            "deliveryUrl": "https://static.zara.net/assets/public/38c9/299c/730f4ffc8f56/d42699747f4b/18805830202-f1/18805830202-f1.jpg?ts=1784191529143",
+            "deliveryPath": "/assets/public/38c9/299c/730f4ffc8f56/d42699747f4b/18805830202-f1/18805830202-f1.jpg?ts=1784191529143"
+           },
+           "url": "https://static.zara.net/assets/public/38c9/299c/730f4ffc8f56/d42699747f4b/18805830202-f1/18805830202-f1.jpg?ts=1784191529143&w={width}",
+           "metaUrl": "https://static.zara.net/assets/public/38c9/299c/730f4ffc8f56/d42699747f4b/meta.json?ts=1784191530332"
+          },
+          "price": 2795,
+          "availability": "in_stock",
+          "reference": "C18805830202071-I2026",
+          "extraInfo": {
+           "highlightPrice": false
+          },
+          "canonicalReference": "18805830202-I2026"
+         }
+        ]
+       },
+       "seo": {
+        "keyword": "zapatilla-deportiva-barefoot",
+        "seoProductId": "18805830",
+        "discernProductId": 578290049
+       },
+       "availability": "in_stock",
+       "tagTypes": [],
+       "extraInfo": {
+        "highlightPrice": false,
+        "hideProductInfo": false,
+        "duplicateReference": false
+       },
+       "availableColors": [
+        {
+         "colorName": "Multicolor",
+         "hexColor": "#CCADA8"
+        },
+        {
+         "colorName": "Bicolor",
+         "hexColor": "#B1ADA9"
+        }
+       ],
+       "colorInfo": {
+        "mainColorHexCode": "#CCADA8",
+        "numAdditionalColors": 1,
+        "shouldUseColorcutInColorLabel": false
+       },
+       "gridPosition": 1,
+       "zoomedGridPosition": 13,
+       "preservedBlockPosition": 13,
+       "athleticzPosition": 13,
+       "productTag": [],
+       "colorList": "",
+       "isDivider": false,
+       "hasXmediaDouble": false,
+       "showExtraImageOnHover": false,
+       "showAvailability": false,
+       "priceUnavailable": false
+      },
+      {
+       "id": 554734587,
+       "reference": "11580730-I2026",
+       "type": "Product",
+       "kind": "Other",
+       "brand": {
+        "brandId": 1,
+        "brandGroupId": 1,
+        "brandGroupCode": "zara"
+       },
+       "xmedia": [],
+       "name": "SET DE MATERNIDAD CUADROS",
+       "description": "",
+       "price": 5995,
+       "section": 3,
+       "sectionName": "KID",
+       "familyName": "BOLSOS",
+       "subfamilyName": "Z3K:FAMILY BAG",
+       "detail": {
+        "reference": "11580730-I2026",
+        "displayReference": "1580/730",
+        "colors": [
+         {
+          "id": "002",
+          "productId": 554734587,
+          "name": "Blanco Crudo",
+          "stylingId": "0",
+          "outfitId": "BASESTYLE",
+          "xmedia": [
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "plain",
+            "path": "/assets/public/9f89/68c7/479f44d48a87/b15aa4441599/11580730002-e1",
+            "name": "11580730002-e1",
+            "width": 2048,
+            "height": 3071,
+            "timestamp": "1770987158007",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "e1",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "9f8968c7479f44d48a87b15aa4441599",
+             "deliveryUrl": "https://static.zara.net/assets/public/9f89/68c7/479f44d48a87/b15aa4441599/11580730002-e1/11580730002-e1.jpg?ts=1770987158007",
+             "deliveryPath": "/assets/public/9f89/68c7/479f44d48a87/b15aa4441599/11580730002-e1/11580730002-e1.jpg?ts=1770987158007"
+            },
+            "url": "https://static.zara.net/assets/public/9f89/68c7/479f44d48a87/b15aa4441599/11580730002-e1/11580730002-e1.jpg?ts=1770987158007&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/9f89/68c7/479f44d48a87/b15aa4441599/meta.json?ts=1770987158014"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "3dadvanced",
+            "kind": "plain",
+            "path": "/assets/public/d4a3/ceb4/daee4098b600/1bb26a83da09",
+            "name": "",
+            "width": 2160,
+            "height": 3240,
+            "timestamp": "1780323369560",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "v",
+             "availableZooms": [
+              "ZOOM2"
+             ],
+             "assetId": "d4a3ceb4daee4098b6001bb26a83da09",
+             "deliveryUrl": "https://static.zara.net/assets/public/d4a3/ceb4/daee4098b600/1bb26a83da09/",
+             "deliveryPath": "/assets/public/d4a3/ceb4/daee4098b600/1bb26a83da09/"
+            },
+            "url": "https://static.zara.net/assets/public/d4a3/ceb4/daee4098b600/1bb26a83da09/",
+            "posterUrl": "https://static.zara.net/assets/public/d4a3/ceb4/daee4098b600/1bb26a83da09/poster/poster.jpg?ts=1777470139339"
+           },
+           {
+            "datatype": "xmedia",
+            "set": 2,
+            "type": "image",
+            "kind": "other",
+            "path": "/assets/public/0678/6030/518d4381b9a8/1ef5ac70a22b/11580730002-f1",
+            "name": "11580730002-f1",
+            "width": 2048,
+            "height": 3071,
+            "timestamp": "1770987156086",
+            "allowedScreens": [
+             "small",
+             "large"
+            ],
+            "extraInfo": {
+             "originalName": "f1",
+             "availableZooms": [
+              "ZOOM3"
+             ],
+             "assetId": "06786030518d4381b9a81ef5ac70a22b",
+             "deliveryUrl": "https://static.zara.net/assets/public/0678/6030/518d4381b9a8/1ef5ac70a22b/11580730002-f1/11580730002-f1.jpg?ts=1770987156086",
+             "deliveryPath": "/assets/public/0678/6030/518d4381b9a8/1ef5ac70a22b/11580730002-f1/11580730002-f1.jpg?ts=1770987156086"
+            },
+            "url": "https://static.zara.net/assets/public/0678/6030/518d4381b9a8/1ef5ac70a22b/11580730002-f1/11580730002-f1.jpg?ts=1770987156086&w={width}",
+            "metaUrl": "https://static.zara.net/assets/public/0678/6030/518d4381b9a8/1ef5ac70a22b/meta.json?ts=1770987156092"
+           }
+          ],
+          "pdpMedia": {
+           "datatype": "xmedia",
+           "set": 2,
+           "type": "image",
+           "kind": "other",
+           "path": "/assets/public/0678/6030/518d4381b9a8/1ef5ac70a22b/11580730002-f1",
+           "name": "11580730002-f1",
+           "width": 2048,
+           "height": 3071,
+           "timestamp": "1770987156086",
+           "allowedScreens": [
+            "small",
+            "large"
+           ],
+           "extraInfo": {
+            "originalName": "f1",
+            "assetId": "06786030518d4381b9a81ef5ac70a22b",
+            "deliveryUrl": "https://static.zara.net/assets/public/0678/6030/518d4381b9a8/1ef5ac70a22b/11580730002-f1/11580730002-f1.jpg?ts=1770987156086",
+            "deliveryPath": "/assets/public/0678/6030/518d4381b9a8/1ef5ac70a22b/11580730002-f1/11580730002-f1.jpg?ts=1770987156086"
+           },
+           "url": "https://static.zara.net/assets/public/0678/6030/518d4381b9a8/1ef5ac70a22b/11580730002-f1/11580730002-f1.jpg?ts=1770987156086&w={width}",
+           "metaUrl": "https://static.zara.net/assets/public/0678/6030/518d4381b9a8/1ef5ac70a22b/meta.json?ts=1770987156092"
+          },
+          "price": 5995,
+          "availability": "in_stock",
+          "reference": "C11580730002000-I2026",
+          "extraInfo": {
+           "highlightPrice": false
+          },
+          "canonicalReference": "11580730002-I2026"
+         }
+        ]
+       },
+       "seo": {
+        "keyword": "set-de-maternidad-cuadros",
+        "seoProductId": "11580730",
+        "discernProductId": 554734587
+       },
+       "availability": "in_stock",
+       "tagTypes": [],
+       "extraInfo": {
+        "highlightPrice": false,
+        "hideProductInfo": false,
+        "duplicateReference": false
+       },
+       "availableColors": [
+        {
+         "colorName": "Blanco Crudo",
+         "hexColor": "#CEC3B2"
+        }
+       ],
+       "gridPosition": 2,
+       "zoomedGridPosition": 18,
+       "preservedBlockPosition": 18,
+       "athleticzPosition": 18,
+       "productTag": [],
+       "colorList": "",
+       "isDivider": false,
+       "hasXmediaDouble": false,
+       "showExtraImageOnHover": false,
+       "showAvailability": false,
+       "priceUnavailable": false
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -446,6 +446,45 @@ def test_un_bloqueo_total_si_hace_fallar_el_chequeo() -> None:
     assert _check_categories_con(store) == 1
 
 
+def test_la_hoja_de_saldo_apagada_no_cuenta_como_caida() -> None:
+    """El fin de campaña no puede abortar la pasada de una tienda sana (#356).
+
+    Las 33 hojas de saldo son de campaña y se apagan a la vez: contándolas como caídas, `dead_ratio`
+    sube al 35 % (33 de 95) y `SCRAPER_SCAN_MAX_DEAD_RATIO` (34 %) aborta la pasada **sin
+    escribir**, con las 62 de siempre respondiendo perfectamente. Es la misma decisión que tomaron
+    `mango.py` (#176) y `lefties.py` (#195).
+
+    Lo que solo vivía en la hoja apagada tampoco se descataloga por sorpresa: al dejar de verse pasa
+    por la confirmación activa (`probe_alive`), que es quien decide si el producto sigue existiendo.
+    """
+    cats = [
+        CategoryConfig(111, "niña", "zapateria", "zapatos"),
+        CategoryConfig(999, "niña", "", "", por_familia=True, estacional=True),
+    ]
+    store = ZaraStore(_CFG, categories=cats)
+    store._client = lambda: httpx.Client(  # type: ignore[method-assign]
+        transport=httpx.MockTransport(
+            lambda request: (
+                httpx.Response(200, json=_listing("p111"))
+                if "/category/111/" in str(request.url)
+                else httpx.Response(404, text="campaña apagada")
+            )
+        )
+    )
+
+    ids = [e.retailer_product_id for e in store.list_catalog()]
+    report = store.scan_report()
+
+    assert ids == ["p111"]
+    assert report.leaves_failed == 0, "una hoja de campaña apagada no es una hoja caída"
+    assert report.dead_ratio == 0.0
+    assert report.failed_scopes == set(), "y no compromete ningún ámbito"
+    # Pero deja rastro: se salta `failed_leaves` y `dead_ratio` a propósito, así que si además
+    # desapareciera de aquí, una hoja de saldo rota de verdad no la vería nadie. El 0 es el dato.
+    assert report.residual_by_leaf == {"999": 0}
+    assert report.barren_residual_leaves == ["999"]
+
+
 def _check_categories_con(store: ZaraStore) -> int:
     """Ejecuta el comando con una tienda ya construida (sin pasar por el registry)."""
     import scraper.run as run_mod

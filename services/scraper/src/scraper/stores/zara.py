@@ -28,6 +28,7 @@ Las funciones `parse_*` son puras (JSON -> dataclasses) y se testean con fixture
 
 from __future__ import annotations
 
+import logging
 import random
 import re
 import time
@@ -56,6 +57,8 @@ from .base import (
     ScrapeScope,
 )
 
+logger = logging.getLogger(__name__)
+
 SLUG = "zara"  # a nivel de módulo porque las funciones puras de parseo también lo necesitan
 BASE_URL = "https://www.zara.com/es/es/"
 _CATEGORY_URL = BASE_URL + "category/{cat_id}/products?ajax=true"
@@ -78,14 +81,24 @@ _MAX_IMAGES_PER_COLOR = 8
 
 @dataclass(frozen=True)
 class CategoryConfig:
-    """Mapea una categoría hoja de Zara a nuestro dominio (género/sección/categoría)."""
+    """Mapea una categoría hoja de Zara a nuestro dominio (género/sección/categoría).
+
+    `por_familia` y `estacional` son las dos marcas que necesita una **hoja de campaña** (#356), y
+    son independientes a propósito: una rebaja de una sola categoría sería estacional sin ser
+    mezclada. Es el mismo par que estrenó `lefties.CategoryConfig`, con la misma semántica —con
+    `por_familia`, `section` y `category` van vacías porque la hoja no las decide (las decide cada
+    producto, ver `_FAMILIA_RESIDUAL`), pero `gender` **sí sigue siendo de la hoja**: la rama de
+    rebajas de niña es de niña, eso la tienda no lo mezcla.
+    """
 
     category_id: int
     gender: str  # niño | niña | unisex
-    section: str  # ropa | zapateria
-    category: str  # zapatos | zapatillas | pantalones | ...
+    section: str  # ropa | zapateria ("" si `por_familia`)
+    category: str  # zapatos | zapatillas | pantalones | ... ("" si `por_familia`)
     # Solo en las hojas que mezclan vocabulario (#200). Ver `FiltroDeHoja` y `_SOLO_CONJUNTOS`.
     filtro: FiltroDeHoja | None = None
+    por_familia: bool = False  # sección y categoría salen del producto, no de la hoja
+    estacional: bool = False  # apagarse es fin de campaña, no retirada (ver `LeafHealth`)
 
 
 # El conjunto de Zara se reconoce por DOS señales y basta con una, porque medido el 06/08/2026
@@ -290,6 +303,89 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(2428124, "unisex", "ropa", "ropa-interior"),  # bodies
     CategoryConfig(2428809, "unisex", "ropa", "ropa-interior"),  # ropa int. | pijamas | calcetines
     CategoryConfig(2428823, "unisex", "zapateria", "zapatos"),  # zapatos
+    # --- saldo (#356): LAS ÚLTIMAS, mezcladas y estacionales ---
+    #
+    # La rama que la tienda dedica a lo rebajado era la única que no mirábamos, en un producto que
+    # existe justamente para avisar de bajadas de precio. Medido el 16/08/2026:
+    # **3330 productos, 2087 (62,7 %) ya entraban por otra hoja y 1243 no; de esos, 747 son del
+    # brief** (555 ropa + 192 calzado) y 496 están fuera (bolsos, gorros, colonia, baño, abrigo).
+    #
+    # **Van las últimas del fichero**, que es lo que hace la decisión barata: el residuo se emite al
+    # final de la pasada y solo para lo que nadie ha reclamado (ver `parse_listing_leftovers`), así
+    # que un producto rebajado que además cuelga de su hoja de prenda conserva su categoría y su
+    # género de siempre. Es el mismo razonamiento del bloque de bebé de aquí arriba y el de las
+    # hojas de rebajas de `lefties.py`.
+    #
+    # **Y son las hijas por EDAD, no la hoja de REBAJAS de la que cuelgan.** Esto contradice en
+    # apariencia la nota de más arriba que declara fuera el eje de edad («la misma ropa cortada por
+    # talla»), y la contradicción es real pero sale al revés: aquí el eje de edad es la única
+    # puerta, porque **la hoja padre miente**. Medido el 16/08/2026, padre contra la unión de sus
+    # hijas:
+    #
+    #   NIÑA 6-14 (2645245)   1297  vs  1338      NIÑO 6-14 (2644247)     8  vs   749
+    #   NIÑA mini (2645745)    639  vs   859      NIÑO mini (2645246)     7  vs   650
+    #   BEBÉ      (2644745)    425  vs   429
+    #
+    # O sea que las dos ramas de niño servían OCHO y SIETE productos teniendo 749 y 650 detrás. La
+    # asimetría niña/niño no era que la tienda no rebajara ropa de niño: era el padre. Las `VER
+    # TODO` intermedias mienten igual (7 en NIÑO 6-14), así que tampoco valen.
+    #
+    # Las hojas de edad se solapan mucho entre ellas —una prenda sale en las de las tallas que le
+    # quedan en stock— y por eso la mayor de cada rama ya trae el 91-97 %. **Se piden todas
+    # igualmente**: quedarse con la mayor sesga hacia lo que queda en muchas tallas, que es lo
+    # contrario de lo que interesa, y el sesgo crece justo cuando la campaña avanza y se agotan
+    # tallas. Son 33 peticiones sobre las 62 de antes.
+    #
+    # Lo que NO se mapea, y se declara aquí: **las 12 hojas `SPECIAL PRICES`** del árbol (bajo
+    # `COLECCIÓN`, `ZAPATOS` y `BOLSOS | MOCHILAS`). Con estas 33 puestas, las doce juntas aportan
+    # **36 ids** que nadie más trae, diez de ellos bolsos: 12 peticiones por pasada para 26 prendas.
+    # Si algún día la rama de saldo cambia de forma, se vuelven a medir.
+    #
+    # `estacional=True` en todas: son hojas de campaña y su 404 es el espejo apagado, no una
+    # categoría retirada. Lo que eso cambia está en `check_leaves()` (aviso, no accionable) y en
+    # `list_catalog()` (no cuentan para `dead_ratio`, que si no abortaría la pasada al cerrar la
+    # campaña: 33 de 95 es el 35 %).
+    #
+    # --- niña 6-14 ---
+    CategoryConfig(2439321, "niña", "", "", por_familia=True, estacional=True),  # 13-14 años
+    CategoryConfig(2439322, "niña", "", "", por_familia=True, estacional=True),  # 11-12 años
+    CategoryConfig(2439323, "niña", "", "", por_familia=True, estacional=True),  # 9-10 años
+    CategoryConfig(2439324, "niña", "", "", por_familia=True, estacional=True),  # 8-9 años
+    CategoryConfig(2439326, "niña", "", "", por_familia=True, estacional=True),  # 6-7 años
+    CategoryConfig(2645262, "niña", "", "", por_familia=True, estacional=True),  # zapatos | bolsos
+    # --- niño 6-14 ---
+    CategoryConfig(2440312, "niño", "", "", por_familia=True, estacional=True),  # 13-14 años
+    CategoryConfig(2440313, "niño", "", "", por_familia=True, estacional=True),  # 11-12 años
+    CategoryConfig(2440314, "niño", "", "", por_familia=True, estacional=True),  # 9-10 años
+    CategoryConfig(2440315, "niño", "", "", por_familia=True, estacional=True),  # 8-9 años
+    CategoryConfig(2440317, "niño", "", "", por_familia=True, estacional=True),  # 6-7 años
+    CategoryConfig(2645263, "niño", "", "", por_familia=True, estacional=True),  # zapatos | bolsos
+    # --- niña mini (1½-6) ---
+    CategoryConfig(2439312, "niña", "", "", por_familia=True, estacional=True),  # 6 años
+    CategoryConfig(2439313, "niña", "", "", por_familia=True, estacional=True),  # 5 años
+    CategoryConfig(2439314, "niña", "", "", por_familia=True, estacional=True),  # 4 años
+    CategoryConfig(2439315, "niña", "", "", por_familia=True, estacional=True),  # 3 años
+    CategoryConfig(2439316, "niña", "", "", por_familia=True, estacional=True),  # 2 años
+    CategoryConfig(2439317, "niña", "", "", por_familia=True, estacional=True),  # 1½ años
+    CategoryConfig(2645767, "niña", "", "", por_familia=True, estacional=True),  # zapatos | bolsos
+    # --- niño mini (1½-6) ---
+    CategoryConfig(2439812, "niño", "", "", por_familia=True, estacional=True),  # 6 años
+    CategoryConfig(2439813, "niño", "", "", por_familia=True, estacional=True),  # 5 años
+    CategoryConfig(2439814, "niño", "", "", por_familia=True, estacional=True),  # 4 años
+    CategoryConfig(2439815, "niño", "", "", por_familia=True, estacional=True),  # 3 años
+    CategoryConfig(2439816, "niño", "", "", por_familia=True, estacional=True),  # 2 años
+    CategoryConfig(2439817, "niño", "", "", por_familia=True, estacional=True),  # 1½ años
+    CategoryConfig(2645768, "niño", "", "", por_familia=True, estacional=True),  # zapatos | bolsos
+    # --- bebé 0-18 meses (unisex, como el bloque de bebé de arriba) ---
+    CategoryConfig(2439820, "unisex", "", "", por_familia=True, estacional=True),  # 12-18 meses
+    CategoryConfig(2439821, "unisex", "", "", por_familia=True, estacional=True),  # 9-12 meses
+    CategoryConfig(2439822, "unisex", "", "", por_familia=True, estacional=True),  # 6-9 meses
+    CategoryConfig(2439823, "unisex", "", "", por_familia=True, estacional=True),  # 3-6 meses
+    CategoryConfig(2439824, "unisex", "", "", por_familia=True, estacional=True),  # 1-3 meses
+    CategoryConfig(2439825, "unisex", "", "", por_familia=True, estacional=True),  # 0-1 meses
+    CategoryConfig(
+        2721427, "unisex", "", "", por_familia=True, estacional=True
+    ),  # zapatos | bolsos
 ]
 
 
@@ -357,7 +453,14 @@ def parse_listing_entries(listing: dict[str, Any], cat: CategoryConfig) -> list[
     Ojo a la disyuntiva de ese primer párrafo, que es la que #289 midió y resultó incompleta: hay
     una tercera población, la que **no entra por ninguna otra hoja y tampoco está fuera del brief**.
     Para esa existe `parse_listing_leftovers()`, que la recoge al final de la pasada.
+
+    Una hoja `por_familia` (#356) **no emite nada por aquí**, y el corte va en la función y no solo
+    en `list_catalog()` a propósito: su `section` y su `category` están vacías, así que emitir por
+    esta vía produciría entradas con el ámbito en blanco. Que la función pura no pueda fabricarlas
+    es más barato que acordarse de no llamarla.
     """
+    if cat.por_familia:
+        return []
     entries: list[ListingEntry] = []
     seen: set[str] = set()
     for node in _iter_product_nodes(listing):
@@ -388,10 +491,16 @@ def parse_listing_entries(listing: dict[str, Any], cat: CategoryConfig) -> list[
     return entries
 
 
-# La taxonomía de la tienda (`familyName`) traducida a nuestro vocabulario, SOLO para el residuo de
-# las hojas-lookbook que no reclama ninguna otra hoja (ver `parse_listing_leftovers`). No es un
-# mapeo general de Zara: es la lista corta de familias que #289 midió en ese residuo, y cada destino
-# repite una decisión que ya está tomada más arriba en este mismo fichero, no una nueva.
+# La taxonomía de la tienda (`familyName`) traducida a nuestro vocabulario, para las hojas cuya
+# categoría NO decide la hoja: el residuo de las hojas-lookbook (#289) y las hojas de saldo, que son
+# `por_familia` enteras (#356). Ver `parse_listing_leftovers`. No es un mapeo general de Zara: es la
+# lista de familias que esas dos mediciones encontraron, y cada destino repite una decisión que ya
+# está tomada más arriba en este mismo fichero, no una nueva.
+#
+# **Lleva la SECCIÓN además de la categoría desde #356**, y no es cosmético: hasta entonces la
+# sección la ponía la hoja y la tabla solo sabía emitir ropa. Las hojas de saldo publican calzado
+# (192 pares medidos el 16/08/2026), así que una tabla ropa-only los habría descartado en silencio
+# —que es justo el silencio que #289 vino a romper por el otro lado—.
 #
 # Medido el 13/08/2026 sobre las cuatro hojas con filtro: de los 73 productos que la pasada tiraba y
 # nadie más publicaba, 44 son prenda del brief y entran por aquí:
@@ -414,17 +523,114 @@ def parse_listing_entries(listing: dict[str, Any], cat: CategoryConfig) -> list[
 # Lo que NO está aquí se descarta. Es a propósito y es la mitad conservadora del arreglo: una
 # familia nueva de Zara no entra al catálogo por defecto, aparece como residuo sin reclamar y se
 # decide a mano, que es como se decidieron estas.
-_FAMILIA_RESIDUAL: dict[str, str] = {
-    "PANTALON": "pantalones",
-    "LEGGINGS": "pantalones",
-    "BERMUDA": "pantalones",
-    "JERSEY": "sudaderas",
-    "PELELE": "vestidos",
-    "FALDA": "vestidos",
-    "PETO": "vestidos",
-    "CAMISETA": "camisetas",
-    "BODY": "ropa-interior",
+#
+# **Las 16 de abajo del corte las añadió #356**, medidas el 16/08/2026 sobre las 33 hojas de saldo
+# (3330 productos, 1243 fuera del catálogo). Con las nueve de arriba solas se habrían quedado fuera
+# 334 prendas del brief —el 45 % de lo aprovechable— sin que nada lo dijera. Los destinos, uno a
+# uno:
+#
+#   CAMISA (27)          -> `camisetas`, que es lo que ya deciden las hojas `blusas | camisas`
+#                           (2426126) y `camisas | sobrecamisas` (2426636).
+#   VESTIDO (14)         -> `vestidos`, igual que `vestidos | monos` (2427560).
+#   CALCETIN (54)        -> `ropa-interior`. Las hojas mapeadas se llaman literalmente
+#   INTERIORES (35)         `ropa interior | calcetines` (2427530, 2428509): es la agrupación de la
+#   CAMISON/PIJAMA (3)      propia tienda, no una nuestra. El pijama entra por ahí desde siempre
+#   MEDIAS-PANTYS (3)       (2427367) y en C&A está declarado igual.
+#   CONJUNTO (1)         -> `conjuntos`, la categoría que #200 creó. Ojo: aquí NO hace falta el
+#   CHANDAL (3)             filtro `_SOLO_CONJUNTOS`, porque la señal es la familia y no el rótulo
+#                           de una hoja-lookbook — es la mitad de #200 que sí resultó fiable.
+#   ZAPATO (59)          -> `zapatos`, y BOTIN/BOTA a `botas`. `botas` y `sandalias` son slugs que
+#   BOTIN (8) BOTA (7)      estrenaron Lefties y Cacles; Zara los estrena ahora porque su propia
+#   SANDALIA (57)           taxonomía los nombra sin ambigüedad, que es la condición que
+#   BAMBAS (31)             `cacles.py` puso para no colapsarlos en `zapatos` (allí Sfera sigue
+#   DEPORTIVO (27)          colapsada porque *no* estaba comprobada; esto sí lo está).
+#   DEPORTIVO BOTIN (3)  -> `zapatillas`, las tres, igual que las hojas `zapatillas` de arriba.
+#
+# Y lo que se sigue descartando en la rama de saldo son 496 productos, casi todos fuera del brief
+# por los motivos que ya están escritos arriba: BOLSOS 141, GORRO 76, COMPLEMENTOS 67, EAU DE
+# TOILETTE 47, PRENDA EXT 44, CAZADORA 31, BISUTERIA 20, BANO 20…
+#
+# La rama de rebajas **no es una rama de ropa**: es el saldo de la tienda entera, con colonia,
+# maquillaje y toallas dentro. Por eso la mitad conservadora de la tabla importa aquí más que en el
+# residuo del lookbook.
+#
+# Y una que se queda fuera **a sabiendas**, aunque sea del brief por su nombre: `BRAGA/CALZONC` (3).
+# Aquí ya hay una decisión escrita y es la contraria — la hoja `BERMUDAS | BRAGUITAS` (2428071) va a
+# `pantalones` porque «la braguita de bebé es el cubrepañal que se lleva encima, no ropa interior»—,
+# y tres productos no son motivo para contradecirla desde una tabla auxiliar. Si algún día se quiere
+# cambiar, se cambia arriba y en los dos sitios a la vez.
+_FAMILIA_RESIDUAL: dict[str, tuple[str, str]] = {
+    # --- las nueve que midió #289 sobre el residuo de las hojas-lookbook ---
+    "PANTALON": ("ropa", "pantalones"),
+    "LEGGINGS": ("ropa", "pantalones"),
+    "BERMUDA": ("ropa", "pantalones"),
+    "JERSEY": ("ropa", "sudaderas"),
+    "PELELE": ("ropa", "vestidos"),
+    "FALDA": ("ropa", "vestidos"),
+    "PETO": ("ropa", "vestidos"),
+    "CAMISETA": ("ropa", "camisetas"),
+    "BODY": ("ropa", "ropa-interior"),
+    # --- las que midió #356 sobre las hojas de saldo ---
+    "CAMISA": ("ropa", "camisetas"),
+    "VESTIDO": ("ropa", "vestidos"),
+    "CALCETIN": ("ropa", "ropa-interior"),
+    "INTERIORES": ("ropa", "ropa-interior"),
+    "CAMISON/PIJAMA": ("ropa", "ropa-interior"),
+    "MEDIAS-PANTYS": ("ropa", "ropa-interior"),
+    "CONJUNTO": ("ropa", "conjuntos"),
+    "CHANDAL": ("ropa", "conjuntos"),
+    "ZAPATO": ("zapateria", "zapatos"),
+    "BOTIN": ("zapateria", "botas"),
+    "BOTA": ("zapateria", "botas"),
+    "SANDALIA": ("zapateria", "sandalias"),
+    "BAMBAS": ("zapateria", "zapatillas"),
+    "DEPORTIVO": ("zapateria", "zapatillas"),
+    "DEPORTIVO BOTIN": ("zapateria", "zapatillas"),
 }
+
+
+# Los ámbitos que la rama de saldo puede ESTRENAR, o sea los que ninguna hoja de `CATEGORIES`
+# declara para ese género. Existen porque el guardarraíl de `_dominios_emitibles()` es una
+# intersección contra `CATEGORIES`, y sin esta lista los mataría a los ocho.
+#
+# Que sea una lista escrita y no una consecuencia automática de la tabla es el punto: un ámbito que
+# la tienda no publica por su árbol es exactamente lo que NO se quiere inventar, y la diferencia
+# entre los ocho de aquí y `niño/ropa/vestidos` —que la tabla también produce, con 32 productos
+# medidos, y que se descarta— no la puede decidir el código. Medido el 16/08/2026:
+#
+#   niña/zapateria/sandalias    44        unisex/zapateria/sandalias     8
+#   niña/zapateria/botas        14        unisex/zapateria/botas         1
+#   niño/zapateria/sandalias    30        unisex/zapateria/zapatillas   12
+#   niño/zapateria/botas         3
+#
+# `niño/ropa/vestidos` NO está y no debe estar: en esta tienda `vestidos` solo existe para niña y
+# unisex, y los 32 productos son PELELE y PETO de la rama de niño, que la tabla manda a `vestidos`
+# por coherencia interna (ver arriba). Es el caso que `lefties.dominios_emitibles` predijo en prosa
+# y que aquí ha aparecido de verdad: la prenda perdida sale más barata que un ámbito que ningún
+# filtro de la web sabe enseñar.
+_DOMINIOS_DE_SALDO: dict[str, frozenset[tuple[str, str]]] = {
+    "niña": frozenset({("zapateria", "sandalias"), ("zapateria", "botas")}),
+    "niño": frozenset({("zapateria", "sandalias"), ("zapateria", "botas")}),
+    "unisex": frozenset(
+        {("zapateria", "sandalias"), ("zapateria", "botas"), ("zapateria", "zapatillas")}
+    ),
+}
+
+
+def _dominios_emitibles(gender: str, categorias: Iterable[CategoryConfig]) -> set[tuple[str, str]]:
+    """Lo que una hoja `por_familia` puede emitir para ese género.
+
+    Es la tabla acotada a lo que la tienda publica: los ámbitos que ya declaran sus hojas de
+    categoría, más los que la rama de saldo estrena a propósito (`_DOMINIOS_DE_SALDO`).
+
+    Se deriva de `CATEGORIES` en vez de escribirse entera para que no haya dos verdades —si algún
+    día `vestidos` llega a niño por su hoja propia, esto se entera solo—, y el añadido va aparte
+    justamente porque **no** se puede derivar: son ámbitos que ninguna hoja publica.
+    """
+    del_genero = {
+        (c.section, c.category) for c in categorias if c.gender == gender and not c.por_familia
+    }
+    return del_genero | set(_DOMINIOS_DE_SALDO.get(gender, frozenset()))
 
 
 # Los rangos de edad que Zara sufija a la familia sin cambiarla. Medido el 14/08/2026 pidiendo las
@@ -487,7 +693,13 @@ def parse_listing_leftovers(
     cat: CategoryConfig,
     declarados: Collection[ScrapeScope],
 ) -> list[ListingEntry]:
-    """El residuo de una hoja-lookbook que SÍ es prenda del brief, para rescatarlo si nadie lo pide.
+    """Lo que una hoja NO categorizada aporta y nadie más publica, con la categoría sacada de la
+    familia de la tienda.
+
+    Sirve a las dos clases de hoja que no deciden su categoría: el **residuo** de las
+    hojas-lookbook, que es lo que su filtro descarta (#289), y las hojas **`por_familia`** enteras,
+    que son las de saldo (#356). La diferencia es solo cuánto de la hoja entra por aquí; el
+    mecanismo es el mismo.
 
     Lo emite `list_catalog()` **al final de la pasada** y solo para los ids que ninguna hoja haya
     reclamado ya. Esa demora es la clave de que el arreglo no pueda re-etiquetar nada: un producto
@@ -495,25 +707,37 @@ def parse_listing_leftovers(
     categoría y su género de siempre. Lo único que cambia es que deja de perderse lo que no tenía
     ninguna otra puerta.
 
+    Para las hojas de saldo esa demora es además lo que hace barata la decisión de orden: van las
+    últimas del fichero, y como aquí solo pasa lo no reclamado, un producto rebajado que la tienda
+    también publica en su hoja de prenda conserva su categoría real. Medido el 16/08/2026: de los
+    3330 productos de la rama de saldo, 2087 (62,7 %) ya entraban por otra hoja y **ninguno cambia
+    de ámbito** por esto.
+
     Por qué hacía falta (#289): las hojas de conjunto van DELANTE y lo que su filtro descarta se
     tiraba con el argumento de que «ya entra por su propia hoja o está fuera del brief». Medido el
     13/08/2026, eso es falso para 44 prendas: Zara solo las publica bajo `CHÁNDAL`/`CONJUNTOS`, así
     que la pasada las descartaba en cada vuelta, no volvían a verse y se quedaban en el catálogo con
     `last_seen_at` congelado, vivas y sin que nadie las reclamara — el síntoma que abrió la issue.
 
-    La categoría la decide la **familia** de la tienda (`_FAMILIA_RESIDUAL`) y no el título, que es
-    lo que ya hacen las hojas: `punto | crochet` es `sudaderas` mande lo que mande el nombre de cada
-    prenda. La familia que no esté en la tabla se sigue descartando.
+    La sección y la categoría las decide la **familia** de la tienda (`_FAMILIA_RESIDUAL`) y no el
+    título, que es lo que ya hacen las hojas: `punto | crochet` es `sudaderas` mande lo que mande el
+    nombre de cada prenda. La familia que no esté en la tabla se sigue descartando.
+
+    **La sección sale de la tabla y no de la hoja** desde #356, porque las de saldo mezclan ropa y
+    calzado y la hoja no puede decidir por las dos. Para una hoja-lookbook eso no cambia nada
+    medible —las cuatro son `ropa` y las familias que su residuo trae también—, pero deja de ser
+    verdad por casualidad.
 
     `declarados` son los ámbitos que la tienda recorre (`scopes()`), y filtrar por ellos **no es
     una comprobación de más**: la familia decide la categoría y la hoja decide el género, así que
     juntas pueden fabricar una pareja que `CATEGORIES` no declara. El caso concreto es `PETO` en
-    una hoja-lookbook de niño, que daría `niño/ropa/vestidos` — y en Zara `vestidos` solo existe
-    para niña y unisex. Y un ámbito que `scopes()` no devuelve **nunca entra en `safe_scopes`**
+    una hoja de niño, que daría `niño/ropa/vestidos` — y en Zara `vestidos` solo existe para niña y
+    unisex. Dejó de ser hipotético con las hojas de saldo: son 32 productos medidos el 16/08/2026, y
+    se descartan. Y un ámbito que `scopes()` no devuelve **nunca entra en `safe_scopes`**
     (`ingest.py`), o sea que un producto ahí no se podría dar de baja jamás, ni desapareciendo de
     la tienda. Lo que no case se descarta, que es como estaba antes de este arreglo.
     """
-    if cat.filtro is None:
+    if cat.filtro is None and not cat.por_familia:
         return []
     permitidos = {(s.gender, s.section, s.category) for s in declarados}
     entries: list[ListingEntry] = []
@@ -523,17 +747,20 @@ def parse_listing_leftovers(
         if pid in seen:
             continue
         seen.add(pid)
-        if cat.filtro.acepta(str(node.get("familyName") or ""), str(node.get("name") or "")):
+        if cat.filtro is not None and cat.filtro.acepta(
+            str(node.get("familyName") or ""), str(node.get("name") or "")
+        ):
             continue  # es conjunto: ya lo emitió `parse_listing_entries`
-        categoria = _FAMILIA_RESIDUAL.get(_familia_base(node.get("familyName")))
-        if categoria is None or (cat.gender, cat.section, categoria) not in permitidos:
+        dominio = _FAMILIA_RESIDUAL.get(_familia_base(node.get("familyName")))
+        if dominio is None or (cat.gender, *dominio) not in permitidos:
             continue
+        seccion, categoria = dominio
         entries.append(
             ListingEntry(
                 retailer_product_id=pid,
                 signature=_listing_signature(node),
                 gender=cat.gender,
-                section=cat.section,
+                section=seccion,
                 category=categoria,
             )
         )
@@ -721,12 +948,46 @@ class ZaraStore:
         self._rutas: list[str] | None = None  # árbol cacheado; ver `_cadenas()`
 
     def scopes(self) -> Iterable[ScrapeScope]:
-        # Ámbitos que se recorren, deducidos de las categorías configuradas (sin duplicar).
+        """Ámbitos que se recorren, deducidos de las categorías configuradas (sin duplicar).
+
+        Una hoja `por_familia` no tiene un ámbito: tiene **todos los que su tabla puede emitir**
+        (`_dominios_emitibles`), y hay que declararlos los dos sentidos. Sin declararlos, sus
+        productos nunca podrían darse de baja —un ámbito que no se declara no cuenta como escaneado
+        y no entra en `safe_scopes` (`ingest.py`)—, y además `parse_listing_leftovers` los
+        descartaría al no encontrarlos en `declarados`. Es lo mismo que hacen `lefties.py` y
+        `cacles.py`: declarar lo que el parser PUEDE emitir, no lo que dicen los rótulos.
+
+        Lo que protege de que esto abra la puerta a bajas masivas cuando acabe la campaña son las
+        redes que ya existen, no algo nuevo — pero **no todas cubren a todos**, y conviene saber
+        cuáles no:
+
+        - Una hoja que devuelve 404 saca su ámbito de las bajas (`ScanReport.leaf_gone`)… salvo las
+          `estacional`, que ni se cuentan (ver `list_catalog`). O sea que esta red **no** es la que
+          las cubre.
+        - `delist_drop_ratio` frena un ámbito que se vacía de golpe, pero `_suspicious_scopes`
+          (`ingest.py`) solo lo evalúa con `base >= delist_min_baseline`, que por defecto son **5**
+          activos previos. Medido el 16/08/2026, dos de los ámbitos que estrena el saldo quedan por
+          debajo: `niño/zapateria/botas` (3) y `unisex/zapateria/botas` (1). Y son ámbitos que
+          **solo** alimenta esta rama, o sea que al apagarse la campaña pasan a 0 sin que esa red
+          los mire.
+        - Lo que sí los cubre es lo de siempre y por producto: la histéresis
+          (`delist_min_misses`) y la confirmación activa (`probe_alive`), que pregunta a la tienda
+          por cada id antes de darlo de baja. Son cuatro productos y el sondeo los alcanza de
+          sobra dentro de `delist_probe_max`.
+
+        Se deja escrito porque la conclusión cómoda —«ya lo frena el drop_ratio»— es falsa justo
+        para los ámbitos más pequeños, que son los que estrena este cambio.
+        """
         seen: list[ScrapeScope] = []
         for cat in self._categories:
-            scope = ScrapeScope(cat.gender, cat.section, cat.category)
-            if scope not in seen:
-                seen.append(scope)
+            if cat.por_familia:
+                emitibles = _dominios_emitibles(cat.gender, self._categories)
+                nuevos = [ScrapeScope(cat.gender, s, c) for s, c in sorted(emitibles)]
+            else:
+                nuevos = [ScrapeScope(cat.gender, cat.section, cat.category)]
+            for scope in nuevos:
+                if scope not in seen:
+                    seen.append(scope)
         return seen
 
     def _client(self) -> httpx.Client:
@@ -771,15 +1032,19 @@ class ZaraStore:
     def list_catalog(self) -> Iterable[ListingEntry]:
         self._scan = ScanReport()
         emitted: set[str] = set()  # dedup entre categorías dentro de la misma ejecución
-        # Residuo de las hojas-lookbook, que se emite al final y solo si nadie lo ha reclamado
-        # (#289). Va aparte y no en el bucle porque las hojas de conjunto van DELANTE: en el
+        # Lo que aportan las hojas que no deciden su categoría —el residuo de las hojas-lookbook
+        # (#289) y las hojas de saldo enteras (#356)—, que se emite al final y solo si nadie lo ha
+        # reclamado. Va aparte y no en el bucle porque las hojas de conjunto van DELANTE: en el
         # momento de leerlas todavía no se sabe si su pantalón entrará por la hoja de pantalones.
+        # Y las de saldo van DETRÁS de todo, así que por el otro extremo pasa lo mismo: son 2087
+        # productos ya reclamados de 3330, y ninguno debe cambiar de ámbito por aparecer rebajado.
         # Lleva la hoja de la que salió cada sobrante, y no es decorativo: lo que hay que publicar
         # (#358) es cuánto aporta CADA hoja, y eso solo se sabe después del cruce contra `emitted`,
         # cuando `cat` ya no está a la vista. Sin el par, el contador solo podría dar un total.
         sobrantes: list[tuple[str, ListingEntry]] = []
-        # Hoja con filtro -> entradas que su residuo acaba aportando (#358). Se rellena a cero en
-        # cuanto la hoja se lista y se incrementa abajo, ya con `emitted` completo.
+        # Hoja con filtro o `por_familia` -> entradas que acaba aportando (#358). Se rellena a cero
+        # en cuanto la hoja se lista y se incrementa abajo, ya con `emitted` completo. En las de
+        # saldo es el contador que dice si la rama sigue mereciendo sus 33 peticiones.
         residuo_por_hoja: dict[str, int] = {}
         declarados = list(self.scopes())
         with self._client() as client:
@@ -790,9 +1055,42 @@ class ZaraStore:
                 except httpx.HTTPStatusError as exc:
                     if exc.response.status_code not in GONE_STATUS:
                         raise  # bloqueo o fallo del servidor: no es una hoja retirada
+                    # Una hoja de campaña apagada **no compromete nada** (#356), y contarla como
+                    # caída haría dos daños justo al acabar cada campaña: las 33 de saldo se
+                    # apagarían a la vez y `dead_ratio` (33/95 = 0,35) pasaría de
+                    # `SCRAPER_SCAN_MAX_DEAD_RATIO`, abortando la pasada de una tienda sana; y
+                    # sacaría de las bajas ámbitos que sus 62 hojas de siempre han listado
+                    # perfectamente. Es la misma decisión que ya tomaron `mango.py` (#176) y
+                    # `lefties.py` (#195), con su mismo argumento para lo que SOLO vivía en la
+                    # hoja apagada: no se descataloga por sorpresa, pasa por la confirmación
+                    # activa (`probe_alive`), que es quien decide si el producto sigue existiendo.
+                    if cat.estacional:
+                        # Pero que no cuente NO puede querer decir que no deje rastro. Una hoja
+                        # normal caída tiene el suyo —`failed_leaves`, `dead_ratio`, y de ahí a
+                        # `scrape_run.message`—; esta se los salta todos a propósito, así que sin
+                        # esta línea una hoja de saldo **rota de verdad** (un id que cambia en vez
+                        # de apagarse con la campaña) sería invisible para siempre, y son 33.
+                        # Sembrarla con 0 la deja en `residual_by_leaf`, que es donde se mira
+                        # cuánto aporta cada una: el cero es el dato. Ojo a que esto va AQUÍ y no
+                        # antes del `try` — subirlo sembraría también las hojas caídas normales, y
+                        # eso lo prohíbe el test `..._caida_no_se_siembra_en_el_residuo`
+                        # con su motivo (#358): mandarían a mirar `_FAMILIA_RESIDUAL` en vez del
+                        # árbol de categorías, diluyendo la única señal que aquella issue añadió.
+                        residuo_por_hoja.setdefault(str(cat.category_id), 0)
+                        logger.info(
+                            "%s: la hoja de campaña %s devolvió %s; se ignora (apagada, no "
+                            "retirada)",
+                            SLUG,
+                            cat.category_id,
+                            exc.response.status_code,
+                        )
+                        continue
                     self._scan.leaf_gone(scope, str(cat.category_id))
                     continue
                 self._scan.leaf_ok()
+                # Una hoja `por_familia` devuelve [] aquí (ver la función): no tiene categoría que
+                # dar, así que va ENTERA por el camino del residuo, que es el que sabe sacarla de la
+                # familia y el que la emite al final, cuando ya no puede re-etiquetar a nadie.
                 entradas = parse_listing_entries(listing, cat)
                 # La hoja respondió pero su filtro no casó con nada: puede ser que la tienda haya
                 # cambiado la rotulación, y entonces callarse descatalogaría todo lo que había.
@@ -800,7 +1098,7 @@ class ZaraStore:
                 if cat.filtro is not None and not entradas:
                     self._scan.filtro_vacio(scope, str(cat.category_id))
                 hoja = str(cat.category_id)
-                if cat.filtro is not None:
+                if cat.filtro is not None or cat.por_familia:
                     # Se apunta la hoja ANTES de saber si aporta algo. Si solo se apuntaran las que
                     # aportan, una hoja cuyo residuo se ha ido a cero desaparecería del informe en
                     # vez de salir marcada — justo el silencio que #358 viene a romper.
@@ -894,6 +1192,12 @@ class ZaraStore:
         categorías con la campaña) y darla por muerta produciría el falso positivo semanal que el
         vigía existe para no dar. Lo que cambia es que el número viaja en el detalle, que es lo que
         se lee cuando se va a mirar. Sfera ya lo publicaba así.
+
+        Las 33 hojas de saldo salen marcadas `estacional` (#356). No es un veredicto distinto —una
+        hoja de campaña apagada está retirada de verdad, y mientras lo esté no se ingiere lo que
+        hubiera dentro— sino la diferencia entre un aviso y un accionable: sin la marca, cada fin
+        de campaña el vigía abriría una issue pidiendo 33 ids nuevos que van a volver solos. Ver
+        `LeafHealth.estacional`, que lo estrenaron Mango (#176) y Lefties (#195).
         """
         with self._client() as client:
             for cat in self._categories:
@@ -904,14 +1208,24 @@ class ZaraStore:
                 except httpx.HTTPStatusError as exc:
                     status = exc.response.status_code
                     alive = False if status in GONE_STATUS else None
-                    yield LeafHealth(scope, leaf, alive, f"HTTP {status}")
+                    yield LeafHealth(
+                        scope, leaf, alive, f"HTTP {status}", estacional=cat.estacional
+                    )
                 except (httpx.TransportError, ValueError) as exc:
-                    yield LeafHealth(scope, leaf, None, type(exc).__name__)
+                    yield LeafHealth(
+                        scope, leaf, None, type(exc).__name__, estacional=cat.estacional
+                    )
                 else:
                     cuantos = len(
                         {str(n["seo"]["discernProductId"]) for n in _iter_product_nodes(listing)}
                     )
-                    yield LeafHealth(scope, leaf, True, f"HTTP 200, {cuantos} productos")
+                    yield LeafHealth(
+                        scope,
+                        leaf,
+                        True,
+                        f"HTTP 200, {cuantos} productos",
+                        estacional=cat.estacional,
+                    )
 
     def _probe_one(self, client: httpx.Client, product_id: str) -> ProbeVerdict | None:
         """El veredicto del sondeo, o `None` si la tienda no da una respuesta utilizable.
