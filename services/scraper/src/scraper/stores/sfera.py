@@ -35,6 +35,13 @@ producto sigue comprable si lo lista en `data.ADD`; y si no, la PDP resuelve la 
 Sfera enruta por id y devuelve **404** para un id que ya no existe (el slug de la URL da igual:
 redirige al canónico). Un producto agotado pero vivo sale de `ADD` y su PDP responde 200.
 
+Ese último caso es `ProbeVerdict.UNBUYABLE` desde #426, no `ALIVE`: las dos señales se CRUZAN en
+vez de que la segunda anule a la primera. Antes, un agotado con ficha viva se rescataba y se
+quedaba en el catálogo indefinidamente con su último precio rebajado. Y el matiz que hace que esto
+sea correcto y no una fuente de ruido: `data.ADD` se lee en TRES estados (`stock_verdict()`), así
+que «la tienda dice que no queda» y «la tienda no ha contestado» no se confunden — solo el primero
+emite `UNBUYABLE`.
+
 **Una ruta de categoría que no existe NO da 404**: Sfera devuelve 200 con el catálogo del
 *padre* (`ninos/nina/loquesea` -> las 30 páginas de `ninos/nina`). Como las dos redes de
 seguridad para hojas muertas se apoyan en el 404 (`GONE_STATUS`), aquí hay que detectarlo por
@@ -635,17 +642,29 @@ def parse_products(products: list[dict[str, Any]], cat: CategoryConfig) -> list[
     return out
 
 
-def stock_lists_available(payload: dict[str, Any], product_id: str) -> bool:
-    """¿El endpoint de stock declara el producto comprable ahora mismo (`data.ADD`)?
+def stock_verdict(payload: Any, product_id: str) -> bool | None:
+    """¿El stock declara el producto comprable? `True` sí, `False` no, `None` no lo dice.
 
-    Es una prueba POSITIVA: si está en `ADD`, sigue a la venta. Lo contrario no prueba nada,
-    porque un producto agotado pero vivo también sale de `ADD` (`status: not_available`).
+    Sustituye a `stock_lists_available()`, que devolvía un `bool` y por tanto **colapsaba dos cosas
+    distintas en el mismo `False`**: «la tienda contesta que no queda nada» y «la petición se cayó
+    o el JSON vino con otra forma». Mientras el único uso era confirmar vida daba igual —las dos
+    llevaban a mirar la PDP—, pero desde #426 ese `False` decide si se emite `UNBUYABLE`, y sobre
+    la señal vieja eso convertiría un fallo de red en un «agotado». Ese veredicto alimenta
+    contadores y, desde #427, una alarma: inflarlo con fallos nuestros es exactamente cómo se
+    construye una alarma que nadie puede creerse.
+
+    `None` es la respuesta honesta a «no lo sé», y quien llama decide qué hacer con ella. En
+    `_probe_one` lo que se hace es seguir dando el producto por vivo, que es lo conservador.
     """
+    if not isinstance(payload, dict):
+        return None
     data = payload.get("data")
     if not isinstance(data, dict):
-        return False
+        return None
     add = data.get("ADD")
-    return isinstance(add, list) and product_id in add
+    if not isinstance(add, list):
+        return None
+    return product_id in add
 
 
 def product_signature(product: ScrapedProduct) -> str:
@@ -979,15 +998,29 @@ class SferaStore:
             return BASE_URL
         return _SEED_URL.format(category_path=self._categories[0].category_path)
 
-    def _probe_one(self, session: BrowserSession, candidate: DelistCandidate) -> bool | None:
-        """¿Sigue a la venta? True/False; None si no hay respuesta utilizable."""
+    def _probe_one(
+        self, session: BrowserSession, candidate: DelistCandidate
+    ) -> ProbeVerdict | None:
+        """El veredicto del sondeo, o `None` si no hay respuesta utilizable.
+
+        Cruza las DOS señales, que es lo que #426 vino a arreglar: hasta él, un producto agotado
+        con la ficha viva salía `ALIVE` y `_rescue()` le ponía la racha a cero, así que se quedaba
+        en el catálogo indefinidamente con su último precio rebajado y sin una talla que comprar.
+        El CLAUDE.md presentaba a Sfera como la referencia de «dos señales», y era verdad que usaba
+        dos — pero ninguna de las dos era stock cuando la primera no confirmaba.
+
+        Ojo al orden de las guardas: `UNBUYABLE` solo se emite cuando el endpoint de stock ha
+        CONTESTADO que no queda nada (`stock_verdict()` devuelve `False`). Si no contestó, el
+        producto se sigue dando por vivo — un fallo de red no puede disfrazarse de agotado.
+        """
         pid = candidate.retailer_product_id
+        stock: bool | None = None
         try:
-            payload = session.get_json(_STOCK_URL.format(product_id=pid))
-            if isinstance(payload, dict) and stock_lists_available(payload, pid):
-                return True  # comprable: vivo seguro, y sin gastar una navegación
+            stock = stock_verdict(session.get_json(_STOCK_URL.format(product_id=pid)), pid)
         except Exception:
-            pass  # sin atajo: lo resuelve la PDP
+            stock = None  # sin atajo: lo resuelve la PDP
+        if stock is True:
+            return ProbeVerdict.ALIVE  # comprable: vivo seguro, y sin gastar una navegación
 
         # Agotado y retirado se parecen en el stock, pero no en la PDP: el id retirado da 404.
         if not candidate.url:
@@ -1003,10 +1036,14 @@ class SferaStore:
         except Exception:  # timeout / error de red: no es prueba de nada
             return None
         if status in (404, 410):
-            return False
-        # 200 = la ficha existe (aunque esté agotada). Otros códigos (403 de Akamai, 5xx)
-        # son problema nuestro, no del producto: sin veredicto.
-        return True if status == 200 else None
+            return ProbeVerdict.DEAD
+        # Otros códigos (403 de Akamai, 5xx) son problema nuestro, no del producto: sin veredicto.
+        if status != 200:
+            return None
+        # 200 = la ficha existe. Que se pueda COMPRAR ya lo contestó (o no) el endpoint de stock:
+        # con un `False` explícito es `UNBUYABLE`; sin respuesta suya, `ALIVE` como hasta ahora.
+        # `UNBUYABLE` no rescata ni da de baja — que no quede stock hoy no prueba una retirada.
+        return ProbeVerdict.UNBUYABLE if stock is False else ProbeVerdict.ALIVE
 
     def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:
         """Confirmación activa (ver `stores.base.SupportsAliveProbe`)."""
@@ -1019,7 +1056,5 @@ class SferaStore:
             for candidate in pending:
                 verdict = self._probe_one(session, candidate)
                 if verdict is not None:  # sin veredicto -> se omite del mapa
-                    verdicts[candidate.retailer_product_id] = (
-                        ProbeVerdict.ALIVE if verdict else ProbeVerdict.DEAD
-                    )
+                    verdicts[candidate.retailer_product_id] = verdict
         return verdicts

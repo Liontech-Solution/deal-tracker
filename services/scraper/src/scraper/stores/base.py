@@ -473,6 +473,26 @@ class SupportsAliveProbe(Protocol):
 
         Una tienda que no sepa distinguir el stock no emite `UNBUYABLE`: el criterio se aplica
         donde está medido, tienda a tienda, y no se generaliza a ojo.
+
+        **Quién lo emite hoy, y por qué las demás no** (#197 y #426). Medido en `deal_tracker_qa`
+        el 16/08/2026, contando productos vivos sin ninguna talla comprable y, entre ellos, los que
+        además ya son candidatos a baja — que es la población a la que esto le cambia algo:
+
+        | tienda | sin talla comprable | y candidatos | emite | por qué |
+        |---|---:|---:|---|---|
+        | zara | 248 | 13 | **sí** | el sondeo ya baja `availability` por talla: gratis |
+        | lefties | 0 | 0 | **sí** | de #197, donde se midió la cohorte de 33 |
+        | sfera | 2 | 0 | **sí** | su stock ya contestaba; su test afirmaba lo contrario |
+        | mango | 35 | 7 | no | su sondeo es un 308/404 a secas, **sin dato de stock** |
+        | springfield | 29 | 0 | no | población candidata nula |
+        | hipercor | 14 | 0 | no | población candidata nula |
+        | cacles | 16 | 0 | no | población candidata nula |
+        | hm, c-and-a | 0 | 0 | no | no hay fenómeno que medir |
+
+        Mango es la única que queda fuera **teniendo** población: emitirlo allí obliga a pedir y
+        parsear la ficha por candidato, o sea peticiones nuevas contra una tienda que ya gasta 50
+        sondeos por pasada. Eso es diseño propio con su medición, no una rama de un `if`, y no
+        entra por la puerta de atrás de otra issue.
         """
         ...
 

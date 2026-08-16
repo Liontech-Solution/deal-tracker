@@ -12,7 +12,7 @@ import httpx
 import pytest
 
 from scraper.config import Config
-from scraper.stores.base import ScrapeScope
+from scraper.stores.base import ProbeVerdict, ScrapeScope
 from scraper.stores.zara import _SOLO_CONJUNTOS, CategoryConfig, ZaraStore
 
 # Sin esperas reales: delay y backoff a 0 -> el test es instantáneo.
@@ -61,20 +61,70 @@ def _probe_store(handler: Any) -> tuple[ZaraStore, httpx.Client]:
     return ZaraStore(_CFG), httpx.Client(transport=httpx.MockTransport(handler))
 
 
-def test_sondeo_lista_con_producto_es_vivo() -> None:
-    store, client = _probe_store(lambda _r: httpx.Response(200, json=[{"seo": {"id": 1}}]))
-    assert store._probe_one(client, "123") is True
+def _ficha(*disponibilidades: str) -> list[dict[str, Any]]:
+    """Una entrada de `products-details` con una talla por disponibilidad dada.
+
+    La forma es la misma que consume `parse_detail_product`, que es justo el punto: el sondeo lee
+    `availability` del mismo sitio del que el catálogo saca `in_stock` (#426).
+    """
+    return [
+        {
+            "seo": {"id": 1},
+            "detail": {
+                "colors": [
+                    {
+                        "id": "800",
+                        "sizes": [
+                            {"id": i, "availability": a} for i, a in enumerate(disponibilidades)
+                        ],
+                    }
+                ]
+            },
+        }
+    ]
+
+
+def test_sondeo_lista_con_producto_comprable_es_vivo() -> None:
+    store, client = _probe_store(lambda _r: httpx.Response(200, json=_ficha("in_stock")))
+    assert store._probe_one(client, "123") is ProbeVerdict.ALIVE
+
+
+def test_sondeo_producto_sin_ninguna_talla_comprable_es_unbuyable() -> None:
+    """#426: Zara reconoce el id pero no queda nada que comprar. NO es una baja.
+
+    Es la tienda con más población del fenómeno (248 vivos sin talla comprable en QA el
+    16/08/2026, 13 ya candidatos a baja), y hasta aquí todos salían `ALIVE` — con `_rescue()`
+    poniéndoles la racha a cero y dejándolos en el catálogo con su último precio rebajado.
+
+    Sale gratis en peticiones: esta respuesta es la que el sondeo ya se descargaba.
+    """
+    store, client = _probe_store(
+        lambda _r: httpx.Response(200, json=_ficha("out_of_stock", "coming_soon"))
+    )
+    assert store._probe_one(client, "123") is ProbeVerdict.UNBUYABLE
+
+
+def test_sondeo_basta_UNA_talla_comprable_para_seguir_vivo() -> None:
+    """El umbral es «alguna», no «todas»: un producto casi agotado se compra igual."""
+    store, client = _probe_store(
+        lambda _r: httpx.Response(200, json=_ficha("out_of_stock", "in_stock", "out_of_stock"))
+    )
+    assert store._probe_one(client, "123") is ProbeVerdict.ALIVE
 
 
 def test_sondeo_lista_vacia_es_retirado() -> None:
-    """Zara responde 200 con [] cuando ya no conoce el id: es el veredicto que buscamos."""
+    """Zara responde 200 con [] cuando ya no conoce el id: es el veredicto que buscamos.
+
+    Ojo a la diferencia con el test de `UNBUYABLE`: aquí la tienda **no conoce** el id, y eso sí es
+    una retirada. Confundir las dos es lo que #426 vino a separar.
+    """
     store, client = _probe_store(lambda _r: httpx.Response(200, json=[]))
-    assert store._probe_one(client, "123") is False
+    assert store._probe_one(client, "123") is ProbeVerdict.DEAD
 
 
 def test_sondeo_404_es_retirado() -> None:
     store, client = _probe_store(lambda _r: httpx.Response(404, text="nope"))
-    assert store._probe_one(client, "123") is False
+    assert store._probe_one(client, "123") is ProbeVerdict.DEAD
 
 
 def test_sondeo_5xx_agotado_no_da_veredicto() -> None:
@@ -85,6 +135,24 @@ def test_sondeo_5xx_agotado_no_da_veredicto() -> None:
 
 def test_sondeo_respuesta_inesperada_no_da_veredicto() -> None:
     store, client = _probe_store(lambda _r: httpx.Response(200, json={"no": "es una lista"}))
+    assert store._probe_one(client, "123") is None
+
+
+def test_una_ficha_que_no_habla_de_stock_no_acusa_de_agotado() -> None:
+    """La regresión que separa «no queda nada» de «no sé leer esto» (#426).
+
+    Es el escenario que hay que cazar: si Zara renombrara `availability`, la versión de dos estados
+    daría `UNBUYABLE` para TODOS los candidatos — y ése es el único veredicto que **no** suma en
+    `errors`, así que el mecanismo se apagaría sin que saltara nada. Como `unresolved`, sí se ve.
+    """
+    sin_stock_declarado = [{"seo": {"id": 1}, "detail": {"colors": [{"sizes": [{"id": 1}]}]}}]
+    store, client = _probe_store(lambda _r: httpx.Response(200, json=sin_stock_declarado))
+    assert store._probe_one(client, "123") is None
+
+
+def test_una_entrada_sin_bloque_de_detalle_tampoco_acusa() -> None:
+    """El mismo criterio por la otra vía: la entrada llega pero sin `detail`."""
+    store, client = _probe_store(lambda _r: httpx.Response(200, json=[{"seo": {"id": 1}}]))
     assert store._probe_one(client, "123") is None
 
 

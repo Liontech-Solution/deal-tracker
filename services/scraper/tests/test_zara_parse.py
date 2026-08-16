@@ -17,6 +17,7 @@ from scraper.stores.zara import (
     CategoryConfig,
     ZaraStore,
     _familia_base,
+    _comprabilidad,
     parse_category_tree,
     parse_detail_product,
     parse_listing_entries,
@@ -288,6 +289,39 @@ def test_parse_detail_product_construye_producto_con_variantes() -> None:
     assert v.size is not None
     assert v.sku is not None
     assert isinstance(v.in_stock, bool)
+
+
+def test_la_comprabilidad_del_sondeo_sale_del_MISMO_sitio_que_el_stock_del_catalogo() -> None:
+    """#426, contra el fixture real: el sondeo y el catálogo no pueden discrepar sobre el stock.
+
+    `_comprabilidad()` es lo que decide `ALIVE` frente a `UNBUYABLE` en `probe_alive()`, y
+    `ScrapedVariant.in_stock` es lo que el catálogo enseña. Los dos leen `availability`, así que lo
+    que este test fija es que **coincidan sobre un payload de verdad** — si algún día Zara le
+    cambia el nombre al campo, lo que no puede pasar es que uno diga que hay stock y el otro que no.
+
+    El fixture trae 10 tallas `in_stock` y una `coming_soon`, o sea que además cubre que un valor
+    que NO es `in_stock` exista de verdad en la respuesta de la tienda y no sea una invención mía.
+    """
+    details = load_fixture("zara_products_details_545453620.json")
+    product = parse_detail_product(details[0], **_DOMAIN)
+
+    assert product is not None
+    assert _comprabilidad(details) is any(v.in_stock for v in product.variants)
+    assert _comprabilidad(details) is True  # este producto sí tiene stock
+
+
+def test_sin_ninguna_talla_in_stock_el_sondeo_lo_ve_incomprable() -> None:
+    """El otro lado del anterior, sobre el mismo payload real con las tallas agotadas.
+
+    Se degrada el fixture en vez de escribir uno a mano: así lo que se prueba es la forma que Zara
+    publica de verdad, no la que yo creo que publica.
+    """
+    details = load_fixture("zara_products_details_545453620.json")
+    for color in details[0]["detail"]["colors"]:
+        for size in color["sizes"]:
+            size["availability"] = "out_of_stock"
+
+    assert _comprabilidad(details) is False
 
 
 def test_parse_detail_product_extrae_foto_primaria() -> None:

@@ -86,8 +86,38 @@ def test_stock_comprable_confirma_vivo_sin_visitar_la_ficha() -> None:
 
 
 def test_agotado_pero_con_ficha_viva_no_es_baja() -> None:
-    """Fuera de `ADD` puede ser solo "sin stock": la PDP responde 200 y se salva."""
+    """Fuera de `ADD` con la PDP a 200: existe pero no se puede comprar. Sigue SIN ser baja.
+
+    Este test afirmaba `ALIVE` hasta #426, y ese `ALIVE` era el fallo: disparaba `_rescue()`, que
+    pone la racha a cero, así que el producto se quedaba en el catálogo indefinidamente con su
+    último precio rebajado y sin una talla que comprar. Es el escenario de #197 en otra tienda.
+
+    Lo que NO cambia, y por eso el nombre del test sigue valiendo: `UNBUYABLE` tampoco da de baja.
+    Que hoy no quede stock no prueba que la prenda se haya retirado.
+    """
     session = FakeSession(stock={"A1": _stock([])}, statuses={})
+    store = _store(session)
+
+    assert store.probe_alive([_candidate("A1")]) == {"A1": ProbeVerdict.UNBUYABLE}
+
+
+def test_si_el_stock_no_contesta_no_se_acusa_de_agotado() -> None:
+    """La regresión que protege el arreglo de arriba, y la trampa de #426.
+
+    La señal vieja (`stock_lists_available()`) devolvía `False` tanto para «la tienda dice» como
+    «la petición se cayó». Emitir `UNBUYABLE` sobre esa señal convertiría un fallo de red en un
+    agotado — y ese veredicto alimenta contadores y, desde #427, una alarma. Con el stock mudo y la
+    ficha viva, el veredicto conservador es `ALIVE`.
+    """
+    session = FakeSession(stock={"A1": RuntimeError("timeout")}, statuses={})
+    store = _store(session)
+
+    assert store.probe_alive([_candidate("A1")]) == {"A1": ProbeVerdict.ALIVE}
+
+
+def test_un_json_de_stock_con_otra_forma_tampoco_acusa() -> None:
+    """Lo mismo por la otra vía: la respuesta llega pero no se entiende (`data` sin `ADD`)."""
+    session = FakeSession(stock={"A1": {"success": False, "data": {}}}, statuses={})
     store = _store(session)
 
     assert store.probe_alive([_candidate("A1")]) == {"A1": ProbeVerdict.ALIVE}
