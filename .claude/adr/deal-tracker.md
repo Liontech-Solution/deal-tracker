@@ -1791,9 +1791,18 @@ lo importante y no el sitio — *no cupo* es la rutina de una tienda con muchos 
 veredicto* es la tienda negándose a contestar, que es el fallo silencioso que el vigía existe para
 cazar. Sacar los dos de `errors` habría apagado la alarma buena junto con el ruido. Las cinco
 columnas `probes_{sent,alive,dead,over_cap,unresolved}` hacen que «¿el pool crece o se drena?» sea
-una consulta y no una excavación en el log de un pod: `probes_sent + probes_over_cap` es el pool y
-`probes_dead` el drenaje. **No hay backfill**, así que la serie empieza en la 0028 y las filas
-anteriores tienen 0 en las cinco.
+una consulta y no una excavación en el log de un pod. **No hay backfill**, así que la serie empieza
+en la 0028 y las filas anteriores tienen 0 en las cinco.
+
+La familia ha crecido dos veces desde entonces y **la fórmula del pool con ella**, así que cuidado
+al leer una consulta vieja: hoy son **siete** columnas, y el pool es
+`probes_sent + probes_over_cap + probes_skipped_fresh`, con `probes_dead` como drenaje. Las dos
+nuevas se añadieron por el mismo criterio que separó `over_cap` de `unresolved` —diagnósticos
+distintos no comparten columna—: `probes_unbuyable` (`0040`, #197) es la tienda contestando que el
+producto existe sin talla comprable, y `probes_skipped_fresh` (`0042`, #412) son candidatos a los
+que **no se preguntó** porque ya contestaron hace poco. Ninguna de las dos suma en `errors`, y las
+dos van bloqueadas frente a la baja igual que `over_cap`. Cada una arranca su serie en su migración,
+sin backfill, por lo mismo que la 0028.
 
 **Y un cero ahí tiene DOS causas, no una — que es la trampa que costó una sesión entera (#357).** A
 la de arriba (la fila es anterior a la `0028`) se suma que **el código no escribió esas columnas
@@ -2138,22 +2147,38 @@ La parte que no es obvia es **la contabilidad**, y es la misma lección de #261 
 Lefties en TODAS las pasadas, así que contarlos dejaría a esa tienda con `errors` permanentemente
 distinto de cero por algo rutinario — exactamente lo que hizo ilegible el `errors = 60` de Zara.
 
-Y una alarma que **deliberadamente no está**, con su porqué medido: tentaba añadir a
-`scrape_run.message` la firma «todos los candidatos agotados», porque también sería la firma de la
-señal de stock rota (si `visibilityValue` cambiara de nombre, todo saldría `UNBUYABLE` y el rescate
-se apagaría en silencio). Pero el umbral «todos» que vale para `unresolved` **aquí falsea desde el
-caso mínimo**: con UN solo candidato legítimamente agotado ya se cumple `unbuyable == sent`, así que
-la frase saldría en pasadas sanas y se llevaría por delante `WHERE message IS NOT NULL`. El
-discriminador bueno no está en el sondeo sino fuera —cruzarlo con el stock que la pasada vio en el
-listado, porque si el parser se rompe el catálogo ENTERO se queda sin stock—, y eso necesita su
-propia medición.
+Y una alarma que durante un tiempo **deliberadamente no estuvo**, con su porqué medido: tentaba
+añadir a `scrape_run.message` la firma «todos los candidatos agotados», porque también sería la
+firma de la señal de stock rota. Pero el umbral «todos» que vale para `unresolved` **aquí falsea
+desde el caso mínimo**: con UN solo candidato legítimamente agotado ya se cumple `unbuyable ==
+sent`, así que la frase saldría en pasadas sanas y se llevaría por delante
+`WHERE message IS NOT NULL`.
 
-**Y Sfera comparte el defecto raíz, que es lo que corrige la frase «Sfera usa dos señales».** Su
-`_probe_one()` consulta primero el endpoint de stock, pero el docstring de `stock_lists_available`
-ya dice que *un producto agotado pero vivo también sale de `ADD`*; cuando esa señal no confirma,
-cae a mirar solo si la PDP da 200 vs 404. Su propio test —`test_agotado_pero_con_ficha_viva_no_es_baja`—
-afirma `ALIVE` para un producto con cero tallas comprables. O sea que **Sfera no es la referencia de
-«lo correcto» en este aspecto concreto**, y su población está sin medir.
+**Existe desde #427, y lo que la hizo posible fue el discriminador de fuera**: cruzarla con el stock
+que la propia pasada vio (`scrape_run.variants_in_stock`, `0043`). Si el parser se rompe no es que
+los candidatos salgan agotados — es que el **catálogo entero** se queda sin una variante con stock, y
+eso sí es inequívoco. El umbral es el **cero** y está medido, no elegido: sobre las ~60 pasadas con
+éxito de QA (16/08/2026) la que menos stock vio trae **7 variantes de 55 escritas** y la peor
+proporción es un 12,7 %, así que ninguna sana se acerca al cero y cualquier `< N` por encima sería un
+número inventado. La condición exige además `variants_seen > 0`, porque una pasada sin cambios de
+huella no escribe ninguna variante y se leería igual que un parser roto.
+
+**Y Sfera compartía el defecto raíz, que es lo que corrigió la frase «Sfera usa dos señales».** Su
+`_probe_one()` consultaba primero el endpoint de stock, pero un producto agotado pero vivo también
+sale de `ADD`; cuando esa señal no confirmaba, caía a mirar solo si la PDP da 200 vs 404, y su propio
+test afirmaba `ALIVE` para un producto con cero tallas comprables. **Arreglado en #426**, junto con
+Zara — y ahí la medición dio la vuelta a la issue: Sfera es donde el fenómeno **no** tiene población
+(2 productos vivos sin talla comprable, **ninguno** candidato a baja) y Zara donde sí (248 y **13**
+candidatos), además de salir gratis porque su sondeo ya se descarga la disponibilidad por talla.
+Mango queda fuera teniendo población (35 y 7) porque su sondeo es un 308/404 sin dato de stock:
+emitirlo allí son peticiones nuevas, o sea diseño propio y no una rama de un `if`. El reparto tienda
+a tienda vive en el docstring de `SupportsAliveProbe.probe_alive`, que es donde lo va a buscar quien
+añada la siguiente.
+
+La lección de método, que es la que se repite: **la primera columna de esa medición engaña**.
+«Productos vivos sin talla comprable» cuenta gente a la que esto todavía no le afecta; lo que decide
+es cuántos de ésos **ya son candidatos a baja**, y en una tienda recién ingerida esa segunda columna
+es 0 por construcción.
 
 ### Una pasada muda no se puede depurar, y las dos tiendas que acumulan son ciegas por diseño
 
@@ -2466,13 +2491,24 @@ función. Con el primero protegido y el segundo no, el comportamiento observable
 Los dos van hoy bajo `suppress(Exception)`: no hay nada que deshacer —el servidor se llevó la
 transacción— y lo único que aportaba era tapar el diagnóstico.
 
-**Lo que el arreglo NO resolvió, y conviene no leerlo de más: esa pasada sigue sin dejar fila en
-`scrape_run`.** Ahora por un motivo distinto y más honesto — `_record_failed_run` sí se ejecuta,
-pero abre transacción nueva sobre la **misma** conexión muerta, así que su `_upsert_retailer` es lo
-primero que falla y la función se traga su propio error por diseño. O sea que de las dos promesas de
-esa función, con la conexión perdida se cumple la del **diagnóstico** y no la del **rastro en BD**;
-escribir la fila necesita una conexión nueva, con su propia decisión sobre reintentos y timeouts, y
-eso es cambio de diseño y no un parche.
+Esa mitad se arregló primero y dejó la otra abierta un tiempo: `_record_failed_run` sí se ejecutaba,
+pero abría transacción nueva sobre la **misma** conexión muerta, así que su `_upsert_retailer` era lo
+primero que fallaba y la función se tragaba su propio error por diseño. De sus dos promesas se
+cumplía la del **diagnóstico** y no la del **rastro en BD** — o sea que el registro de fallos se
+apagaba justo en la familia de fallos donde no hay pod al que preguntar, que es para la que existe.
+
+**Hoy la fila se escribe** (#411, segunda mitad): `ingest()` acepta un `reconnect` opcional y
+`_record_failed_run` reintenta **una vez** sobre una conexión limpia. Va como callable y no como
+`Config` porque `ingest()` no depende de la configuración —`run.py` le pasa los campos sueltos— y el
+doble de un test es un `lambda`. Un solo reintento y no un bucle por el caso #169: si la pasada
+murió por `lock_timeout`, la conexión nueva choca con el mismo lock y agota su propia espera antes
+de rendirse, así que cada vuelta cuesta un timeout completo. En el camino normal —una pasada que
+muere con la conexión sana— la fila se escribe por `conn` y `reconnect` ni se llama.
+
+Lo que hace verificable ese arreglo es que se afirma **en las dos direcciones**: un test comprueba
+que con `reconnect` hay fila y con la causa real dentro de `message`, y otro que sin él la excepción
+sigue siendo la buena y la fila no está. Sin el segundo, el primero podría estar pasando por motivos
+que no son el arreglo — que es exactamente como el arreglo a medias de la primera mitad se coló.
 
 ### Dos migradores comparten `schema_migrations` a propósito, y por eso comparten un lock (#298)
 
@@ -2564,6 +2600,61 @@ dejando entrar, no cuántos productos han muerto.
 Lo encontró `revisor-robustez-scraper` al auditar Mango (#80) y se confirmó leyendo
 `_advance_missing()` antes de tocar nada. Hipercor ya lo tenía resuelto y documentado en su propio
 fichero; el coste de que no estuviera aquí fue que la tienda siguiente nació sin ello.
+
+### El sondeo de bajas tiene tres invariantes que no se ven leyendo el código que los usa (#412, #426, #427)
+
+Los tres salieron de la misma sesión y los tres tienen la misma forma: algo que parece un detalle de
+implementación y en realidad es lo único que sostiene la garantía. Van juntos porque quien toque
+este mecanismo se va a encontrar con los tres.
+
+**1. Lo que protege a un candidato es `blocked_ids`, nunca su ausencia de la lista.** `_delist()` no
+descataloga a partir de la lista que construyó `_confirm_candidates`: descataloga con **su propio**
+`WHERE` (`missing_streak >= min_misses`) excluyendo únicamente los ids de `blocked_ids`. Así que
+filtrar un producto en `_load_delist_candidates` **no lo salva — lo descataloga sin preguntarle a la
+tienda**. Es contraintuitivo justo al revés de lo que uno espera: quitarlo de la lista de candidatos
+a baja lo convierte en baja segura.
+
+Por eso la ventana de #412 carga igual a los que no va a sondear y los mete en `blocked_ids`: lo que
+ahorra son peticiones, nunca la confirmación. Si algún día se añade otro motivo para no sondear algo,
+va a `blocked_ids` también. La red que lo caza es
+`test_el_excluido_por_la_ventana_sigue_protegido_de_la_baja`, montado con la tienda contestando
+`DEAD` a propósito: si el producto se sondeara, caería; que siga vivo prueba que ni se preguntó ni se
+dio por retirado.
+
+**2. Una señal de stock booleana miente en cuanto decide un veredicto.** `stock_lists_available()`
+de Sfera devolvía `False` tanto para «la tienda contesta que no queda nada» como para «la petición se
+cayó o el JSON vino con otra forma». Mientras solo servía para **confirmar vida** daba igual —las dos
+llevaban a mirar la PDP— pero en cuanto esa misma señal decide si se emite `UNBUYABLE`, el colapso
+convierte **un fallo nuestro en una acusación sobre la tienda**. Y ese veredicto alimenta contadores
+y una alarma, así que inflarlo con fallos propios es cómo se construye una alarma que nadie puede
+creerse.
+
+De ahí la forma que tienen hoy `stock_verdict()` (Sfera) y `_comprabilidad()` (Zara): **tres
+estados**, con `None` para «no lo sé», y el veredicto conservador (`ALIVE`) cuando no se sabe. El
+matiz que lo hace funcionar de verdad es cuál es la señal de «sé leer esto»: **que exista la clave**
+(`availability`, `ADD`), no que haya tallas. Una lista de tallas sin esa clave es exactamente la
+firma de un renombrado, y contarla como «agotado» sería creerse un dato que no está.
+`buyable_product_ids()` de Lefties sigue siendo de dos estados; es deuda conocida, no un criterio
+distinto.
+
+**3. Una alarma emitida al final de un mensaje truncado no llega.** `_success_message` une las
+anomalías con ` · ` y corta a `_MAX_FAIL_MESSAGE`. La alarma de #427 nació emitiéndose la penúltima,
+detrás de las listas de hojas y ámbitos, que son las partes largas — y en un caso realista (6 hojas
+caídas y 4 ámbitos sospechosos, justo la pasada en la que además querrías enterarte) el mensaje
+llegaba a los 500 exactos y **la alarma se perdía entera**. La columna estaba bien; la frase que la
+interpreta no llegaba a la base.
+
+Hoy las alarmas del sondeo van **delante** de todo lo demás. El criterio no es de importancia sino de
+reconstruibilidad: son cortas y no se pueden deducir de ninguna otra columna, mientras que las
+enumeraciones que quedan detrás ya se autolimitan con su `+N` y tienen contadores propios
+(`leaves_failed`, `skipped_scopes`). Su test afirma **dos** cosas —que la alarma está y que el
+mensaje sigue llegando al tope—, porque sin la segunda el día que alguien acorte las listas el test
+pasaría sin probar nada.
+
+Y el corolario que ordena los tres: en este mecanismo **el veredicto `UNBUYABLE` no suma en `errors`
+a propósito** (#197), así que todo lo que se apoye en él es invisible por defecto. Cualquier cosa que
+haya que poder ver tiene que tener columna propia o frase propia; no basta con que el estado sea
+correcto.
 
 ### La red de bajas comparaba dos vocabularios, y por eso reclasificar parecía una avería (#174)
 
