@@ -550,7 +550,7 @@ def _descripciones(entry: dict[str, Any]) -> list[str]:
 
 
 def _comprabilidad(detail: list[Any]) -> bool | None:
-    """¿Queda alguna talla comprable? `True` sí, `False` no, `None` si la respuesta no lo dice (#426).
+    """¿Queda alguna talla comprable? `True` sí, `False` no, `None` si no se sabe (#426).
 
     Se apoya en `availability`, que es la MISMA señal con la que `parse_detail_product` puebla
     `ScrapedVariant.in_stock` unas líneas más abajo. Que sea la misma no es casualidad ni ahorro:
