@@ -32,11 +32,13 @@ from scraper.vigia import (
     MARCA_COBERTURA,
     MARCA_DECLARACION_HUERFANA,
     MARCA_ESTACIONAL,
+    MARCA_FOTO_MUERTA,
     SIN_VIGILANCIA_DE_HOJAS,
     Informe,
     Medida,
     comparar_con_base,
     revisar_cobertura,
+    revisar_fotos,
     revisar_hojas,
     revisar_parseo,
     revisar_tienda,
@@ -129,7 +131,9 @@ def _entrada(pid: str) -> ListingEntry:
     return ListingEntry(pid, "huella", "niña", "zapateria", "zapatos")
 
 
-def _producto(pid: str, *, variantes: int = 1, precio: str = "19.90") -> ScrapedProduct:
+def _producto(
+    pid: str, *, variantes: int = 1, precio: str = "19.90", image_url: str | None = None
+) -> ScrapedProduct:
     return ScrapedProduct(
         retailer_product_id=pid,
         name=f"Producto {pid}",
@@ -137,6 +141,7 @@ def _producto(pid: str, *, variantes: int = 1, precio: str = "19.90") -> Scraped
         section="zapateria",
         category="zapatos",
         url=None,
+        image_url=image_url,
         variants=[
             ScrapedVariant(f"{pid}-{i}", "25", "rojo", None, Decimal(precio), None, True)
             for i in range(variantes)
@@ -432,6 +437,102 @@ def test_un_ritmo_dentro_del_factor_se_publica_sin_avisar() -> None:
 
     assert not informe.avisos
     assert "(×1,9)" in informe.render()
+
+
+# --- capa de fotos (#429) ------------------------------------------------------------------
+
+
+def _resolutor(respuestas: dict[str, int | None]) -> object:
+    """Resolutor de pega: devuelve el código que le digan por URL. Sin red y sin pausas."""
+
+    def pedir(url: str) -> int | None:
+        return respuestas[url]
+
+    return pedir
+
+
+def test_una_foto_que_el_cdn_no_sirve_avisa_marcada_y_sin_abrir_issue() -> None:
+    """El caso de #429 visto desde fuera: la tienda publica una URL que su CDN devuelve 404.
+
+    Avisa y no acciona: una foto perdida no es «la tienda ha dejado de dejarnos entrar», que es la
+    razón de ser del vigía, y sobre cinco productos un fallo no sostiene una cifra —la sostiene D7b.
+    """
+    productos = [
+        _producto("1", image_url="https://cdn.invalid/viva.jpg"),
+        _producto("2", image_url="https://cdn.invalid/muerta.jpg"),
+    ]
+    informe = Informe("falsa")
+
+    revisar_fotos(
+        productos,
+        informe,
+        _CFG,
+        _resolutor({"https://cdn.invalid/viva.jpg": 200, "https://cdn.invalid/muerta.jpg": 404}),  # type: ignore[arg-type]
+    )
+
+    assert informe.esta_bien, "una foto muerta no bloquea una release"
+    assert len(informe.avisos) == 1
+    assert informe.avisos[0].startswith(MARCA_FOTO_MUERTA)
+    assert f"⚠ {MARCA_FOTO_MUERTA}" in informe.render()
+    assert "muerta.jpg" in informe.avisos[0]
+    assert "viva.jpg" not in informe.avisos[0]
+
+
+def test_un_403_no_es_una_foto_muerta_sino_una_sin_veredicto() -> None:
+    """El falso positivo que esta capa tiene prohibido producir, y no es hipotético.
+
+    Preparando #429 (16/08/2026) se resolvieron 40 URL por tienda a 6 en paralelo: salieron 403 en
+    40/40 de Zara y 38/40 de Lefties, y las MISMAS URL dieron 200 una a una y pausadas. O sea que
+    la comprobación estaba midiendo nuestro propio ritmo y lo habría reportado como catálogo sin
+    fotos. Solo el 404/410 cuenta; lo demás se dice como «sin veredicto», que no es lo mismo que
+    verde y tampoco es un hallazgo.
+    """
+    productos = [
+        _producto("1", image_url="https://cdn.invalid/frenada.jpg"),
+        _producto("2", image_url="https://cdn.invalid/rota.jpg"),
+        _producto("3", image_url="https://cdn.invalid/sin-red.jpg"),
+    ]
+    informe = Informe("falsa")
+
+    revisar_fotos(
+        productos,
+        informe,
+        _CFG,
+        _resolutor(  # type: ignore[arg-type]
+            {
+                "https://cdn.invalid/frenada.jpg": 403,
+                "https://cdn.invalid/rota.jpg": 500,
+                "https://cdn.invalid/sin-red.jpg": None,
+            }
+        ),
+    )
+
+    assert not informe.avisos, "ninguna de las tres es una foto muerta"
+    assert informe.esta_bien
+    assert "3 sin veredicto" in informe.render()
+
+
+def test_una_muestra_sin_fotos_lo_dice_en_vez_de_pasar_en_verde() -> None:
+    """Una comprobación que no pudo comprobar nada no es una comprobación en verde."""
+    informe = Informe("falsa")
+
+    revisar_fotos([_producto("1")], informe, _CFG, _resolutor({}))  # type: ignore[arg-type]
+
+    assert not informe.avisos
+    assert "fotos: los productos de la muestra no traen imagen" in informe.render()
+
+
+def test_el_parseo_devuelve_los_productos_para_que_las_fotos_no_pidan_catalogo_otra_vez() -> None:
+    """La capa de fotos se cuelga de lo ya parseado: cero peticiones extra de catálogo."""
+    tienda = TiendaFalsa(
+        entradas=[_entrada("1"), _entrada("2")],
+        productos=[_producto("1", image_url="https://cdn.invalid/a.jpg"), _producto("2")],
+    )
+    informe = Informe("falsa")
+
+    productos = revisar_parseo(tienda, informe, muestra=5)  # type: ignore[arg-type]
+
+    assert [p.retailer_product_id for p in productos] == ["1", "2"]
 
 
 # --- capa de cobertura (#156) --------------------------------------------------------------

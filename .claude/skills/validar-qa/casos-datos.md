@@ -414,6 +414,8 @@ a terminar, el frente queda **NO CUBIERTO** — no se aprueba por silencio.
   que su id vuelve con la campaña.
 - `⚠ [huerfana]` (declaración de `COBERTURA_DECLARADA` que la tienda ya no publica) → **P2 exento,
   no abre issue**: no esconde catálogo, solo envejece, y muchas son de campaña.
+- `⚠ [fotos]` (foto publicada que el CDN devuelve 404) → **P2**, y solo abre issue si **D7b** lo
+  confirma: el vigía mira cinco productos y eso no es una prevalencia.
 - `⚠` sin marca → **P1**, como siempre.
 
 **Este caso depende de la Fase 1 del orquestador**, que es quien lanza el job. Si corres el frente

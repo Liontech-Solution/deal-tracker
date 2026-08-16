@@ -229,7 +229,8 @@ curl -s -o /dev/null -w '%{time_total}s\n' -H "Authorization: Bearer $TOKEN" "$B
 
 Su símbolo dice que pasa algo; **la marca dice de qué clase es**, y eso cambia la severidad. Se lee
 la marca y no se interpreta la prosa: `vigia.py` las emite como constantes (`MARCA_COBERTURA`,
-`MARCA_ESTACIONAL`, `MARCA_DECLARACION_HUERFANA`) y hay un test que fija cada una.
+`MARCA_ESTACIONAL`, `MARCA_DECLARACION_HUERFANA`, `MARCA_FOTO_MUERTA`) y hay un test que fija cada
+una.
 
 | Qué trae el log | Severidad | Por qué |
 |---|---|---|
@@ -237,6 +238,7 @@ la marca y no se interpreta la prosa: `vigia.py` las emite como constantes (`MAR
 | `✖ [cobertura]` — hay una hoja publicada que no cubrimos | **P1**, y **P0 si alguna de las hojas que nombra cae en una de las cinco categorías del brief** (pantalones, camisetas, sudaderas/jerseys, vestidos, ropa interior) | No es que la tienda esté rota: es una decisión de alcance de producto, pendiente. Vale desde nada —un bañador— hasta prendas del brief que el usuario no ve |
 | `⚠ [estacional]` — hoja de campaña apagada | **P2**, exento: se anota y **no** se abre issue | El vigía ya declara en código que su id vuelve con la campaña (`LeafHealth.estacional`). Abrir issue por algo que la herramienta califica de benigno por diseño es el hallazgo de relleno que esta skill prohíbe |
 | `⚠ [huerfana]` — declaración de `COBERTURA_DECLARADA` que la tienda ya no publica | **P2**, exento: se anota y **no** se abre issue | Una huérfana **no esconde catálogo** —para eso está `✖ [cobertura]`— solo envejece, y muchas son de campaña: su ruta vuelve con la temporada. Hacerla accionable abriría issue dos veces al año para borrar y reescribir la misma decisión (#430) |
+| `⚠ [fotos]` — foto que la tienda publica y su CDN devuelve 404 | **P2**: se anota, y **solo abre issue si D7b confirma que la tienda tiene una prevalencia apreciable** | El vigía mira cinco productos: un fallo ahí no sostiene una cifra. La cifra la da D7b, contra la base. Y ojo al modo de fallo propio de esta capa — un 403 o un timeout **no** cuentan como foto muerta, son ritmo nuestro (#429) |
 | `⚠` sin marca — hojas sin veredicto, aviso de ritmo | **P1** | Sin cambios |
 
 Esta granularidad la trae #251, y **el motivo hay que conocerlo para no volver atrás**: el listón
