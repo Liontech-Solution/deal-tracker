@@ -76,8 +76,14 @@ que es justo la que hay que ver.
 - **`message IS NOT NULL` en una pasada `success` → léelo ENTERO, no por el preview.** Hay anomalías
   que **no suman en `errors`** y salen con `status='success'` y `errors=0`, así que decidir por
   `errors` se las pierde. Y el `left(…, 60)` de arriba es solo para que la tabla se lea: `message`
-  es una lista de anomalías unida por ` · ` y **las más graves se emiten las últimas**
-  (`_success_message`, `ingest.py`), así que el preview puede cortar justo la que importa:
+  es una lista de anomalías unida por ` · `, de hasta 500 caracteres (`_MAX_FAIL_MESSAGE`).
+
+  **Si empieza por `señal de stock sospechosa` o por `sondeo sin respuesta`, eso es lo primero que
+  hay que mirar.** Las dos alarmas del sondeo van delante del resto a propósito desde #456
+  (`_alarmas_del_sondeo`, `ingest.py`), y el motivo conviene conocerlo para no revertirlo: son
+  cortas y **no se pueden reconstruir desde ninguna otra columna**, mientras que las enumeraciones
+  de hojas y ámbitos que van detrás se autolimitan con su `+N` y tienen sus propios contadores. Lo
+  que el tope se coma será de esas, no de las alarmas.
 
 ```sql
 SELECT r.slug, s.status, s.errors, s.message
@@ -138,6 +144,12 @@ señal de stock sospechosa: {N} de {N} candidatos agotados y 0 de {M} variantes 
 distinto de NULL. Es exactamente el caso que la última viñeta de D2 persigue, y la razón de que
 haya que leer `message` entero en vez de por el preview. Exige **las dos mitades juntas** a
 propósito (`_success_message`, `ingest.py`): por separado cada una es un estado sano y frecuente.
+
+**Y va la primera del mensaje** desde #456, así que no hay que ir a buscarla al final. Ese arreglo
+salió de mirar este caso: hasta entonces la alarma se emitía la última y, medido sobre una pasada
+realista —6 hojas caídas y 4 ámbitos sospechosos, justo el tipo de pasada en la que además querrías
+enterarte de que el stock no se lee—, el mensaje llegaba a los 500 del tope y **la alarma se perdía
+entera**. Una alarma contra un fallo silencioso, fallando en silencio.
 
 ## D3 · Caracterizar lo que salió mal
 
@@ -626,3 +638,10 @@ un candidato confirmado vivo hace poco no se le vuelve a preguntar, y eso se cue
 `probes_skipped_fresh`. Léela **junto a `probes_over_cap`**, nunca sola: la primera subiendo con la
 segunda bajando es la ventana haciendo su trabajo; las dos a cero con `probes_sent` en el tope es
 que no está activa. Y no la sumes a los fallos — como `over_cap`, va bloqueada frente a la baja.
+
+> **Pendiente concreto para la validación de la v0.6.0**, que no se puede hacer en local porque
+> exige pasadas reales sobre un catálogo real: **medir `probes_over_cap` antes y después** de que la
+> ventana de #412 esté activa, contra el bloque `## Cifras` del informe de v0.5.0. La línea de
+> partida está ahí: la última pasada de Zara en QA mandó 50 sondeos —el tope— y dejó 134 candidatas
+> sin sondear. Si tras la v0.6.0 `over_cap` no baja con `probes_skipped_fresh` subiendo, la ventana
+> está puesta pero no está ahorrando nada, y eso es un hallazgo de la propia #412.
