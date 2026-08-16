@@ -3750,7 +3750,7 @@ solo detectarse, y lo que queda por vigilar es que nadie vuelva a escribir el n�
 
 ### La asimetría tenía una segunda mitad, y estuvo abierta un año: el elogio sin pruebas (#436)
 
-#332 le puso listón a la **acusación** y dejó el **elogio** sin ninguno. La consecuencia se vio
+La de #332 le puso listón a la **acusación** y dejó el **elogio** sin ninguno. La consecuencia se vio
 entera el 16/08/2026 en QA: de los 246 productos con el badge «Oferta real», **176 (71,5 %) tenían
 UNA sola observación previa** y los 246 menos de 90 días de seguimiento; a nivel de variante, 1.269
 de 1.837 tenían exactamente **dos filas** en todo su `price_history`. Y la ficha remataba con «es el
