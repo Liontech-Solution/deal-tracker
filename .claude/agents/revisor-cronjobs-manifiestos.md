@@ -131,6 +131,13 @@ construyen perfectamente.
    ```bash
    git log -p --format='%h %an %s' -- overlays/qa/kustomization.yaml | grep -E '^[-+].*newTag|^[0-9a-f]{7} '
    ```
+   **Con una excepción, y es la primera línea del historial**: el commit humano que *crea* el
+   overlay lo crea entero, `newTag` incluido, porque antes de él no había fichero que CI pudiera
+   reescribir. En `overlays/prod` es `e287e4b` (`feat(deal-tracker): crear overlays/prod y el tunnel
+   k3s-prod`). Eso es arranque legítimo y **no se reporta**; lo que se vigila son las ediciones
+   *posteriores*. Se dice aquí porque dos ejecuciones de esta misma revisión discreparon sobre ese
+   commit (#439), y un check que da dos respuestas no sirve para decidir nada.
+
    Si lo que revisas no es un checkout git (una copia suelta), este check **no se puede correr**:
    dilo como no concluyente en vez de darlo por bueno.
 
