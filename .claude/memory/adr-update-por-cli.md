@@ -60,10 +60,13 @@ que hay compañía antes de empezar.
 empiece por `#` como encabezado.** En este ADR el texto va justificado a ~100 columnas y las
 referencias a issues (`#135`, `#64`) son constantes, así que es fácil que el ajuste de línea deje
 una al principio de una línea — y entonces sale como sección falsa en medio del índice, que es lo
-primero que se consulta para orientarse. Pasó el 03/08/2026 con dos, y **otra vez el 11/08/2026** al añadir una
-sección. Se arregla reajustando la línea, sin tocar el contenido, y el grep va **antes** de
-republicar y no después — si no, te toca un segundo commit y una segunda publicación para arreglar
-lo que costaba un vistazo:
+primero que se consulta para orientarse. Pasó el 03/08/2026 con dos, **otra vez el 11/08/2026** al añadir una
+sección, y **una tercera el 17/08/2026** añadiendo dos párrafos a una sección que ya existía — o sea
+que no hace falta tocar encabezados para provocarlo, basta escribir una referencia a una issue y que
+el ajuste de línea la mande al principio. Esa tercera vez se pagó entero el coste que este párrafo
+anuncia (segundo commit, segundo PR y segunda publicación), así que el grep no es un consejo: va en
+la rutina, **antes** de construir el args-file y no después de publicar. Se arregla reajustando la
+línea, sin tocar el contenido:
 
 ```bash
 grep -n "^#[0-9]" .claude/adr/<proyecto>.md   # antes de construir el args-file
