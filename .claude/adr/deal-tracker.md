@@ -4231,6 +4231,22 @@ antes de mandar nada. Va en lotes de 5.760, que es el tamaño con el que el test
 Recortar casos para evitarlo habría pagado la comodidad justo con el borde del umbral, que es lo
 único que el test existe para vigilar.
 
+**Y esa red se ejerció de verdad el 17/08/2026**, porque «mover el umbral en un solo lado rompe la
+suite» era hasta entonces una afirmación escrita y nunca comprobada (era una casilla de la definición
+de hecho de la v0.6.0, #437). Hacen falta **dos** experimentos y el segundo es el que da valor al
+primero:
+
+- **Un solo lado**: escribir el umbral a mano en `deal-rule.sql.ts` (`sql.raw('7')` en vez de
+  `sql.raw(String(REAL_EVIDENCE_DAYS))`) pone en rojo «SQL y TypeScript dan el mismo veredicto», y
+  las combinaciones que delata son exactamente las de `trackedDays: 13.99` — el SQL dice `real`, el TS
+  dice `reciente`. Ninguna de las otras 35 redes del servicio se enteró.
+- **El control**: mover `REAL_EVIDENCE_DAYS` en `deal-rule.ts` y solo ahí deja la suite entera en
+  verde. Sin esto, el primer experimento no prueba que proteja el `import`: podría estar fallando
+  cualquier expectativa con el 14 escrito a mano.
+
+O sea que lo que sostiene el espejo del umbral es el `import`, medido y no supuesto — el mismo patrón
+que #375 estableció para `INFLATED_LIST_MARGIN`.
+
 ### Compartir la función no basta: el color se decidía otra vez en cada consumidor (#473)
 
 Descubierto validando la v0.6.0 en QA el 17/08/2026, o sea **después** de que #436 diera por cerrada
@@ -4255,11 +4271,43 @@ duplicada un piso más abajo — el mismo patrón que ya obligó a extraer `sear
 listado y la faceta entendían lo tecleado de forma distinta. Extraer la función compartida resuelve
 el cálculo y **no** impide que cada consumidor vuelva a decidir por su cuenta lo que hace con él.
 
-Queda sin decidir a propósito **cuál de las dos superficies tiene razón**, porque las dos fuentes
-escritas apuntan a lados distintos: el docstring de `cifrasDeRebaja()` dice que el verde lo gobierna
-`sostenido` —y entonces la tarjeta cumple la doctrina y la ficha es más estricta de lo documentado—,
-mientras que el espíritu de #332/#436 (no elogiar sin pruebas) dice que `unverified` es justo lo que
-no se avala. Es decisión de producto, no de validación.
+**Al arreglarlo (17/08/2026) resultaron ser tres divergencias, y las dos que la validación no vio
+son las que enseñan más.** La de arriba es la que se ve mirando el catálogo; las otras dos solo
+aparecen leyendo los dos ficheros a la vez:
+
+- **`reciente`, el veredicto MAYORITARIO, salía verde en las dos.** `ProductCard` llevaba escrito en
+  un comentario que a `reciente` «se le retira el verde del porcentaje» y el código no lo hacía,
+  porque lo decidía `cifras.sostenido` — y `sostenido` es cierto en **toda** bajada (`real` y
+  `reciente` implican `honestListPrice` no nulo). O sea que `sostenido` nunca pudo ser lo que
+  decidiera el verde, y el comentario describía una intención que nadie había implementado. Son 553
+  de 800 productos.
+- **La tercera va al revés y nace del ORDEN de los ternarios.** La ficha resolvía `!sostenido`
+  **antes** que la acusación, así que a un `suspicious` de la vía declarada de #354 —que acusa en la
+  primera pasada, cuando todavía no hay PVP creíble propio— le pintaba el porcentaje en gris justo
+  debajo de su propio badge ámbar «Precio inflado». La tarjeta lo pintaba ámbar. Acusar con el rótulo
+  y desdecirse con el color es peor que no acusar, así que aquí ganó la tarjeta.
+
+**La decisión de producto que faltaba, tomada: el verde es solo de `real`.** De las dos fuentes
+escritas que apuntaban a lados distintos gana la de #332/#436 —no elogiar sin pruebas— y no el
+docstring de `cifrasDeRebaja()`, porque `sostenido` responde a «¿es creíble el PVP contra el que
+mido?» y el verde afirma otra cosa: «esto es una ganga». `reciente` y `unverified` son las dos formas
+de «no lo podemos sostener» —una por el lado del elogio, otra por el de la acusación— y las dos van
+en neutro aunque `reciente` sea una buena noticia. Consecuencia asumida y muy visible: **la mayoría
+del catálogo pierde el verde del `-X %`**.
+
+Lo que queda estructuralmente, y es el punto de escribir esto:
+
+- La condición vive en `tonoDelDescuento(honesty, sostenido)` y el acento del precio grande en
+  `tonoDelPrecio(honesty)`, las dos en `lib/honesty.ts`. Las superficies **solo traducen** el tono a
+  variables CSS, que no son las mismas (la tarjeta colorea texto; la ficha, fondo y texto). El
+  segundo se extrajo aunque las dos superficies ya coincidieran: era la misma condición escrita a
+  mano en cada fichero, o sea la forma exacta que tenían las otras tres antes de serlo.
+- **El acento del precio no es una afirmación, es el color por defecto de un precio.** `none` —donde
+  no decimos nada de nada— lo lleva en las dos superficies, así que la ficha apagándoselo solo a
+  `unverified` no distinguía nada. Lo pierde únicamente la acusación.
+- `revisor-espejo-honestidad` gana un **tercer espejo** con estas dos superficies, porque el
+  diagnóstico de arriba se cumplió del todo: ninguna de las tres divergencias dio un test rojo, y el
+  síntoma no es un test sino dos pantallas del mismo producto afirmando cosas distintas.
 
 ### Un release de lunes por la mañana garantiza el P0 de procedencia (#378)
 
