@@ -987,6 +987,47 @@ allí el `lastmod` del sitemap de Springfield parecía una huella perfecta y res
 generador. Los dos casos son el mismo error con dos disfraces —creerse el nombre de un campo— y la
 misma cura, que es medirlo antes de escribirlo.
 
+### Lo que la huella NO cubre se queda congelado, y eso no lo dice ningún error (#443)
+
+La sección de arriba valida la huella por lo que sí representa. El reverso es igual de importante y
+no se ve: la huella decide qué se vuelve a pedir, así que **cualquier campo de la fila que no esté
+en ella deja de actualizarse en cuanto el producto entra en `unchanged`** — no con un fallo, sino
+con silencio, que es el modo en que este mecanismo se rompe siempre.
+
+La huella de Cacles es `id:precio:stock`. Una foto que la tienda sustituye sin tocar ninguno de los
+tres no la mueve: el producto recibe solo `_touch_seen()`, y el upsert con su
+`image_url = COALESCE(...)` **ni llega a ejecutarse**. Medido el 16/08/2026 en `deal_tracker_qa`:
+
+| desfase `last_seen_at - last_detail_at` | productos | fotos muertas |
+|---:|---:|---:|
+| ≤ 6 días | 187 | **0** |
+| ≥ 9 días | 237 | **49 (11,6 % del catálogo)** |
+
+La correlación es lo que cierra el diagnóstico, y descarta la hipótesis natural: no es que Shopify
+sirva URLs muertas —lo que la tienda publica hoy resuelve, 250/250 y 150/150— es que **la URL
+muerta es la nuestra**. El porcentaje además crecía solo (7 % → 11,6 %), porque cada foto que la
+tienda rota se queda rancia para siempre si el precio de esa prenda no vuelve a moverse.
+
+La salida elegida no es meter la foto en la huella —eso convierte cada rotación de imagen en una
+pasada de peticiones, y es la trampa que parece la respuesta obvia— sino que **el listado la aporte
+donde ya la tiene**: `ListingEntry` la lleva y el camino `unchanged` la escribe si difiere, con cero
+peticiones nuevas. Sale gratis exactamente en las cinco tiendas cuyo `fetch_details()` sirve la
+caché que construyó `list_catalog()` (cacles, sfera, c-and-a, deditos, hm), porque ahí la foto del
+listado es *por construcción* la misma que escribiría el detalle. Y esa condición es el criterio,
+no una casualidad: en una tienda donde no lo fuera, publicarla degradaría el dato en cada pasada.
+
+Dos consecuencias que conviene no perder:
+
+- **No hace falta reparar lo ya rancio.** El listado trae la foto actual en cada pasada, así que la
+  primera tras desplegarlo reescribe las 49. La issue daba por supuesto un refresco forzado aparte.
+- **Sigue vivo donde el listado no trae foto** (zara, hipercor, mango, springfield) y en Lefties,
+  cuyo detalle sale a la red y por tanto no cumple la condición de arriba.
+
+Lo transferible: al diseñar una huella hay que preguntarse no solo si se mueve con lo que
+representa, sino **qué campos deja fuera y quién los va a refrescar entonces**. Hoy la única red que
+había era `_stale_refreshes()`, que es un round-robin por antigüedad con presupuesto — o sea que
+cubre el caso por accidente y con semanas de retraso, no por diseño.
+
 ### El `permalink` que publica una tienda puede llevar a la ficha de otro producto (#65)
 
 Y cuando la ficha es la fuente del precio, eso deja de ser una curiosidad de URLs.
@@ -1015,6 +1056,26 @@ Dos consecuencias que valen para cualquier tienda futura:
   tiendas que solo pueden preguntar por ahí; si esa URL redirige a otro producto vivo, el sondeo
   responde «vivo» sobre la prenda equivocada. El de Deditos pregunta por id contra la Store API y
   por eso es inmune, pero es una propiedad del diseño y no de la tienda.
+
+  **Cerrado en #454, y la consecuencia era peor de lo que dice el párrafo de arriba**: ese «vivo»
+  no es un veredicto inerte, dispara `_rescue()`, que pone la racha a cero — así que el producto
+  retirado no es que se demore en darse de baja, es que **no se da nunca**, y se queda en el
+  catálogo con su último precio indefinidamente. Es el fallo simétrico del que más se vigila.
+  Hoy las dos tiendas que sondean por URL comprueban identidad antes de emitir `ALIVE`: Cacles
+  compara el `id` del propio JSON servido (gratis, ya lo traía) y Sfera mira la **URL final** tras
+  redirecciones, para lo que `BrowserSession` expone `pedir() -> RespuestaHtml(status, html,
+  url_final)`.
+
+  Medido el 17/08/2026, las dos están **sanas**: Cacles da 404 sin redirigir a los handles que no
+  conoce —su endpoint `.json` devolvió 0 redirecciones incluso donde el storefront sí redirige
+  (apex → www)— y Sfera enruta por id. O sea que esto **no arreglaba un fallo en curso: vigila una
+  propiedad que estaba observada y no comprobada**, que es la diferencia que #454 vino a marcar.
+
+  Y la medición dejó una corrección metodológica que vale para cualquier canario futuro: **mutar
+  un dígito de un id no produce un id muerto**. De tres ids de Sfera mutados en su último dígito,
+  **dos cayeron en ids reales de otros productos** y la tienda los sirvió correctamente
+  reescribiendo el slug. El canario de #168 estaba construido así; solo vale un id que la tienda
+  no pueda conocer (`A999999999`).
 - **La cifra que hay que mirar no es cuántos fallan, es qué pasa cuando uno falla.** Fue **1 de
   430**. Con «el primer formulario» ese 1 habría entrado en la base con datos de otro y sin ruido;
   con la identidad comprobada, sale por el `logger.warning` y no ingiere nada.
@@ -2692,11 +2753,12 @@ Lo encontró `revisor-robustez-scraper` al auditar Mango (#80) y se confirmó le
 `_advance_missing()` antes de tocar nada. Hipercor ya lo tenía resuelto y documentado en su propio
 fichero; el coste de que no estuviera aquí fue que la tienda siguiente nació sin ello.
 
-### El sondeo de bajas tiene tres invariantes que no se ven leyendo el código que los usa (#412, #426, #427)
+### El sondeo de bajas tiene cuatro invariantes que no se ven leyendo el código que los usa (#412, #426, #427, #454)
 
-Los tres salieron de la misma sesión y los tres tienen la misma forma: algo que parece un detalle de
-implementación y en realidad es lo único que sostiene la garantía. Van juntos porque quien toque
-este mecanismo se va a encontrar con los tres.
+Los tres primeros salieron de la misma sesión y tienen la misma forma: algo que parece un detalle de
+implementación y en realidad es lo único que sostiene la garantía. El cuarto llegó después y es de
+otra clase —no sostiene una garantía, cobra por ella—, pero va aquí porque quien toque este
+mecanismo se va a encontrar con los cuatro.
 
 **1. Lo que protege a un candidato es `blocked_ids`, nunca su ausencia de la lista.** `_delist()` no
 descataloga a partir de la lista que construyó `_confirm_candidates`: descataloga con **su propio**
@@ -2742,10 +2804,33 @@ enumeraciones que quedan detrás ya se autolimitan con su `+N` y tienen contador
 mensaje sigue llegando al tope—, porque sin la segunda el día que alguien acorte las listas el test
 pasaría sin probar nada.
 
-Y el corolario que ordena los tres: en este mecanismo **el veredicto `UNBUYABLE` no suma en `errors`
-a propósito** (#197), así que todo lo que se apoye en él es invisible por defecto. Cualquier cosa que
-haya que poder ver tiene que tener columna propia o frase propia; no basta con que el estado sea
-correcto.
+**4. «Sin veredicto» es gratis de emitir y caro de acumular** (#454). Cuando el sondeo no puede
+afirmar nada —red caída, bloqueo, o desde #454 una respuesta cuya identidad no es la del candidato—
+la respuesta correcta es omitirlo del mapa: no se rescata, no se descataloga, riesgo de baja falsa
+cero. Eso está bien y es la decisión deliberada. Lo que no se ve leyendo ese código es qué pasa si
+un candidato se queda ahí **para siempre**, que es exactamente lo que produciría una URL reasignada
+de forma permanente a otro producto:
+
+- **No le aplica el enfriamiento de #412.** `_marcar_sondeados()` solo anota los concluyentes
+  (`ALIVE` y `UNBUYABLE`), con el buen motivo de que un `unresolved` no tiene nada que recordar. Así
+  que se le vuelve a preguntar en **todas** las pasadas, mientras que uno que sí contestó descansa
+  `cooldown_days`.
+- **Y gana el reparto del cupo.** Su `missing_streak` no se resetea nunca, así que crece sin techo,
+  y `_load_delist_candidates` ordena `missing_streak DESC`. Si una tienda llegara a acumular más de
+  `delist_probe_max` (50), esos ocuparían el cupo entero y **las bajas legítimas nuevas caerían en
+  `over_cap` pasada tras pasada**, sin llegar a preguntarse nunca.
+
+Hay que leerlo con su magnitud: hoy esa población es **cero** en las dos tiendas que sondean por URL,
+así que es riesgo latente y no un fallo en curso. Y el arreglo de #454 no lo empeora en el caso que
+importa —antes el mismo escenario acababa en un `ALIVE` erróneo, que sí liberaba el hueco pero al
+precio de congelar el producto para siempre, que era el fallo—. Lo que sí falta es instrumentación:
+la señal es `probes_unresolved` **sostenido en la misma cifra durante varias pasadas seguidas**, que
+es distinto de uno que va y viene (eso es red), y hoy nadie la vigila.
+
+Y el corolario que ordena los cuatro: en este mecanismo **el veredicto `UNBUYABLE` no suma en
+`errors` a propósito** (#197), así que todo lo que se apoye en él es invisible por defecto. Cualquier
+cosa que haya que poder ver tiene que tener columna propia o frase propia; no basta con que el estado
+sea correcto.
 
 ### La red de bajas comparaba dos vocabularios, y por eso reclasificar parecía una avería (#174)
 
