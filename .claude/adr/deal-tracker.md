@@ -319,6 +319,29 @@ dos, un fallo garantizado a fecha fija. La regla es que **el CronJob de una capa
 (cortar release → poner `false`) escritos en el propio patch, no solo en el PR. En dev no aplica:
 el bump es automático.
 
+**Y el segundo paso es manual, nada lo verifica, y su fallo es mudo** (17/08/2026, #481). La regla
+de arriba se escribió mirando a QA, pero prod tiene la misma forma y es donde ha mordido: el bump a
+`v0.6.0` (`a54b087`) llegó sin el `suspend: false` de deditos, y la tienda se quedó sin dispararse
+en producción teniendo ya su imagen. **Las dos direcciones del error no cuestan lo mismo, y por eso
+solo se nos escapa una:**
+
+| | qué se ve |
+|---|---|
+| reanudar **antes** de tiempo | el pod muere con `ValueError: Tienda desconocida` — grita |
+| olvidar reanudar | **nada**: `kustomize build` construye, ArgoCD dice `Synced` y `Healthy`, y el CronJob simplemente no se dispara |
+
+Nada automático lo cubre: `scraper-ci` no ve el otro repo, el otro repo no sabe qué slugs existen,
+y el vigía comprueba que las tiendas nos dejen entrar, no que sus CronJobs estén encendidos. Hoy lo
+cazó el subagente `revisor-cronjobs-manifiestos` (#439) porque alguien lo ejerció a mano — o sea que
+la cobertura de este hueco es *que alguien se acuerde*, y conviene saberlo antes de dar por hecho
+que una tienda registrada, mergeada y promovida está ingiriendo.
+
+**Corolario para leer el cluster: `Synced` no significa «tiene mi commit».** La columna dice que
+ArgoCD está de acuerdo con la revisión que conoce, no con `origin/main`: tras mergear en el repo de
+manifiestos, la Application seguía `Synced` **contra el commit anterior** hasta el siguiente poll.
+Lo que contesta la pregunta de verdad es `status.sync.revision`, y forzar el ciclo es
+`kubectl -n argocd annotate application <app> argocd.argoproj.io/refresh=normal --overwrite`.
+
 **Y la otra mitad de esa puerta: `release-qa` no promueve lo que hay en `main`, sino lo que dev
 ESTÁ CORRIENDO.** El workflow lee el `newTag` de `overlays/dev/kustomization.yaml` en el repo de
 manifiestos y le cuelga el tag semver a ese mismo digest (`imagetools create`, sin rebuild). Entre
