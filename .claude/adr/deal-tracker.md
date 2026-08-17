@@ -4746,8 +4746,8 @@ FK dura**, como el de `interest`, porque `delisted_at` no borra nada pero la baj
 deshacerse sola sin que el usuario pierda lo que guardó.
 
 Y esa falta de FK tiene una consecuencia de **verificación** que se descubrió cerrando la issue, y
-que vale para cualquier casilla futura que dependa de un estado que la UI esconde: **el candado de
-#309 es de la interfaz, no de la API.** `FavoritesService.create()` no comprueba que el producto
+que vale para cualquier casilla futura que dependa de un estado que la UI esconde: **el candado
+de #309 es de la interfaz, no de la API.** `FavoritesService.create()` no comprueba que el producto
 exista ni que esté de baja —a propósito—, así que un caso que por navegador es inalcanzable (marcar
 como favorita una prenda que el catálogo ya no lista) se **siembra por API en un segundo**. La
 validación de la v0.6.0 dio por no observable «el favorito de baja pintado en gris» razonando que no
