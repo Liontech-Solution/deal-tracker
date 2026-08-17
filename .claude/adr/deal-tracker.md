@@ -4745,6 +4745,26 @@ Dos consecuencias menores que se derivan de la misma asimetría: el favorito se 
 FK dura**, como el de `interest`, porque `delisted_at` no borra nada pero la baja tiene que poder
 deshacerse sola sin que el usuario pierda lo que guardó.
 
+Y esa falta de FK tiene una consecuencia de **verificación** que se descubrió cerrando la issue, y
+que vale para cualquier casilla futura que dependa de un estado que la UI esconde: **el candado de
+#309 es de la interfaz, no de la API.** `FavoritesService.create()` no comprueba que el producto
+exista ni que esté de baja —a propósito—, así que un caso que por navegador es inalcanzable (marcar
+como favorita una prenda que el catálogo ya no lista) se **siembra por API en un segundo**. La
+validación de la v0.6.0 dio por no observable «el favorito de baja pintado en gris» razonando que no
+había ninguna prenda descatalogada *y favoriteable*; el razonamiento confundía las dos superficies.
+Regla práctica: antes de aplazar una observación por falta de dato, comprobar si el estado que falta
+se puede sembrar por debajo de la UI.
+
+Y hay un choque real entre esa promesa y el agregado, que es #491: **`/favoritos` es la única
+pantalla que enseña prendas descatalogadas a propósito, pero lee el precio de `product_agg`, que por
+construcción no las tiene.** `refresh_product_agg` se apoya en la CTE `vivas`, que filtra
+`v.delisted_at IS NULL` (`0039`), y eso está bien porque esa función es el espejo exacto de las CTE
+de `listProducts()` y el catálogo no enseña bajas. Medido en QA el 17/08/2026: **0 filas de agregado
+para los 480 productos con `delisted_at` no nulo**, así que `priceFrom` llega null y la fila pierde su
+«desde X €» justo cuando el precio de referencia importa más. La lección general es la del espejo: un
+agregado construido como reflejo de una pantalla no sirve tal cual a otra pantalla con reglas de
+visibilidad distintas — el dato existe en `price_history`, pero hay que ir a buscarlo allí.
+
 ### El vocabulario de categorías diverge entre tiendas, y es deliberado
 
 `sandalias` y `botas` existen en `cacles` y `lefties` —las dos tiendas que dan esa distinción
