@@ -133,10 +133,23 @@ El canje del `/start` y la llegada del aviso necesitan a una persona con la app 
 1. Abre este enlace desde tu Telegram: https://t.me/<bot>?start=<token>
 2. El bot debe responder, literal:
    "✅ ¡Listo! Te avisaré por aquí cuando bajen de precio las prendas que sigues."
-3. La pestaña /ajustes debe pasar sola a "@<usuario>" en menos de 4 s, sin recargar
+3. La pestaña /ajustes debe pasar sola a "@<usuario>", SIN RECARGAR. Puede tardar
+   un poco: unos segundos si acabas de empezar, hasta ~15 s si has tardado más de
+   dos minutos en canjear el /start. Lo que importa es que llegue sola.
 
 ¿Qué ves?
 ```
+
+**Lo que se juzga es «sin recargar», no la cronometría**, y el margen de arriba no es un número
+inventado: la pestaña sondea a `TELEGRAM_POLL_FAST_MS` (4 s) durante los primeros
+`TELEGRAM_POLL_FAST_WINDOW_MS` (2 min) desde que ve el enlace en curso, y después afloja a
+`TELEGRAM_POLL_SLOW_MS` (15 s) — los tres en `services/web/frontend/src/api/hooks.ts`, y el porqué
+del escalón está en el docstring de `useTelegramSettings`. O sea que **la confirmación entra hasta un
+ciclo completo después** de que el bot responda, y ese ciclo depende de cuánto haya tardado el
+operador: abrir Telegram, buscar el bot y pulsar start pasa de dos minutos con facilidad, así que
+esperar 15 s es funcionamiento normal y **no es hallazgo**. Sí lo son: que exija recargar, o que no
+llegue nunca. Contrasta los tres símbolos antes de escribir un `✖` — si han cambiado, lo que caducó
+es este caso.
 
 Con la respuesta, cierra el caso. **Sin respuesta, el frente queda NO CUBIERTO**, y eso arrastra el
 veredicto a NO CONCLUYENTE. No se aprueba por silencio.

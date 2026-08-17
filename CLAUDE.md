@@ -327,6 +327,20 @@ These are facts about the running system, not plans:
   GATE 0 rejects a version with no published Release, or one that is not `>=` the current `latest`
   (`>=`, not `>`, because re-running it over the version prod already serves is a supported case).
   Rolling back needs a different path, and it is not this workflow.
+- **The repo's visibility is an operational lever, not a fixed property** (#428). The free plan gives
+  a private repo 2000 Actions minutes a month; August burned **2290**, all of it this project. Public
+  repos don't count minutes, so the repo goes **public to get CI back and private again once the
+  month rolls over**: public 15/08→17/08, private 17/08 12:16 UTC, public again the same afternoon.
+  Three things to know before flipping it. **GHCR is an independent axis**: both packages stay
+  `private` with the repo public (checked via `orgs/Liontech-Solution/packages/container/…`), and the
+  three namespaces pull with their `ghcr-pull` secret — visibility never touches the cluster's pull.
+  **Forks are the irreversible half**: a fork made while public does *not* disappear when you go
+  private, it splits into a new network and you cannot undo it from here, so read `forkCount` first
+  (it has been 0 both times). And **the trap that justifies the whole pattern**: private *plus* a
+  spent quota means no CI at all — no images, no `dev` deploy, nothing promotable — so **a store that
+  breaks cannot be fixed in production**, and the only way out is going public again. That last
+  consequence is **deduced, never observed**: the last workflow of our own ran at 12:11 UTC, five
+  minutes before the repo went private, and nothing was pushed before it went public again.
 - **`prerelease` is not archive, and it now expires.** Here a live `prerelease` is a failed attempt —
   `/validar-qa` lowers the flag *only* when it writes an `APTO` report — so `release-qa` ends by
   calling `prune-prereleases.yml`, which keeps the **5 newest by semver** (hard floor of 2) and
