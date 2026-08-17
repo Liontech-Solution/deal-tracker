@@ -73,6 +73,29 @@ interface Caso {
  *  - `3.99` repetido en varias entradas fuerza los empates (`price == max_observed`,
  *    `price == recent_min`), que es donde vive el fallo de #332;
  *  - `null` está en las cuatro entradas nulables, que es lo que el seed de 4 productos no cubría.
+ *
+ * **Ejercido de verdad el 17/08/2026**, que era la última casilla viva de la v0.5.0 (#386): «mover
+ * `INFLATED_LIST_MARGIN` en un solo lado hace fallar la suite» llevaba dos versiones siendo una
+ * afirmación escrita y nunca comprobada. Los dos experimentos, y el segundo es el que da valor al
+ * primero:
+ *
+ *  - **Un solo lado**: escribir el margen a mano aquí al lado (`sql.raw('1.05')` en lugar de
+ *    `sql.raw(String(INFLATED_LIST_MARGIN))` en `deal-rule.sql.ts`) pone en **rojo tres** de los
+ *    once tests de este fichero, y son justo los tres ejes que compara: el veredicto de los 23.040
+ *    casos, el PVP creíble y el descuento honesto —el que ordena «Ofertas»—. Las filas que delata
+ *    llevan todas `listPrice: '31.00'` con `maxObserved: '30.00'`, o sea **exactamente** el valor que
+ *    #375 metió en el cartesiano para esto: 31,00 pasa el borde de 1,03 (30,90) y no el de 1,05, así
+ *    que el SQL sigue creyéndose el tachado mientras el TypeScript ya lo ha tirado.
+ *  - **El control**: mover `INFLATED_LIST_MARGIN` en `deal-rule.ts` —que por el `import` lo mueve en
+ *    los dos lados a la vez— deja este fichero en **verde, 11 de 11**, y de las 36 redes del servicio
+ *    solo fallan tres unitarios de `deal-rule.spec.ts` que llevan «el 3 %» **en su propio nombre**.
+ *    Eso es lo que había que demostrar: este espejo es sensible a la **divergencia**, no al valor.
+ *
+ * Ojo a la asimetría con el experimento gemelo de `REAL_EVIDENCE_DAYS` (más abajo), porque invita a
+ * confundirse: allí el control deja la suite **entera** en verde, aquí no puede, y no es un defecto
+ * de ninguno de los dos. La diferencia es que el 3 % es una decisión de política con tres tests que
+ * la fijan a propósito, así que cambiarlo de verdad exige tocarlos **a mano y queriendo** — un
+ * rojo esperado, no un fallo. Si algún día se mueve el margen, esos tres son la lista.
  */
 /**
  * El mínimo declarado de 30 días (#354). Cuatro valores elegidos por lo que hacen contra los
