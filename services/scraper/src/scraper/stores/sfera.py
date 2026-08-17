@@ -61,6 +61,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import Any
+from urllib.parse import urlsplit
 
 from ..barefoot import classify as classify_barefoot
 from ..config import Config
@@ -412,6 +413,32 @@ def _primary_image(product: dict[str, Any]) -> str | None:
         if _usable_image(color.get("image")):
             return str(color["image"])
     return None
+
+
+def _url_es_del_producto(url: str, product_id: str) -> bool:
+    """¿La URL (final, tras redirecciones) es la ficha de ESTE producto? (#454)
+
+    Sfera pone el id al principio del último segmento con ruta —`/es/ninos/A200974138-camiseta…/`—
+    así que la comprobación se ancla ahí y no es un `in` suelto: un id contenido dentro de otro
+    (`A20097413` dentro de `A200974138`) casaría por accidente y el sondeo daría por bueno un
+    producto que no es. Se compara segmento a segmento por eso mismo.
+
+    Sin ruta reconocible se devuelve `False`: es la respuesta conservadora, porque quien llama la
+    traduce a «sin veredicto» y eso no da de baja a nadie.
+
+    **Y esto comprueba la URL, no el contenido**, que es una garantía más débil que la de Cacles
+    —allí se compara el `id` del propio JSON servido—. Cierra el vector que #454 midió (nos sirven
+    la ficha de OTRO producto, y la URL final lo delata) pero no cierra el simétrico: un bloqueo
+    blando de Akamai servido con 200 **en la misma URL** pasa por aquí, porque el id sigue en el
+    path. No es una regresión —antes pasaba cualquier 200, sin más— pero tampoco queda cerrado, y
+    en una tienda que vive tras Akamai (#168, #426) merece constar. Cerrarlo pide parsear la ficha
+    entera solo para esto, que es caro y es diseño propio con su medición, no una rama de un `if`.
+    """
+    ruta = urlsplit(url).path
+    return any(
+        segmento == product_id or segmento.startswith(f"{product_id}-")
+        for segmento in ruta.split("/")
+    )
 
 
 def _product_url(product: dict[str, Any]) -> str | None:
@@ -820,6 +847,7 @@ class SferaStore:
                             gender=product.gender,
                             section=product.section,
                             category=product.category,
+                            image_url=product.image_url,  # ver #443 en `ListingEntry.image_url`
                         )
                 except BrowserHTTPError as exc:
                     if exc.status not in GONE_STATUS:
@@ -1012,6 +1040,31 @@ class SferaStore:
         Ojo al orden de las guardas: `UNBUYABLE` solo se emite cuando el endpoint de stock ha
         CONTESTADO que no queda nada (`stock_verdict()` devuelve `False`). Si no contestó, el
         producto se sigue dando por vivo — un fallo de red no puede disfrazarse de agotado.
+
+        **Y un 200 no prueba que la ficha sea la nuestra** (#454). Sondear por URL admite un fallo
+        que sondear por id no tiene: si la tienda redirige a la ficha de OTRO producto, el status
+        dice 200, esto responde `ALIVE`, `_rescue()` pone la racha a cero y el producto retirado se
+        queda en el catálogo para siempre con su último precio. Es el fallo simétrico del que más
+        se vigila —una baja que no ocurre nunca— y aquí se cierra comprobando que la **URL final**
+        sigue llevando el id que pedimos.
+
+        Medido el 17/08/2026 sobre la rama `ninos/nina/zapatos`, 3 ids vivos + 4 canarios:
+
+        | caso | status | URL final | lleva el id pedido |
+        |---|---:|---|---|
+        | 3 ids vivos | 200 | idéntica a la pedida, sin redirección | sí |
+        | `A200976260`, `A200976270` (mutados) | 200 | **redirigida**, con el slug reescrito | sí |
+        | `A200976210`, `A999999999` | 404 | idéntica, sin redirección | — |
+
+        Las dos redirecciones no son el caso peligroso, y conviene no confundirlas: al mutar el
+        último dígito se cayó en ids **reales de otros productos**, y Sfera sirvió el producto de
+        ese id corrigiendo el slug. O sea que la propiedad observada en agosto de 2026 —enruta por
+        id, el slug le da igual, un id desconocido da 404— **sigue siendo cierta hoy**. Esto no la
+        arregla: la vigila, que es justo lo que no había.
+
+        Y deja una lección sobre el canario de #168: mutar el último dígito cayó en otro producto
+        real 2 de 3 veces, así que como canario solo vale un id que la tienda no pueda conocer
+        (`A999999999`), no uno mutado.
         """
         pid = candidate.retailer_product_id
         stock: bool | None = None
@@ -1032,17 +1085,25 @@ class SferaStore:
             # sembrar: 14/14 veredictos idénticos a los de `goto`, con los 404 de los canarios
             # llegando por los dos caminos (#168). Las cookies las siembra `probe_alive`, que es
             # la precondición que este camino no puede darse a sí mismo.
-            status, _ = session.pedir_html(candidate.url)
+            respuesta = session.pedir(candidate.url)
         except Exception:  # timeout / error de red: no es prueba de nada
             return None
-        if status in (404, 410):
+        if respuesta.status in (404, 410):
             return ProbeVerdict.DEAD
         # Otros códigos (403 de Akamai, 5xx) son problema nuestro, no del producto: sin veredicto.
-        if status != 200:
+        if respuesta.status != 200:
             return None
-        # 200 = la ficha existe. Que se pueda COMPRAR ya lo contestó (o no) el endpoint de stock:
-        # con un `False` explícito es `UNBUYABLE`; sin respuesta suya, `ALIVE` como hasta ahora.
-        # `UNBUYABLE` no rescata ni da de baja — que no quede stock hoy no prueba una retirada.
+        # 200, pero ¿de quién? Si la redirección nos ha llevado a otro producto, esta respuesta no
+        # dice NADA del nuestro: ni que viva ni que se haya retirado. Sin veredicto, que deja la
+        # racha intacta y lo cuenta en `unresolved`. Emitir `DEAD` aquí sería tentador y es
+        # justamente lo que no se hace: el producto podría seguir a la venta bajo otra URL, y una
+        # baja falsa es un daño peor —y mucho menos reversible— que un producto congelado.
+        if not _url_es_del_producto(respuesta.url_final, pid):
+            return None
+        # La ficha existe y es la suya. Que se pueda COMPRAR ya lo contestó (o no) el endpoint de
+        # stock: con un `False` explícito es `UNBUYABLE`; sin respuesta suya, `ALIVE` como hasta
+        # ahora. `UNBUYABLE` no rescata ni da de baja — que no quede stock hoy no prueba una
+        # retirada.
         return ProbeVerdict.UNBUYABLE if stock is False else ProbeVerdict.ALIVE
 
     def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:

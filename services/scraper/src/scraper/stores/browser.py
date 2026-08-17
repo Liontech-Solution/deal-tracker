@@ -10,9 +10,11 @@ peticiones de esas tiendas van por aquí:
   - `goto(url)`   — navega a una página de documento (siembra las cookies del origen).
   - `get_html(url)` — navega y devuelve `(status, HTML)`, para tiendas cuyo dato viaja en la
     propia página (Hipercor, cuyo `robots.txt` veta la API).
-  - `pedir_html(url)` — el mismo `(status, HTML)` **sin navegar**: descarga el documento servido
-    y no ejecuta nada. Cuando el dato viene servido es el mismo resultado por una fracción del
-    coste, y es la diferencia entre que la pasada de Hipercor quepa en su deadline o no (#160).
+  - `pedir(url)` — descarga el documento servido **sin navegar** y no ejecuta nada: devuelve
+    status, HTML y la URL final tras redirecciones. Cuando el dato viene servido es el mismo
+    resultado que navegar por una fracción del coste, y es la diferencia entre que la pasada de
+    Hipercor quepa en su deadline o no (#160).
+  - `pedir_html(url)` — el `(status, HTML)` de `pedir()` para quien no necesita la URL final.
   - `get_json(url)` — pide una API del mismo origen con `page.request` (mismo fingerprint
     + cookies que el navegador), con reintentos/backoff como el cliente httpx de Zara.
 
@@ -42,6 +44,7 @@ import contextlib
 import random
 import time
 from collections.abc import Collection
+from dataclasses import dataclass
 from fnmatch import fnmatch
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
@@ -72,6 +75,20 @@ _LAUNCH_ARGS = [
     "--disable-dev-shm-usage",
     "--disable-gpu",
 ]
+
+
+@dataclass(frozen=True)
+class RespuestaHtml:
+    """Lo que devuelve `pedir()`: el par de siempre MÁS a dónde acabó la petición.
+
+    `url_final` es `resp.url` de Playwright, o sea la URL tras seguir las redirecciones. Existe
+    porque hay una pregunta que el status no contesta: **de quién es lo que nos han servido**. Un
+    200 prueba que hay una ficha ahí, no que sea la del producto por el que preguntamos (#454).
+    """
+
+    status: int
+    html: str
+    url_final: str
 
 
 class BrowserHTTPError(RuntimeError):
@@ -336,7 +353,17 @@ class BrowserSession:
         return 0, ""  # inalcanzable (el último intento retorna), tranquiliza a mypy
 
     def pedir_html(self, url: str) -> tuple[int, str]:
-        """Pide una página **sin navegarla**: devuelve `(status, HTML servido)`.
+        """El par `(status, HTML)` de `pedir()`, para quien no necesita saber dónde acabó.
+
+        Es la firma histórica y la que usan las cuatro llamadas de Hipercor, que piden rejillas y
+        fichas por su URL canónica y solo parsean lo servido. Quien tenga que comprobar **de quién**
+        es la respuesta —el sondeo de bajas— usa `pedir()` y mira `url_final`.
+        """
+        resp = self.pedir(url)
+        return resp.status, resp.html
+
+    def pedir(self, url: str) -> RespuestaHtml:
+        """Pide una página **sin navegarla**: devuelve status, HTML servido y URL final.
 
         Misma pareja que `get_html` y misma lectura del status (un 404 es información, no un
         fallo), pero por `page.request` en vez de `page.goto`: se descarga el documento y ahí se
@@ -367,6 +394,11 @@ class BrowserSession:
         garantiza que su contenido no se parsea ni se guarda y que la pasada se para. Prevenirlo
         del todo pedía `max_redirects=0`, que Playwright ofrece pero **elevando** ante cualquier
         30x — y una canonicalización de barra final tumbaría la pasada por nada.
+
+        Y esa misma redirección transparente es la razón de que `url_final` salga de aquí (#454):
+        seguirla es lo correcto —los canónicos y las barras finales lo exigen— pero deja al que
+        llama sin saber si le han servido lo que pidió. El veto ya miraba `resp.url` por este
+        motivo; lo único nuevo es que ahora también lo puede mirar quien decide una baja.
         """
         assert self._page is not None, "usar dentro del context manager"
         self._comprobar_veto(url)
@@ -385,9 +417,11 @@ class BrowserSession:
             # respuesta que valga la pena leer, ni siquiera para reintentarla.
             self._comprobar_veto(resp.url, pedida=url)
             if resp.status not in _RETRYABLE_STATUS or attempt == retries:
-                return resp.status, (resp.text() if resp.ok else "")
+                return RespuestaHtml(resp.status, (resp.text() if resp.ok else ""), resp.url)
             self._backoff(attempt)
-        return 0, ""  # inalcanzable (el último intento retorna), tranquiliza a mypy
+        # Inalcanzable (el último intento retorna); tranquiliza a mypy. La URL final es la pedida
+        # porque no ha habido respuesta de la que sacar otra.
+        return RespuestaHtml(0, "", url)
 
     def get_json(self, url: str) -> Any:
         """GET de una API del mismo origen (fingerprint+cookies del navegador) con reintentos.

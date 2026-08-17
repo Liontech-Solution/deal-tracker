@@ -849,6 +849,7 @@ class DeditosStore:
                             gender=producto.gender,
                             section=producto.section,
                             category=producto.category,
+                            image_url=producto.image_url,  # ver #443 en `ListingEntry.image_url`
                         )
                     if len(crudos) < _PAGE_SIZE:
                         # Una página incompleta ES la última, y saberlo aquí ahorra la petición

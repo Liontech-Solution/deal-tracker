@@ -119,6 +119,13 @@ class IngestResult:
     details_fetched: int  # productos a los que se pidió detalle (nuevos/cambiados/rancios)
     details_refreshed: int  # de los anteriores, los pedidos solo por antigüedad del detalle
     products_unchanged: int  # productos sin cambios (ahorro de peticiones de detalle)
+    # De los anteriores, a cuántos les cambió la FOTO sin cambiarles la huella (#443). Es el
+    # observable que faltaba: hasta ahora ese caso no escribía nada y no lo contaba nadie, así que
+    # una `image_url` que la tienda había sustituido se quedaba muerta en el catálogo en silencio
+    # (49 de 424 fotos de Cacles, 11,6 %, medido el 16/08/2026). Un número que sube en cada pasada
+    # de una tienda es normal —rota fotos—; lo que no lo es es que esté clavado a 0 en una tienda
+    # que sí las rota, porque significa que su listado ha dejado de traerlas.
+    images_refreshed: int
     variants_seen: int
     # De las anteriores, cuántas tenían stock (#427). No es una cifra de negocio: es el
     # discriminador que separa «esta tienda tiene poco stock» de «el parser de stock se ha roto».
@@ -250,6 +257,9 @@ class _ExistingProduct:
     gender: str | None = None
     section: str | None = None
     category: str | None = None
+    # La foto guardada, para saber si la del listado la cambia (#443). Se compara en vez de
+    # escribir a ciegas para no reescribir en cada pasada las filas que no han cambiado.
+    image_url: str | None = None
 
     @property
     def scope(self) -> _ScopeKey:
@@ -261,7 +271,7 @@ def _load_existing(cur: psycopg.Cursor, retailer_id: int) -> dict[str, _Existing
     cur.execute(
         """
         SELECT retailer_product_id, id, listing_signature, (delisted_at IS NOT NULL),
-               last_detail_at, gender, section, category
+               last_detail_at, gender, section, category, image_url
         FROM product WHERE retailer_id = %s
         """,
         (retailer_id,),
@@ -275,14 +285,33 @@ def _load_existing(cur: psycopg.Cursor, retailer_id: int) -> dict[str, _Existing
             gender=row[5],
             section=row[6],
             category=row[7],
+            image_url=row[8],
         )
         for row in cur.fetchall()
     }
 
 
-def _touch_seen(cur: psycopg.Cursor, product_id: int, run_ts: datetime) -> None:
-    """Marca producto y variantes activas como vistos en este run, sin tocar precios."""
-    cur.execute("UPDATE product SET last_seen_at = %s WHERE id = %s", (run_ts, product_id))
+def _touch_seen(
+    cur: psycopg.Cursor, product_id: int, run_ts: datetime, image_url: str | None = None
+) -> None:
+    """Marca producto y variantes activas como vistos en este run, sin tocar precios.
+
+    `image_url` es la foto NUEVA del listado cuando la hay y difiere de la guardada (#443), y es
+    lo único de la ficha que este camino escribe. Quien decide si difiere es quien llama, que es
+    el único que tiene delante la fila previa.
+
+    Lo que **no** se toca aquí es `last_detail_at`: esto no es una observación de detalle y no
+    puede disfrazarse de una. Si se moviera, el producto saldría de la cola de
+    `_stale_refreshes()` y la serie de precios perdería justo las re-observaciones que esa cola
+    existe para forzar.
+    """
+    if image_url is not None:
+        cur.execute(
+            "UPDATE product SET last_seen_at = %s, image_url = %s WHERE id = %s",
+            (run_ts, image_url, product_id),
+        )
+    else:
+        cur.execute("UPDATE product SET last_seen_at = %s WHERE id = %s", (run_ts, product_id))
     cur.execute(
         "UPDATE variant SET last_seen_at = %s WHERE product_id = %s AND delisted_at IS NULL",
         (run_ts, product_id),
@@ -847,6 +876,19 @@ def _load_delist_candidates(
     propio `WHERE`, excluyendo únicamente los `blocked_ids`. Un candidato que desapareciera de aquí
     no quedaría protegido — quedaría descatalogado SIN sondeo. Quién se sondea y quién solo se
     bloquea lo decide `_confirm_candidates`, que es quien puede meterlos en `blocked_ids`.
+
+    **El orden tiene una consecuencia que conviene saber antes de tocarlo** (#454). `missing_streak
+    DESC` es lo que se quiere —el más ausente es el que más urge confirmar— pero un candidato que
+    NUNCA obtiene veredicto no se rescata (su racha no se resetea) ni se descataloga (va siempre en
+    `blocked_ids`), así que su racha crece sin techo y gana el reparto del tope de sondeos en todas
+    las pasadas. Dos efectos: no le aplica el enfriamiento de #412, porque `_marcar_sondeados` solo
+    anota lo concluyente; y si una tienda llegara a acumular más de `delist_probe_max` (50) de esos,
+    ocuparían el cupo entero y las bajas legítimas nuevas caerían en `over_cap` pasada tras pasada.
+
+    Hoy esa población es CERO en las dos tiendas que sondean por URL —medido el 17/08/2026, ver los
+    `_probe_one` de sfera y cacles—, así que esto es un riesgo latente y no un fallo en curso. La
+    señal de que ha dejado de serlo es `probes_unresolved` sostenido en la misma cifra durante
+    varias pasadas seguidas, que no es lo mismo que un `unresolved` que va y viene (eso es red).
     """
     clause, params = _scope_conditions(safe_scopes)
     cur.execute(
@@ -1346,7 +1388,7 @@ def ingest(
             to_refresh = _stale_refreshes(
                 unchanged, run_ts, detail_max_age_days, detail_refresh_max, detail_refresh_all
             )
-            products_unchanged = gender_stale = 0
+            products_unchanged = gender_stale = images_refreshed = 0
             for entry, prior in unchanged:
                 if entry.retailer_product_id in to_refresh:
                     to_fetch.append(entry)
@@ -1354,7 +1396,18 @@ def ingest(
                     # viera cambiada y volviese a pedir el detalle de todo, en bucle.
                     signature_by_id[entry.retailer_product_id] = entry.signature
                 else:
-                    _touch_seen(cur, prior.id, run_ts)
+                    # La foto es lo único de la ficha que este camino reescribe (#443), y solo si
+                    # el listado la trae y difiere de la guardada. Un listado que no la publique
+                    # (`None`) nunca borra la que hay: es la misma promesa que el `COALESCE` del
+                    # upsert, sostenida aquí por la condición en vez de por el SQL.
+                    foto_nueva = (
+                        entry.image_url
+                        if entry.image_url is not None and entry.image_url != prior.image_url
+                        else None
+                    )
+                    _touch_seen(cur, prior.id, run_ts, foto_nueva)
+                    if foto_nueva is not None:
+                        images_refreshed += 1
                     products_unchanged += 1
                     # El género de la fila se queda como estaba: `_touch_seen` no lo toca y el
                     # listado ya no vuelve a mirarse. Se cuenta aquí, que es el único punto donde
@@ -1526,6 +1579,7 @@ def ingest(
             details_fetched=details_fetched,
             details_refreshed=len(to_refresh),
             products_unchanged=products_unchanged,
+            images_refreshed=images_refreshed,
             variants_seen=variants_seen,
             variants_in_stock=variants_in_stock,
             prices_recorded=prices_recorded,
