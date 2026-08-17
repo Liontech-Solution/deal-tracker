@@ -42,6 +42,67 @@ export function llevaBadge(honesty: Honesty): honesty is 'real' | 'reciente' | '
  *     verde. No sabemos si ese tachado es cierto, y afirmarlo con nuestro color es el elogio sin
  *     pruebas que #436 vino a quitar.
  */
+/** Los tres tonos con los que se puede pintar un porcentaje de descuento. */
+export type TonoDescuento = 'good' | 'warn' | 'neutro';
+
+/**
+ * De qué color se pinta el `-X %`, para la tarjeta y para la ficha (#473).
+ *
+ * **El color es la afirmación**, y esta es la única condición que la decide. Vivía duplicada en las
+ * dos superficies y llevaba **tres** divergencias, dos de ellas invisibles hasta que se leyeron los
+ * dos ficheros a la vez (medido en QA el 17/08/2026 sobre 800 productos):
+ *
+ * | veredicto | tarjeta | ficha | y ahora |
+ * |---|---|---|---|
+ * | `real` (7) | verde | verde | **verde** |
+ * | `reciente` (553) | verde | verde | **neutro** |
+ * | `unverified` (228) | verde | neutro | **neutro** |
+ * | `suspicious` sin PVP creíble | ámbar | gris | **ámbar** |
+ *
+ * La última fila no lleva cifra porque no está medida aparte: lo que se midió en QA el 14/08/2026 son
+ * los 89 productos acusables (291 variantes) y que **un tercio se acusa en la primera pasada**, que
+ * es exactamente cuando no hay PVP creíble. O sea del orden de treinta, no 89.
+ *
+ * La de `unverified` es #473: la tarjeta celebraba en verde un descuento que la ficha del mismo
+ * producto declaraba sin confirmar. La de `reciente` no la vio ninguna issue —`ProductCard`
+ * *afirmaba en un comentario* que el verde se le retiraba, y no se le retiraba— y es la mayoritaria:
+ * `sostenido` es siempre cierto cuando hay bajada, así que no puede ser lo único que decida el verde.
+ * La de `suspicious` va al revés y nace del orden de los ternarios: la ficha resolvía `!sostenido`
+ * **antes** que la acusación, así que a un «Precio inflado» de la primera pasada (la vía declarada
+ * de #354, la de C&A y Springfield) le pintaba el porcentaje en gris justo debajo de su propio badge
+ * ámbar. Acusar con el rótulo y desdecirse con el color es peor que no acusar.
+ *
+ * La regla, en una línea: **el verde es solo para `real`**. Es lo que #332 hizo con la acusación y
+ * #436 con el elogio, aplicado a lo que quedaba suelto — el color. `reciente` y `unverified` son las
+ * dos formas de «no lo podemos sostener», y las dos van en neutro aunque una sea buena noticia.
+ */
+/**
+ * Si el precio grande va con el acento de la marca o apagado, para las mismas dos superficies.
+ *
+ * Está aquí por lo mismo que `tonoDelDescuento()` y no porque hoy discrepe: la condición era
+ * `honesty === 'suspicious'` **escrita a mano en cada componente**, que es la forma exacta que tenían
+ * las tres divergencias de #473 antes de ser divergencias. Hasta este cambio la ficha se lo quitaba
+ * además a `unverified` y la tarjeta no.
+ *
+ * El acento es el color **por defecto** de un precio, no una afirmación: `none` —donde no decimos
+ * nada de nada— lo lleva en las dos superficies, así que apagarlo en un caso que tampoco afirma nada
+ * no distingue nada. Lo pierde solo la acusación, que es la única que quiere que el precio no se lea
+ * como buena noticia.
+ */
+export function tonoDelPrecio(honesty: Honesty): 'accent' | 'plano' {
+  return honesty === 'suspicious' ? 'plano' : 'accent';
+}
+
+export function tonoDelDescuento(honesty: Honesty, sostenido: boolean): TonoDescuento {
+  // La acusación manda sobre todo lo demás, con PVP creíble o sin él: si el badge dice «Precio
+  // inflado», el porcentaje que lo acompaña no puede pintarse como si no dijéramos nada.
+  if (honesty === 'suspicious') return 'warn';
+  // El `&& sostenido` no es redundante aunque hoy `real` lo implique (una bajada real necesita un
+  // PVP creíble contra el que medirla): es la guarda que impide que un veredicto futuro se lleve el
+  // verde sin una referencia que lo sostenga.
+  return honesty === 'real' && sostenido ? 'good' : 'neutro';
+}
+
 export function cifrasDeRebaja(p: {
   listPrice: string | null;
   discountPct: string | null;

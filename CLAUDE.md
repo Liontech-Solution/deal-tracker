@@ -212,7 +212,22 @@ compares now is three things, because **the `real` verdict is the least sensitiv
 margin cannot move `real` on any row the database can actually produce, so it is the credible RRP
 and the honest discount (which orders `sort=ofertas`) that see a divergence. The
 `revisor-espejo-honestidad` subagent catches it before the fact, and is what you use on any change
-touching either file, their consumers in `catalog.service.ts`, or its `stats` CTEs. Since #436 the
+touching either file, their consumers in `catalog.service.ts`, or its `stats` CTEs.
+
+**And the rule has a third mirror, one floor below: the two screens that paint it** (#473). Sharing
+the calculation was not enough — `ProductCard.tsx` and `PriceBlock.tsx` both called
+`cifrasDeRebaja()` and then each decided *on its own* what colour to turn its output into, so they
+diverged three ways at once and **not one of them showed up as a red test**: the card celebrated
+`unverified` in green while the ficha of the same product called it unconfirmed (28,5 % of the
+catalogue), both painted the majority verdict `reciente` green against what the card's own comment
+claimed, and the ficha greyed out the `-X %` of a first-pass `suspicious` right under its own amber
+badge. The condition now lives once, in `tonoDelDescuento()` / `tonoDelPrecio()`
+(`frontend/src/lib/honesty.ts`), and the surfaces only translate a tone into CSS variables. **Green
+is only for `real`**: `reciente` and `unverified` are the two shapes of "we can't sustain this" and
+both go neutral, while an accusation goes amber even with no credible RRP of our own. The same
+subagent audits that mirror too, so it is also what you use on any change to those two components or
+to `lib/honesty.ts` — and the symptom there is never a failing test, it is two screens disagreeing
+about the same garment. Since #436 the
 parity spec runs a **seventh axis** (`trackedDays`) and its cartesian no longer fits in one
 round-trip — drizzle builds the query recursively and blows the stack — so it goes in batches of
 5,760. Cutting cases to avoid that would pay for the convenience with the very coverage the spec

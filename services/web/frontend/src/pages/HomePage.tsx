@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthProvider';
-import { HonestyBadge } from '../components/Badges';
-import { ArrowRightIcon, CheckIcon, ClockIcon, SearchIcon } from '../components/icons';
+import { ETIQUETA_HONESTIDAD, HonestyBadge } from '../components/Badges';
+import type { KindHonestyBadge } from '../components/Badges';
+import { ArrowRightIcon, CheckIcon, SearchIcon } from '../components/icons';
 import { ProductCard } from '../components/ProductCard';
 import { ErrorState, ProductGridSkeleton } from '../components/States';
 import { useToast } from '../components/Toast';
@@ -22,6 +23,41 @@ const SUGGESTIONS = ['botas', 'pantalones', 'sudadera'];
 
 /** Cuántas ofertas enseña la portada. Suficiente para dos filas cómodas y ni una tarjeta de relleno. */
 const DEALS_ON_HOME = 8;
+
+/**
+ * Lo que la home promete de cada etiqueta. **Están las cuatro**, y eso es #474: explicaba dos y el
+ * catálogo pinta cuatro desde #436, faltando justo el mayoritario. Medido por API en QA el
+ * 17/08/2026 sobre 800 productos: `reciente` 553, `unverified` 228, `none` 12 y `real` **7**.
+ *
+ * El rótulo no se escribe aquí —sale de `ETIQUETA_HONESTIDAD`, el mismo sitio del que lo saca el
+ * badge de la tarjeta— porque repetirlo a mano es exactamente cómo se llegó a esto. Solo la fila del
+ * «sin etiqueta» lleva `titulo` propio: ahí el encabezado no es el rótulo, es la promesa.
+ */
+const VEREDICTOS: { kind: KindHonestyBadge; titulo?: string; texto: string }[] = [
+  {
+    kind: 'real',
+    texto:
+      'el precio ha bajado de verdad frente a su mínimo reciente, y llevamos siguiéndola el tiempo suficiente para que esa comparación signifique algo. Buen momento para comprar.',
+  },
+  {
+    kind: 'reciente',
+    // La mitad honesta de #436, y la que el usuario ve en casi todas las tarjetas: lo que separa
+    // esto de «Oferta real» no es el descuento, es la cobertura (`REAL_EVIDENCE_DAYS`).
+    texto:
+      'ha bajado y es lo más barato que la hemos visto, pero llevamos poco tiempo siguiéndola. Todavía no podemos decir si es una rebaja de verdad o su precio de siempre.',
+  },
+  {
+    kind: 'suspicious',
+    texto:
+      'el precio tachado está hinchado respecto al histórico, o la propia tienda declara haberla vendido más barata hace menos de 30 días. El “descuento” no es real.',
+  },
+  {
+    kind: 'ninguna',
+    titulo: 'Cuando no lo sabemos, no opinamos',
+    texto:
+      'si acabamos de empezar a seguir una prenda, su tachado no lo podemos ni confirmar ni desmentir, así que no la etiquetamos. La ficha te dice cuántos días llevamos mirándola.',
+  },
+];
 
 /** Las dos cifras que no salen del catálogo, y que por tanto ve todo el mundo. */
 const STATS_FIJOS = [
@@ -192,52 +228,21 @@ export function HomePage() {
       {/* explicador honestidad */}
       <div className="dt-two" style={{ marginTop: 40, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-xl)', padding: 30, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, alignItems: 'center' }}>
         <div>
-          {/* Tres estados, no dos (#332). El tercero —cuando no ponemos etiqueta— es hoy con
-              diferencia el más frecuente: en prod son 15.968 prendas frente a 335 ofertas reales y
-              ninguna acusación, porque acusar exige 90 días de histórico y la serie es más joven.
-              Explicar aquí solo dos etiquetas dejaba sin contar justo lo que el usuario más va a
-              ver, y prometía un badge que hasta noviembre no existe. */}
-          <div className="serif" style={{ fontSize: 26, fontWeight: 600, marginBottom: 10 }}>Dos etiquetas, y cuándo no ponemos ninguna</div>
+          {/* Cuatro estados, no dos (#332 + #436 + #474). El que más ve el usuario es «Bajada
+              reciente» —553 de los 800 productos medidos en QA— y era justo el que no se explicaba;
+              el segundo es no poner etiqueta (228 + 12). Las cifras y su fecha están en `VEREDICTOS`,
+              que es de donde sale esta lista: pintarla a mano es lo que la dejó desincronizada. */}
+          <div className="serif" style={{ fontSize: 26, fontWeight: 600, marginBottom: 10 }}>Tres etiquetas, y cuándo no ponemos ninguna</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <span style={{ flex: 'none', marginTop: 2 }}><HonestyBadge kind="real" /></span>
-              <div style={{ fontSize: 14.5, color: 'var(--text-muted)' }}>
-                <strong style={{ color: 'var(--text)' }}>Oferta real:</strong> el precio ha bajado de verdad frente a su mínimo reciente. Buen momento para comprar.
+            {VEREDICTOS.map((v) => (
+              <div key={v.kind} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <span style={{ flex: 'none', marginTop: 2 }}><HonestyBadge kind={v.kind} /></span>
+                <div style={{ fontSize: 14.5, color: 'var(--text-muted)' }}>
+                  <strong style={{ color: 'var(--text)' }}>{v.titulo ?? ETIQUETA_HONESTIDAD[v.kind]}:</strong>{' '}
+                  {v.texto}
+                </div>
               </div>
-            </div>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <span style={{ flex: 'none', marginTop: 2 }}><HonestyBadge kind="suspicious" /></span>
-              <div style={{ fontSize: 14.5, color: 'var(--text-muted)' }}>
-                <strong style={{ color: 'var(--text)' }}>Precio inflado:</strong> el precio tachado está hinchado respecto al histórico. El “descuento” no es real.
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <span
-                style={{
-                  flex: 'none',
-                  marginTop: 2,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: 'var(--surface-2)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-muted)',
-                  borderRadius: 999,
-                  padding: '4px 9px',
-                  fontSize: 11.5,
-                  fontWeight: 800,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <ClockIcon size={12} />
-                Sin etiqueta
-              </span>
-              <div style={{ fontSize: 14.5, color: 'var(--text-muted)' }}>
-                <strong style={{ color: 'var(--text)' }}>Cuando no lo sabemos, no opinamos:</strong> si acabamos de
-                empezar a seguir una prenda, su tachado no lo podemos ni confirmar ni desmentir, así que no la
-                etiquetamos. La ficha te dice cuántos días llevamos mirándola.
-              </div>
-            </div>
+            ))}
           </div>
         </div>
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: 24, display: 'grid', placeItems: 'center', textAlign: 'center', gap: 10 }}>
