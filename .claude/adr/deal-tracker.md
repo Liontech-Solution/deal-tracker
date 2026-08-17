@@ -4123,6 +4123,61 @@ antes de mandar nada. Va en lotes de 5.760, que es el tamaño con el que el test
 Recortar casos para evitarlo habría pagado la comodidad justo con el borde del umbral, que es lo
 único que el test existe para vigilar.
 
+### Compartir la función no basta: el color se decidía otra vez en cada consumidor (#473)
+
+Descubierto validando la v0.6.0 en QA el 17/08/2026, o sea **después** de que #436 diera por cerrada
+la mitad visible. `cifrasDeRebaja()` (`frontend/src/lib/honesty.ts`) existe precisamente para que la
+tarjeta y la ficha digan lo mismo de la misma prenda, y las dos la llaman — la sospecha fácil, que
+`ProductCard` se hubiera quedado fuera del arreglo, es falsa y conviene descartarla de entrada. Lo
+que **no** comparten es la condición que traduce su salida a color:
+
+- `components/ProductCard.tsx:122-125` → gris solo si `!cifras.sostenido`
+- `components/PriceBlock.tsx:79-80` → gris si `unverified || !cifras.sostenido`
+
+Así que divergen exactamente en `unverified` **con** PVP creíble: la rejilla pinta el `-50 %` en
+verde y la ficha del mismo producto lo pinta en gris con «Descuento sin confirmar». Medido sobre el
+producto 4597 (Lefties), con **entradas idénticas** en las dos superficies. Y no es un rincón: la
+distribución de veredictos en QA ese día era `reciente` 553, `unverified` 228, `none` 12, `real` 7
+sobre 800 productos, o sea que el caso divergente es el 28,5 % del catálogo.
+
+**Lo que esto enseña sobre la red que ya teníamos**, que es el motivo de escribirlo aquí: el
+`revisor-espejo-honestidad` y `deal-rule-paridad.spec.ts` vigilan `deal-rule.ts` ↔ `deal-rule.sql.ts`,
+o sea el **veredicto**. Nada vigilaba su *presentación*, y la presentación tiene su propia lógica
+duplicada un piso más abajo — el mismo patrón que ya obligó a extraer `searchCondition` cuando el
+listado y la faceta entendían lo tecleado de forma distinta. Extraer la función compartida resuelve
+el cálculo y **no** impide que cada consumidor vuelva a decidir por su cuenta lo que hace con él.
+
+Queda sin decidir a propósito **cuál de las dos superficies tiene razón**, porque las dos fuentes
+escritas apuntan a lados distintos: el docstring de `cifrasDeRebaja()` dice que el verde lo gobierna
+`sostenido` —y entonces la tarjeta cumple la doctrina y la ficha es más estricta de lo documentado—,
+mientras que el espíritu de #332/#436 (no elogiar sin pruebas) dice que `unverified` es justo lo que
+no se avala. Es decisión de producto, no de validación.
+
+### Un release de lunes por la mañana garantiza el P0 de procedencia (#378)
+
+Corolario operativo medido el 17/08/2026, y no es mala suerte sino calendario: en QA los diez
+scrapers corren **los lunes de 03:00 a 07:00** y el matching a las 07:00. Un `release-qa` lanzado esa
+misma mañana entra *después*, así que ArgoCD despliega la imagen nueva sobre una base cuyas filas
+las escribió entera la versión anterior — las diez tiendas y el matching a la vez. Si la release
+toca `services/scraper/`, eso es el P0 de esta sección **siempre**, no «a veces».
+
+La remediación completa costó unos 35 minutos de reloj: nueve pasadas en paralelo (09:09-09:41) más
+sfera escalonada, que es la que pide 2Gi de Chromium y en la v0.5.0 ya se lanzó detrás de hipercor
+por lo mismo. Vale la pena saberlo antes de empezar: quien valide un lunes debe contar ese rato
+**antes** de lanzar ningún frente, porque medir el catálogo mientras se reingiere no vale.
+
+### Una función nueva gobernada por una columna que nace NULL no es observable en su primera pasada
+
+Lección de la validación de v0.6.0, con `probes_skipped_fresh = 0` en las diez tiendas. Leído sin
+contexto, ese cero dice que la ventana de #412 no ahorra nada; leído con él, dice que era la
+**primera** pasada con la `0042` aplicada, o sea con `product.last_probe_at` nula para todo el mundo.
+La ventana no tenía de qué saltarse nada porque nadie tenía sondeo previo que recordar.
+
+La consecuencia no es sobre esa issue en concreto sino sobre qué puede concluir una validación: una
+guarda que compara contra un estado acumulado necesita **dos** pasadas de la versión que la estrena,
+y la primera solo puede declararse no concluyente. Aprobarla por el cero que devuelve sería aprobar
+por omisión, y negarla también sería falso.
+
 ### Un dato declarado por la tienda puede ser evidencia si se usa CONTRA quien lo declara (#354)
 
 `price_history.retailer_min_30d` existía desde la `0018` (#78) sin que ningún código lo leyera. Lo
