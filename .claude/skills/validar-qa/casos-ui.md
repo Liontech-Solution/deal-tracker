@@ -121,7 +121,7 @@ validador se encuentra el caso bloqueado y sin saber por qué.
 |---|---|---|
 | U40 | `/ajustes` con sesión | tarjeta de Telegram con el estado actual |
 | U41 | «Vincular Telegram» | abre el deep-link `https://t.me/…?start=…` y la tarjeta pasa a pendiente |
-| U42 | Dejar la pestaña abierta | consulta sola cada ~4 s (obsérvalo en `browser_network_requests`): la confirmación debe entrar **sin recargar** |
+| U42 | Dejar la pestaña abierta | consulta sola cada `TELEGRAM_POLL_FAST_MS` (4 s hoy, `services/web/frontend/src/api/hooks.ts`), y pasados `TELEGRAM_POLL_FAST_WINDOW_MS` (2 min) **afloja a propósito** a `TELEGRAM_POLL_SLOW_MS` (15 s) — obsérvalo en `browser_network_requests` y no leas ese escalón como un sondeo roto. La confirmación debe entrar **sin recargar** |
 | U43 | Canje real del `/start` | ← checkpoint manual, ver la Fase 4 de `SKILL.md` |
 | U44 | «Desvincular» | vuelve al estado inicial |
 
