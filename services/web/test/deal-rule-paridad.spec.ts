@@ -102,6 +102,19 @@ const PUNTOS = [0, 1, 5];
  *
  * `numeric` y no `int` a propósito: `tracked_days` sale de un `EXTRACT(EPOCH …) / 86400` y llega
  * fraccionario, así que el borde real que hay que ejercitar no es entero.
+ *
+ * **Ejercido de verdad el 17/08/2026**, porque «rompe la suite» era hasta entonces una afirmación
+ * sin comprobar y es una casilla de la definición de hecho de la v0.6.0 (#437). Los dos
+ * experimentos, y hacen falta los dos:
+ *
+ *  - **Un solo lado**: escribir el umbral a mano en `deal-rule.sql.ts` (`sql.raw('7')` en lugar de
+ *    `sql.raw(String(REAL_EVIDENCE_DAYS))`) pone en **rojo** «SQL y TypeScript dan el mismo
+ *    veredicto», y las combinaciones que delata son exactamente las de `trackedDays: 13.99` —el SQL
+ *    dice `real`, el TS dice `reciente`—. Ninguna otra red de las 36 se enteró.
+ *  - **El control**: mover `REAL_EVIDENCE_DAYS` en `deal-rule.ts` y solo ahí deja la suite entera en
+ *    **verde** (821 tests). Sin este segundo experimento el primero no prueba nada: podría estar
+ *    fallando cualquier expectativa que tuviera el 14 escrito a mano. Lo que protege el espejo es el
+ *    `import`, y esto es lo que lo demuestra.
  */
 const COBERTURAS = [0, 13.99, 14, 120];
 

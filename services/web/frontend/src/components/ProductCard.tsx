@@ -6,14 +6,13 @@ import { ProductImage } from './ProductImage';
 import type { ProductListItem } from '../api/types';
 import { useFavorito } from '../auth/useFavorito';
 import { eurStr } from '../lib/format';
-import { cifrasDeRebaja, llevaBadge } from '../lib/honesty';
+import { cifrasDeRebaja, llevaBadge, tonoDelDescuento, tonoDelPrecio } from '../lib/honesty';
 
 export function ProductCard({ p }: { p: ProductListItem }) {
   const navigate = useNavigate();
   const favorito = useFavorito(p.id);
 
   const honesty = p.honesty;
-  const suspicious = honesty === 'suspicious';
   const price = eurStr(p.priceFrom);
   // Lo que se pinta NO es sin más lo que declara la tienda (#436): cuando la regla ha descartado su
   // tachado, la tarjeta enseña el PVP creíble y el descuento que ese PVP sostiene. Misma decisión
@@ -26,6 +25,9 @@ export function ProductCard({ p }: { p: ProductListItem }) {
   });
   const list = eurStr(cifras.tachado);
   const disc = cifras.descuento;
+  // El color del porcentaje NO se decide aquí: la condición vive en `tonoDelDescuento()` porque la
+  // ficha tiene que decir lo mismo de la misma prenda, y no lo decía (#473).
+  const tono = tonoDelDescuento(honesty, cifras.sostenido);
 
   return (
     <div
@@ -101,8 +103,14 @@ export function ProductCard({ p }: { p: ProductListItem }) {
           <span
             className="serif"
             // `reciente` mantiene el acento: la prenda SÍ ha bajado, y eso no está en duda (#436).
-            // Lo que se le retira es el verde del porcentaje y la palabra «real» del badge.
-            style={{ fontSize: 22, fontWeight: 600, color: suspicious ? 'var(--text)' : 'var(--accent)' }}
+            // Lo que se le retira es el verde del porcentaje y la palabra «real» del badge — y eso
+            // hasta #473 lo decía este comentario y no lo hacía el código: el verde lo daba
+            // `cifras.sostenido`, que en una bajada es cierto siempre.
+            style={{
+              fontSize: 22,
+              fontWeight: 600,
+              color: tonoDelPrecio(honesty) === 'plano' ? 'var(--text)' : 'var(--accent)',
+            }}
           >
             {price ?? '—'}
           </span>
@@ -116,13 +124,15 @@ export function ProductCard({ p }: { p: ProductListItem }) {
               style={{
                 fontSize: 12,
                 fontWeight: 800,
-                // El verde afirma «esto es una ganga». Sin PVP creíble no lo sabemos, así que el
-                // porcentaje sale en neutro: ni lo celebramos ni lo denunciamos.
-                color: suspicious
-                  ? 'var(--warn-text)'
-                  : cifras.sostenido
-                    ? 'var(--good-text)'
-                    : 'var(--text-muted)',
+                // El verde afirma «esto es una ganga», y solo `real` se lo gana. Lo que decide el
+                // tono está en un único sitio; aquí solo se traduce a color de texto, que es lo que
+                // esta superficie pinta (la ficha pinta además fondo y borde).
+                color:
+                  tono === 'warn'
+                    ? 'var(--warn-text)'
+                    : tono === 'good'
+                      ? 'var(--good-text)'
+                      : 'var(--text-muted)',
               }}
             >
               -{disc}%

@@ -3,7 +3,7 @@ import type { Stock } from './Badges';
 import { AlertIcon, CheckIcon, ClockIcon } from './icons';
 import type { Honesty, HonestyBasis } from '../api/types';
 import { eurStr } from '../lib/format';
-import { cifrasDeRebaja, llevaBadge } from '../lib/honesty';
+import { cifrasDeRebaja, llevaBadge, tonoDelDescuento, tonoDelPrecio } from '../lib/honesty';
 
 interface Props {
   price: string | null;
@@ -44,6 +44,9 @@ export function PriceBlock({
   // El tachado y el porcentaje que se PINTAN salen de la regla, no de la tienda (#436). El tachado
   // declarado no se esconde: sigue abajo, rotulado «PVP declarado», que es donde no lo avalamos.
   const cifras = cifrasDeRebaja({ listPrice, discountPct, honestListPrice, honestDiscountPct });
+  // Misma condición que la tarjeta, en el mismo sitio, porque no lo era: la ficha neutralizaba
+  // `unverified` y la tarjeta no, y a un `suspicious` sin PVP creíble le quitaba el ámbar (#473).
+  const tono = tonoDelDescuento(honesty, cifras.sostenido);
   const listStr = eurStr(cifras.tachado);
   const declaradoStr = eurStr(listPrice);
   const disc = cifras.descuento;
@@ -63,21 +66,28 @@ export function PriceBlock({
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+        {/* Quién pierde el acento lo decide `tonoDelPrecio()`, no este fichero: esta ficha se lo
+            quitaba a `unverified` y la tarjeta no (#473). El porqué, en su docstring. */}
         <span
           className="serif"
-          style={{ fontSize: 44, fontWeight: 600, lineHeight: 1, color: suspicious || unverified ? 'var(--text)' : 'var(--accent)' }}
+          style={{
+            fontSize: 44,
+            fontWeight: 600,
+            lineHeight: 1,
+            color: tonoDelPrecio(honesty) === 'plano' ? 'var(--text)' : 'var(--accent)',
+          }}
         >
           {priceStr ?? '—'}
         </span>
         {hasMarkdown && (
           <>
             <span style={{ fontSize: 19, color: 'var(--text-faint)', textDecoration: 'line-through' }}>{listStr}</span>
-            {/* El acento verde afirma «esto es una ganga». Con `unverified` no lo sabemos, así que
-                el porcentaje se pinta en neutro: ni lo celebramos ni lo denunciamos. */}
+            {/* El acento verde afirma «esto es una ganga», y solo `real` se lo gana (#473). Lo que
+                decide el tono está en `tonoDelDescuento()`; aquí solo se traduce a fondo + texto. */}
             <span
               style={{
-                background: unverified || !cifras.sostenido ? 'var(--surface-2)' : suspicious ? 'var(--warn-soft)' : 'var(--good-soft)',
-                color: unverified || !cifras.sostenido ? 'var(--text-muted)' : suspicious ? 'var(--warn-text)' : 'var(--good-text)',
+                background: tono === 'warn' ? 'var(--warn-soft)' : tono === 'good' ? 'var(--good-soft)' : 'var(--surface-2)',
+                color: tono === 'warn' ? 'var(--warn-text)' : tono === 'good' ? 'var(--good-text)' : 'var(--text-muted)',
                 borderRadius: 999,
                 padding: '4px 11px',
                 fontSize: 14,

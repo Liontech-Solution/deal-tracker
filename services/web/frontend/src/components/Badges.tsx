@@ -2,23 +2,46 @@ import { AlertIcon, CheckIcon, ClockIcon } from './icons';
 import { storeColor } from '../lib/stores';
 
 /**
- * Los tres veredictos que afirman algo. El de en medio, `reciente`, nace con #436.
+ * El rótulo de cada veredicto, en **un único sitio**.
+ *
+ * Existe porque no lo estaba: la home los repetía a mano y se quedó explicando dos de los cuatro,
+ * sin el mayoritario (#474). Un rótulo nuevo aquí obliga a decidir qué dice la home de él.
+ *
+ * `ninguna` no es un veredicto del backend —`Honesty` no lo tiene— sino el caso «no ponemos
+ * etiqueta» (`unverified` y `none`), que **solo la home** necesita nombrar para explicarlo. Al
+ * catálogo no puede llegar: quién lleva badge lo decide `llevaBadge()`, que es una guarda de tipo
+ * sobre los tres de verdad.
+ */
+export const ETIQUETA_HONESTIDAD = {
+  real: 'Oferta real',
+  reciente: 'Bajada reciente',
+  suspicious: 'Precio inflado',
+  ninguna: 'Sin etiqueta',
+} as const;
+
+export type KindHonestyBadge = keyof typeof ETIQUETA_HONESTIDAD;
+
+/**
+ * Los tres veredictos que afirman algo, más el «sin etiqueta» que solo usa la home para explicarse.
+ * El de en medio, `reciente`, nace con #436.
  *
  * **El color es la afirmación**, no el rótulo: el verde dice «esto es una ganga comprobada» y solo
  * se lo gana quien tiene cobertura para sostenerlo (`REAL_EVIDENCE_DAYS`). `reciente` va en neutro
  * a propósito aunque sea una buena noticia — ha bajado — porque lo que no sabemos es si el precio
  * del que ha bajado significaba algo. Pintarlo de verde sería el elogio sin pruebas otra vez, con
- * otro nombre.
+ * otro nombre. La misma doctrina decide el color del `-X %`, y ahí vivía duplicada:
+ * `tonoDelDescuento()` en `lib/honesty.ts` (#473).
  */
 export function HonestyBadge({
   kind,
   big = false,
 }: {
-  kind: 'real' | 'reciente' | 'suspicious';
+  kind: KindHonestyBadge;
   big?: boolean;
 }) {
   const real = kind === 'real';
-  const reciente = kind === 'reciente';
+  // «Sin etiqueta» se pinta como `reciente`: los dos dicen «no afirmamos nada de esto».
+  const reciente = kind === 'reciente' || kind === 'ninguna';
   return (
     <span
       style={{
@@ -42,7 +65,7 @@ export function HonestyBadge({
       ) : (
         <AlertIcon size={big ? 15 : 12} />
       )}
-      {reciente ? 'Bajada reciente' : real ? 'Oferta real' : 'Precio inflado'}
+      {ETIQUETA_HONESTIDAD[kind]}
     </span>
   );
 }
