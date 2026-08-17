@@ -23,6 +23,16 @@ import { useAuth } from './AuthProvider';
  * eso este devuelve además `esFavorito`, que es estado y no acción — el corazón se pinta relleno o
  * vacío antes de que nadie lo pulse.
  *
+ * **La rama 3 ya no es alcanzable, y se queda igual.** #435 pedía comprobar que «sin sesión el
+ * corazón lleva al login», y desde #309 eso no se puede observar: los tres únicos sitios que pintan
+ * corazón exigen sesión donde hay Keycloak —`HomePage.tsx` tras su `conCatalogo` (sin sesión la home
+ * pinta `DealsTrasLaPuerta`, que no tiene tarjetas), y `CatalogPage.tsx` y `ProductPage.tsx` tras
+ * `RequireSession`—, así que un anónimo no llega a ver ningún corazón que pulsar. Donde no hay realm
+ * (`dev`, #23) la que se ejerce es la 2, el toast, no el login. La rama se conserva **por ser el
+ * criterio compartido con la campana**, no por uso: borrarla reabriría #301 el día que un corazón
+ * vuelva a una superficie pública. Y no está cubierta por test porque no puede estarlo —
+ * `vitest.config.ts` solo corre del frontend los helpers puros, sin jsdom ni testing-library.
+ *
  * Vive en `auth/` y no en `components/` por lo mismo que su gemelo: lo que hace es leer el estado de
  * la sesión. Y en su propio fichero porque exportar un hook desde un módulo de componentes rompe el
  * fast refresh de Vite (`react-refresh/only-export-components`).
