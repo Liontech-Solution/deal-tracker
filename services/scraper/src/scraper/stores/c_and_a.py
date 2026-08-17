@@ -670,6 +670,7 @@ class CAndAStore:
                     gender=cat.gender,
                     section=cat.section,
                     category=cat.category,
+                    image_url=producto.image_url,  # ver #443 en `ListingEntry.image_url`
                 )
             if crudos < _PAGE_SIZE:
                 # Una página incompleta ES la última, y saberlo aquí ahorra la petición que solo

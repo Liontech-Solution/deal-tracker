@@ -440,7 +440,8 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"run #{result.scrape_run_id} OK — "
         f"{result.products_in_catalog} en catálogo "
-        f"({result.details_fetched} con detalle, {result.products_unchanged} sin cambios), "
+        f"({result.details_fetched} con detalle, {result.products_unchanged} sin cambios"
+        f"{f', {result.images_refreshed} con foto nueva' if result.images_refreshed else ''}), "
         f"{result.variants_seen} variantes ({result.variants_in_stock} con stock), "
         f"{result.prices_recorded} precios; "
         f"bajas: {result.products_delisted} productos / {result.variants_delisted} variantes"

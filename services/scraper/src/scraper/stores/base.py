@@ -237,6 +237,20 @@ class ListingEntry:
     gender: str | None
     section: str | None
     category: str | None
+    # Foto del listado, para refrescarla SIN pedir detalle (#443). La huella no incluye las fotos
+    # —en Cacles es `id:precio:stock`—, así que una imagen que la tienda sustituye sin tocar precio
+    # ni stock no la mueve: el producto cae en `unchanged` y su `image_url` no se reescribe nunca.
+    # Medido el 16/08/2026 en `deal_tracker_qa`: 49 de 424 fotos de Cacles (11,6 %, subiendo desde
+    # el 7 %) eran 404, y las 49 tenían el detalle a 9 días o más mientras que los 187 productos
+    # con detalle de ≤ 6 días no tenían ni una.
+    #
+    # **Solo la rellena la tienda cuyo `fetch_details()` sirve la caché que construyó
+    # `list_catalog()`**: ahí la foto del listado es, por construcción, la misma que escribiría el
+    # detalle. Una tienda cuyo listado traiga una foto distinta —una genérica del modelo frente a
+    # la del color, pongamos— la degradaría en cada pasada, que es el fallo contrario y peor.
+    # Hoy la cumplen cacles, sfera, c-and-a, deditos y hm; Lefties no (su detalle sale a la red) y
+    # zara, hipercor, mango y springfield tampoco traen foto en el listado.
+    image_url: str | None = None
 
     @property
     def scope(self) -> ScrapeScope:
@@ -493,6 +507,23 @@ class SupportsAliveProbe(Protocol):
         parsear la ficha por candidato, o sea peticiones nuevas contra una tienda que ya gasta 50
         sondeos por pasada. Eso es diseño propio con su medición, no una rama de un `if`, y no
         entra por la puerta de atrás de otra issue.
+
+        **Y una respuesta hay que leerla entera, no solo su status** (#454). Quien sondea por id
+        pregunta y le contestan por ese id; quien sondea por **URL** —hoy Sfera y Cacles, porque
+        `DelistCandidate` lleva las dos llaves justamente por eso— se expone a un fallo que el
+        otro no tiene: la tienda puede servir en esa URL la ficha de **otro** producto, y entonces
+        un 200 no prueba nada del nuestro. Leerlo como `ALIVE` es peor que inútil, porque
+        `_rescue()` pone la racha a cero y el producto retirado se queda en el catálogo para
+        siempre con su último precio: una baja que no ocurre nunca, que es el fallo simétrico del
+        que más se vigila. Medido en Deditos, cuyo `permalink` viejo del 11711 responde 301 a la
+        ficha del 41787, completa y bien formada.
+
+        Así que **quien sondee por URL comprueba la identidad de lo que le sirven** antes de
+        emitir `ALIVE`. El desajuste es «ausente del mapa», no `DEAD`: el producto podría seguir a
+        la venta bajo otra URL, y una baja falsa es un daño peor y menos reversible que un
+        producto congelado — que además, así, deja de ser mudo y se cuenta en `unresolved`.
+        Cuánto cuesta comprobarlo depende de la tienda y está medido en cada `_probe_one`: en
+        Cacles es gratis (el JSON ya trae el `id`) y en Sfera es la URL final tras redirecciones.
         """
         ...
 

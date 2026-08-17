@@ -946,6 +946,7 @@ class HMStore:
                 gender=scope.gender,
                 section=scope.section,
                 category=scope.category,
+                image_url=prod.image_url,  # ver #443 en `ListingEntry.image_url`
             )
 
     def _leer_hoja(self, client: httpx.Client, cat: CategoryConfig) -> list[Fila] | None:

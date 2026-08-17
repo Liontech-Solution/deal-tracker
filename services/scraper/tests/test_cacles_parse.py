@@ -484,6 +484,26 @@ def test_fetch_details_sirve_de_cache_sin_tocar_la_red() -> None:
     assert [p.retailer_product_id for p in productos] == ["1", "2"]
 
 
+def test_el_listado_publica_la_foto_y_es_la_misma_que_el_detalle() -> None:
+    """#443: la foto viaja en el `ListingEntry` para refrescarse sin pedir detalle.
+
+    Las dos mitades se afirman juntas porque la segunda es la que autoriza a la primera: aquí el
+    listado ES el detalle (`fetch_details` sirve de esta caché), así que publicar su foto no puede
+    degradar la guardada. Una tienda donde no fuera la misma escribiría en cada pasada una foto
+    peor que la que tenía, que es el fallo contrario y más difícil de ver.
+    """
+    # Con la colección REAL, no con la sintética: las fotos son justo lo que esta afirma y
+    # aquella no tiene (sus productos van con `images: []`).
+    store = _store_sirviendo({1: load_fixture("cacles_collection_infantil.json")})
+    entries = list(store.list_catalog())
+    productos = {p.retailer_product_id: p for p in store.fetch_details(entries)}
+
+    con_foto = [e for e in entries if e.image_url]
+    assert con_foto, "la colección real trae fotos: si no, este test no está probando nada"
+    for entry in entries:
+        assert entry.image_url == productos[entry.retailer_product_id].image_url
+
+
 def test_los_scopes_declaran_todo_lo_que_el_parser_puede_emitir() -> None:
     """Un ámbito no declarado deja sus productos imposibles de dar de baja.
 
@@ -517,21 +537,71 @@ def _store_probando(respuesta: httpx.Response | Exception) -> CaclesStore:
     return store
 
 
-def _candidato() -> Any:
+# El id del producto de `cacles_product_handle.json`. Desde #454 el sondeo comprueba que la ficha
+# servida es la del candidato, así que preguntar por un id inventado ya no confirma nada — que es
+# justo lo que se quiere.
+_ID_FIXTURE = "15823180333400"
+
+
+def _candidato(pid: str = _ID_FIXTURE) -> Any:
     from scraper.stores.base import DelistCandidate
 
-    return DelistCandidate("1", "https://www.caclesbarefoot.com/products/zapato-1")
+    return DelistCandidate(pid, "https://www.caclesbarefoot.com/products/zapato-1")
 
 
 def test_probe_alive_confirma_vivo_con_200_y_producto() -> None:
     producto = load_fixture("cacles_product_handle.json")
     store = _store_probando(httpx.Response(200, json=producto))
-    assert store.probe_alive([_candidato()]) == {"1": ProbeVerdict.ALIVE}
+    assert store.probe_alive([_candidato()]) == {_ID_FIXTURE: ProbeVerdict.ALIVE}
+
+
+def test_la_ficha_de_otro_producto_no_confirma_el_nuestro() -> None:
+    """#454: sondear por URL admite un fallo que sondear por id no tiene.
+
+    Si la tienda sirve en esa URL la ficha de OTRO producto, `bool(payload["product"])` daba
+    `True`, la ingesta respondía `ALIVE` y `_rescue()` ponía la racha a cero: el producto retirado
+    se quedaba en el catálogo para siempre con su último precio. Medido en Deditos, cuyo
+    `permalink` viejo del 11711 responde 301 a la ficha completa del 41787.
+
+    El veredicto es **ausente del mapa**, no `DEAD`: que nos sirvan otra ficha no prueba que la
+    nuestra se haya retirado, y una baja falsa es peor y menos reversible que un producto
+    congelado — que además así se cuenta en `unresolved` en vez de ser mudo.
+    """
+    producto = load_fixture("cacles_product_handle.json")
+    store = _store_probando(httpx.Response(200, json=producto))
+
+    assert store.probe_alive([_candidato("99999999999")]) == {}
+
+
+def test_el_cambio_de_handle_conserva_el_id_y_sigue_siendo_vivo() -> None:
+    """El matiz que #454 avisa de no perder: la redirección sana no se toca.
+
+    Shopify conserva el `id` cuando el comercio renombra el *handle*, así que un producto
+    renombrado —que redirige de su URL vieja a la nueva— sigue confirmándose vivo. Leerlo como
+    desajuste dejaría de rescatar productos vivos y atascaría las bajas legítimas.
+    """
+    producto = load_fixture("cacles_product_handle.json")
+    producto["product"]["handle"] = "otro-handle-tras-el-renombrado"
+    store = _store_probando(httpx.Response(200, json=producto))
+
+    assert store.probe_alive([_candidato()]) == {_ID_FIXTURE: ProbeVerdict.ALIVE}
+
+
+def test_una_ficha_sin_id_no_arriesga_ningun_veredicto() -> None:
+    """Forma inesperada: ni confirma ni da de baja. Es la lectura conservadora de siempre."""
+    store = _store_probando(httpx.Response(200, json={"product": {"title": "sin id"}}))
+    assert store.probe_alive([_candidato()]) == {}
+
+
+def test_un_200_sin_producto_sigue_siendo_retirada() -> None:
+    """El comportamiento de #65, que #454 no cambia: sin ficha, el handle ya no sirve nada."""
+    store = _store_probando(httpx.Response(200, json={"product": None}))
+    assert store.probe_alive([_candidato()]) == {_ID_FIXTURE: ProbeVerdict.DEAD}
 
 
 def test_probe_alive_confirma_retirado_con_404() -> None:
     store = _store_probando(httpx.Response(404))
-    assert store.probe_alive([_candidato()]) == {"1": ProbeVerdict.DEAD}
+    assert store.probe_alive([_candidato()]) == {_ID_FIXTURE: ProbeVerdict.DEAD}
 
 
 def test_un_error_de_red_no_vale_como_prueba_de_retirada() -> None:
@@ -557,7 +627,7 @@ def test_un_candidato_sin_url_no_se_puede_sondear() -> None:
 def test_el_410_tambien_confirma_la_retirada() -> None:
     """410 significa lo mismo que 404 y así lo declara `GONE_STATUS` en el contrato común."""
     assert _store_probando(httpx.Response(410)).probe_alive([_candidato()]) == {
-        "1": ProbeVerdict.DEAD
+        _ID_FIXTURE: ProbeVerdict.DEAD
     }
 
 

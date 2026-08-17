@@ -642,6 +642,10 @@ class CaclesStore:
                         gender=producto.gender,
                         section=producto.section,
                         category=producto.category,
+                        # El listado ES el detalle aquí (`fetch_details` sirve de esta caché), así
+                        # que la foto es la misma que escribiría el detalle: ver #443 en
+                        # `ListingEntry.image_url`.
+                        image_url=producto.image_url,
                     )
                 if crudos < _PAGE_SIZE:
                     # Una página incompleta ES la última, y saberlo aquí ahorra la petición
@@ -753,8 +757,37 @@ class CaclesStore:
         """
         return "/"
 
-    def _probe_one(self, client: httpx.Client, url: str | None) -> bool | None:
-        """¿Sigue a la venta? True/False; None si la tienda no da respuesta utilizable."""
+    def _probe_one(self, client: httpx.Client, candidate: DelistCandidate) -> bool | None:
+        """¿Sigue a la venta? True/False; None si la tienda no da respuesta utilizable.
+
+        **La identidad se comprueba, no se supone** (#454). Sondear por URL admite un fallo que
+        sondear por id no tiene: si la tienda sirve en esa URL la ficha de OTRO producto, un
+        `bool(payload["product"])` da `True`, la ingesta responde `ALIVE`, `_rescue()` pone la
+        racha a cero y el producto retirado se queda en el catálogo para siempre con su último
+        precio. Aquí sale gratis porque el propio JSON trae el `id`, que es exactamente nuestro
+        `retailer_product_id` (ver `_parse_products`): comparar es una línea y cero peticiones.
+
+        Ojo al matiz que la issue avisa de no perder: **la redirección peligrosa no es la sana**.
+        Shopify conserva el `id` cuando cambia el *handle*, así que un producto renombrado sigue
+        dando `True` — lo que se rechaza es solo que nos sirvan otro producto.
+
+        Medido el 17/08/2026 contra `caclesbarefoot.com`, un handle vivo y tres canarios:
+
+        | caso | status | redirecciones | `product.id` |
+        |---|---:|---:|---|
+        | handle vivo | 200 | 0 | el nuestro |
+        | handle con el modelo mutado | 404 | 0 | — |
+        | handle inventado entero | 404 | 0 | — |
+        | prefijo truncado del vivo | 404 | 0 | — |
+
+        O sea que **hoy Cacles no redirige por este camino**: el endpoint `.json` devolvió 0
+        redirecciones incluso donde el storefront sí redirige (apex → www), y un handle
+        desconocido da 404 limpio. Esta comprobación no arregla un fallo en curso: vigila que la
+        propiedad siga siendo verdad, que es lo que no había. Un desajuste **no** se traduce a
+        `DEAD` sino a «sin veredicto» — el producto podría seguir a la venta bajo otro handle, y
+        una baja falsa es un daño peor y menos reversible que un producto congelado.
+        """
+        url = candidate.url
         if not url:
             return None  # sin URL no hay handle por el que preguntar
         try:
@@ -768,14 +801,21 @@ class CaclesStore:
             return None
         if not isinstance(payload, dict):
             return None  # forma inesperada: no arriesgamos una baja con esto
-        return bool(payload.get("product"))
+        producto = payload.get("product")
+        if not producto:
+            return False  # 200 sin producto: el handle ya no sirve ficha (comportamiento de #65)
+        if not isinstance(producto, dict) or producto.get("id") is None:
+            return None  # forma inesperada: no arriesgamos una baja con esto
+        if str(producto["id"]) != candidate.retailer_product_id:
+            return None  # es la ficha de OTRO: no prueba nada del nuestro, ni vivo ni retirado
+        return True
 
     def probe_alive(self, candidates: Iterable[DelistCandidate]) -> Mapping[str, ProbeVerdict]:
         """Confirmación activa (ver `stores.base.SupportsAliveProbe`): un GET por candidato."""
         verdicts: dict[str, ProbeVerdict] = {}
         with self._client() as client:
             for candidate in candidates:
-                verdict = self._probe_one(client, candidate.url)
+                verdict = self._probe_one(client, candidate)
                 if verdict is not None:  # sin veredicto -> se omite del mapa
                     verdicts[candidate.retailer_product_id] = (
                         ProbeVerdict.ALIVE if verdict else ProbeVerdict.DEAD

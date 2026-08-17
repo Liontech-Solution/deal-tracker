@@ -12,7 +12,7 @@ import os
 import pytest
 
 from scraper.config import Config
-from scraper.stores.base import DelistCandidate
+from scraper.stores.base import DelistCandidate, ProbeVerdict
 from scraper.stores.sfera import CategoryConfig, SferaStore
 
 _LIVE = os.environ.get("SFERA_LIVE") == "1"
@@ -52,6 +52,15 @@ def test_sfera_live_probe_alive() -> None:
 
     Contrato observado en la web real: Sfera enruta la PDP por id (el slug da igual, redirige
     al canónico) y devuelve 404 con un id que no existe. Este test es la alarma si cambia.
+
+    El canario es `A999999999` y **no un id mutado**, que es la lección de la medición de #454:
+    al mutar el último dígito de tres ids vivos, dos cayeron en ids reales de OTROS productos y
+    Sfera devolvió 200 sirviendo esos productos. Un canario así no prueba nada — solo vale un id
+    que la tienda no pueda conocer.
+
+    Las aserciones son sobre `ProbeVerdict` desde #197/#426: este test comparaba contra `True` y
+    `False`, o sea contra la API booleana que `probe_alive` dejó de tener, y como solo corre con
+    `SFERA_LIVE=1` nadie lo vio fallar.
     """
     config = Config(database_url="postgresql://unused")
     store = SferaStore(
@@ -70,8 +79,12 @@ def test_sfera_live_probe_alive() -> None:
         ]
     )
 
-    assert verdicts.get(live.retailer_product_id) is True
-    assert verdicts.get("A999999999") is False
+    # Vivo o agotado, pero NUNCA retirado: es un producto que el listado acaba de servir.
+    assert verdicts.get(live.retailer_product_id) in (
+        ProbeVerdict.ALIVE,
+        ProbeVerdict.UNBUYABLE,
+    )
+    assert verdicts.get("A999999999") is ProbeVerdict.DEAD
 
 
 @pytest.mark.skipif(not _LIVE, reason="smoke en vivo; define SFERA_LIVE=1 para ejecutarlo")

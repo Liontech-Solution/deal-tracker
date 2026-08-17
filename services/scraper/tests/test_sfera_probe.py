@@ -12,6 +12,7 @@ from typing import Any
 
 from scraper.config import Config
 from scraper.stores.base import DelistCandidate, ProbeVerdict
+from scraper.stores.browser import RespuestaHtml
 from scraper.stores.sfera import CategoryConfig, SferaStore
 
 _CFG = Config(database_url="x", request_delay=0.0, retry_backoff=0.0)
@@ -25,11 +26,21 @@ class FakeSession:
     dos rutas de `BrowserSession`: las dos devuelven el mismo status. Sin esa distinción el doble
     no puede notar que la ficha se renderiza cuando no hace falta (#168, y el mismo apaño que
     #160 le hizo al doble de Hipercor).
+
+    `destinos` simula la otra mitad que el status no cuenta (#454): a dónde acaba la petición tras
+    las redirecciones. Por defecto la URL final es la pedida, que es el caso sano y el de todos los
+    tests anteriores a esa issue.
     """
 
-    def __init__(self, stock: dict[str, Any], statuses: dict[str, int]) -> None:
+    def __init__(
+        self,
+        stock: dict[str, Any],
+        statuses: dict[str, int],
+        destinos: dict[str, str] | None = None,
+    ) -> None:
         self._stock = stock
         self._statuses = statuses
+        self._destinos = destinos or {}
         self.visited: list[str] = []
         self.navegadas: list[str] = []
         self.pedidas: list[str] = []
@@ -50,10 +61,14 @@ class FakeSession:
         self.navegadas.append(url)
         return self._statuses.get(url, 200)
 
-    def pedir_html(self, url: str) -> tuple[int, str]:
+    def pedir(self, url: str) -> RespuestaHtml:
         self.visited.append(url)
         self.pedidas.append(url)
-        return self._statuses.get(url, 200), ""
+        return RespuestaHtml(self._statuses.get(url, 200), "", self._destinos.get(url, url))
+
+    def pedir_html(self, url: str) -> tuple[int, str]:
+        respuesta = self.pedir(url)
+        return respuesta.status, respuesta.html
 
     def get_json(self, url: str) -> Any:
         self.visited.append(url)
@@ -169,3 +184,98 @@ def test_sin_candidatos_no_abre_navegador() -> None:
 
     assert store.probe_alive([]) == {}
     assert session.visited == []
+
+
+# --- #454: un 200 no prueba que la ficha sea la nuestra -----------------------------------------
+
+
+def test_la_ficha_de_otro_producto_no_rescata_al_nuestro() -> None:
+    """El fallo de #454: 200 + redirección a OTRA ficha se leía como `ALIVE`.
+
+    Y `ALIVE` no es un veredicto inocuo: dispara `_rescue()`, que pone la racha a cero, así que el
+    producto retirado se quedaba en el catálogo indefinidamente con su último precio. Es la baja
+    que no ocurre nunca — el fallo simétrico del que más se vigila.
+
+    El veredicto correcto es **ausente del mapa**, no `DEAD`: que nos sirvan otra ficha no prueba
+    que la nuestra se haya retirado (podría vivir bajo otra URL), y una baja falsa es un daño peor
+    y menos reversible que un producto congelado. Ausente lo deja con la racha intacta, en
+    `blocked_ids`, y lo cuenta en `unresolved`.
+    """
+    url = "https://www.sfera.com/es/ninos/A1-x/"
+    session = FakeSession(
+        stock={"A1": _stock([])},
+        statuses={url: 200},
+        destinos={url: "https://www.sfera.com/es/ninos/A2-otro-producto/"},
+    )
+    store = _store(session)
+
+    assert store.probe_alive([_candidate("A1")]) == {}
+
+
+def test_la_redireccion_al_canonico_del_mismo_producto_sigue_siendo_vivo() -> None:
+    """El matiz que #454 avisa de no perder: la redirección sana es normal y no se toca.
+
+    Sfera enruta por id y el slug le da igual, así que corregir el slug —o añadir la barra final—
+    es exactamente lo que se espera de ella. Medido el 17/08/2026: dos ids mutados que resultaron
+    ser de OTROS productos reales devolvieron 200 con el slug reescrito, y la URL final llevaba en
+    los dos casos el id pedido. Si esto se leyera como desajuste, el sondeo dejaría de confirmar
+    productos vivos y las bajas legítimas se atascarían.
+    """
+    url = "https://www.sfera.com/es/ninos/A1-slug-viejo/"
+    session = FakeSession(
+        stock={"A1": _stock(["A1"])},
+        statuses={url: 200},
+        destinos={url: "https://www.sfera.com/es/ninos/A1-slug-nuevo-canonico/"},
+    )
+    store = _store(session)
+
+    assert store.probe_alive([DelistCandidate("A1", url)]) == {"A1": ProbeVerdict.ALIVE}
+
+
+def test_un_id_contenido_en_otro_no_cuela_como_identidad() -> None:
+    """La comprobación se ancla al segmento, no es un `in` suelto.
+
+    `A20097413` está contenido en `A200974138`, así que un `in` sobre la URL daría por buena la
+    ficha del segundo cuando preguntamos por el primero — y sería un rescate contra el producto
+    equivocado, que es justo lo que esta issue viene a cerrar.
+    """
+    url = "https://www.sfera.com/es/ninos/A20097413-x/"
+    session = FakeSession(
+        stock={"A20097413": _stock([])},
+        statuses={url: 200},
+        destinos={url: "https://www.sfera.com/es/ninos/A200974138-camiseta/"},
+    )
+    store = _store(session)
+
+    assert store.probe_alive([_candidate("A20097413")]) == {}
+
+
+def test_el_404_manda_aunque_la_url_final_sea_otra() -> None:
+    """El orden importa: un 404 es un veredicto y no necesita comprobar identidad.
+
+    Si la comprobación de identidad se colara antes del status, un id retirado que además
+    redirigiera acabaría en «sin veredicto» en vez de en `DEAD`, y la baja legítima no se
+    produciría nunca. Es el fallo contrario al de esta issue y se protege aquí.
+    """
+    url = "https://www.sfera.com/es/ninos/A1-x/"
+    session = FakeSession(
+        stock={"A1": _stock([])},
+        statuses={url: 404},
+        destinos={url: "https://www.sfera.com/es/ninos/A2-otro/"},
+    )
+    store = _store(session)
+
+    assert store.probe_alive([_candidate("A1")]) == {"A1": ProbeVerdict.DEAD}
+
+
+def test_el_atajo_por_stock_no_pasa_por_la_identidad() -> None:
+    """Con stock comprable no se pide la ficha, así que no hay URL final que comprobar.
+
+    El atajo de #426 pregunta por id al endpoint de stock: ahí la identidad no está en duda, y
+    gastar una petición para confirmarla sería pagar por nada.
+    """
+    session = FakeSession(stock={"A1": _stock(["A1"])}, statuses={})
+    store = _store(session)
+
+    assert store.probe_alive([_candidate("A1")]) == {"A1": ProbeVerdict.ALIVE}
+    assert session.pedidas == []

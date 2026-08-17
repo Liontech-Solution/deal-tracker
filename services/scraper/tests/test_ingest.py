@@ -62,10 +62,14 @@ class FakeStore:
         products: list[ScrapedProduct],
         signatures: dict[str, str],
         scopes: list[ScrapeScope] | None = None,
+        foto_en_listado: bool = False,
     ) -> None:
         self._by_id = {p.retailer_product_id: p for p in products}
         self._sigs = signatures
         self._scopes = scopes
+        # Es opt-in porque en las tiendas también lo es (#443): solo la publica quien sirve el
+        # detalle desde la caché del listado, o sea quien puede garantizar que es la misma foto.
+        self._foto_en_listado = foto_en_listado
         self.detail_calls: list[str] = []
 
     def scopes(self) -> Iterable[ScrapeScope]:
@@ -81,7 +85,14 @@ class FakeStore:
 
     def list_catalog(self) -> Iterable[ListingEntry]:
         for pid, p in self._by_id.items():
-            yield ListingEntry(pid, self._sigs[pid], p.gender, p.section, p.category)
+            yield ListingEntry(
+                pid,
+                self._sigs[pid],
+                p.gender,
+                p.section,
+                p.category,
+                image_url=p.image_url if self._foto_en_listado else None,
+            )
 
     def fetch_details(self, entries: Iterable[ListingEntry]) -> Iterable[ScrapedProduct]:
         for e in entries:
@@ -706,6 +717,34 @@ def test_sondeo_sin_veredicto_no_da_de_baja(db_conn: Any) -> None:
     assert _scalar(db_conn, "SELECT errors FROM scrape_run WHERE id = %s", (result.scrape_run_id,))
 
 
+def test_el_candidato_que_el_sondeo_omite_no_se_rescata_ni_se_da_de_baja(db_conn: Any) -> None:
+    """#454: la tienda contesta, pero de ESE candidato no dice nada.
+
+    Es la forma que toma la identidad que no cuadra —el sondeo por URL recibe la ficha de otro
+    producto y omite el candidato del mapa—, y se distingue del sondeo que revienta entero: aquí
+    no hay excepción ni bloqueo, la pasada es normal.
+
+    Las dos mitades importan y son opuestas. **No se rescata**: `_rescue()` solo toca los `ALIVE`,
+    así que la racha sobrevive y el producto sigue siendo candidato en la pasada siguiente — que
+    es lo que no pasaba antes, porque un 200 ajeno se leía como `ALIVE` y ponía la racha a cero.
+    **Y no se da de baja**: entra en `blocked_ids`, que es lo único que protege a un candidato
+    —`_delist()` borra con su propio `WHERE` sobre `missing_streak`, no con la lista de
+    candidatos—, así que sin eso `delist_min_misses=1` lo habría descatalogado sin preguntar.
+    """
+    both, sigs = _dos_productos()
+    ingest(db_conn, FakeStore(both, signatures=sigs), run_ts=T1)
+
+    # B falta del listado y el sondeo NO emite veredicto suyo (mapa vacío, sin excepción).
+    store = ProbingFakeStore(_solo_a(), signatures={"A": "a1"}, verdicts={})
+    result = ingest(db_conn, store, run_ts=T2, delist_min_misses=1)
+
+    assert store.probed == ["B"], "se le llegó a preguntar a la tienda"
+    assert result.probes_unresolved == 1
+    assert result.products_delisted == 0
+    assert _scalar(db_conn, "SELECT delisted_at FROM product WHERE retailer_product_id='B'") is None
+    assert _streak(db_conn, "B") == 1, "la racha se conserva: ni rescatado ni olvidado"
+
+
 def test_sondeo_respeta_el_tope_y_no_da_de_baja_lo_no_sondeado(db_conn: Any) -> None:
     """#4: el tope acota las peticiones; lo que se queda fuera espera a otra pasada."""
     products = [_product(f"A{i}", f"P{i}", [_variant(f"A{i}-1", "20.00")]) for i in range(3)]
@@ -1185,6 +1224,120 @@ def test_pasada_sin_foto_no_borra_la_que_habia(db_conn: Any) -> None:
     ingest(db_conn, store2, run_ts=T2)
 
     assert _scalar(db_conn, "SELECT image_url FROM product") == IMG
+
+
+# --- #443: la foto rancia del producto sin cambios ---------------------------------------------
+
+
+def test_la_foto_del_listado_se_refresca_sin_pedir_detalle(db_conn: Any) -> None:
+    """El fallo de #443: la huella no incluye la foto, así que una foto nueva no movía nada.
+
+    El producto caía en `unchanged`, recibía solo `_touch_seen()` y el upsert —con su
+    `COALESCE`— ni llegaba a ejecutarse. La URL vieja se quedaba hasta que `_stale_refreshes()`
+    lo rescatara por antigüedad, o para siempre si su precio nunca se movía. Medido el
+    16/08/2026: 49 de las 424 fotos de Cacles (11,6 %) eran 404, y las 49 tenían el detalle a
+    9 días o más.
+
+    Las dos mitades del arreglo se afirman juntas: la foto entra **y** no se pide detalle. Sin la
+    segunda, esto sería la salida 1 de la issue (meter la foto en la huella), que es la cara.
+    """
+    otra = "https://static.example/p/A-nueva.jpg?ts=9"
+    store1 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], image_url=IMG)],
+        signatures={"A": "a1"},
+        foto_en_listado=True,
+    )
+    ingest(db_conn, store1, run_ts=T1)
+    assert _scalar(db_conn, "SELECT image_url FROM product") == IMG
+
+    # Misma huella (mismo precio y stock) pero la tienda ha sustituido la foto.
+    store2 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], image_url=otra)],
+        signatures={"A": "a1"},
+        foto_en_listado=True,
+    )
+    result = ingest(db_conn, store2, run_ts=T2)
+
+    assert _scalar(db_conn, "SELECT image_url FROM product") == otra
+    assert result.products_unchanged == 1
+    assert result.images_refreshed == 1
+    assert store2.detail_calls == [], "la foto no puede costar una petición de detalle"
+
+
+def test_refrescar_la_foto_no_mueve_last_detail_at(db_conn: Any) -> None:
+    """Esto no es una observación de detalle y no puede disfrazarse de una.
+
+    Si `last_detail_at` se moviera, el producto saldría de la cola de `_stale_refreshes()` —que
+    ordena por lo más rancio— y la serie de precios perdería justo las re-observaciones que esa
+    cola existe para forzar. O sea que arreglar la foto rompería el histórico, en silencio.
+    """
+    store1 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], image_url=IMG)],
+        signatures={"A": "a1"},
+        foto_en_listado=True,
+    )
+    ingest(db_conn, store1, run_ts=T1)
+    detalle_antes = _scalar(db_conn, "SELECT last_detail_at FROM product")
+
+    store2 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], image_url="https://x/nueva.jpg")],
+        signatures={"A": "a1"},
+        foto_en_listado=True,
+    )
+    ingest(db_conn, store2, run_ts=T2)
+
+    assert _scalar(db_conn, "SELECT last_detail_at FROM product") == detalle_antes
+    assert _scalar(db_conn, "SELECT last_seen_at FROM product") == T2, "visto sí, con detalle no"
+
+
+def test_la_misma_foto_no_se_reescribe(db_conn: Any) -> None:
+    """Se compara antes de escribir: sin esto, cada pasada tocaría todas las filas sin cambios.
+
+    Y el contador dejaría de significar nada, que es lo que lo hace útil como alarma: lo que
+    interesa es «cuántas fotos ha cambiado la tienda», no «cuántos productos hemos visto».
+    """
+    store1 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], image_url=IMG)],
+        signatures={"A": "a1"},
+        foto_en_listado=True,
+    )
+    ingest(db_conn, store1, run_ts=T1)
+
+    store2 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], image_url=IMG)],
+        signatures={"A": "a1"},
+        foto_en_listado=True,
+    )
+    result = ingest(db_conn, store2, run_ts=T2)
+
+    assert result.products_unchanged == 1
+    assert result.images_refreshed == 0
+    assert _scalar(db_conn, "SELECT image_url FROM product") == IMG
+
+
+def test_un_listado_sin_foto_no_borra_la_guardada(db_conn: Any) -> None:
+    """La misma promesa que el `COALESCE` del upsert, sostenida aquí por la condición.
+
+    Es la mitad que protege a las cinco tiendas que NO publican foto en el listado (zara,
+    hipercor, mango, springfield y lefties): para ellas este camino tiene que seguir siendo
+    exactamente el de antes.
+    """
+    store1 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], image_url=IMG)],
+        signatures={"A": "a1"},
+        foto_en_listado=True,
+    )
+    ingest(db_conn, store1, run_ts=T1)
+
+    # `foto_en_listado=False`: la tienda no publica foto en el listado.
+    store2 = FakeStore(
+        [_product("A", "Bailarina", [_variant("A-1", "39.95")], image_url=None)],
+        signatures={"A": "a1"},
+    )
+    result = ingest(db_conn, store2, run_ts=T2)
+
+    assert _scalar(db_conn, "SELECT image_url FROM product") == IMG
+    assert result.images_refreshed == 0
 
 
 # --- galería de fotos por color -------------------------------------------------------------
