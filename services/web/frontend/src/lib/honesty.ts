@@ -42,6 +42,31 @@ export function llevaBadge(honesty: Honesty): honesty is 'real' | 'reciente' | '
  *     verde. No sabemos si ese tachado es cierto, y afirmarlo con nuestro color es el elogio sin
  *     pruebas que #436 vino a quitar.
  */
+export function cifrasDeRebaja(p: {
+  listPrice: string | null;
+  discountPct: string | null;
+  honestListPrice: string | null;
+  honestDiscountPct: number;
+}): { tachado: string | null; descuento: number | null; sostenido: boolean } {
+  const declarado = parseMoney(p.listPrice);
+  const honesto = parseMoney(p.honestListPrice);
+
+  // Sin PVP creíble no hay nada que nosotros podamos sostener (caso 3).
+  if (honesto === null) {
+    return { tachado: p.listPrice, descuento: discountInt(p.discountPct), sostenido: false };
+  }
+  // El creíble manda en cuanto es más bajo que el declarado (caso 2). El `<` es estricto a
+  // propósito: si coinciden, el tachado de la tienda ya es el creíble y no hay nada que sustituir.
+  if (declarado !== null && honesto < declarado) {
+    return {
+      tachado: honesto.toFixed(2),
+      descuento: p.honestDiscountPct > 0 ? Math.round(p.honestDiscountPct) : null,
+      sostenido: true,
+    };
+  }
+  return { tachado: p.listPrice, descuento: discountInt(p.discountPct), sostenido: true };
+}
+
 /** Los tres tonos con los que se puede pintar un porcentaje de descuento. */
 export type TonoDescuento = 'good' | 'warn' | 'neutro';
 
@@ -76,6 +101,16 @@ export type TonoDescuento = 'good' | 'warn' | 'neutro';
  * #436 con el elogio, aplicado a lo que quedaba suelto — el color. `reciente` y `unverified` son las
  * dos formas de «no lo podemos sostener», y las dos van en neutro aunque una sea buena noticia.
  */
+export function tonoDelDescuento(honesty: Honesty, sostenido: boolean): TonoDescuento {
+  // La acusación manda sobre todo lo demás, con PVP creíble o sin él: si el badge dice «Precio
+  // inflado», el porcentaje que lo acompaña no puede pintarse como si no dijéramos nada.
+  if (honesty === 'suspicious') return 'warn';
+  // El `&& sostenido` no es redundante aunque hoy `real` lo implique (una bajada real necesita un
+  // PVP creíble contra el que medirla): es la guarda que impide que un veredicto futuro se lleve el
+  // verde sin una referencia que lo sostenga.
+  return honesty === 'real' && sostenido ? 'good' : 'neutro';
+}
+
 /**
  * Si el precio grande va con el acento de la marca o apagado, para las mismas dos superficies.
  *
@@ -91,39 +126,4 @@ export type TonoDescuento = 'good' | 'warn' | 'neutro';
  */
 export function tonoDelPrecio(honesty: Honesty): 'accent' | 'plano' {
   return honesty === 'suspicious' ? 'plano' : 'accent';
-}
-
-export function tonoDelDescuento(honesty: Honesty, sostenido: boolean): TonoDescuento {
-  // La acusación manda sobre todo lo demás, con PVP creíble o sin él: si el badge dice «Precio
-  // inflado», el porcentaje que lo acompaña no puede pintarse como si no dijéramos nada.
-  if (honesty === 'suspicious') return 'warn';
-  // El `&& sostenido` no es redundante aunque hoy `real` lo implique (una bajada real necesita un
-  // PVP creíble contra el que medirla): es la guarda que impide que un veredicto futuro se lleve el
-  // verde sin una referencia que lo sostenga.
-  return honesty === 'real' && sostenido ? 'good' : 'neutro';
-}
-
-export function cifrasDeRebaja(p: {
-  listPrice: string | null;
-  discountPct: string | null;
-  honestListPrice: string | null;
-  honestDiscountPct: number;
-}): { tachado: string | null; descuento: number | null; sostenido: boolean } {
-  const declarado = parseMoney(p.listPrice);
-  const honesto = parseMoney(p.honestListPrice);
-
-  // Sin PVP creíble no hay nada que nosotros podamos sostener (caso 3).
-  if (honesto === null) {
-    return { tachado: p.listPrice, descuento: discountInt(p.discountPct), sostenido: false };
-  }
-  // El creíble manda en cuanto es más bajo que el declarado (caso 2). El `<` es estricto a
-  // propósito: si coinciden, el tachado de la tienda ya es el creíble y no hay nada que sustituir.
-  if (declarado !== null && honesto < declarado) {
-    return {
-      tachado: honesto.toFixed(2),
-      descuento: p.honestDiscountPct > 0 ? Math.round(p.honestDiscountPct) : null,
-      sostenido: true,
-    };
-  }
-  return { tachado: p.listPrice, descuento: discountInt(p.discountPct), sostenido: true };
 }
