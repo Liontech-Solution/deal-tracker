@@ -4247,6 +4247,19 @@ primero:
 O sea que lo que sostiene el espejo del umbral es el `import`, medido y no supuesto — el mismo patrón
 que #375 estableció para `INFLATED_LIST_MARGIN`.
 
+**Y ese margen se ejerció igual ese mismo día (#386, PR #496), con un resultado que NO es simétrico y
+conviene no leer como un defecto.** Desalinear solo el lado SQL (`sql.raw('1.05')` a mano) pone en
+rojo **tres** de los once tests del espejo —los tres ejes que compara: el veredicto de los 23.040
+casos, el PVP creíble y el descuento honesto—, y todas las filas delatadas llevan `listPrice: '31.00'`
+contra `maxObserved: '30.00'`, o sea exactamente el valor que #375 añadió al cartesiano para esto. Lo
+distinto es el control: mover la constante en `deal-rule.ts` deja el espejo en verde 11/11 **pero no
+la suite entera**, porque tumba tres unitarios de `deal-rule.spec.ts` que llevan «el 3 %» en su propio
+nombre. La lectura correcta es que aquí hay **dos redes con oficios distintos**: el espejo vigila la
+divergencia entre los dos lados y es insensible al valor, mientras esos tres tests fijan la política.
+Con el umbral de #436 no aparece la asimetría simplemente porque nadie escribió tests que fijen los 14
+días por valor. Consecuencia práctica: cambiar el margen de verdad **exige tocar esos tres a mano y
+queriendo**, y su rojo es esperado, no una regresión.
+
 ### Compartir la función no basta: el color se decidía otra vez en cada consumidor (#473)
 
 Descubierto validando la v0.6.0 en QA el 17/08/2026, o sea **después** de que #436 diera por cerrada
