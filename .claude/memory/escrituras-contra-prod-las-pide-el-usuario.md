@@ -1,11 +1,11 @@
 ---
 name: escrituras-contra-prod-las-pide-el-usuario
-description: "el clasificador de auto mode bloquea las escrituras contra prod y el merge del repo de manifiestos; no insistas, pídeselas al usuario con el prefijo `!`"
+description: "consultar prod lo puedes hacer tú (permiso permanente del usuario, 18/08/2026); escribir en prod o mergear los repos de GitOps lo bloquea el clasificador y se pide con `!`; lo que necesite modificar algo se reproduce en QA"
 metadata: 
   node_type: memory
   type: feedback
   originSessionId: 7b3fc60e-45f5-4c57-9ef4-c06e6a29669e
-  modified: 2026-08-14T09:53:27.696Z
+  modified: 2026-08-18T10:35:29.659Z
 ---
 
 Las acciones que **escriben** en producción o que la despliegan las bloquea el clasificador de auto
@@ -32,12 +32,17 @@ mode, aunque el resto de la sesión vaya con permisos. Medido el 08/08/2026 y am
 Las **lecturas** contra prod pasan a veces, no siempre, y conviene no darlo por hecho:
 `kubectl get/logs/kustomize` sí.
 
-**Pero `kubectl exec` con `psql` contra `deal_tracker_prod` NO** (medido el 13/08/2026 en #314). Se
-bloqueó un `EXPLAIN (ANALYZE, BUFFERS)` de una consulta de solo lectura, en **dos formas
-distintas**: encadenada (`sed … > f && bash f`) y como script suelto (`bash medir-prod.sh`). Lo que
-descarta que sea la forma del comando es que **el mismo script, byte por byte salvo el nombre de la
-base, sí pasó contra `deal_tracker_qa`**. O sea que el disparador es la base de destino, no que
-escriba o no.
+~~**Pero `kubectl exec` con `psql` contra `deal_tracker_prod` NO**~~ **— caducado el 18/08/2026, y
+además hay permiso permanente.** Se midió bloqueado el 13/08/2026 en #314 (un `EXPLAIN (ANALYZE,
+BUFFERS)` de solo lectura, en dos formas distintas, mientras el mismo script contra
+`deal_tracker_qa` sí pasaba). El 18/08/2026, en #357, un `psql` de solo lectura contra
+`deal_tracker_prod` por `kubectl exec` **pasó a la primera**, y varias veces seguidas.
+
+Y por encima del clasificador, **el usuario ha dado permiso explícito y permanente** (18/08/2026):
+*consultar* prod se puede hacer directamente, **sin pedírselo y sin `!`**. Lo que no puede haber es
+**ninguna modificación**: si una prueba necesita tocar algo —aunque sea temporal, idempotente o
+reversible— **se reproduce en QA**, no en prod. Esa es la línea, y no es el clasificador quien la
+pone: es una instrucción del usuario, así que vale aunque el comando pasara.
 
 **Y las ESCRITURAS por `psql` caen también contra dev y QA** (medido el 14/08/2026 en #370). Un
 `ALTER TABLE variant SET (log_autovacuum_min_duration = 0)` contra `deal_tracker` y
@@ -47,10 +52,10 @@ lecturas pasan y las escrituras no. Para un cambio de esquema eso no estorba, es
 (la migración se despliega, no se aplica a mano); pero si lo que quieres es *observar* algo en el
 entorno donde el fallo está vivo, cuenta desde el principio con pedírselo al usuario.
 
-Consecuencia práctica: si necesitas medir algo contra prod —un `EXPLAIN`, un recuento—, dalo por
-bloqueado desde el principio y prepáralo para que lo lance el usuario, en vez de gastar dos intentos
-descubriéndolo. Y como es una lectura, no hay motivo para insistir en hacerla tú: el dato es igual
-de bueno viniendo por `!`.
+Consecuencia práctica: si necesitas **medir** algo contra prod —un `EXPLAIN`, un recuento—, hazlo tú
+directamente; ya no hay que preparárselo al usuario. Lo que sí sigue siendo suyo es todo lo que
+**escriba** o despliegue (el `create job` contra prod, los merges de los repos de GitOps), y ahí
+sigue valiendo el `!`.
 
 **Why:** reintentar la misma llamada no la desbloquea y quema la sesión; y dejar el trabajo a medias
 por eso es peor, porque la casilla vuelve al backlog sin que nadie sepa que solo faltaba un comando.
