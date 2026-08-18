@@ -42,12 +42,20 @@ la forma del comando. Dos que cuestan varios intentos si no se sabe:
   últimas líneas.
 
   **Pero un heredoc a la ENTRADA de un comando sí pasa**, y es la distinción que ahorra el rodeo:
-  lo que se rechaza es el redirect a fichero, no el heredoc. `python3 - <<'PY' … PY` funciona
+  lo que se rechaza es el redirect a fichero, no el heredoc. `python3 - <<'PY' … PY` pasa casi
   siempre, y es lo más cómodo para las ediciones mecánicas que `Edit` haría a diez llamadas
   (arreglar cinco líneas largas de `ruff`, marcar casillas en el cuerpo de una issue,
   renombrar un import en varios ficheros). Ojo a que eso deja el fichero modificado fuera de la
   vista de la sesión: el aviso *«This command modified N files you've previously read»* no es
   ruido, hay que releer antes del siguiente `Edit` sobre esa zona.
+
+  **«Casi siempre» y no «siempre», y el límite es el TAMAÑO.** Aquí ponía que funcionaba siempre;
+  el 18/08/2026 (#468) un `python3 - <<'PYEOF'` que llevaba dentro un diccionario con cinco bloques
+  de texto largo se rechazó con el mismo «too complex», mientras que otros heredoc de veinte líneas
+  pasaron sin problema en la misma sesión. No hay umbral publicado, así que la regla práctica es:
+  si el script no cabe cómodo en una pantalla, **escríbelo con `Write` en el scratchpad y
+  ejecútalo** en vez de gastar un intento en descubrir de qué lado cae. Sale mejor igualmente,
+  porque queda reutilizable.
 - **Encadenar `sleep` está bloqueado**, y esto no es del worktree: `sleep 45 && gh pr view ...` se
   rechaza pidiendo un bucle. Para esperar al CI, la condición dentro de un `until`:
   `until gh pr view N --json statusCheckRollup -q '.statusCheckRollup[].status' | grep -qv IN_PROGRESS; do sleep 10; done`
