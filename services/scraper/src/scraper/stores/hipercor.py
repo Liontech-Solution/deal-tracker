@@ -303,7 +303,7 @@ _BEBE_NINO = f"{_INFANTIL}/bebe-nino-6-meses-a-3-anos"
 # **Lo que sí salió de medir esto, y NO es de #468**: `polos` (niño 24, bebé niño 23) y
 # `pijamas-y-polainas` (bebé niña 53, bebé niño 51, recién nacido 43) existen como hojas NORMALES,
 # no están en la lista de exclusiones de arriba y no se ingieren. Son ~150 prendas del brief
-# perdidas por la asimetría de slugs que esta cabecera ya documenta. Tiene issue propia.
+# perdidas por la asimetría de slugs que esta cabecera ya documenta. Va en **#507**.
 CATEGORIES: list[CategoryConfig] = [
     # --- zapatería (lo que más falta hace: hoy la sección depende casi entera de Cacles) ---
     # `nina` y `nino` van ANTES que `bebe` a propósito: las tres hojas se solapan (114+141+140
