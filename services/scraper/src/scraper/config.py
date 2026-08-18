@@ -42,9 +42,26 @@ class Config:
     # QA el 16/08/2026). Queda BLOQUEADO frente a las bajas igual que los que no caben en el tope:
     # ahorrarse la pregunta no es darlo por retirado. Con 0 se desactiva y se sondea como antes.
     #
-    # El valor tiene un techo que no es de gusto: debe ser bastante MENOR que el tiempo en que una
-    # prenda retirada de verdad dejaría de responder, o se retrasan bajas legítimas. Con
+    # El valor tenía un techo escrito así: debe ser bastante MENOR que el tiempo en que una prenda
+    # retirada de verdad dejaría de responder, o se retrasan bajas legítimas. Con
     # `delist_min_misses=2` y una pasada diaria, 7 días son ~5 pasadas de margen.
+    #
+    # **Ese techo se midió (#466) y resultó no existir en el rango observable.** Se sondeó la
+    # cohorte ENTERA de descatalogados de QA el 18/08/2026 —44 productos con sondeo posible, de
+    # cacles (21), zara (19), hipercor (2) y lefties (2)— agrupada por días sin ver: 0-3, 6-9,
+    # 12-15 y 15+. El veredicto es `DEAD` en **42 de 44**, en TODOS los tramos y desde el primer
+    # día; no hay curva de mortalidad que descubrir, la tienda deja de reconocer la prenda de
+    # inmediato y sigue haciéndolo. Los 2 restantes (zara, la misma colaboración en dos géneros)
+    # NO son un veredicto que caduque: se dieron de baja en la pasada #58 del 10/08, la última de
+    # QA con `probes_sent = 0`, o sea por histéresis sola y sin preguntar; el sondeo se encendió
+    # esa misma tarde. Consecuencia: dentro de los 0-20 días que la cohorte permite ver, la
+    # respuesta de la tienda es estable, así que este número no arbitra ningún riesgo —alargarlo
+    # ahorra peticiones y acortarlo solo las gasta— y no hay dato que justifique hacerlo por
+    # tienda. Lo que la medición NO puede decir es qué pasa más allá de 20 días.
+    #
+    # Y una limitación del método que conviene saber antes de repetirlo: **H&M no se puede sondear**
+    # (no tiene `probe_alive`, es una decisión medida, ver la cabecera de `hm.py`), y H&M son 441 de
+    # las 485 bajas de QA. La cohorte útil es siempre mucho menor que el censo de descatalogados.
     delist_probe_cooldown_days: int = 7
     # Refresco periódico forzado del detalle: una prenda de precio estable nunca cambia de huella
     # de listado, así que sin esto no se volvería a observar jamás (y sin re-observaciones no hay

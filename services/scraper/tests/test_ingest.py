@@ -467,6 +467,82 @@ def test_red_seguridad_omite_bajas_en_caida_sospechosa(db_conn: Any) -> None:
     assert _scalar(db_conn, "SELECT max(missing_streak) FROM product") == 0
 
 
+def test_la_caida_sospechosa_salta_una_vez_y_no_se_engancha(db_conn: Any) -> None:
+    """#475: el caso de Sfera. La red avisa de la caída y luego DEJA de avisar.
+
+    Con la base anterior —todo lo activo— esto era un bucle cerrado: el ámbito sospechoso no
+    avanzaba racha ni sondeaba, así que sus ausentes no caían nunca, así que seguían contando en la
+    base, así que volvía a salir sospechoso. En QA llevaba tres pasadas seguidas dando el mismo
+    aviso sobre `niña/ropa/ropa-interior` y doce productos congelados, cinco sin verse en 25 días.
+    """
+    store1 = FakeStore(
+        [_product(f"A{i}", f"P{i}", [_variant(f"A{i}-1", "20.00")]) for i in range(10)],
+        signatures={f"A{i}": "s" for i in range(10)},
+    )
+    ingest(db_conn, store1, run_ts=T1, delist_min_baseline=3)
+
+    def solo_tres() -> FakeStore:
+        return FakeStore(
+            [_product(f"A{i}", f"P{i}", [_variant(f"A{i}-1", "20.00")]) for i in range(3)],
+            signatures={f"A{i}": "s" for i in range(3)},
+            scopes=[ScrapeScope("niña", "zapateria", "zapatos")],
+        )
+
+    # Pasada 2: caen de 10 a 3. La caída es real y la red hace lo suyo. Esto NO cambia — el aviso
+    # acertó la primera vez, que es justo lo que este arreglo no debe tocar.
+    r2 = ingest(db_conn, solo_tres(), run_ts=T2, delist_min_baseline=3, delist_min_misses=1)
+    assert r2.skipped_scope_names == ["niña/zapateria/zapatos"]
+    assert r2.products_delisted == 0
+
+    # Pasada 3: la tienda sirve lo mismo que en la 2. Ahora la base es «lo que se vio la última
+    # vez» (3), no «todo lo activo» (10), así que 3 de 3 ya no es una caída. El ámbito sigue por
+    # encima de `delist_min_baseline`, o sea que la red lo MIRA y decide que está sano.
+    r3 = ingest(db_conn, solo_tres(), run_ts=T3, delist_min_baseline=3, delist_min_misses=1)
+    assert r3.skipped_scopes == 0, "el aviso se repetía para siempre sobre su propio residuo"
+    assert r3.skipped_scope_names == []
+    # Y lo que la red tenía congelado entra por el camino normal: histéresis y baja.
+    assert r3.products_delisted == 7
+    vivos = _scalar(db_conn, "SELECT count(*) FROM product WHERE delisted_at IS NULL")
+    assert vivos == 3
+
+
+def test_una_caida_nueva_sigue_saltando_sobre_la_base_recortada(db_conn: Any) -> None:
+    """#475 (regresión): recortar la base no puede dejar de cazar el desplome siguiente.
+
+    Es el riesgo del arreglo y por eso tiene test propio: la base más pequeña baja el listón
+    absoluto del 50 %, así que hay que ver que un ámbito ya menguado que se vuelve a desplomar
+    sigue disparando la red.
+    """
+    store1 = FakeStore(
+        [_product(f"A{i}", f"P{i}", [_variant(f"A{i}-1", "20.00")]) for i in range(8)],
+        signatures={f"A{i}": "s" for i in range(8)},
+    )
+    ingest(db_conn, store1, run_ts=T1, delist_min_baseline=3)
+
+    # Pasada 2: baja a 3 de 8. Salta, y la 3 con esos mismos 3 ya no (lo del test anterior).
+    tres = FakeStore(
+        [_product(f"A{i}", f"P{i}", [_variant(f"A{i}-1", "20.00")]) for i in range(3)],
+        signatures={f"A{i}": "s" for i in range(3)},
+        scopes=[ScrapeScope("niña", "zapateria", "zapatos")],
+    )
+    assert ingest(db_conn, tres, run_ts=T2, delist_min_baseline=3).skipped_scopes == 1
+
+    # Pasada 3: se desploma OTRA VEZ, ahora de 3 a 1. La base es 3, no 8, y aun así salta.
+    r3 = ingest(
+        db_conn,
+        FakeStore(
+            [_product("A0", "P0", [_variant("A0-1", "20.00")])],
+            signatures={"A0": "s"},
+            scopes=[ScrapeScope("niña", "zapateria", "zapatos")],
+        ),
+        run_ts=T3,
+        delist_min_baseline=3,
+        delist_min_misses=1,
+    )
+    assert r3.skipped_scope_names == ["niña/zapateria/zapatos"]
+    assert r3.products_delisted == 0
+
+
 def test_baja_normal_cuando_la_caida_es_moderada(db_conn: Any) -> None:
     """#2 (contraste): una caída moderada SÍ da de baja lo que falta."""
     store1 = FakeStore(
@@ -1989,6 +2065,97 @@ def test_el_mensaje_nombra_el_sondeo_que_volvio_entero_sin_veredicto() -> None:
     assert mensaje is not None
     assert "sondeo sin respuesta" in mensaje
     assert "45 de 45" in mensaje
+
+
+# --- #486 El residuo de sondeos que nunca obtiene veredicto -------------------------------
+
+
+def _msg_atasco(unresolved: int, sent: int, previos: list[int]) -> str | None:
+    report = ScanReport()
+    report.leaf_ok()
+    return _success_message(
+        report,
+        suspicious=set(),
+        probe=ProbeOutcome(sent=sent, alive=sent - unresolved, unresolved=unresolved),
+        unresolved_previos=previos,
+    )
+
+
+def test_el_residuo_sin_veredicto_que_no_baja_es_alarma() -> None:
+    """#486: tres pasadas con los mismos candidatos sin resolver mientras el resto sí contesta.
+
+    Es el que se cuela por dos sitios: no le llega el enfriamiento de #412 y su racha crece sin
+    techo, así que ocupa el cupo de sondeos en todas las pasadas.
+    """
+    mensaje = _msg_atasco(3, 50, [3, 3])
+
+    assert mensaje is not None
+    assert "sondeo atascado" in mensaje
+    assert "3 de 50" in mensaje
+
+
+def test_un_residuo_que_drena_no_es_alarma() -> None:
+    """#486: 5 -> 3 -> 1 es el mecanismo funcionando, no un atasco. La cifra sola no vale."""
+    assert _msg_atasco(1, 50, [5, 3]) is None
+
+
+def test_un_unresolved_que_va_y_viene_no_es_alarma() -> None:
+    """#486: un cero por el medio parte la serie — eso es red o un bloqueo puntual, y ya se ve."""
+    assert _msg_atasco(3, 50, [3, 0]) is None
+
+
+def test_el_atasco_no_se_declara_sin_tres_pasadas() -> None:
+    """#486: con una sola pasada previa no hay serie que leer, y afirmarlo sería inventárselo."""
+    assert _msg_atasco(3, 50, [3]) is None
+
+
+def test_el_sondeo_entero_sin_veredicto_no_se_acusa_ademas_de_atasco() -> None:
+    """#486: con TODOS sin veredicto el diagnóstico es la tienda muda (#357), no un residuo.
+
+    Las dos frases juntas acusarían de cosas opuestas: «nadie contesta» y «alguien contesta y unos
+    pocos no». Por eso el atasco exige `unresolved < sent`.
+    """
+    mensaje = _msg_atasco(50, 50, [50, 50])
+
+    assert mensaje is not None
+    assert "sondeo sin respuesta" in mensaje
+    assert "atascado" not in mensaje
+
+
+def test_el_atasco_llega_hasta_scrape_run_message(db_conn: Any) -> None:
+    """#486: de punta a punta, que la serie se lea de la tabla y no de un parámetro de test.
+
+    Sin esto, `_unresolved_recientes` podría estar leyendo mal (contando la pasada en curso, o
+    pasadas fallidas) y los tests de arriba seguirían verdes: le pasan la serie ya hecha.
+    """
+    productos = [_product(f"A{i}", f"P{i}", [_variant(f"A{i}-1", "20.00")]) for i in range(4)]
+    ingest(db_conn, FakeStore(productos, signatures={f"A{i}": "s" for i in range(4)}), run_ts=T1)
+
+    # Tres pasadas seguidas en las que solo A0 se lista. A1 y A2 contestan `UNBUYABLE` —ni rescatan
+    # ni caen, o sea que siguen siendo candidatos— y A3 no contesta nunca: 3 sondeados y 1 sin
+    # veredicto en cada una. Con la ventana a cero se repregunta a todos en todas las pasadas.
+    def pasada(ts: datetime) -> Any:
+        store = ProbingFakeStore(
+            [productos[0]],
+            signatures={"A0": "s"},
+            verdicts={"A1": ProbeVerdict.UNBUYABLE, "A2": ProbeVerdict.UNBUYABLE},
+        )
+        return ingest(
+            db_conn,
+            store,
+            run_ts=ts,
+            delist_min_misses=1,
+            delist_probe_cooldown_days=0,
+        )
+
+    r2 = pasada(T2)
+    assert (r2.probes_sent, r2.probes_unresolved) == (3, 1)
+    pasada(T3)
+    r4 = pasada(T4)
+
+    mensaje = _scalar(db_conn, "SELECT message FROM scrape_run WHERE id = %s", (r4.scrape_run_id,))
+    assert mensaje is not None and "sondeo atascado" in mensaje
+    assert r4.products_delisted == 0, "sin veredicto no se da de baja a nadie"
 
 
 def test_el_contador_de_stock_se_persiste_y_cuadra_con_price_history(db_conn: Any) -> None:
