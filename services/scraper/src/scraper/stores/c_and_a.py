@@ -151,6 +151,23 @@ class CategoryConfig:
 # de lo que pasaba en Springfield, donde el pijama se quedaba fuera del todo (#187).
 #
 # `Conjuntos` SÍ entra desde #192, con categoría propia. Ver el bloque del final.
+# LA RAMA DE SALDO: medida el 18/08/2026 y **fuera a propósito** (#468).
+#
+# Es **`7-3` «Rebajas»**, con 10 hijas, y sale en `--tree 3`. Dos cosas medidas antes de decidir:
+#
+# 1. **El padre NO miente aquí**, al revés que en Zara: `7-3` da 412 productos y la unión de sus 10
+#    hijas otros 412, con 1 solo en el padre y 1 solo en las hijas. Bastaría con pedir el padre.
+# 2. **No aporta catálogo del brief.** 413 productos, 76 nuevos sobre los 1131 que ya ingerimos —
+#    pero el reparto de esos 76 es lo que decide: las cuatro hojas de ropa de verdad aportan **2
+#    entre las cuatro** (Vestidos 0/33, Partes de arriba 0/130, Partes de abajo 1/119,
+#    Conjuntos 1/56). Los 76 son chaquetas de esquí, chubasqueros, gorros, bufandas, bañadores y
+#    pijamas de personajes: `3-1-8-*`/`3-7-7-*` (chaquetas), `3-1-5-*`/`3-7-4-*` (baño),
+#    `3-7-12-*` (esquí), `3-1-10-*`/`3-7-9-*` (accesorios) — **justo las ramas que
+#    `vigia.COBERTURA_DECLARADA` ya declara fuera del brief para esta tienda**.
+#
+# O sea que **C&A mantiene la prenda rebajada en su categoría normal**, y su rama de saldo es una
+# VISTA, no stock aparte. Es el caso contrario al de Lefties (#195), donde el solape fue 0 por
+# temporada. Por eso la declaración es estructural y no de tamaño: no depende de la campaña.
 CATEGORIES: list[CategoryConfig] = [
     # --- niña (rama 3-1) ---
     CategoryConfig("3-1-1", "niña", "ropa", "camisetas"),  # Camisetas y tops

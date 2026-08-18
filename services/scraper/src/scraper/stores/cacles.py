@@ -222,6 +222,17 @@ class CategoryConfig:
 # 31/07/2026) y ya incluye lo que cuelga de las colecciones por tipo (`sneakers`, `botas-y-botines`,
 # `sandalias-barefoot-para-ninos`...), así que recorrerlas todas serían ~25 peticiones para los
 # mismos productos. El resto del catálogo de Cacles es de adulto y queda fuera a propósito.
+# LAS COLECCIONES DE SALDO: medidas el 18/08/2026 y **fuera a propósito** (#468).
+#
+# `--tree infantil` publica 163 colecciones y **12 son de saldo** (`mid-season-sales` 412,
+# `calzado-barefoot-barato` 231, `50-de-descuento` 149, `outlet-otono-invierno` 141,
+# `ofertas-calzado-barefoot` 124, `70/60/40/30/20/10-de-descuento`, y una
+# `outlet-de-calzado-barefoot-infantil` que publica **0 productos**).
+#
+# La unión de las doce trae **210 productos que `infantil` (769) no tiene, y NINGUNO es infantil**:
+# 108 lo dicen en el nombre («para mujer», «de Adulto») y **cero** llevan marca de infantil. Es lo
+# que ya decía `vigia.COBERTURA_SIN_VIGILAR` de estas colecciones, ahora medido: las de saldo de
+# esta Shopify cruzan **toda la tienda**, y su parte infantil ya entra por `infantil`.
 CATEGORIES: list[CategoryConfig] = [
     CategoryConfig("infantil", "infantil (todo el catálogo de niño)"),
 ]

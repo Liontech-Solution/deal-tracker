@@ -1,0 +1,3069 @@
+{
+ "requestDateTime": "2026-08-18T12:20:07.155Z",
+ "responseSource": "Elevate",
+ "pagination": {
+  "currentPage": 1,
+  "nextPageNum": 2,
+  "totalPages": 6
+ },
+ "plpList": {
+  "productList": [
+   {
+    "id": "1333908008",
+    "trackingId": "OzY7IzsxMzMzOTA4MDA4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+    "productName": "Conjunto estampado de 2 piezas en algodón",
+    "modelImage": "https://image.hm.com/assets/hm/41/ee/41eecfd99aec28f16dbc4149a2ce496d9433d755.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/41/ee/41eecfd99aec28f16dbc4149a2ce496d9433d755.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/41/ee/41eecfd99aec28f16dbc4149a2ce496d9433d755.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/41/ee/41eecfd99aec28f16dbc4149a2ce496d9433d755.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1333908008.html",
+    "showPriceMarker": false,
+    "priorPrice": 9.99,
+    "prices": [
+     {
+      "priceType": "redPrice",
+      "price": 8.99,
+      "minPrice": 8.99,
+      "maxPrice": 8.99,
+      "formattedPrice": "8,99 €"
+     },
+     {
+      "priceType": "whitePrice",
+      "price": 12.99,
+      "minPrice": 12.99,
+      "maxPrice": 12.99,
+      "formattedPrice": "12,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1333908008",
+      "url": "/es_es/productpage.1333908008.html",
+      "colorName": "Rosa intenso/Minnie Mouse",
+      "colorCode": "DB87B0",
+      "trackingId": "OzY7IzsxMzMzOTA4MDA4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/41/ee/41eecfd99aec28f16dbc4149a2ce496d9433d755.jpg"
+     },
+     {
+      "articleId": "1333908006",
+      "url": "/es_es/productpage.1333908006.html",
+      "colorName": "Turquesa claro/Peppa Pig",
+      "colorCode": "AFC3BB",
+      "trackingId": "OzY7IzsxMzMzOTA4MDA2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/2c/8a/2c8aabfbda547b660b32b840c38360edf647cf2f.jpg"
+     },
+     {
+      "articleId": "1333908012",
+      "url": "/es_es/productpage.1333908012.html",
+      "colorName": "Violeta claro/Patrulla Canina",
+      "colorCode": "BAB1CD",
+      "trackingId": "OzY7IzsxMzMzOTA4MDEyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/1e/c1/1ec18dd75770815aac7ce8cf5f8db7c2fc21b703.jpg"
+     },
+     {
+      "articleId": "1333908013",
+      "url": "/es_es/productpage.1333908013.html",
+      "colorName": "Gris oscuro/Squishmallows",
+      "colorCode": "4F4F53",
+      "trackingId": "OzY7IzsxMzMzOTA4MDEzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/a4/a8/a4a868e5a90c0ec4a89844e1967ac2ddd7ef680a.jpg"
+     },
+     {
+      "articleId": "1333908005",
+      "url": "/es_es/productpage.1333908005.html",
+      "colorName": "Blanco/Hello Kitty",
+      "colorCode": "F0F1F0",
+      "trackingId": "OzY7IzsxMzMzOTA4MDA1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/e3/22/e32294ebb2bad6a989db4f0ca9e729fd5e49bc3b.jpg"
+     },
+     {
+      "articleId": "1333908009",
+      "url": "/es_es/productpage.1333908009.html",
+      "colorName": "Gris oscuro/Vaiana",
+      "colorCode": "4F4F53",
+      "trackingId": "OzY7IzsxMzMzOTA4MDA5OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/3e/56/3e56047691be7e0a81b383c9ddaa0888e0a51fd8.jpg"
+     },
+     {
+      "articleId": "1333908003",
+      "url": "/es_es/productpage.1333908003.html",
+      "colorName": "Rosa claro/Hello Kitty",
+      "colorCode": "E0C8D0",
+      "trackingId": "OzY7IzsxMzMzOTA4MDAzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/a6/4b/a64b2562e35297f9cca5a85292633139fc267ff6.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/07/ae/07aec5c02bcd1ce59729334d9cc9e54a323a5ae5.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Rosa intenso/Minnie Mouse",
+    "formattedPriorPrice": "9,99 €",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "DB87B0",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "009",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "016",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     },
+     {
+      "id": "017",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "multi_000000|rosa_ffc0cb",
+    "mainCatCode": "kids_girls_clothing_shorts_cycling"
+   },
+   {
+    "id": "1318443012",
+    "trackingId": "OzY7IzsxMzE4NDQzMDEyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+    "productName": "Pack de 5 camisetas",
+    "modelImage": "https://image.hm.com/assets/hm/42/79/42799fe357ab80e9dd1f602e43b8599ef3eacdbd.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/42/79/42799fe357ab80e9dd1f602e43b8599ef3eacdbd.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/42/79/42799fe357ab80e9dd1f602e43b8599ef3eacdbd.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/42/79/42799fe357ab80e9dd1f602e43b8599ef3eacdbd.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1318443012.html",
+    "showPriceMarker": false,
+    "comparativePrice": 2.4,
+    "priorPrice": 12.99,
+    "prices": [
+     {
+      "priceType": "redPrice",
+      "price": 11.99,
+      "minPrice": 11.99,
+      "maxPrice": 11.99,
+      "formattedPrice": "11,99 €"
+     },
+     {
+      "priceType": "whitePrice",
+      "price": 22.99,
+      "minPrice": 22.99,
+      "maxPrice": 22.99,
+      "formattedPrice": "22,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1318443012",
+      "url": "/es_es/productpage.1318443012.html",
+      "colorName": "Rosa claro/Corazones",
+      "colorCode": "917585",
+      "trackingId": "OzY7IzsxMzE4NDQzMDEyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/42/79/42799fe357ab80e9dd1f602e43b8599ef3eacdbd.jpg"
+     },
+     {
+      "articleId": "1318443015",
+      "url": "/es_es/productpage.1318443015.html",
+      "colorName": "Rosa/Blanco",
+      "colorCode": "816B75",
+      "trackingId": "OzY7IzsxMzE4NDQzMDE1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/71/ff/71ff1b1be50930f66aa328b009d3342db5647097.jpg"
+     },
+     {
+      "articleId": "1318443005",
+      "url": "/es_es/productpage.1318443005.html",
+      "colorName": "Rosa claro/Verde/Amarillo",
+      "colorCode": "D598BB",
+      "trackingId": "OzY7IzsxMzE4NDQzMDA1OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/f6/5b/f65bc0ac116e47657b98aa40c42fd74b313ef0d9.jpg"
+     },
+     {
+      "articleId": "1318443017",
+      "url": "/es_es/productpage.1318443017.html",
+      "colorName": "Rosa claro/Cerezas",
+      "colorCode": "E8D5D4",
+      "trackingId": "OzY7IzsxMzE4NDQzMDE3OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/60/41/60411870054e8cdd5c0c7de4ff4020de740e6af3.jpg"
+     },
+     {
+      "articleId": "1318443011",
+      "url": "/es_es/productpage.1318443011.html",
+      "colorName": "Violeta/Beige/Verde",
+      "colorCode": "AA9BAD",
+      "trackingId": "OzY7IzsxMzE4NDQzMDExOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/35/89/3589687b9ac901f413288b331ea4886d8c17b788.jpg"
+     },
+     {
+      "articleId": "1318443014",
+      "url": "/es_es/productpage.1318443014.html",
+      "colorName": "Rosa claro/Corazones",
+      "colorCode": "E4BCCB",
+      "trackingId": "OzY7IzsxMzE4NDQzMDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/4c/3f/4c3fcc2cb74151df749ab69b418c3b981730063d.jpg"
+     },
+     {
+      "articleId": "1318443001",
+      "url": "/es_es/productpage.1318443001.html",
+      "colorName": "Rosa claro/Cerezas",
+      "colorCode": "E8D5D4",
+      "trackingId": "OzY7IzsxMzE4NDQzMDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/5c/0a/5c0ae7541fd827fa3a021b4a048487906e1dcada.jpg"
+     },
+     {
+      "articleId": "1318443006",
+      "url": "/es_es/productpage.1318443006.html",
+      "colorName": "Violeta claro/Verde claro",
+      "colorCode": "8C9AAD",
+      "trackingId": "OzY7IzsxMzE4NDQzMDA2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsyOzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/ea/8c/ea8c660d4ff5c89e09af78aaf9e0ca78c0560c2d.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/9f/89/9f891e5cab0c0013626e4a9e6ba6cb23d7cb181c.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Rosa claro/Corazones",
+    "quantity": "5",
+    "formattedPriorPrice": "12,99 €",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "917585",
+    "colourShades": "Rosa vivo|Rosa empolvado|Rojo cereza|Rosa neón|Rosa pastel",
+    "isMultipack": true,
+    "sizes": [
+     {
+      "id": "006",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "007",
+      "label": "98/104 (2-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "110/116 (4-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "122/128 (6-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "134/140 (8-10Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "rosa_ffc0cb|lila_800080|blanco_ffffff|multi_000000",
+    "comparativeFormattedPrice": "2,40 €",
+    "mainCatCode": "kids_girls_clothing_topstshirts_tshirts"
+   },
+   {
+    "id": "1275533013",
+    "trackingId": "OzY7IzsxMjc1NTMzMDEzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs4OzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+    "productName": "Vestido de algodón con textura",
+    "modelImage": "https://image.hm.com/assets/hm/b5/a7/b5a7c7651e09244a215cfa8e5cc71c6981f82033.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/b5/a7/b5a7c7651e09244a215cfa8e5cc71c6981f82033.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/b5/a7/b5a7c7651e09244a215cfa8e5cc71c6981f82033.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/b5/a7/b5a7c7651e09244a215cfa8e5cc71c6981f82033.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1275533013.html",
+    "showPriceMarker": false,
+    "priorPrice": 8.99,
+    "prices": [
+     {
+      "priceType": "redPrice",
+      "price": 7.99,
+      "minPrice": 7.99,
+      "maxPrice": 7.99,
+      "formattedPrice": "7,99 €"
+     },
+     {
+      "priceType": "whitePrice",
+      "price": 14.99,
+      "minPrice": 14.99,
+      "maxPrice": 14.99,
+      "formattedPrice": "14,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1275533013",
+      "url": "/es_es/productpage.1275533013.html",
+      "colorName": "Azul claro/Rayas blancas",
+      "colorCode": "95A9D6",
+      "trackingId": "OzY7IzsxMjc1NTMzMDEzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs4OzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/b5/a7/b5a7c7651e09244a215cfa8e5cc71c6981f82033.jpg"
+     },
+     {
+      "articleId": "1275533011",
+      "url": "/es_es/productpage.1275533011.html",
+      "colorName": "Violeta claro",
+      "colorCode": "C7BDDC",
+      "trackingId": "OzY7IzsxMjc1NTMzMDExOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs4OzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/0f/b7/0fb777086c930eb2345f901f94d30e07bf485f62.jpg"
+     },
+     {
+      "articleId": "1275533016",
+      "url": "/es_es/productpage.1275533016.html",
+      "colorName": "Rosa claro/Rayas blancas",
+      "colorCode": "D9B1C0",
+      "trackingId": "OzY7IzsxMjc1NTMzMDE2OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs4OzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/94/ec/94ec81eec04e197bbbc3c14b762c880d3ec5332b.jpg"
+     },
+     {
+      "articleId": "1275533014",
+      "url": "/es_es/productpage.1275533014.html",
+      "colorName": "Crema",
+      "colorCode": "EEEDE4",
+      "trackingId": "OzY7IzsxMjc1NTMzMDE0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs4OzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/b2/e1/b2e1774e96a4e2dacd6f26e5e4449575263f5799.jpg"
+     },
+     {
+      "articleId": "1275533004",
+      "url": "/es_es/productpage.1275533004.html",
+      "colorName": "Verde lima",
+      "colorCode": "D6DA65",
+      "trackingId": "OzY7IzsxMjc1NTMzMDA0OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDs4OzQ3OyM7Izsva2lkcy9sYXN0LWNoYW5jZS9naXJscy0yLTh5OyM7_e4",
+      "productImage": "https://image.hm.com/assets/hm/29/70/29700374c17a0f8674c9d6e26681a9be2b5a1885.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/22/b2/22b2656ed3b1f2a7fc2c5c93c20b4dd5da7d8255.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Azul claro/Rayas blancas",
+    "formattedPriorPrice": "8,99 €",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "95A9D6",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "006",
+      "label": "92 (1½-2Y)",
+      "stock": 0
+     },
+     {
+      "id": "007",
+      "label": "98/104 (2-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "110/116 (4-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "122/128 (6-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "134/140 (8-10Y)",
+      "stock": 0
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "azul_0000ff",
+    "mainCatCode": "kids_girls_clothing_dresses_sleeveless"
+   },
+   {
+    "id": "1341752001",
+    "trackingId": "OzY7IzsxMzQxNzUyMDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMTs0NzsjOyM7L2tpZHMvbGFzdC1jaGFuY2UvZ2lybHMtMi04eTsjOw_e4",
+    "productName": "Traje de baño estampado con ribetes de volante",
+    "modelImage": "https://image.hm.com/assets/hm/00/f3/00f3b9957973f25a5b7d753a5fb238e0fa08edb9.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/00/f3/00f3b9957973f25a5b7d753a5fb238e0fa08edb9.jpg",
+     "altText": "Un bañador de una pieza para niña se muestra de frente, con una base blanca adornada con un estampado floral y de mariposas en azul. Está diseñado con tirantes con volantes en los hombros y aberturas de pierna con volantes.",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/00/f3/00f3b9957973f25a5b7d753a5fb238e0fa08edb9.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/00/f3/00f3b9957973f25a5b7d753a5fb238e0fa08edb9.jpg",
+     "altText": "Un bañador de una pieza para niña se muestra de frente, con una base blanca adornada con un estampado floral y de mariposas en azul. Está diseñado con tirantes con volantes en los hombros y aberturas de pierna con volantes.",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1341752001.html",
+    "showPriceMarker": false,
+    "priorPrice": 9.99,
+    "prices": [
+     {
+      "priceType": "redPrice",
+      "price": 8.99,
+      "minPrice": 8.99,
+      "maxPrice": 8.99,
+      "formattedPrice": "8,99 €"
+     },
+     {
+      "priceType": "whitePrice",
+      "price": 14.99,
+      "minPrice": 14.99,
+      "maxPrice": 14.99,
+      "formattedPrice": "14,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1341752001",
+      "url": "/es_es/productpage.1341752001.html",
+      "colorName": "Blanco/Floral",
+      "colorCode": "F0F1F0",
+      "trackingId": "OzY7IzsxMzQxNzUyMDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMTs0NzsjOyM7L2tpZHMvbGFzdC1jaGFuY2UvZ2lybHMtMi04eTsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/00/f3/00f3b9957973f25a5b7d753a5fb238e0fa08edb9.jpg"
+     }
+    ],
+    "productMarkers": [
+     {
+      "text": "Laura Ashley H&M",
+      "type": "collectionMarker"
+     }
+    ],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/6a/4f/6a4f34c84a7f6a2a46bcb8a7737347efb0a3a83e.jpg",
+      "altText": "El traje de baño presenta una base blanca con un intrincado estampado de flores y mariposas azules. Cuenta con tirantes con volantes que se cruzan en la espalda, y se aprecia un detalle de volantes a lo largo de las aberturas de las piernas.",
+      "assetType": "DescriptiveStillLife"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/f0/c6/f0c6666d884877ef7dd978391a0e75a9631e31f4.jpg",
+      "altText": "La tela presenta un detallado estampado floral azul sobre una base blanca, mostrando diversas flores, hojas, ramas y una mariposa.",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Blanco/Floral",
+    "formattedPriorPrice": "9,99 €",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "F0F1F0",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "006",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "007",
+      "label": "98/104 (2-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "110/116 (4-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "122/128 (6-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "134/140 (8-10Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "blanco_ffffff|azul_0000ff",
+    "mainCatCode": "kids_girls_clothing_swimwear_swimsuits",
+    "collectionMarker": "Laura Ashley H&M"
+   },
+   {
+    "id": "1344253001",
+    "trackingId": "OzY7IzsxMzQ0MjUzMDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvbGFzdC1jaGFuY2UvZ2lybHMtMi04eTsjOw_e4",
+    "productName": "Alpargatas con acabado cepillado",
+    "modelImage": "https://image.hm.com/assets/hm/29/ff/29fff4cd7ddd565f2af7f819dc42a289b453c881.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/29/ff/29fff4cd7ddd565f2af7f819dc42a289b453c881.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/29/ff/29fff4cd7ddd565f2af7f819dc42a289b453c881.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/29/ff/29fff4cd7ddd565f2af7f819dc42a289b453c881.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1344253001.html",
+    "showPriceMarker": false,
+    "prices": [
+     {
+      "priceType": "redPrice",
+      "price": 12.99,
+      "minPrice": 12.99,
+      "maxPrice": 12.99,
+      "formattedPrice": "12,99 €"
+     },
+     {
+      "priceType": "whitePrice",
+      "price": 17.99,
+      "minPrice": 17.99,
+      "maxPrice": 17.99,
+      "formattedPrice": "17,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1344253001",
+      "url": "/es_es/productpage.1344253001.html",
+      "colorName": "Beige",
+      "colorCode": "B6AEA8",
+      "trackingId": "OzY7IzsxMzQ0MjUzMDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDsxMzs0NzsjOyM7L2tpZHMvbGFzdC1jaGFuY2UvZ2lybHMtMi04eTsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/29/ff/29fff4cd7ddd565f2af7f819dc42a289b453c881.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "percentageDiscount": "-28%",
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/34/b0/34b0bde417a0fcbf4370a2296eff4c6881d1ad69.jpg",
+      "assetType": "DescriptiveStillLife"
+     },
+     {
+      "url": "https://image.hm.com/assets/hm/93/0f/930ffbf8ac512caa475a7defabb00611653ee7da.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Beige",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "B6AEA8",
+    "colourShades": "Crudo|Beige grisáceo",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "003",
+      "label": "24",
+      "stock": 2
+     },
+     {
+      "id": "004",
+      "label": "25",
+      "stock": 2
+     },
+     {
+      "id": "005",
+      "label": "26",
+      "stock": 0
+     },
+     {
+      "id": "006",
+      "label": "27",
+      "stock": 0
+     },
+     {
+      "id": "007",
+      "label": "28",
+      "stock": 2
+     },
+     {
+      "id": "008",
+      "label": "29",
+      "stock": 0
+     },
+     {
+      "id": "009",
+      "label": "30",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "31",
+      "stock": 0
+     },
+     {
+      "id": "011",
+      "label": "32",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "percentDiscountMarker": "-28%",
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "beige_f5f5dc",
+    "mainCatCode": "kids_boys_shoes_sandalsflipflops"
+   },
+   {
+    "id": "1320695003",
+    "trackingId": "OzY7IzsxMzIwNjk1MDAzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszMDs0NzsjOyM7L2tpZHMvbGFzdC1jaGFuY2UvZ2lybHMtMi04eTsjOw_e4",
+    "productName": "Pantalón corto de lino",
+    "modelImage": "https://image.hm.com/assets/hm/b5/d6/b5d600b5acd41de1bb566b7bc00601b920960b62.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/b5/d6/b5d600b5acd41de1bb566b7bc00601b920960b62.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/b5/d6/b5d600b5acd41de1bb566b7bc00601b920960b62.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/b5/d6/b5d600b5acd41de1bb566b7bc00601b920960b62.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.1320695003.html",
+    "showPriceMarker": false,
+    "priorPrice": 9.99,
+    "prices": [
+     {
+      "priceType": "redPrice",
+      "price": 8.99,
+      "minPrice": 8.99,
+      "maxPrice": 8.99,
+      "formattedPrice": "8,99 €"
+     },
+     {
+      "priceType": "whitePrice",
+      "price": 14.99,
+      "minPrice": 14.99,
+      "maxPrice": 14.99,
+      "formattedPrice": "14,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "1320695003",
+      "url": "/es_es/productpage.1320695003.html",
+      "colorName": "Rosa empolvado claro",
+      "colorCode": "FFFFFF",
+      "trackingId": "OzY7IzsxMzIwNjk1MDAzOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszMDs0NzsjOyM7L2tpZHMvbGFzdC1jaGFuY2UvZ2lybHMtMi04eTsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/b5/d6/b5d600b5acd41de1bb566b7bc00601b920960b62.jpg"
+     },
+     {
+      "articleId": "1320695002",
+      "url": "/es_es/productpage.1320695002.html",
+      "colorName": "Rosa intenso",
+      "colorCode": "EE606F",
+      "trackingId": "OzY7IzsxMzIwNjk1MDAyOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszMDs0NzsjOyM7L2tpZHMvbGFzdC1jaGFuY2UvZ2lybHMtMi04eTsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/ad/dc/addcf0da7d91c94d719a72bf22d106f7a18eac1d.jpg"
+     },
+     {
+      "articleId": "1320695001",
+      "url": "/es_es/productpage.1320695001.html",
+      "colorName": "Beige claro",
+      "colorCode": "C0BBAD",
+      "trackingId": "OzY7IzsxMzIwNjk1MDAxOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszMDs0NzsjOyM7L2tpZHMvbGFzdC1jaGFuY2UvZ2lybHMtMi04eTsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/5b/7f/5b7fa29c8b39ae2211e3fd6476212b1980f68052.jpg"
+     }
+    ],
+    "productMarkers": [
+     {
+      "text": "H&M Adorables",
+      "type": "custom"
+     },
+     {
+      "text": "H&M Premium Selection",
+      "type": "qualityMarker"
+     }
+    ],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/6e/b2/6eb2dcfea7cca6ed660a26175ad8ca4aaac1249a.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Rosa empolvado claro",
+    "formattedPriorPrice": "9,99 €",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "FFFFFF",
+    "colourShades": "Rosa claro|Coral|Rosa palo|Rosa salmón",
+    "isMultipack": false,
+    "sizes": [
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     },
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "productMarkerText": "H&M Adorables",
+    "colorWithNames": "rosa_ffc0cb",
+    "mainCatCode": "kids_adorables_viewall_girl",
+    "qualityMarker": "H&M Premium Selection"
+   },
+   {
+    "id": "0916397028",
+    "trackingId": "OzY7IzswOTE2Mzk3MDI4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNzs0NzsjOyM7L2tpZHMvbGFzdC1jaGFuY2UvZ2lybHMtMi04eTsjOw_e4",
+    "productName": "Pack de 3 leggings de algodón",
+    "modelImage": "https://image.hm.com/assets/hm/c8/b8/c8b8a8bd32fa419ce300dd12e3a77e384cdc89d8.jpg",
+    "modelImageInfo": {
+     "url": "https://image.hm.com/assets/hm/c8/b8/c8b8a8bd32fa419ce300dd12e3a77e384cdc89d8.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "productImage": "https://image.hm.com/assets/hm/c8/b8/c8b8a8bd32fa419ce300dd12e3a77e384cdc89d8.jpg",
+    "productImageInfo": {
+     "url": "https://image.hm.com/assets/hm/c8/b8/c8b8a8bd32fa419ce300dd12e3a77e384cdc89d8.jpg",
+     "assetType": "DescriptiveStillLife"
+    },
+    "external": false,
+    "brandName": "H&M",
+    "url": "/es_es/productpage.0916397028.html",
+    "showPriceMarker": false,
+    "comparativePrice": 3.0,
+    "priorPrice": 9.99,
+    "prices": [
+     {
+      "priceType": "redPrice",
+      "price": 8.99,
+      "minPrice": 8.99,
+      "maxPrice": 8.99,
+      "formattedPrice": "8,99 €"
+     },
+     {
+      "priceType": "whitePrice",
+      "price": 12.99,
+      "minPrice": 12.99,
+      "maxPrice": 12.99,
+      "formattedPrice": "12,99 €"
+     }
+    ],
+    "availability": {
+     "stockState": "Available",
+     "comingSoon": false
+    },
+    "swatches": [
+     {
+      "articleId": "0916397028",
+      "url": "/es_es/productpage.0916397028.html",
+      "colorName": "Rosa claro/Blanco/Negro",
+      "colorCode": "DAB6B6",
+      "trackingId": "OzY7IzswOTE2Mzk3MDI4OyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNzs0NzsjOyM7L2tpZHMvbGFzdC1jaGFuY2UvZ2lybHMtMi04eTsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/c8/b8/c8b8a8bd32fa419ce300dd12e3a77e384cdc89d8.jpg"
+     },
+     {
+      "articleId": "0916397030",
+      "url": "/es_es/productpage.0916397030.html",
+      "colorName": "Rosa claro/Blanco",
+      "colorCode": "C9A1A2",
+      "trackingId": "OzY7IzswOTE2Mzk3MDMwOyM7IzsvZmFzaGlvbi9ERVNLVE9QL0xBTkRJTkdfUEFHRS9OQVZJR0FUSU9OX1JFU1VMVDsjOyM7dDszNzs0NzsjOyM7L2tpZHMvbGFzdC1jaGFuY2UvZ2lybHMtMi04eTsjOw_e4",
+      "productImage": "https://image.hm.com/assets/hm/2c/35/2c359144e0dcdbb0fbc8f655c49390c5ddd3c594.jpg"
+     }
+    ],
+    "productMarkers": [],
+    "images": [
+     {
+      "url": "https://image.hm.com/assets/hm/3c/af/3caf5dd431e58a11abce5b62f7df6c6da000095e.jpg",
+      "assetType": "DescriptiveDetail"
+     }
+    ],
+    "hasVideo": false,
+    "removed": false,
+    "colorName": "Rosa claro/Blanco/Negro",
+    "quantity": "3",
+    "formattedPriorPrice": "9,99 €",
+    "isPreShopping": false,
+    "isOnline": true,
+    "colors": "DAB6B6",
+    "colourShades": "Coral|Rosa palo|Rosa claro|Rosa salmón",
+    "isMultipack": true,
+    "sizes": [
+     {
+      "id": "008",
+      "label": "92 (1½-2Y)",
+      "stock": 2
+     },
+     {
+      "id": "009",
+      "label": "98 (2-3Y)",
+      "stock": 2
+     },
+     {
+      "id": "010",
+      "label": "104 (3-4Y)",
+      "stock": 2
+     },
+     {
+      "id": "011",
+      "label": "110 (4-5Y)",
+      "stock": 2
+     },
+     {
+      "id": "012",
+      "label": "116 (5-6Y)",
+      "stock": 2
+     },
+     {
+      "id": "013",
+      "label": "122 (6-7Y)",
+      "stock": 2
+     },
+     {
+      "id": "014",
+      "label": "128 (7-8Y)",
+      "stock": 2
+     },
+     {
+      "id": "015",
+      "label": "134 (8-9Y)",
+      "stock": 2
+     },
+     {
+      "id": "016",
+      "label": "140 (9-10Y)",
+      "stock": 2
+     }
+    ],
+    "newArrival": false,
+    "isLiquidPixelUrl": false,
+    "colorWithNames": "rosa_ffc0cb|blanco_ffffff|negro_000000",
+    "comparativeFormattedPrice": "3,00 €",
+    "mainCatCode": "kids_clothing_trousers_leggings"
+   }
+  ],
+  "sortOptions": {
+   "selected": "RELEVANCE",
+   "options": [
+    {
+     "id": "RELEVANCE",
+     "label": "Relevancia"
+    },
+    {
+     "id": "NEWEST_FIRST",
+     "label": "Nuevo"
+    },
+    {
+     "id": "PRICE_ASCENDING",
+     "label": "Precio más bajo"
+    },
+    {
+     "id": "PRICE_DESCENDING",
+     "label": "Precio más alto"
+    }
+   ]
+  },
+  "numberOfHits": 7,
+  "sliceRanges": [],
+  "facets": [
+   {
+    "name": "Precio",
+    "id": "priceRange",
+    "selectedCount": 0,
+    "type": "RANGE",
+    "min": 2.99,
+    "max": 23.99
+   },
+   {
+    "name": "ColorWithNames",
+    "id": "colorWithNames",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "amarillo_ffff00",
+      "name": "amarillo_ffff00",
+      "count": 18,
+      "selected": false
+     },
+     {
+      "id": "azul_0000ff",
+      "name": "azul_0000ff",
+      "count": 73,
+      "selected": false
+     },
+     {
+      "id": "beige_f5f5dc",
+      "name": "beige_f5f5dc",
+      "count": 48,
+      "selected": false
+     },
+     {
+      "id": "blanco_ffffff",
+      "name": "blanco_ffffff",
+      "count": 121,
+      "selected": false
+     },
+     {
+      "id": "dorado_ffd700",
+      "name": "dorado_ffd700",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "gris_808080",
+      "name": "gris_808080",
+      "count": 19,
+      "selected": false
+     },
+     {
+      "id": "lila_800080",
+      "name": "lila_800080",
+      "count": 51,
+      "selected": false
+     },
+     {
+      "id": "marrón_a52a2a",
+      "name": "marrón_a52a2a",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "multi_000000",
+      "name": "multi_000000",
+      "count": 136,
+      "selected": false
+     },
+     {
+      "id": "naranja_ffa500",
+      "name": "naranja_ffa500",
+      "count": 13,
+      "selected": false
+     },
+     {
+      "id": "negro_000000",
+      "name": "negro_000000",
+      "count": 28,
+      "selected": false
+     },
+     {
+      "id": "rojo_ff0000",
+      "name": "rojo_ff0000",
+      "count": 12,
+      "selected": false
+     },
+     {
+      "id": "rosa_ffc0cb",
+      "name": "rosa_ffc0cb",
+      "count": 151,
+      "selected": false
+     },
+     {
+      "id": "turquesa_40e0d0",
+      "name": "turquesa_40e0d0",
+      "count": 12,
+      "selected": false
+     },
+     {
+      "id": "verde_008000",
+      "name": "verde_008000",
+      "count": 24,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Talla",
+    "id": "sizes",
+    "selectedCount": 0,
+    "type": "SIZE",
+    "groups": [
+     {
+      "name": "kidswear",
+      "facetValues": [
+       {
+        "id": "kidswear;NO_FORMAT[Age];1½-2Y",
+        "name": "1½-2Y",
+        "count": 90,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];2-3Y",
+        "name": "2-3Y",
+        "count": 66,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];2-4Y",
+        "name": "2-4Y",
+        "count": 54,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];3-4Y",
+        "name": "3-4Y",
+        "count": 86,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];4-5Y",
+        "name": "4-5Y",
+        "count": 77,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];4-6Y",
+        "name": "4-6Y",
+        "count": 57,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];5-6Y",
+        "name": "5-6Y",
+        "count": 52,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];6-7Y",
+        "name": "6-7Y",
+        "count": 53,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];6-8Y",
+        "name": "6-8Y",
+        "count": 47,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];7-8Y",
+        "name": "7-8Y",
+        "count": 72,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];8-9Y",
+        "name": "8-9Y",
+        "count": 59,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];8-10Y",
+        "name": "8-10Y",
+        "count": 60,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];9-10Y",
+        "name": "9-10Y",
+        "count": 68,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];10-11Y",
+        "name": "10-11Y",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];10-12Y",
+        "name": "10-12Y",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];11-12Y",
+        "name": "11-12Y",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];12-13Y",
+        "name": "12-13Y",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];12-14Y",
+        "name": "12-14Y",
+        "count": 5,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];13-14Y",
+        "name": "13-14Y",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Age];14Y+",
+        "name": "14Y+",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];92/116",
+        "name": "92/116",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];98/104",
+        "name": "98/104",
+        "count": 54,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];104/116",
+        "name": "104/116",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];110/116",
+        "name": "110/116",
+        "count": 57,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];122/128",
+        "name": "122/128",
+        "count": 47,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];122/140",
+        "name": "122/140",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];134/140",
+        "name": "134/140",
+        "count": 60,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];146/152",
+        "name": "146/152",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric/Numeric];158/164",
+        "name": "158/164",
+        "count": 5,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];92",
+        "name": "92",
+        "count": 90,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];98",
+        "name": "98",
+        "count": 66,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];104",
+        "name": "104",
+        "count": 86,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];110",
+        "name": "110",
+        "count": 77,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];116",
+        "name": "116",
+        "count": 52,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];122",
+        "name": "122",
+        "count": 53,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];128",
+        "name": "128",
+        "count": 72,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];134",
+        "name": "134",
+        "count": 59,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];140",
+        "name": "140",
+        "count": 68,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];146",
+        "name": "146",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];152",
+        "name": "152",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];158",
+        "name": "158",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];164",
+        "name": "164",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[Numeric];170",
+        "name": "170",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[unknown];104/128 (3-7Y)",
+        "name": "104/128 (3-7Y)",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[unknown];110/116 (4-6Y)",
+        "name": "110/116 (4-6Y)",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "id": "kidswear;NO_FORMAT[unknown];134/140 (8-10Y)",
+        "name": "134/140 (8-10Y)",
+        "count": 1,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "name": "kidsfootwear",
+      "facetValues": [
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric];24",
+        "name": "24",
+        "count": 10,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric];25",
+        "name": "25",
+        "count": 11,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric];26",
+        "name": "26",
+        "count": 6,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric];27",
+        "name": "27",
+        "count": 6,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric];28",
+        "name": "28",
+        "count": 6,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric];29",
+        "name": "29",
+        "count": 8,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric];30",
+        "name": "30",
+        "count": 9,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric];31",
+        "name": "31",
+        "count": 4,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric];32",
+        "name": "32",
+        "count": 11,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric];33",
+        "name": "33",
+        "count": 10,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric];34",
+        "name": "34",
+        "count": 7,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric/Numeric];22/24",
+        "name": "22/24",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric/Numeric];24/25",
+        "name": "24/25",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric/Numeric];25/27",
+        "name": "25/27",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric/Numeric];26/27",
+        "name": "26/27",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric/Numeric];28/29",
+        "name": "28/29",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric/Numeric];28/30",
+        "name": "28/30",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric/Numeric];30/31",
+        "name": "30/31",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric/Numeric];32/33",
+        "name": "32/33",
+        "count": 2,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric/Numeric];34/35",
+        "name": "34/35",
+        "count": 3,
+        "selected": false
+       },
+       {
+        "id": "kidsfootwear;NO_FORMAT[Numeric/Numeric];34/36",
+        "name": "34/36",
+        "count": 3,
+        "selected": false
+       }
+      ]
+     },
+     {
+      "name": "homewear",
+      "facetValues": [
+       {
+        "id": "homewear;NO_FORMAT[unknown];60x125",
+        "name": "60x125",
+        "count": 1,
+        "selected": false
+       },
+       {
+        "id": "homewear;NO_FORMAT[unknown];60x70",
+        "name": "60x70",
+        "count": 3,
+        "selected": false
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "GarmentLengths",
+    "id": "garmentLengths",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Corto",
+      "name": "Corto",
+      "count": 106,
+      "selected": false
+     },
+     {
+      "id": "Largo",
+      "name": "Largo",
+      "count": 68,
+      "selected": false
+     },
+     {
+      "id": "Largo hasta la rodilla",
+      "name": "Largo hasta la rodilla",
+      "count": 92,
+      "selected": false
+     },
+     {
+      "id": "Largo normal",
+      "name": "Largo normal",
+      "count": 98,
+      "selected": false
+     },
+     {
+      "id": "Midi",
+      "name": "Midi",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Tobillero",
+      "name": "Tobillero",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Tres cuartos",
+      "name": "Tres cuartos",
+      "count": 4,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "ClothingStyles",
+    "id": "clothingStyles",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Abertura",
+      "name": "Abertura",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Acampanado",
+      "name": "Acampanado",
+      "count": 91,
+      "selected": false
+     },
+     {
+      "id": "Bajo burbuja",
+      "name": "Bajo burbuja",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Braga Hipster",
+      "name": "Braga Hipster",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Calcetines de deporte",
+      "name": "Calcetines de deporte",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Calcetines tobilleros",
+      "name": "Calcetines tobilleros",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Calzoncillos bóxer largos",
+      "name": "Calzoncillos bóxer largos",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Camiseta de tirantes",
+      "name": "Camiseta de tirantes",
+      "count": 12,
+      "selected": false
+     },
+     {
+      "id": "Camiseta sin mangas",
+      "name": "Camiseta sin mangas",
+      "count": 12,
+      "selected": false
+     },
+     {
+      "id": "Chaqueta con capucha",
+      "name": "Chaqueta con capucha",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Chaqueta de chándal",
+      "name": "Chaqueta de chándal",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Circular",
+      "name": "Circular",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Corte evasé",
+      "name": "Corte evasé",
+      "count": 27,
+      "selected": false
+     },
+     {
+      "id": "Cruzado",
+      "name": "Cruzado",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Drapeado",
+      "name": "Drapeado",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Escalonado",
+      "name": "Escalonado",
+      "count": 14,
+      "selected": false
+     },
+     {
+      "id": "Espalda con escote pronunciado",
+      "name": "Espalda con escote pronunciado",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Espalda descubierta",
+      "name": "Espalda descubierta",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Fruncido",
+      "name": "Fruncido",
+      "count": 27,
+      "selected": false
+     },
+     {
+      "id": "Jeggings",
+      "name": "Jeggings",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Jersey con capucha",
+      "name": "Jersey con capucha",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Joggers",
+      "name": "Joggers",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Pantalón capri",
+      "name": "Pantalón capri",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Pantalón corto con cintura elástica",
+      "name": "Pantalón corto con cintura elástica",
+      "count": 14,
+      "selected": false
+     },
+     {
+      "id": "Pantalón corto de chándal",
+      "name": "Pantalón corto de chándal",
+      "count": 11,
+      "selected": false
+     },
+     {
+      "id": "Pantalón corto tipo chándal",
+      "name": "Pantalón corto tipo chándal",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Pantalón de chándal",
+      "name": "Pantalón de chándal",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Pantalón de ciclismo",
+      "name": "Pantalón de ciclismo",
+      "count": 27,
+      "selected": false
+     },
+     {
+      "id": "Pantalón sin cierre",
+      "name": "Pantalón sin cierre",
+      "count": 9,
+      "selected": false
+     },
+     {
+      "id": "Pantalones cortos 2 en 1",
+      "name": "Pantalones cortos 2 en 1",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Paper bag",
+      "name": "Paper bag",
+      "count": 9,
+      "selected": false
+     },
+     {
+      "id": "Peplo",
+      "name": "Peplo",
+      "count": 8,
+      "selected": false
+     },
+     {
+      "id": "Perneras rectas",
+      "name": "Perneras rectas",
+      "count": 9,
+      "selected": false
+     },
+     {
+      "id": "Peto",
+      "name": "Peto",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Peto corto",
+      "name": "Peto corto",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Slips",
+      "name": "Slips",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Sudadera",
+      "name": "Sudadera",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Tankini",
+      "name": "Tankini",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Top de bikini suave",
+      "name": "Top de bikini suave",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Tutú",
+      "name": "Tutú",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Un hombro",
+      "name": "Un hombro",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Vestido camiseta",
+      "name": "Vestido camiseta",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Vestido con tirantes espagueti",
+      "name": "Vestido con tirantes espagueti",
+      "count": 8,
+      "selected": false
+     },
+     {
+      "id": "Vestido jersey",
+      "name": "Vestido jersey",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Vestido shift",
+      "name": "Vestido shift",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Wide",
+      "name": "Wide",
+      "count": 8,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Materials",
+    "id": "materials",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Algodón",
+      "name": "Algodón",
+      "count": 203,
+      "selected": false
+     },
+     {
+      "id": "Crepé",
+      "name": "Crepé",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Denim",
+      "name": "Denim",
+      "count": 19,
+      "selected": false
+     },
+     {
+      "id": "Efecto neopreno",
+      "name": "Efecto neopreno",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Encaje",
+      "name": "Encaje",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Felpa de rizo",
+      "name": "Felpa de rizo",
+      "count": 10,
+      "selected": false
+     },
+     {
+      "id": "Gasa",
+      "name": "Gasa",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Lino",
+      "name": "Lino",
+      "count": 20,
+      "selected": false
+     },
+     {
+      "id": "Lona",
+      "name": "Lona",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Material PU",
+      "name": "Material PU",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Muselina",
+      "name": "Muselina",
+      "count": 17,
+      "selected": false
+     },
+     {
+      "id": "Paja",
+      "name": "Paja",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Popelina",
+      "name": "Popelina",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Punto",
+      "name": "Punto",
+      "count": 142,
+      "selected": false
+     },
+     {
+      "id": "Sarga",
+      "name": "Sarga",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Sirsaca",
+      "name": "Sirsaca",
+      "count": 14,
+      "selected": false
+     },
+     {
+      "id": "Tejido de rizo",
+      "name": "Tejido de rizo",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Terciopelo",
+      "name": "Terciopelo",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Tul",
+      "name": "Tul",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Viscosa",
+      "name": "Viscosa",
+      "count": 3,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Patterns",
+    "id": "patterns",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Bloques de color",
+      "name": "Bloques de color",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Cuadros",
+      "name": "Cuadros",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "De lunares",
+      "name": "De lunares",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Estampado",
+      "name": "Estampado",
+      "count": 58,
+      "selected": false
+     },
+     {
+      "id": "Estampado arlequinado",
+      "name": "Estampado arlequinado",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Estampado de cebra",
+      "name": "Estampado de cebra",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Estampado de leopardo",
+      "name": "Estampado de leopardo",
+      "count": 15,
+      "selected": false
+     },
+     {
+      "id": "Floral",
+      "name": "Floral",
+      "count": 60,
+      "selected": false
+     },
+     {
+      "id": "Liso",
+      "name": "Liso",
+      "count": 180,
+      "selected": false
+     },
+     {
+      "id": "Lunares",
+      "name": "Lunares",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Rayas",
+      "name": "Rayas",
+      "count": 35,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "NecklineStyles",
+    "id": "necklineStyles",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Cuello redondo",
+      "name": "Cuello redondo",
+      "count": 158,
+      "selected": false
+     },
+     {
+      "id": "Escote barco",
+      "name": "Escote barco",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Escote cuadrado",
+      "name": "Escote cuadrado",
+      "count": 48,
+      "selected": false
+     },
+     {
+      "id": "Escote de pico",
+      "name": "Escote de pico",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Escote pronunciado",
+      "name": "Escote pronunciado",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Escote recto",
+      "name": "Escote recto",
+      "count": 2,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Marca",
+    "id": "brandNames",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "H&M",
+      "name": "H&M",
+      "count": 416,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Fits",
+    "id": "fits",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Corte ajustado",
+      "name": "Corte ajustado",
+      "count": 28,
+      "selected": false
+     },
+     {
+      "id": "Corte estándar",
+      "name": "Corte estándar",
+      "count": 203,
+      "selected": false
+     },
+     {
+      "id": "Corte holgado",
+      "name": "Corte holgado",
+      "count": 33,
+      "selected": false
+     },
+     {
+      "id": "Corte relajado",
+      "name": "Corte relajado",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Oversized",
+      "name": "Oversized",
+      "count": 1,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "WaistRises",
+    "id": "waistRises",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Cintura estándar",
+      "name": "Cintura estándar",
+      "count": 115,
+      "selected": false
+     },
+     {
+      "id": "Talle alto",
+      "name": "Talle alto",
+      "count": 9,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "ProductTypes",
+    "id": "productTypes",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Blusa",
+      "name": "Blusa",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Bolso",
+      "name": "Bolso",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Braga de bikini",
+      "name": "Braga de bikini",
+      "count": 14,
+      "selected": false
+     },
+     {
+      "id": "Bragas",
+      "name": "Bragas",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Calcetines",
+      "name": "Calcetines",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Camiseta",
+      "name": "Camiseta",
+      "count": 33,
+      "selected": false
+     },
+     {
+      "id": "Camiseta de baño",
+      "name": "Camiseta de baño",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Capa de baño",
+      "name": "Capa de baño",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Clips de pelo",
+      "name": "Clips de pelo",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Falda",
+      "name": "Falda",
+      "count": 13,
+      "selected": false
+     },
+     {
+      "id": "Falda pantalón",
+      "name": "Falda pantalón",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Fiambrera",
+      "name": "Fiambrera",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Gafas de sol",
+      "name": "Gafas de sol",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Gorra",
+      "name": "Gorra",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Gorro",
+      "name": "Gorro",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Jersey",
+      "name": "Jersey",
+      "count": 13,
+      "selected": false
+     },
+     {
+      "id": "Leggings",
+      "name": "Leggings",
+      "count": 32,
+      "selected": false
+     },
+     {
+      "id": "Mono",
+      "name": "Mono",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Pantalón",
+      "name": "Pantalón",
+      "count": 22,
+      "selected": false
+     },
+     {
+      "id": "Pantalón corto",
+      "name": "Pantalón corto",
+      "count": 84,
+      "selected": false
+     },
+     {
+      "id": "Pijama",
+      "name": "Pijama",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Toalla",
+      "name": "Toalla",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Top",
+      "name": "Top",
+      "count": 58,
+      "selected": false
+     },
+     {
+      "id": "Top de bikini",
+      "name": "Top de bikini",
+      "count": 10,
+      "selected": false
+     },
+     {
+      "id": "Traje de baño",
+      "name": "Traje de baño",
+      "count": 17,
+      "selected": false
+     },
+     {
+      "id": "Vaqueros",
+      "name": "Vaqueros",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Vestido",
+      "name": "Vestido",
+      "count": 94,
+      "selected": false
+     },
+     {
+      "id": "Zapatos",
+      "name": "Zapatos",
+      "count": 32,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "CustomerGroups",
+    "id": "customerGroups",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Niña",
+      "name": "Niña",
+      "count": 416,
+      "selected": false
+     },
+     {
+      "id": "Niño",
+      "name": "Niño",
+      "count": 18,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Qualities",
+    "id": "qualities",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "H&M Premium Selection",
+      "name": "H&M Premium Selection",
+      "count": 18,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Occasions",
+    "id": "occasions",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Eid al-Fitr",
+      "name": "Eid al-Fitr",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Navidad",
+      "name": "Navidad",
+      "count": 2,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "AssortmentTypes",
+    "id": "assortmentTypes",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Accesorios",
+      "name": "Accesorios",
+      "count": 13,
+      "selected": false
+     },
+     {
+      "id": "Calzado",
+      "name": "Calzado",
+      "count": 32,
+      "selected": false
+     },
+     {
+      "id": "Hogar",
+      "name": "Hogar",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Ropa",
+      "name": "Ropa",
+      "count": 366,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "AgeGroups",
+    "id": "ageGroups",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Bebé",
+      "name": "Bebé",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Niños mayores",
+      "name": "Niños mayores",
+      "count": 35,
+      "selected": false
+     },
+     {
+      "id": "Niños pequeños",
+      "name": "Niños pequeños",
+      "count": 416,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "HeelHeights",
+    "id": "heelHeights",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Plano",
+      "name": "Plano",
+      "count": 24,
+      "selected": false
+     },
+     {
+      "id": "Tacón bajo",
+      "name": "Tacón bajo",
+      "count": 7,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "AccessoriesStyles",
+    "id": "accessoriesStyles",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Bolso bombonera",
+      "name": "Bolso bombonera",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Gorra de béisbol",
+      "name": "Gorra de béisbol",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Sombrero bucket",
+      "name": "Sombrero bucket",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Sombrero para el sol",
+      "name": "Sombrero para el sol",
+      "count": 3,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "FootwearStyles",
+    "id": "footwearStyles",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Bailarinas",
+      "name": "Bailarinas",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Esparteñas",
+      "name": "Esparteñas",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Sandalias",
+      "name": "Sandalias",
+      "count": 18,
+      "selected": false
+     },
+     {
+      "id": "Sandalias con plantilla anatómica",
+      "name": "Sandalias con plantilla anatómica",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Sandalias de pescador",
+      "name": "Sandalias de pescador",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Slides",
+      "name": "Slides",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Zapatillas deportivas",
+      "name": "Zapatillas deportivas",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Zapatillas deportivas bajas",
+      "name": "Zapatillas deportivas bajas",
+      "count": 3,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Concepts",
+    "id": "concepts",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "BASICS",
+      "name": "BASICS",
+      "count": 49,
+      "selected": false
+     },
+     {
+      "id": "H&M Adorables",
+      "name": "H&M Adorables",
+      "count": 54,
+      "selected": false
+     },
+     {
+      "id": "H&M Move",
+      "name": "H&M Move",
+      "count": 36,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Trendings",
+    "id": "trendings",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Arcoíris",
+      "name": "Arcoíris",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Bohemio",
+      "name": "Bohemio",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Bordado",
+      "name": "Bordado",
+      "count": 29,
+      "selected": false
+     },
+     {
+      "id": "Brillante",
+      "name": "Brillante",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Brillo",
+      "name": "Brillo",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Colores pastel",
+      "name": "Colores pastel",
+      "count": 36,
+      "selected": false
+     },
+     {
+      "id": "Concha",
+      "name": "Concha",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Cuentas",
+      "name": "Cuentas",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "De ganchillo",
+      "name": "De ganchillo",
+      "count": 10,
+      "selected": false
+     },
+     {
+      "id": "Estampado",
+      "name": "Estampado",
+      "count": 72,
+      "selected": false
+     },
+     {
+      "id": "Estampado animal",
+      "name": "Estampado animal",
+      "count": 16,
+      "selected": false
+     },
+     {
+      "id": "Estampado de fruta",
+      "name": "Estampado de fruta",
+      "count": 28,
+      "selected": false
+     },
+     {
+      "id": "Floral",
+      "name": "Floral",
+      "count": 53,
+      "selected": false
+     },
+     {
+      "id": "Gráfico",
+      "name": "Gráfico",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Lazos",
+      "name": "Lazos",
+      "count": 18,
+      "selected": false
+     },
+     {
+      "id": "Lentejuelas",
+      "name": "Lentejuelas",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Mariposas",
+      "name": "Mariposas",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Metalizado",
+      "name": "Metalizado",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Náutico",
+      "name": "Náutico",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Parches",
+      "name": "Parches",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Perlas",
+      "name": "Perlas",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Ribete festoneado",
+      "name": "Ribete festoneado",
+      "count": 18,
+      "selected": false
+     },
+     {
+      "id": "Terciopelo",
+      "name": "Terciopelo",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Volante",
+      "name": "Volante",
+      "count": 94,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "SleeveLengths",
+    "id": "sleeveLengths",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Manga corta",
+      "name": "Manga corta",
+      "count": 93,
+      "selected": false
+     },
+     {
+      "id": "Manga extralarga",
+      "name": "Manga extralarga",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Manga larga",
+      "name": "Manga larga",
+      "count": 35,
+      "selected": false
+     },
+     {
+      "id": "Sin mangas",
+      "name": "Sin mangas",
+      "count": 108,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "SleeveStyles",
+    "id": "sleeveStyles",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Manga de volante",
+      "name": "Manga de volante",
+      "count": 41,
+      "selected": false
+     },
+     {
+      "id": "Mangas abullonadas",
+      "name": "Mangas abullonadas",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Mangas globo",
+      "name": "Mangas globo",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Mangas mariposa",
+      "name": "Mangas mariposa",
+      "count": 12,
+      "selected": false
+     },
+     {
+      "id": "Mangas raglán",
+      "name": "Mangas raglán",
+      "count": 10,
+      "selected": false
+     },
+     {
+      "id": "Mangas trompeta",
+      "name": "Mangas trompeta",
+      "count": 2,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "ProductGroups",
+    "id": "productGroups",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Accesorios para el pelo",
+      "name": "Accesorios para el pelo",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Accesorios para la cabeza",
+      "name": "Accesorios para la cabeza",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Bolsos",
+      "name": "Bolsos",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Gafas",
+      "name": "Gafas",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Ropa de baño",
+      "name": "Ropa de baño",
+      "count": 31,
+      "selected": false
+     },
+     {
+      "id": "Ropa de deporte",
+      "name": "Ropa de deporte",
+      "count": 36,
+      "selected": false
+     },
+     {
+      "id": "Ropa de dormir",
+      "name": "Ropa de dormir",
+      "count": 6,
+      "selected": false
+     },
+     {
+      "id": "Ropa funcional",
+      "name": "Ropa funcional",
+      "count": 31,
+      "selected": false
+     },
+     {
+      "id": "Ropa interior",
+      "name": "Ropa interior",
+      "count": 9,
+      "selected": false
+     },
+     {
+      "id": "Textiles",
+      "name": "Textiles",
+      "count": 1,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "LicenseCompanies",
+    "id": "licenseCompanies",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Disney",
+      "name": "Disney",
+      "count": 12,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "LicenseItems",
+    "id": "licenseItems",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "CapyFun",
+      "name": "CapyFun",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Frozen",
+      "name": "Frozen",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Hello Kitty",
+      "name": "Hello Kitty",
+      "count": 10,
+      "selected": false
+     },
+     {
+      "id": "Lilo y Stitch",
+      "name": "Lilo y Stitch",
+      "count": 5,
+      "selected": false
+     },
+     {
+      "id": "Miffy",
+      "name": "Miffy",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Minnie Mouse",
+      "name": "Minnie Mouse",
+      "count": 3,
+      "selected": false
+     },
+     {
+      "id": "Patrulla canina",
+      "name": "Patrulla canina",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Pokémon",
+      "name": "Pokémon",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Sanrio",
+      "name": "Sanrio",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "SmileyWorld®",
+      "name": "SmileyWorld®",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Squishmallows",
+      "name": "Squishmallows",
+      "count": 3,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Rooms",
+    "id": "rooms",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Aire libre",
+      "name": "Aire libre",
+      "count": 4,
+      "selected": false
+     },
+     {
+      "id": "Habitación de niños",
+      "name": "Habitación de niños",
+      "count": 5,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "HomewareStyles",
+    "id": "homewareStyles",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Toalla de baño",
+      "name": "Toalla de baño",
+      "count": 1,
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "Features",
+    "id": "features",
+    "selectedCount": 0,
+    "type": "TEXT",
+    "filterValues": [
+     {
+      "id": "Cintura ajustable",
+      "name": "Cintura ajustable",
+      "count": 24,
+      "selected": false
+     },
+     {
+      "id": "Con bolsillo",
+      "name": "Con bolsillo",
+      "count": 7,
+      "selected": false
+     },
+     {
+      "id": "Detalles reforzados",
+      "name": "Detalles reforzados",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Extrasuave",
+      "name": "Extrasuave",
+      "count": 16,
+      "selected": false
+     },
+     {
+      "id": "Forrado",
+      "name": "Forrado",
+      "count": 1,
+      "selected": false
+     },
+     {
+      "id": "Protección antideslizante",
+      "name": "Protección antideslizante",
+      "count": 2,
+      "selected": false
+     },
+     {
+      "id": "Sin costuras",
+      "name": "Sin costuras",
+      "count": 2,
+      "selected": false
+     }
+    ]
+   }
+  ]
+ }
+}

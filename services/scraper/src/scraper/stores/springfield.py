@@ -169,6 +169,17 @@ CATEGORIA_POR_SEGMENTO: Mapping[str, tuple[str, str]] = {
 # Ojo a lo que esta lista NO hace: no decide qué se ingiere. Eso lo decide `clasificar()` a partir
 # de los dos mapas, así que el día que la tienda estrene `nino/vestidos` se ingiere solo. Esta lista
 # solo dice qué ramas tiene sentido VIGILAR, que es otra pregunta.
+#
+# LA RAMA DE SALDO: **no hay nada que añadir, y por construcción** (#468, medido el 18/08/2026).
+#
+# Esta tienda no recorre hojas: recorre el **sitemap**, que es el espacio de URL de producto entero
+# — 3 ficheros, **13.547 URLs**, de las que 1227 clasifican como infantil del brief. Una prenda
+# rebajada es **la misma URL**, así que ya está enumerada y ya se ingiere; el tachado y el mínimo de
+# 30 días salen de su ficha como en cualquier otro producto.
+#
+# Y aunque hubiera rama, no podríamos pedirla: el `robots.txt` **veta la rejilla SFCC y su
+# paginación** (`/*/search?cgid=`, `/*start=`, `/*sz=`…), que es el camino por el que se listaría.
+# O sea que la declaración no depende del tamaño de la campaña: no hay pregunta que re-medir.
 HOJAS: tuple[tuple[str, str], ...] = (
     ("nina", "camisetas"),
     ("nina", "camisas-y-blusas"),

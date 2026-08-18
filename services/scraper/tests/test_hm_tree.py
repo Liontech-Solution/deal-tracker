@@ -140,7 +140,12 @@ def test_las_raices_del_vigia_son_ramas_de_categories() -> None:
     """Una raíz que no fuese rama de género dejaría hojas ingeridas fuera del barrido."""
     store = HMStore(_CFG)
     raices = list(store.tree_roots())
-    mapeadas = [c.page_id for c in CATEGORIES]
+    # Las de saldo NO cuentan, y es a propósito (#468): `/kids/last-chance/*` y
+    # `/baby/last-chance/*` cuelgan de campañas que se apagan solas, así que barrerlas cada semana
+    # cantaría un hueco cada vez que acaba la campaña — el falso positivo que `estacional` existe
+    # para no tener. Quedan fuera del barrido y siguen en `mapped_leaves()`, que es lo que evita
+    # que se señalen como no cubiertas si algún día entran por otra raíz.
+    mapeadas = [c.page_id for c in CATEGORIES if not c.por_familia]
 
     assert all(any(m.startswith(r + "/") for m in mapeadas) for r in raices)
     # Y al revés: ninguna hoja se queda sin raíz que la cubra.

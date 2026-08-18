@@ -281,6 +281,29 @@ _BEBE_NINO = f"{_INFANTIL}/bebe-nino-6-meses-a-3-anos"
 # `recien-nacido` y `ranitas-peleles-y-cubrepanales` — esta última se
 # valoró para ropa interior de bebé, pero `bodies` ya cubre esa categoría en las dos ramas de
 # bebé, así que no hace falta tragarse una hoja que mezcla peleles con cubrepañales.
+# LA RAMA DE SALDO: medida el 18/08/2026 y **fuera a propósito** (#468).
+#
+# Esta tienda no implementa `SupportsCategoryTree` (su árbol vive bajo `/api`, vetado), así que el
+# recon fue por sus propias rejillas SSR. Y casi sale mal: las cuatro rutas plausibles
+# —`moda-infantil/{rebajas,ofertas,outlet,promociones}`— devuelven **1914 productos y 160 páginas
+# las cuatro**, exactamente lo mismo que el padre y que un control `esto-no-existe-468`. Son
+# espejismo, y **todo responde 200**: el discriminante es `page.hierarchy`, nunca el status.
+#
+# La rama de verdad es **`descuentos-unit/moda-y-accesorios/moda-infantil`** (941 productos, 79
+# páginas), y su `hierarchy` la distingue del espejismo (`['Descuentos Unit','Moda y Accesorios',
+# 'Moda Infantil']` frente a `['Descuentos Unit']`). No se llega por el menú —la rejilla no enlaza
+# ni una ruta de categoría— sino por el banner «REBAJA FINAL | MEGADROP» que embebe.
+#
+# **941 productos, 549 ya ingeridos y 392 nuevos** sobre 1166: un +34 %, el número más prometedor
+# de #468. Pero el desglose por la jerarquía que trae cada fila lo tumba: **177 son Baño**, 42
+# Calcetines y leotardos, 20 Ranitas/peleles, 20 Calcetines y 30 entre abrigo, gorros, bolsas,
+# paraguas y baberos — **todas hojas que esta misma cabecera ya declara fuera del brief**, aquí
+# arriba. Igual que C&A, Hipercor deja la prenda rebajada en su categoría normal.
+#
+# **Lo que sí salió de medir esto, y NO es de #468**: `polos` (niño 24, bebé niño 23) y
+# `pijamas-y-polainas` (bebé niña 53, bebé niño 51, recién nacido 43) existen como hojas NORMALES,
+# no están en la lista de exclusiones de arriba y no se ingieren. Son ~150 prendas del brief
+# perdidas por la asimetría de slugs que esta cabecera ya documenta. Va en **#507**.
 CATEGORIES: list[CategoryConfig] = [
     # --- zapatería (lo que más falta hace: hoy la sección depende casi entera de Cacles) ---
     # `nina` y `nino` van ANTES que `bebe` a propósito: las tres hojas se solapan (114+141+140
