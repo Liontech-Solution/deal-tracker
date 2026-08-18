@@ -156,6 +156,24 @@ _CONJUNTO_O_SUDADERA = FiltroDeHoja(re.compile(r"\AConjunto\b", re.IGNORECASE), 
 # Subconjunto curado (Fase 2): niño/niña, ropa vs zapatería y las categorías del brief
 # (pantalones, camisetas, sudaderas/jerseys, vestidos, ropa interior) + calzado. Ampliable
 # añadiendo entradas (el resto del código no cambia). Slugs de Sfera verificados en la API.
+# LA RAMA DE SALDO: medida el 18/08/2026 y **fuera a propósito** (#468).
+#
+# Existe, pero no cuelga de `ninos`: `--tree ninos` da 54 rutas y ni un hueco de saldo. La rama es
+# **`rebajas/ninos`**, 23 páginas, y llegar a ella costó descartar tres espejismos —`ninos/rebajas`,
+# `ninos/nina/rebajas` y `ninos/outlet` devuelven el catálogo del padre, que es la trampa de #54—.
+# Sin `is_mirage()` las tres se habrían mapeado como ramas buenas.
+#
+# **275 productos, de los que 234 (85 %) ya entran** por las 39 hojas de aquí abajo y **41 no**. Los
+# 41 son del brief (Short, Camiseta, Zapatilla, Mono, Pijama), así que no se descartan por inútiles
+# sino por precio: **41 productos / ~23 peticiones = 1,8 por petición**, por debajo del **2,2** que
+# #356 rechazó en las `SPECIAL PRICES` de Zara. Y aquí cada petición es Chromium: 23 sobre 39 hojas
+# es **+59 % de peticiones para +6 % de catálogo**.
+#
+# La fila tampoco trae taxonomía (`hierarchy` es `ninos` a secas en los 41), así que haría falta
+# `por_familia` con tabla por el `title`. Si algún día se retoma, ahí está el trabajo.
+#
+# **Se midió en agosto, con la campaña de verano acabándose.** En campaña alta la rama puede ser
+# varias veces mayor y el cálculo cambiar de signo: re-medir antes de dar esto por cerrado.
 CATEGORIES: list[CategoryConfig] = [
     # --- «ropa deportiva»: 66 SUDADERAS y 25 CONJUNTOS, repartidos por el filtro (#175, #200) ---
     # El nombre de la hoja engaña y por eso llevaba fuera desde el principio: aquí no hay ni una

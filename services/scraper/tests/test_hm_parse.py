@@ -41,6 +41,7 @@ import pytest
 from scraper.config import Config
 from scraper.stores.base import ScrapeScope
 from scraper.stores.hm import (
+    _DOMINIOS_POR_FAMILIA,
     _PAGE_SIZE,
     _PAGINA_INICIAL,
     CATEGORIES,
@@ -49,6 +50,7 @@ from scraper.stores.hm import (
     TagLeaf,
     _ambito,
     _talla,
+    categoria_desde_nombre,
     es_espejismo,
     ids_de_pagina,
     parse_filas,
@@ -72,11 +74,21 @@ _CONJUNTOS = "hm_list_nina_sets_outfits.json"
 # artículos y DOS nombres de color repetidos dos veces cada uno ('Azul denim claro' y 'Azul denim
 # oscuro'). Es el caso de la #123, y en vaqueros es de lo más corriente.
 _VAQUEROS = "hm_list_nino_vaqueros.json"
+# Siete productos de `/kids/last-chance/{girls,boys}-2-8y` capturados el 18/08/2026, uno por
+# cosa que la tabla de #468 tiene que resolver: vestido, conjunto, camiseta, pantalón, un
+# zapato, un `legging` (préstamo inglés) y un descarte de baño.
+_SALDO = "hm_list_saldo_nina.json"
 
 _CAT_NINO = CategoryConfig("/kids/boys/clothing/trousers", "niño", "ropa", "pantalones")
 _CAT_NINA = CategoryConfig("/kids/girls/clothing/trousers", "niña", "ropa", "pantalones")
 _CAT_ZAPATOS = CategoryConfig("/kids/girls/shoes", "niña", "zapateria", "zapatos")
 _CAT_BEBE = CategoryConfig("/baby/newborn/clothing/bodysuits", "unisex", "ropa", "ropa-interior")
+_CAT_SALDO_NINA = CategoryConfig(
+    "/kids/last-chance/girls-2-8y", "niña", "", "", por_familia=True, estacional=True
+)
+_CAT_SALDO_NINO = CategoryConfig(
+    "/kids/last-chance/boys-2-8y", "niño", "", "", por_familia=True, estacional=True
+)
 
 _CFG = Config(database_url="postgresql://unused", request_delay=0.0, retry_backoff=0.0)
 
@@ -355,23 +367,24 @@ def test_el_color_solo_no_separa_las_dos_fichas_y_la_url_si() -> None:
 
 
 def test_un_modelo_publicado_en_nino_y_en_nina_es_unisex() -> None:
-    assert _ambito([_CAT_NINO, _CAT_NINA]).gender == "unisex"
+    assert _ambito([_CAT_NINO, _CAT_NINA], []).gender == "unisex"
 
 
 def test_un_modelo_de_una_sola_rama_conserva_su_genero() -> None:
-    assert _ambito([_CAT_NINO]).gender == "niño"
-    assert _ambito([_CAT_NINA, _CAT_NINA]).gender == "niña"
+    assert _ambito([_CAT_NINO], []).gender == "niño"
+    assert _ambito([_CAT_NINA, _CAT_NINA], []).gender == "niña"
 
 
 def test_la_seccion_y_la_categoria_las_fija_la_primera_hoja() -> None:
     """Cruzar géneros sí tiene vocabulario (`unisex`); cruzar categorías no lo tiene."""
     otra = CategoryConfig("/kids/girls/clothing/dresses", "niña", "ropa", "vestidos")
-    ambito = _ambito([_CAT_NINO, otra])
+    ambito = _ambito([_CAT_NINO, otra], [])
+    assert ambito is not None
     assert (ambito.section, ambito.category) == ("ropa", "pantalones")
 
 
 def test_una_hoja_unisex_sola_sigue_siendo_unisex() -> None:
-    assert _ambito([_CAT_BEBE]).gender == "unisex"
+    assert _ambito([_CAT_BEBE], []).gender == "unisex"
 
 
 def test_scopes_declara_tambien_los_ambitos_unisex_que_el_parser_puede_emitir() -> None:
@@ -382,7 +395,9 @@ def test_scopes_declara_tambien_los_ambitos_unisex_que_el_parser_puede_emitir() 
     """
     store = HMStore(_CFG)
     scopes = set(store.scopes())
-    declarados = {ScrapeScope(c.gender, c.section, c.category) for c in CATEGORIES}
+    declarados = {
+        ScrapeScope(c.gender, c.section, c.category) for c in CATEGORIES if not c.por_familia
+    }
     assert declarados <= scopes
     for s in declarados:
         assert ScrapeScope("unisex", s.section, s.category) in scopes
@@ -664,11 +679,15 @@ def test_las_hojas_de_conjuntos_van_las_ultimas_y_solo_atrapan_lo_exclusivo() ->
     Si alguien las sube en la lista, eso se rompe en silencio: la pasada sigue verde y un tercio de
     `pantalones` cambia de categoría.
     """
-    rutas = [c.page_id for c in CATEGORIES]
-    conjuntos = [c for c in CATEGORIES if c.category == "conjuntos"]
+    categorizadas = [c for c in CATEGORIES if not c.por_familia]
+    rutas = [c.page_id for c in categorizadas]
+    conjuntos = [c for c in categorizadas if c.category == "conjuntos"]
     assert len(conjuntos) == 7, "una por rama; si cambian las ramas, cambia esto"
     primera = min(rutas.index(c.page_id) for c in conjuntos)
-    assert primera == len(CATEGORIES) - len(conjuntos), "tienen que ser el último bloque"
+    assert primera == len(categorizadas) - len(conjuntos), "tienen que ser el último bloque"
+    # Las de saldo (#468) van detrás de todo y NO debilitan esto: no votan la categoría, así que
+    # su sitio en la lista da igual — lo garantiza `_ambito()`, no el orden. Ver su propio test.
+    assert all(c.por_familia for c in CATEGORIES[len(categorizadas) :])
 
 
 def test_bebe_y_recien_nacido_van_a_las_mismas_categorias_que_el_resto() -> None:
@@ -736,3 +755,183 @@ def test_una_hoja_de_etiqueta_espejismo_no_borra_las_marcas_de_toda_la_tienda() 
     # caída, porque no tiene ámbito que comprometer.
     assert store.scan_report().leaves_failed == 0
     assert store.scan_report().failed_scopes == set()
+
+
+# --------------------------------------------------------------------------------------
+# La rama de saldo: `last-chance` (#468)
+# --------------------------------------------------------------------------------------
+
+
+def test_la_tabla_de_nombres_clasifica_los_dos_idiomas() -> None:
+    """El catálogo llega mezclado y el criterio no puede ser «lo que la tienda haya traducido».
+
+    Medido el 18/08/2026: **78 de los 456 modelos** que solo viven en la rama de saldo (17 %)
+    vienen sin traducir. Los nombres de aquí abajo son reales, de esa medición.
+    """
+    assert categoria_desde_nombre("Camiseta oversize estampada") == ("ropa", "camisetas")
+    assert categoria_desde_nombre("2-pack cotton Henley tops") == ("ropa", "camisetas")
+    assert categoria_desde_nombre("Vestido escalonado de algodón") == ("ropa", "vestidos")
+    assert categoria_desde_nombre("Lined flannel overshirt") == ("ropa", "camisetas")
+    assert categoria_desde_nombre("Pantalón de lino") == ("ropa", "pantalones")
+    assert categoria_desde_nombre("Baggy Low Waist Jeans") == ("ropa", "pantalones")
+
+
+def test_la_tabla_descarta_lo_que_no_es_del_brief() -> None:
+    """`None` es «no ingerir», y cubre los dos casos en los que ésa es la respuesta correcta.
+
+    Sin esto, una hoja que mezcla vocabulario mete bañadores y gorros en el catálogo con la
+    categoría de lo que sea que casara primero.
+    """
+    for nombre in (
+        "Traje de baño con volantes",
+        "Flounced swimsuit",
+        "Pack de 2 bragas de baño con volante",  # el que la primera versión de la tabla no cazó
+        "Gorro con protección UPF 50",
+        "Sombrero de paja",
+        "Parka de bebé ligera con capucha",
+        "Cinturón",
+        "Pinza estampada",
+    ):
+        assert categoria_desde_nombre(nombre) is None, nombre
+
+
+def test_las_dos_trampas_de_orden_de_la_tabla() -> None:
+    """Las dos que se midieron equivocadas antes de acertarlas, y ninguna daba test rojo.
+
+    1. `chaqueta de punto` es una sudadera y `chaqueta` a secas es un abrigo, que está fuera. Con
+       el abrigo delante, las dos se van fuera.
+    2. `conjuntos` es categoría propia (#192) y esta tienda ya la usa en `sets-outfits`. Con los
+       conjuntos cayendo en `vestidos` —el primer intento— **171 de 456** acababan mal, y la
+       categoría equivocada no la canta nadie.
+    """
+    assert categoria_desde_nombre("Chaqueta de punto en algodón") == ("ropa", "sudaderas")
+    assert categoria_desde_nombre("Chaqueta acolchada con capucha") is None
+
+    assert categoria_desde_nombre("Conjunto de 2 piezas en algodón") == ("ropa", "conjuntos")
+    assert categoria_desde_nombre("2-piece terry set") == ("ropa", "conjuntos")
+    assert categoria_desde_nombre("Vestido imperio de algodón") == ("ropa", "vestidos")
+
+
+def test_las_hojas_de_saldo_van_las_ultimas_son_estacionales_y_no_traen_categoria() -> None:
+    """Las tres marcas juntas, porque las tres se necesitan y ninguna se nota si falta.
+
+    Sin `por_familia` la hoja impondría su categoría a todo lo que trae; sin `estacional`, el fin
+    de campaña apaga las siete a la vez y `dead_ratio` (7 de 77, el 9 %) empieza a contarlas como
+    hojas caídas cada temporada.
+    """
+    saldo = [c for c in CATEGORIES if c.por_familia]
+    assert len(saldo) == 7, "6 con género + newborn; si cambian, cámbialo aquí a conciencia"
+    assert all(c.estacional for c in saldo)
+    assert all(c.section == "" and c.category == "" for c in saldo)
+    assert all("last-chance" in c.page_id for c in saldo)
+
+    indices = [i for i, c in enumerate(CATEGORIES) if c.por_familia]
+    resto = [i for i, c in enumerate(CATEGORIES) if not c.por_familia]
+    assert min(indices) > max(resto), "las de saldo van detrás de todas las categorizadas"
+
+
+def test_una_hoja_por_familia_no_puede_declarar_categoria() -> None:
+    """Las dos mitades del invariante, y las dos mienten en silencio si no se comprueban aquí."""
+    with pytest.raises(ValueError, match="por_familia"):
+        CategoryConfig("/kids/last-chance/x", "niña", "ropa", "vestidos", por_familia=True)
+    with pytest.raises(ValueError, match="no declara sección/categoría"):
+        CategoryConfig("/kids/whatever", "niña", "", "")
+
+
+def test_el_saldo_no_le_pisa_la_categoria_a_quien_ya_la_tiene() -> None:
+    """El mecanismo entero de #468, y lo que sustituye al truco del ORDEN que usa Zara.
+
+    Aquí no puede depender del orden: esta tienda **acumula la pasada entera antes de emitir**, así
+    que cuando decide el ámbito ya conoce todas las hojas del modelo. Lo que hace el trabajo es que
+    la hoja de saldo no vote la categoría.
+    """
+    filas = parse_filas(load_fixture(_SALDO))
+    ambito = _ambito([_CAT_SALDO_NINA, _CAT_NINO], filas)
+
+    assert ambito is not None
+    assert (ambito.section, ambito.category) == ("ropa", "pantalones")  # la de la hoja normal
+
+
+def test_un_modelo_que_solo_vive_en_el_saldo_saca_la_categoria_del_nombre() -> None:
+    """Y el género lo sigue poniendo la hoja, lo único que en `por_familia` sigue siendo suyo."""
+    filas = [f for f in parse_filas(load_fixture(_SALDO)) if f.name.startswith("Vestido")]
+    assert filas, "el fixture tiene que traer el vestido"
+
+    ambito = _ambito([_CAT_SALDO_NINA], filas)
+
+    assert ambito is not None
+    assert (ambito.gender, ambito.section, ambito.category) == ("niña", "ropa", "vestidos")
+
+
+def test_el_saldo_tambien_cruza_generos() -> None:
+    """Un modelo en la rama de saldo de niño y en la de niña es `unisex` como cualquier otro.
+
+    No es hipotético: medido el 18/08/2026, **114 filas** salen en las dos ramas
+    (niño∩niña: 19 en 2-8y, 9 en 9-14y y 86 en bebé).
+    """
+    filas = [f for f in parse_filas(load_fixture(_SALDO)) if f.name.startswith("Vestido")]
+    ambito = _ambito([_CAT_SALDO_NINA, _CAT_SALDO_NINO], filas)
+
+    assert ambito is not None
+    assert ambito.gender == "unisex"
+    assert (ambito.section, ambito.category) == ("ropa", "vestidos")
+
+
+def test_lo_que_el_saldo_no_sabe_nombrar_no_se_ingiere() -> None:
+    """`None` y no una categoría por defecto: inventarla ensucia el catálogo sin que se note."""
+    filas = [f for f in parse_filas(load_fixture(_SALDO)) if "baño" in f.name]
+    assert filas, "el fixture tiene que traer el descarte de baño"
+
+    assert _ambito([_CAT_SALDO_NINA], filas) is None
+
+
+def test_scopes_declara_todo_lo_que_una_hoja_de_saldo_puede_emitir() -> None:
+    """Un ámbito no declarado no cuenta como escaneado, y sus productos no se dan de baja NUNCA.
+
+    Una hoja `por_familia` no tiene un ámbito, tiene todos los que su tabla puede producir. Es el
+    mismo cartesiano que hacen `cacles.py` y `lefties.py`.
+    """
+    scopes = set(HMStore(_CFG).scopes())
+    saldo = [c for c in CATEGORIES if c.por_familia]
+
+    for cat in saldo:
+        for section, category in _DOMINIOS_POR_FAMILIA:
+            assert ScrapeScope(cat.gender, section, category) in scopes
+            assert ScrapeScope("unisex", section, category) in scopes
+    # Y el ámbito crudo de la hoja, el que no existe, NO se declara.
+    assert not any(s.section == "" or s.category == "" for s in scopes)
+
+
+def test_una_hoja_de_saldo_apagada_no_cuenta_como_caida() -> None:
+    """El fin de campaña no es una avería, y contarlo como tal hace dos daños a la vez (#195).
+
+    Las 7 hojas de saldo se apagan juntas: sobre las 77 de `CATEGORIES` son el 9 %, así que
+    `dead_ratio` empezaría a subir hacia el tope que aborta la pasada una vez por temporada. Y
+    sacaría de las bajas unos ámbitos que se han listado perfectamente por sus hojas de siempre.
+    """
+    # Sin fixture mapeado, el handler responde el canario: para la hoja eso ES el espejismo.
+    store = _store({(_CAT_NINO.page_id, 1): _NINO_P1}, [_CAT_NINO, _CAT_SALDO_NINA])
+    list(store.list_catalog())
+    informe = store.scan_report()
+
+    assert informe.leaves_failed == 0, "la hoja de campaña apagada no es una hoja caída"
+    assert _CAT_SALDO_NINA.page_id not in informe.failed_leaves
+    assert not informe.failed_scopes, "y su ámbito sigue pudiendo dar bajas"
+
+
+def test_una_hoja_normal_apagada_si_cuenta_como_caida() -> None:
+    """El control de la anterior: sin él, ese test pasaría con `estacional` roto en las dos."""
+    store = _store({}, [_CAT_NINO])
+    list(store.list_catalog())
+
+    assert store.scan_report().leaves_failed == 1
+    assert _CAT_NINO.page_id in store.scan_report().failed_leaves
+
+
+def test_check_leaves_marca_la_hoja_de_saldo_como_estacional() -> None:
+    """Para que el vigía la cuente como aviso y no abra una issue cada fin de campaña."""
+    store = _store({(_CAT_NINO.page_id, 1): _NINO_P1}, [_CAT_NINO, _CAT_SALDO_NINA])
+    hojas = {h.leaf: h for h in store.check_leaves()}
+
+    assert hojas[_CAT_SALDO_NINA.page_id].estacional is True
+    assert hojas[_CAT_NINO.page_id].estacional is False

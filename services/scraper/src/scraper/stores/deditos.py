@@ -261,6 +261,21 @@ class CategoryConfig:
 # la tienda publica además bajo `accesorios`. Recorrer las hijas por separado serían ~14
 # peticiones para los mismos productos. El resto del catálogo es de adulto y queda fuera a
 # propósito (ver `COBERTURA_DECLARADA` en `scraper/vigia.py`).
+# LA RAMA DE SALDO: medida el 18/08/2026 y **fuera a propósito** (#468).
+#
+# `--tree ninos` da 19 rutas y **0 sin cubrir**: el árbol infantil es por tipo de calzado y todo
+# cuelga de `ninos`, que ya ingerimos. De las **84** categorías de la tienda solo una tiene pinta de
+# saldo, `outlet` (133 productos).
+#
+# Y aquí la Store API contesta la pregunta directamente, que es lo mejor de este caso. Medido:
+#
+#   - `category=ninos` (lo que ingerimos) ....... 433 productos
+#   - `category=ninos&on_sale=true` ............. 299 productos, **0 fuera de `ninos`**
+#   - `on_sale=true` (toda la tienda) ........... 434, de los que 135 fuera (adulto y JUGUETES)
+#   - `category=outlet` ......................... 132, de los que 17 fuera (6 dicen «Adultos»)
+#
+# **El filtro de rebajas de la propia tienda, acotado a infantil, da 0 productos que no tengamos.**
+# No hay rama que añadir, y no depende de la campaña.
 CATEGORIES: list[CategoryConfig] = [
     CategoryConfig("ninos", "infantil (todo el catálogo de niño)"),
 ]
