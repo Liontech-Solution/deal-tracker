@@ -669,12 +669,41 @@ def _reconcile_tags(cur: psycopg.Cursor, retailer_id: int, tags: ProductTags) ->
 
 
 def _load_active_counts(cur: psycopg.Cursor, retailer_id: int) -> dict[_ScopeKey, int]:
-    """Población activa por ámbito ANTES de esta pasada (base para la red de seguridad)."""
+    """Lo que la tienda nos enseñó la ÚLTIMA vez que vimos cada ámbito (base de la red).
+
+    No es «todo lo activo»: son los que tienen el `last_seen_at` más reciente de su ámbito, o sea
+    la población de la última pasada que llegó a mirarlo. La diferencia es la que arregla #475.
+
+    **Contar todo lo activo hacía que la red se enganchara a sí misma**, y es un bucle cerrado:
+    un ámbito sospechoso queda fuera de `safe_scopes`, así que no avanza racha (`_advance_missing`)
+    ni entra en el sondeo (`_load_delist_candidates` exige `missing_streak >= min_misses`), así que
+    sus ausentes no se dan de baja nunca, así que siguen contando en la base, así que el ámbito
+    vuelve a salir sospechoso. Medido en Sfera `niña/ropa/ropa-interior` (QA, 18/08/2026): 23
+    activos de los que la tienda sirve 11 —0,478, justo por debajo de `delist_drop_ratio`— y 12
+    congelados con `missing_streak = 0` y `last_probe_at` nulo, cinco de ellos sin verse desde el
+    24/07. Tres pasadas seguidas con el mismo aviso (#80, #91 y #94), y era el único ámbito
+    enganchado de las diez tiendas.
+
+    **El aviso no se equivocó la primera vez, y por eso esto no afloja el umbral.** El ámbito cayó
+    de verdad de ~23 a 11 entre el 10/08 y el 17/08, y saltar fue lo correcto. Con esta base la
+    primera pasada sigue saltando —compara contra lo que se vio en la anterior— y es la SEGUNDA la
+    que ya no, que es justo lo que se quiere: la red existe para absorber un fallo transitorio, y
+    de una caída permanente se encargan la histéresis y el sondeo, que preguntan a la tienda.
+
+    La igualdad exacta con `last_seen_at` es de fiar: una pasada escribe `run_ts` en todo lo que ve,
+    también en lo que no cambió (`_touch_seen`), y `_reset_missing` ya se apoya en esa misma
+    igualdad.
+    """
     cur.execute(
         """
         SELECT gender, section, category, count(*)
-        FROM product
-        WHERE retailer_id = %s AND delisted_at IS NULL
+        FROM (
+            SELECT gender, section, category, last_seen_at,
+                   max(last_seen_at) OVER (PARTITION BY gender, section, category) AS ultima
+            FROM product
+            WHERE retailer_id = %s AND delisted_at IS NULL
+        ) p
+        WHERE last_seen_at = ultima
         GROUP BY gender, section, category
         """,
         (retailer_id,),
@@ -723,6 +752,10 @@ def _suspicious_scopes(
 
     Solo se consideran ámbitos con una población previa mínima (`min_baseline`) para no
     saltar por ruido en ámbitos pequeños. Devuelve las claves cuyas bajas hay que OMITIR.
+
+    `prior_active` es lo que se vio la ÚLTIMA vez, no todo lo activo acumulado (#475): la
+    comparación es pasada contra pasada. Con la otra base, un ámbito que saltara una vez ya no
+    podía dejar de saltar nunca — el porqué está en `_load_active_counts`.
 
     Lo mudado cuenta como visto (#174): un producto que ahora se lista en otro ámbito **no ha
     desaparecido**, así que restarlo de la caída es lo que distingue una reclasificación de una
@@ -1078,6 +1111,7 @@ def _success_message(
     probe: ProbeOutcome | None = None,
     variants_seen: int = 0,
     variants_in_stock: int = 0,
+    unresolved_previos: list[int] | None = None,
 ) -> str | None:
     """Por qué esta pasada, aun con éxito, no está del todo limpia. `None` si lo está (#151).
 
@@ -1193,22 +1227,77 @@ def _success_message(
     # para quitar. Estas dos son cortas y no se pueden reconstruir desde ninguna otra columna;
     # las enumeraciones de abajo ya se autolimitan con su `+N` y tienen sus propios contadores.
     return (
-        " · ".join(_alarmas_del_sondeo(probe, variants_seen, variants_in_stock) + partes)[
-            :_MAX_FAIL_MESSAGE
-        ]
+        " · ".join(
+            _alarmas_del_sondeo(probe, variants_seen, variants_in_stock, unresolved_previos)
+            + partes
+        )[:_MAX_FAIL_MESSAGE]
         or None
     )
 
 
+def _unresolved_recientes(
+    cur: psycopg.Cursor, retailer_id: int, run_id: int, limite: int = 2
+) -> list[int]:
+    """`probes_unresolved` de las últimas pasadas con éxito de esta tienda, de vieja a nueva (#486).
+
+    Excluye la pasada en curso: su fila ya existe pero todavía está sin cerrar. Y solo mira las
+    `success` porque una pasada fallida no llega a sondear, así que su cero no dice nada y partiría
+    la serie en dos.
+    """
+    cur.execute(
+        """
+        SELECT probes_unresolved FROM scrape_run
+        WHERE retailer_id = %s AND id <> %s AND status = 'success'
+        ORDER BY started_at DESC LIMIT %s
+        """,
+        (retailer_id, run_id, limite),
+    )
+    return [int(row[0] or 0) for row in cur.fetchall()][::-1]
+
+
+def _sondeo_atascado(probe: ProbeOutcome, previos: list[int]) -> bool:
+    """Un residuo de sondeos sin veredicto que no baja pasada tras pasada (#486).
+
+    Es el candidato que **nunca** obtiene veredicto, y la razón de vigilarlo es que se cuela por
+    dos sitios a la vez: no le aplica el enfriamiento de #412 —`_marcar_sondeados` solo anota lo
+    concluyente— y su `missing_streak` crece sin techo, así que `_load_delist_candidates` lo ordena
+    el primero y ocupa el cupo en todas las pasadas. Si una tienda acumulara más de
+    `delist_probe_max` de ésos, las bajas legítimas nuevas caerían en `over_cap` para siempre, sin
+    llegar a preguntarse. Población medida el 17/08/2026 en las dos tiendas que sondean por URL:
+    **cero**. Esto es instrumentación para cuando deje de serlo.
+
+    **La cifra sola no vale y por eso esto no es un umbral.** Un `unresolved` que va y viene es red
+    o un bloqueo puntual, y ése ya se ve; lo que no se ve es el que no se mueve. De ahí las dos
+    condiciones: que haya residuo en las tres pasadas y que **no baje** en ninguna. Una serie que
+    drena (5 → 3 → 1) es el mecanismo funcionando y no dice nada.
+
+    Y se exige `unresolved < sent`, o sea que **alguien sí contestó**: con todos sin veredicto lo
+    que hay es la tienda negándose a hablar, que es un diagnóstico distinto y ya tiene su alarma
+    desde #357. Sin este recorte las dos frases saldrían juntas acusando de cosas opuestas.
+    """
+    if not (0 < probe.unresolved < probe.sent) or len(previos) < 2:
+        return False
+    serie = [*previos, probe.unresolved]
+    return all(v > 0 for v in serie) and all(a <= b for a, b in zip(serie, serie[1:], strict=False))
+
+
 def _alarmas_del_sondeo(
-    probe: ProbeOutcome | None, variants_seen: int, variants_in_stock: int
+    probe: ProbeOutcome | None,
+    variants_seen: int,
+    variants_in_stock: int,
+    unresolved_previos: list[int] | None = None,
 ) -> list[str]:
-    """Lo que hay que leer aunque el resto del mensaje no quepa (#151, #357, #427)."""
+    """Lo que hay que leer aunque el resto del mensaje no quepa (#151, #357, #427, #486)."""
     if probe is None or not probe.sent:
         return []
     alarmas: list[str] = []
     if probe.unresolved == probe.sent:
         alarmas.append(f"sondeo sin respuesta: {probe.sent} de {probe.sent} sin veredicto")
+    if _sondeo_atascado(probe, unresolved_previos or []):
+        alarmas.append(
+            f"sondeo atascado: {probe.unresolved} de {probe.sent} sin veredicto y la cifra no baja "
+            "en 3 pasadas seguidas"
+        )
     # El «todos agotados» SOLO se nombra acompañado del catálogo entero sin stock (#427). Por
     # separado, cada mitad es un estado sano y frecuente; juntas no lo son.
     if probe.unbuyable == probe.sent and variants_seen > 0 and variants_in_stock == 0:
@@ -1332,7 +1421,10 @@ def ingest(
             )
             run_id = _scalar_int(cur)
             existing = _load_existing(cur, retailer_id)
-            prior_active = _load_active_counts(cur, retailer_id)  # baseline por ámbito
+            # Baseline por ámbito: lo que se vio la ÚLTIMA vez, no todo lo activo (#475). Se lee
+            # ANTES de escribir nada de esta pasada, que es lo que hace que «la última vez» sea la
+            # anterior y no ésta.
+            prior_active = _load_active_counts(cur, retailer_id)
 
             # Fase 1: listado barato. Decidimos a quién pedir detalle y a quién solo "tocar".
             # Se acumula a mano en vez de con `list(...)` para poder latir mientras baja: con la
@@ -1507,6 +1599,9 @@ def ingest(
             products_delisted, variants_delisted = _delist(
                 cur, retailer_id, run_ts, safe_scopes, delist_min_misses, probe.blocked_ids
             )
+            # La serie de sondeos sin veredicto de las pasadas anteriores (#486). Se lee aquí, con
+            # la fila de esta pasada aún sin cerrar, porque la alarma compara contra el pasado.
+            unresolved_previos = _unresolved_recientes(cur, retailer_id, run_id)
 
             # `clock_timestamp()` y no `now()`: toda la pasada va en UNA transacción (ver la
             # cabecera del módulo) y `now()` devuelve la hora de INICIO de la transacción, así que
@@ -1553,6 +1648,7 @@ def ingest(
                         probe,
                         variants_seen,
                         variants_in_stock,
+                        unresolved_previos,
                     ),
                     probe.sent,
                     probe.alive,
