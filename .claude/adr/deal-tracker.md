@@ -2849,9 +2849,23 @@ Sfera frente a 0-1 en Hipercor) y ahí sí muerde.
 La consecuencia es sobre **la cadencia, no sobre el valor de la ventana**: el desperdicio que midió
 la cabecera de la `0042` («200 sondeos, 200 vivos, CERO bajas») es de productos `ALIVE`, y a ésos la
 ventana solo les alcanza cuando su racha vuelve a cruzar `min_misses`, o sea **al cabo de 2
-pasadas**. Con cadencia diaria (prod) son 2 días y la ventana de 7 los tapa; con cadencia semanal
-(QA) son 2 semanas y la ventana ha caducado antes de que vuelvan a ser candidatos. **Medir el ahorro
-en QA lo subestima por construcción**, y un `skipped_fresh` bajo allí no prueba que la ventana sobre.
+pasadas**. Con cadencia semanal (QA) son 2 semanas y la ventana de 7 días ha caducado antes de que
+vuelvan a ser candidatos; con cadencia diaria (prod) son 2 días y la ventana los tapa. **Medir el
+ahorro en QA lo subestima por construcción**, y un `skipped_fresh` bajo allí no prueba que la
+ventana sobre.
+
+> **Ojo a qué mitad está medida, porque no son la misma cosa.** Lo de QA es observación: cuatro
+> tiendas, `skipped_fresh` igual al `UNBUYABLE` de la pasada anterior y **0** en las que rescataron.
+> **Lo de prod es deducción**, y aquí eso se distingue. Lo medido en prod el 18/08/2026 es solo el
+> reparto de partida tras su primera pasada con la `0042` viva: **73 no rescatados** (sfera 50,
+> lefties 18, zara 5) y **230 rescatados** (c-and-a 50, mango 50, hipercor 50, zara 44,
+> springfield 36), con `skipped_fresh = 0` en las diez, que es lo esperable de una primera pasada.
+> La predicción falsable, con fecha, es de dos noches: **la del 18/08** debe dar `skipped_fresh` ≈ 73
+> repartido entre sfera/lefties/zara y **0** en las demás (los rescatados van por racha 1, aún bajo
+> `min_misses`); y **la del 19/08** es la que decide, porque ahí los 230 llegan a racha 2, vuelven a
+> ser candidatos con su `last_probe_at` de 2 días y **`skipped_fresh` tiene que despegar también en
+> las tiendas que rescatan**. Si esa noche sigue a 0 en ellas, esta explicación está mal y lo que
+> falla es otra cosa.
 
 Y un corolario de medición que vale para cualquier recuento de «prendas congeladas»: la consulta
 obvia (`delisted_at IS NULL AND last_seen_at < now() - 14d`) **mezcla dos poblaciones con causas
