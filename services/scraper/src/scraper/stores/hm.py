@@ -289,7 +289,9 @@ _SOLO_CONJUNTOS = FiltroDeHoja(
 # faceta de tipo de producto, pero las 30 facetas de esta tienda vienen con `values: []` (ver
 # `_SOLO_CONJUNTOS`, que ya se apoyaba en el nombre por lo mismo). Lo que hay es el rótulo, y es
 # utilizable: medido el 18/08/2026 sobre los **456 modelos** que solo viven en la rama de saldo,
-# esta tabla clasifica **305**, descarta **150** a propósito y deja **1** sin reconocer.
+# esta tabla clasifica **305**, descarta **151** a propósito y **no deja ninguno sin
+# reconocer**. El reparto: conjuntos 92, vestidos 79, pantalones 44, camisetas 40, zapatos 25,
+# ropa-interior 17 y sudaderas 8.
 #
 # **Es bilingüe porque el catálogo lo es**, y no por elegancia: 78 de esos 456 (17 %) llegan sin
 # traducir («Flounced swimsuit», «Lined flannel overshirt», «2-pack cotton Henley tops»). Con solo
@@ -342,7 +344,6 @@ _PATRONES_DOMINIO: tuple[tuple[str, tuple[str, str] | None], ...] = (
     (r"\b(falda|skirt)", ("ropa", "vestidos")),
     (r"\b(monos?\b|peto\b|pelele|jumpsuit|dungaree|romper)", ("ropa", "vestidos")),
     (r"\b(sudadera|hoodie|sweatshirt)", ("ropa", "sudaderas")),
-    (r"\b(jersey|jerséi|jersei|jumper|punto\b)", ("ropa", "sudaderas")),
     (
         r"\b(pantalón|pantalon|vaquero|jeans|jegging|legging|jogger|malla|chino"
         r"|trousers|short|bermuda)",
@@ -352,6 +353,12 @@ _PATRONES_DOMINIO: tuple[tuple[str, tuple[str, str] | None], ...] = (
         r"\b(camiseta|camisa|blusa|polo|tops?\b|t-shirt|shirt|henley|overshirt)",
         ("ropa", "camisetas"),
     ),
+    # `punto` va DETRÁS de la prenda, y es la tercera trampa de orden de esta tabla: es un TEJIDO,
+    # no una prenda, así que «Pantalón corto en punto de algodón» y «Camiseta en punto de canalé»
+    # son pantalón y camiseta. Con esta regla delante se los llevaba a `sudaderas` — 6 de los 456
+    # modelos medidos el 18/08/2026, en silencio y sin test rojo. Lo que sí es prenda (`jersey`,
+    # `jumper`) no necesita ir delante de nada: no casa con ninguna regla anterior.
+    (r"\b(jersey|jerséi|jersei|jumper|punto\b)", ("ropa", "sudaderas")),
     (
         r"\b(zapatilla|zapato|bailarina|sandalia|merceditas|alpargata|bota|deportiva|chancla"
         r"|mocasín|mocasin|loafer|shoe|sneaker|sandal|pump|trainer)",
@@ -563,7 +570,7 @@ CATEGORIES: list[CategoryConfig] = [
     # única que no mirábamos en un producto que existe para avisar de bajadas de precio. Medido el
     # 18/08/2026 contra las 70 hojas de aquí arriba (7835 filas / 3901 modelos):
     # **1181 filas / 885 modelos, de los que 429 (48,5 %) ya entraban y 456 no.** De esos 456, la
-    # tabla de `_NOMBRE_A_DOMINIO` clasifica 305 y descarta 150 por no ser del brief.
+    # tabla de `_NOMBRE_A_DOMINIO` clasifica 305 y descarta 151 por no ser del brief.
     #
     # **El solape hay que mirarlo por MODELO, y esto es lo que casi cuela una cifra falsa**: por id
     # de artículo el solape daba **0 sobre 1181 filas** —parecía una rama entera de estreno— y no
@@ -1196,6 +1203,15 @@ class HMStore:
             # hoja. Contarla como sana sería el peor de los dos errores — lo que no se ha llegado a
             # mirar no está retirado, y a las `delist_min_misses` pasadas se descatalogaría solo por
             # no haber cabido en el tope.
+            #
+            # **Y aquí NO se pasa `estacional`, al revés que en las dos ramas de arriba.** No es un
+            # olvido: truncarse no es apagarse. Una hoja de campaña que se apaga no compromete nada
+            # porque lo suyo ya se listó por otras hojas o dejó de existir; una que se trunca ha
+            # dejado productos sin mirar, y **exentarla sería dejar su ámbito sin la protección de
+            # `leaf_gone()`** — o sea, cambiar una subida de `dead_ratio` por bajas falsas, que es
+            # el peor de los dos cambios. El coste asumido es que un `last-chance` que un día pase
+            # de `_MAX_PAGES` cuente como hoja caída; hoy la mayor tiene 470 productos sobre un tope
+            # de 2160, así que hay margen de sobra antes de que eso importe.
             self._hoja_comprometida(
                 scope,
                 cat.page_id,
@@ -1510,14 +1526,26 @@ def _ambito(hojas: Sequence[CategoryConfig], filas: Sequence[Fila]) -> ScrapeSco
 
     Solo cuando el modelo vive **exclusivamente** en la rama de saldo se recurre al nombre. Y
     entonces puede no haber respuesta: `None` significa «no ingerir», nunca «categoría vacía».
-    El género sí sale de la hoja también aquí, y sigue cruzándose — la rama de saldo de niña es de
-    niña, y un modelo que salga en la de niño y en la de niña es `unisex` como cualquier otro.
+
+    **Pero el GÉNERO lo votan TODAS las hojas, también las de saldo, y esa asimetría es el meollo
+    de esta función.** Lo que la hoja de saldo no sabe es qué prenda es; de qué rama cuelga sí lo
+    sabe, y publicar un modelo en `last-chance/girls-2-8y` es la tienda diciendo que es de niña
+    igual que lo dice su hoja de vestidos. La primera versión de #468 descartaba la hoja de saldo
+    entera en cuanto había una categorizada, y con ella se iba el cruce: un modelo en
+    `boys/.../trousers` **y** en `last-chance/girls-2-8y` salía `niño` en vez de `unisex`. Es
+    exactamente el fallo que #98 destapó en Hipercor, reintroducido en la intersección
+    normal↔saldo. **Hoy no hay ni un producto así** (medido el 18/08/2026: 0 de los 429
+    compartidos), o sea que no había nada que reparar — pero el mecanismo estaba mal y no lo
+    cazaba nada, que es la mitad peligrosa.
     """
     categorizadas = [h for h in hojas if not h.por_familia]
     if categorizadas:
-        return ambito_cruzado([ScrapeScope(h.gender, h.section, h.category) for h in categorizadas])
-    destino = categoria_desde_nombre(filas[0].name) if filas else None
-    if destino is None:
-        return None
-    section, category = destino
+        # La sección y la categoría las fija la PRIMERA hoja categorizada, como en el resto de
+        # tiendas; las de saldo no entran en esa votación pero sí en la del género, abajo.
+        section, category = categorizadas[0].section, categorizadas[0].category
+    else:
+        destino = categoria_desde_nombre(filas[0].name) if filas else None
+        if destino is None:
+            return None
+        section, category = destino
     return ambito_cruzado([ScrapeScope(h.gender, section, category) for h in hojas])
