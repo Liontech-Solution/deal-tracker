@@ -2753,7 +2753,7 @@ Lo encontró `revisor-robustez-scraper` al auditar Mango (#80) y se confirmó le
 `_advance_missing()` antes de tocar nada. Hipercor ya lo tenía resuelto y documentado en su propio
 fichero; el coste de que no estuviera aquí fue que la tienda siguiente nació sin ello.
 
-### El sondeo de bajas tiene cinco invariantes que no se ven leyendo el código que los usa (#412, #426, #427, #454, #466)
+### El sondeo de bajas tiene cinco invariantes que no se ven leyendo el código que los usa (#412, #426, #427, #454, #466, #486)
 
 Los tres primeros salieron de la misma sesión y tienen la misma forma: algo que parece un detalle de
 implementación y en realidad es lo único que sostiene la garantía. El cuarto llegó después y es de
@@ -2824,9 +2824,18 @@ de forma permanente a otro producto:
 Hay que leerlo con su magnitud: hoy esa población es **cero** en las dos tiendas que sondean por URL,
 así que es riesgo latente y no un fallo en curso. Y el arreglo de #454 no lo empeora en el caso que
 importa —antes el mismo escenario acababa en un `ALIVE` erróneo, que sí liberaba el hueco pero al
-precio de congelar el producto para siempre, que era el fallo—. Lo que sí falta es instrumentación:
-la señal es `probes_unresolved` **sostenido en la misma cifra durante varias pasadas seguidas**, que
-es distinto de uno que va y viene (eso es red), y hoy nadie la vigila.
+precio de congelar el producto para siempre, que era el fallo—.
+
+**Desde #486 esto sí se vigila**, que era lo único que faltaba. La alarma vive en
+`_alarmas_del_sondeo` y salta cuando `probes_unresolved` **no baja en tres pasadas seguidas**, que es
+lo que distingue al candidato que no obtiene veredicto nunca de uno que va y viene (eso es red, y ya
+se ve). Dos decisiones de diseño que no son evidentes: hace falta **leer las pasadas anteriores**
+—«sostenido» no se puede deducir de la pasada en curso, así que se consultan las dos anteriores con
+éxito, saltándose las fallidas porque su cero partiría la serie sin significar nada— y se exige
+`unresolved < sent`, o sea que alguien sí contestó; con todos sin veredicto el diagnóstico es la
+tienda muda, que ya tiene su frase desde #357, y sin ese recorte las dos saldrían juntas acusando de
+cosas opuestas. De las tres salidas que planteaba #486 se implementó solo ésta: anotar `last_probe_at`
+en el desajuste de identidad y poner techo al reparto del cupo siguen sin decidirse.
 
 **5. El ahorro de la ventana de #412 solo existe donde el veredicto NO rescata, y por eso se mide
 mal en QA** (#466, medido 18/08/2026). `probes_skipped_fresh` salió **exactamente igual al número de
@@ -2866,6 +2875,26 @@ ventana sobre.
 > ser candidatos con su `last_probe_at` de 2 días y **`skipped_fresh` tiene que despegar también en
 > las tiendas que rescatan**. Si esa noche sigue a 0 en ellas, esta explicación está mal y lo que
 > falla es otra cosa.
+
+**Y la pregunta que la ventana daba por contestada no tenía respuesta: no hay curva de mortalidad**
+(#466, medido 18/08/2026). El comentario de la perilla afirmaba un techo —«debe ser bastante MENOR
+que el tiempo en que una prenda retirada dejaría de responder»— que nadie había comprobado. Sondeada
+la cohorte **entera** de descatalogados de QA agrupada por días sin ver, el veredicto es `DEAD` en
+**42 de 44**, en todos los tramos (0-3, 6-9, 12-15, 15+) y desde el primer día: cacles 21/21, zara
+17/19, hipercor 2/2, lefties 2/2. La tienda deja de reconocer la prenda **de inmediato** y sigue
+haciéndolo. Los 2 `ALIVE` no son un veredicto que caduque — se dieron de baja el 10/08 en la pasada
+**#58, la última de QA con `probes_sent = 0`**, o sea por histéresis sola y sin preguntar; el sondeo
+se encendió esa misma tarde (la #62 ya manda 50).
+
+Consecuencia: dentro de los **0-20 días** que la cohorte permite ver, la respuesta es estable, así
+que el valor de la ventana **no arbitra ningún riesgo** —alargarla ahorra peticiones y acortarla solo
+las gasta— y no hay dato que justifique hacerla por tienda: las cuatro con cohorte se comportan
+igual. Más allá de 20 días la medición no puede decir nada, y ése es el límite honesto de esto.
+
+**Y una limitación del método que hay que saber antes de repetirlo: H&M no se puede sondear** (no
+tiene `probe_alive`, y es una decisión medida, no un olvido — punto 5 de la cabecera de `hm.py`). H&M
+son **441 de las 485** bajas de QA, así que la cohorte útil fue 44 y no 485. Cualquier medición sobre
+descatalogados hay que dimensionarla contra las nueve tiendas que sí sondean, no contra el censo.
 
 Y un corolario de medición que vale para cualquier recuento de «prendas congeladas»: la consulta
 obvia (`delisted_at IS NULL AND last_seen_at < now() - 14d`) **mezcla dos poblaciones con causas
@@ -2929,6 +2958,39 @@ entre dos pasadas: con el código anterior `errors = 1` y «ambitos con caida so
 niña/zapateria/botas»; con el arreglo, `errors = 0`, «ambitos remapeados» y bajas aplicadas. Cacles
 sirve para esto porque su listado ya trae el detalle: una pasada real entera son 2-3 peticiones y 4
 segundos, frente a los ~25 min de Chromium que costaría reproducirlo en Hipercor.
+
+**Y esa misma variable tenía una segunda avería, de la clase opuesta: la red no podía soltar lo que
+marcaba** (#475, medido 18/08/2026). Si #174 iba de que `prior_active` hablaba el vocabulario
+equivocado, esto va de **a quién contaba**: contaba todo lo no descatalogado, y eso cierra un bucle
+entre tres funciones que viven separadas.
+
+1. Ámbito sospechoso → fuera de `safe_scopes`.
+2. `_advance_missing` no le avanza la racha, con el buen motivo de que una pasada fallida no debe
+   gastar intentos.
+3. `_load_delist_candidates` exige `missing_streak >= min_misses` **y** ámbito seguro, así que esos
+   productos no se sondean nunca ni se dan de baja nunca.
+4. Siguen contando en `_load_active_counts` → vuelve a salir sospechoso. Volver al 1.
+
+En Sfera `niña/ropa/ropa-interior` (QA): 23 activos de los que la tienda sirve **11** —ratio 0,478,
+justo bajo el `delist_drop_ratio` de 0,5— y **12 congelados** con `missing_streak = 0` y
+`last_probe_at` nulo, cinco sin verse desde el 24/07. Tres pasadas seguidas con el mismo aviso, y el
+**único** ámbito enganchado de las diez tiendas (el resto tiene entre el 55 % y el 100 % de su
+población vista en la última pasada). El daño no es el aviso repetido: es que esos 12 se quedan en
+el catálogo para siempre con su último precio, que es exactamente lo que la red debería evitar.
+
+**El aviso no se equivocó, y eso es lo que decide la forma del arreglo.** La pasada #72 (15/08) no
+avisó y la #80 (17/08) sí, sirviendo casi lo mismo en total (676 y 675): el ámbito cayó de verdad de
+~23 a 11 — saldo de temporada. Así que la base pasa a ser **lo que se vio la última vez** en vez de
+todo lo activo: la primera pasada sigue saltando y es la **segunda** la que ya no. La doctrina que
+lo justifica es que la red existe para absorber un fallo **transitorio**; de una caída permanente se
+encargan la histéresis y el sondeo, que preguntan a la tienda en vez de deducir.
+
+Dos propiedades que conviene saber antes de tocarlo. **El cambio es monótono**: la base nueva es
+siempre ≤ la vieja y `seen` no cambia, así que solo puede quitar sospechas, nunca añadirlas — o sea
+que el riesgo entero es dejar de cazar algo, y de eso se ocupa un test de regresión con un ámbito ya
+menguado que se vuelve a desplomar. Y **la igualdad exacta con `last_seen_at` es de fiar** porque una
+pasada escribe `run_ts` en todo lo que ve, también en lo que no cambió (`_touch_seen`);
+`_reset_missing` ya se apoyaba en esa misma igualdad.
 
 ### El género `unisex` es la norma del barefoot, no una excepción
 
