@@ -88,6 +88,26 @@ con `tar: Cannot open: Read-only file system` — ni siquiera en `/tmp`. Las con
 `deal_tracker_qa` van con `psql -c "..."` en **una sola línea**, que sí admite sentencias grandes
 (probado con un `CASE` de 20 ramas). Ver [[verificar-en-cluster-dev]] para el resto del camino.
 
+**Pero hay un camino mejor que plegar a una línea, y evita las dos trampas de golpe: mandar el SQL
+por la ENTRADA.** El fichero se queda en el scratchpad *local* —así que el solo-lectura del pod da
+igual— y llega por stdin, así que conserva sus saltos de línea y **el problema de los comentarios
+`--` no existe**. Un script de tres líneas que se reutiliza toda la sesión:
+
+```sh
+#!/bin/sh
+# qsql.sh <base> <fichero.sql>
+KUBECONFIG=$HOME/.kube/k3slocal.yaml
+export KUBECONFIG
+exec kubectl -n data-dev exec platform-postgres-dev-1 -c postgres -i -- psql -d "$1" -At -F'|' -f - < "$2"
+```
+
+Tres detalles que hacen falta: el **`-i`** de `kubectl exec` (sin él stdin no viaja y `psql` se
+queda esperando), el **`-f -`** de `psql` para que lea de la entrada, y el `-c postgres` para no
+comer el *«Defaulted container … out of: postgres, bootstrap-controller»* en cada salida. Con
+`COPY (…) TO STDOUT WITH CSV` en vez de un `SELECT` el mismo script vuelca a CSV, que es como se
+siembra una base local con el estado real de QA. **El script hay que escribirlo con `Write`**: el
+compuesto `export KUBECONFIG=…; kubectl …` en una línea vuelve a caer en el «too complex» de arriba.
+
 **Ojo con plegar a una línea un SQL que lleve comentarios `--`.** Es la consecuencia no evidente de
 lo anterior: la plantilla de `listProducts()` tiene 58 comentarios `--` dentro, y al colapsar los
 saltos de línea el primero comenta **el resto de la consulta**. Postgres no dice «hay un
