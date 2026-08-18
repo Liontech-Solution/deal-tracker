@@ -2753,12 +2753,13 @@ Lo encontró `revisor-robustez-scraper` al auditar Mango (#80) y se confirmó le
 `_advance_missing()` antes de tocar nada. Hipercor ya lo tenía resuelto y documentado en su propio
 fichero; el coste de que no estuviera aquí fue que la tienda siguiente nació sin ello.
 
-### El sondeo de bajas tiene cuatro invariantes que no se ven leyendo el código que los usa (#412, #426, #427, #454)
+### El sondeo de bajas tiene cinco invariantes que no se ven leyendo el código que los usa (#412, #426, #427, #454, #466)
 
 Los tres primeros salieron de la misma sesión y tienen la misma forma: algo que parece un detalle de
 implementación y en realidad es lo único que sostiene la garantía. El cuarto llegó después y es de
-otra clase —no sostiene una garantía, cobra por ella—, pero va aquí porque quien toque este
-mecanismo se va a encontrar con los cuatro.
+otra clase —no sostiene una garantía, cobra por ella—; el quinto es de una tercera —no gobierna el
+mecanismo, gobierna **qué se puede concluir midiéndolo**—, y va aquí porque quien toque esto se va a
+encontrar con los cinco.
 
 **1. Lo que protege a un candidato es `blocked_ids`, nunca su ausencia de la lista.** `_delist()` no
 descataloga a partir de la lista que construyó `_confirm_candidates`: descataloga con **su propio**
@@ -2827,7 +2828,40 @@ precio de congelar el producto para siempre, que era el fallo—. Lo que sí fal
 la señal es `probes_unresolved` **sostenido en la misma cifra durante varias pasadas seguidas**, que
 es distinto de uno que va y viene (eso es red), y hoy nadie la vigila.
 
-Y el corolario que ordena los cuatro: en este mecanismo **el veredicto `UNBUYABLE` no suma en
+**5. El ahorro de la ventana de #412 solo existe donde el veredicto NO rescata, y por eso se mide
+mal en QA** (#466, medido 18/08/2026). `probes_skipped_fresh` salió **exactamente igual al número de
+`UNBUYABLE` de la pasada anterior**, tienda por tienda, disparando a mano una segunda pasada de
+v0.6.0 sobre las cuatro tiendas del pendiente de #412:
+
+| tienda | veredicto de la pasada anterior | `skipped_fresh` |
+|---|---|---:|
+| sfera | 50 unbuyable | **48** (dos volvieron a verse en el listado) |
+| zara | 44 alive + **6 unbuyable** | **6** |
+| mango | 50 alive | **0** |
+| hipercor | 50 alive | **0** |
+
+La causa es `missing_streak`, y encadena dos reglas que viven en sitios distintos: un `ALIVE` pasa
+por `_rescue()` y se queda en racha **0**, o sea por debajo de `delist_min_misses` (2), así que
+**deja de ser candidato** — no entra en `_load_delist_candidates` y nunca llega al filtro de la
+ventana, que se aplica después. Un `UNBUYABLE` no rescata, su racha sigue subiendo (medido: 4-5 en
+Sfera frente a 0-1 en Hipercor) y ahí sí muerde.
+
+La consecuencia es sobre **la cadencia, no sobre el valor de la ventana**: el desperdicio que midió
+la cabecera de la `0042` («200 sondeos, 200 vivos, CERO bajas») es de productos `ALIVE`, y a ésos la
+ventana solo les alcanza cuando su racha vuelve a cruzar `min_misses`, o sea **al cabo de 2
+pasadas**. Con cadencia diaria (prod) son 2 días y la ventana de 7 los tapa; con cadencia semanal
+(QA) son 2 semanas y la ventana ha caducado antes de que vuelvan a ser candidatos. **Medir el ahorro
+en QA lo subestima por construcción**, y un `skipped_fresh` bajo allí no prueba que la ventana sobre.
+
+Y un corolario de medición que vale para cualquier recuento de «prendas congeladas»: la consulta
+obvia (`delisted_at IS NULL AND last_seen_at < now() - 14d`) **mezcla dos poblaciones con causas
+distintas**, y en QA el 18/08/2026 la cohorte de la primera pasada de cada tienda era el **80 %** de
+la cifra (248 de 310), con **cuatro de seis tiendas en población real cero**. Una tienda recién
+registrada cruza los 14 días de golpe y aparece como la peor del catálogo: Mango entró con 105
+«atrapados» y población real **0**. Hay que descontar siempre la cohorte cuya `last_seen_at` cae en
+la primera pasada de esa tienda, o el número dice lo contrario de lo que parece.
+
+Y el corolario que ordena los cinco: en este mecanismo **el veredicto `UNBUYABLE` no suma en
 `errors` a propósito** (#197), así que todo lo que se apoye en él es invisible por defecto. Cualquier
 cosa que haya que poder ver tiene que tener columna propia o frase propia; no basta con que el estado
 sea correcto.
