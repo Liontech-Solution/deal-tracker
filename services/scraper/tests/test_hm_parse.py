@@ -852,6 +852,50 @@ def test_el_saldo_no_le_pisa_la_categoria_a_quien_ya_la_tiene() -> None:
     assert (ambito.section, ambito.category) == ("ropa", "pantalones")  # la de la hoja normal
 
 
+def test_la_hoja_de_saldo_NO_vota_la_categoria_pero_SI_el_genero() -> None:
+    """La asimetría que hace correcto a `_ambito()`, y que la primera versión de #468 no tenía.
+
+    Este mismo caso ya estaba montado en el test de arriba —hoja de niño normal + hoja de niña de
+    saldo— y solo se comprobaba la categoría, así que el cruce de género se perdía **en verde**. Es
+    el fallo de #98 reintroducido en la intersección normal↔saldo: publicar un modelo en
+    `last-chance/girls-2-8y` es la tienda diciendo que es de niña, igual que su hoja de vestidos.
+
+    Medido el 18/08/2026: **0 de los 429 modelos compartidos** están hoy en este caso, o sea que no
+    había nada que reparar. Lo que había era un mecanismo mal que no cazaba nada.
+    """
+    filas = parse_filas(load_fixture(_SALDO))
+    ambito = _ambito([_CAT_SALDO_NINA, _CAT_NINO], filas)
+
+    assert ambito is not None
+    assert ambito.gender == "unisex", "la hoja de saldo de niña también vota el género"
+    # Y sin cruce, el género de la hoja normal se conserva: la de saldo no lo inventa.
+    mismo = _ambito([_CAT_SALDO_NINO, _CAT_NINO], filas)
+    assert mismo is not None
+    assert mismo.gender == "niño"
+
+
+def test_punto_es_un_tejido_y_no_le_gana_a_la_prenda() -> None:
+    """La tercera trampa de orden de la tabla, que ni la medición ni los tests cazaron.
+
+    «Pantalón corto en punto de algodón» y «Camiseta en punto de canalé» son nombres reales del
+    catálogo. Con la regla de `punto` delante de las de prenda se iban las dos a `sudaderas`: **6
+    de los 456 modelos** medidos el 18/08/2026, mal clasificados en silencio. El recuento de la
+    cabecera («clasifica 305») no distingue clasificado-bien de clasificado-mal, así que la
+    medición tampoco lo habría cantado.
+    """
+    assert categoria_desde_nombre("Pantalón corto en punto de algodón") == ("ropa", "pantalones")
+    assert categoria_desde_nombre("Pantalón en punto gofrado") == ("ropa", "pantalones")
+    assert categoria_desde_nombre("Camiseta en punto de canalé") == ("ropa", "camisetas")
+    assert categoria_desde_nombre("Legging de punto") == ("ropa", "pantalones")
+    # Y lo que SÍ es prenda de punto sigue siendo sudadera: la regla no se ha roto, se ha movido.
+    assert categoria_desde_nombre("Jersey de punto") == ("ropa", "sudaderas")
+    assert categoria_desde_nombre("Chaqueta de punto en algodón") == ("ropa", "sudaderas")
+    assert categoria_desde_nombre("Conjunto de 2 piezas en punto pointelle") == (
+        "ropa",
+        "conjuntos",
+    )
+
+
 def test_un_modelo_que_solo_vive_en_el_saldo_saca_la_categoria_del_nombre() -> None:
     """Y el género lo sigue poniendo la hoja, lo único que en `por_familia` sigue siendo suyo."""
     filas = [f for f in parse_filas(load_fixture(_SALDO)) if f.name.startswith("Vestido")]
