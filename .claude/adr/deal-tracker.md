@@ -2332,6 +2332,84 @@ La lección de método, que es la que se repite: **la primera columna de esa med
 es cuántos de ésos **ya son candidatos a baja**, y en una tienda recién ingerida esa segunda columna
 es 0 por construcción.
 
+#### La regla se probó contra las siete tiendas que faltaban, y salió que la rama de saldo casi nunca es catálogo (#468)
+
+Lo de arriba se dedujo de **dos** tiendas (Lefties y Mango) y #356 lo confirmó en una tercera, Zara,
+donde la rama de saldo valía **1243 productos nuevos, 747 del brief**. Con ese precedente la
+expectativa razonable era que mapear las siete restantes fuese catálogo casi gratis. Medidas una a
+una el 18/08/2026: **entra una de siete**.
+
+| tienda | rama | productos | nuevos | veredicto |
+|---|---|---:|---:|---|
+| **H&M** | `last-chance` (10 hojas) | 885 modelos | **456** | **se mapea** |
+| Sfera | `rebajas/ninos` | 275 | 41 | fuera, por precio |
+| C&A | `7-3` Rebajas | 413 | 76 (**2 de ropa**) | fuera, estructural |
+| Hipercor | `descuentos-unit/…/moda-infantil` | 941 | 392 (**todos ya excluidos**) | fuera, estructural |
+| Springfield | — | — | — | no hay rama que mapear |
+| Cacles | 12 colecciones | — | 210 (**0 infantiles**) | fuera, estructural |
+| Deditos | `on_sale` | 299 | **0** | fuera, estructural |
+
+**La pregunta que decide no es cuánto trae la rama, sino por qué la prenda rebajada estaría ahí y no
+en su categoría.** Hay dos formas y solo una produce catálogo:
+
+- **La tienda mueve el saldo fuera de la categoría.** Es Lefties (0 % de solape, `I2026` contra
+  `V2026`) y es H&M. Ahí la rama publica producto propio y mapearla gana catálogo.
+- **La tienda deja la prenda rebajada en su categoría.** Es C&A y es Hipercor, y entonces la rama de
+  saldo es una **vista**, no stock aparte: lo único que aporta es lo que ya estaba declarado fuera
+  del brief. En C&A las cuatro hojas de ropa de verdad (Vestidos, Partes de arriba, Partes de abajo,
+  Conjuntos) aportaron **2 productos entre las cuatro**, y sus 76 «nuevos» eran esquí, baño, abrigo y
+  accesorios. En Hipercor, 177 de los 392 eran Baño y el resto caía en hojas que su propia cabecera
+  ya declaraba fuera.
+
+Y un tercer caso que ni siquiera llega a esa pregunta: **la tienda cuyo listado ya es un paraguas
+del catálogo infantil entero** —Cacles (`infantil`), Deditos (`category=ninos`) y Springfield (el
+sitemap)— donde la rama de saldo es un subconjunto por construcción y no hay nada que medir salvo
+confirmarlo. En Deditos lo contestó la propia API: `category=ninos&on_sale=true` da 299 productos y
+**0** fuera de lo que ya se ingiere.
+
+**Tres trampas de medición, y las tres dan un número creíble y equivocado.**
+
+1. **El solape se mide en la entidad que se GUARDA.** En H&M, por id de artículo el solape daba
+   **0 sobre 1181 filas** —una rama entera de estreno— y por modelo era **429 de 885 (48,5 %)**: el
+   mismo modelo entra por otro color, y `product` es el modelo. La cifra falsa era exactamente el
+   doble de buena que la real, que es la dirección que más cuesta descreer.
+2. **Que el padre mienta es una hipótesis, no una regla.** #356 dejó escrito que la hoja padre de
+   `REBAJAS` de Zara servía 8 productos teniendo 749 en sus hijas, y eso se convirtió en «no fiarse
+   del padre». Aquí el padre **no mintió**: en H&M 622 vs 623, 251 vs 255, 349 vs 346, y en C&A 412
+   contra 412 con 1 producto a cada lado. Cruzar padre contra unión sigue siendo obligatorio, pero
+   por lo que es —una comprobación— y no porque se sepa el resultado.
+3. **Un recuento de «cuántos clasifica» no prueba que clasifique bien.** La tabla nombre→dominio de
+   H&M decía «clasifica 305 de 456», y 6 de esos 305 estaban en la categoría equivocada porque una
+   regla de tejido (`punto`) iba delante de las de prenda. El recuento no distingue clasificado-bien
+   de clasificado-mal, así que la medición no podía cantarlo: lo cazó el revisor de robustez leyendo
+   el orden. Es la misma forma del error de #192 («de los 7 conjuntos ingeridos, 3 eran disfraces»),
+   y la comprobación que sirve es leer una muestra **por categoría**, no sumar.
+
+**Y aparece una quinta forma de mentir de una hoja, que el canario no caza.** Al catálogo de la
+sección «Un 200 no prueba nada» —404 honesto, catálogo del padre, lista vacía indistinguible del fin
+de paginación, y el cubo entero de H&M— se añade una peor: `/kids/local-occasion/2-8` **resuelve**,
+responde 1859 filas bien formadas y **no es catálogo infantil** (alfombras de baño, anillas para
+cortina de ducha, bandejas de mármol, americanas, cubrepezones). El `pageId` pisa al `categoryId`,
+así que no devuelve el cubo —devuelve otra cosa— y `es_espejismo()` la da por viva. Contra esto no
+hay señal barata: **la defensa es leer los nombres de lo que trae antes de mapear una rama**, y es
+la única de las cinco que exige mirar el contenido y no la forma.
+
+**El criterio de adopción, ya con dos puntos medidos.** #356 adoptó 33 peticiones por 747 prendas
+del brief (~22,6 por petición) y **rechazó** las 12 hojas `SPECIAL PRICES` por 12 peticiones y 26
+prendas (~2,2). Sfera cae en 1,8 —41 productos por ~23 peticiones, y aquí cada petición es
+Chromium— y por eso queda fuera aunque sus 41 sí sean del brief. Es la única de las seis descartada
+por precio: las otras cinco lo están por estructura, y esa diferencia importa porque **solo la de
+Sfera caduca**. Las mediciones son del 18/08, con la campaña de verano acabándose; en campaña alta
+la rama puede ser varias veces mayor y el cálculo cambiar de signo, así que su declaración lleva
+condición explícita de re-medir y las otras cinco no la necesitan.
+
+**Consecuencia de segundo orden que no estaba en la pregunta**: mapear la rama de saldo de H&M
+convirtió en dato una carencia que llevaba meses documentada. Su cabecera decía «0 de 6518 filas con
+tachado» —era cierto de sus hojas normales— y la pasada real con `last-chance` trae **7173 de 58275
+filas con tachado en 727 productos, 724 de ellos de la rama de saldo**, con un 38,8 % de descuento
+medio. O sea que la tienda **no rebaja en su sitio**: mueve lo rebajado a la rama de campaña. Quien
+mida «esta tienda no tiene descuentos» sobre las hojas de categoría está midiendo media tienda.
+
 ### Una pasada muda no se puede depurar, y las dos tiendas que acumulan son ciegas por diseño
 
 Hasta el 04/08/2026 la pasada **no escribía un solo byte hasta el resumen final**: `ingest.py` no
