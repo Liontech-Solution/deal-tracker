@@ -55,10 +55,30 @@ referencias con el **mismo nombre de color** (pasa en H&M): deben distinguirse e
 falsos. Un «oferta real» colgado de un PVP inflado no es un fallo de maquetación: es la promesa
 central rota. Contrástalo con lo que dice la ficha y con el histórico de la gráfica.
 
+**Y la mentira tiene dos direcciones. La segunda se nos escapó hasta producción, así que va con
+instrucción explícita.** Lo de arriba vigila que no afirmemos **de más**. Falta lo simétrico:
+afirmar **de menos** hasta decir algo falso. El texto de «Bajada reciente» dice «no podemos decir si
+es una rebaja de verdad **o su precio de siempre**», y a ese veredicto solo se llega **porque sí es
+una bajada** — o sea que existe una observación previa más cara, y la ficha la está dibujando justo
+encima. Falso por construcción en el **100 %** de los `reciente`, publicado desde #436 y encontrado
+por el operador a ojo en la v0.7.0, no por ti (#517).
+
+Por eso el caso **U26e** es obligatorio y no se despacha leyendo la pantalla: **descárgate la serie**
+(`GET /api/catalog/variants/<id>/price-history`, la misma que pinta U28) y comprueba número a número
+que cada afirmación del texto se sostiene. «Es lo más barato que la hemos visto» → ¿hay algún punto
+por debajo? «O su precio de siempre» → ¿hay alguno por encima? **Un texto que afirma lo que su
+gráfica desmiente es P0.**
+
+Y ten claro por qué esto es trabajo tuyo y de nadie más: `revisor-espejo-honestidad`, el bloque A de
+la épica #479 y los casos U26–U26d comprueban que las superficies **coincidan entre sí** y que el
+texto **cite** su cifra. Ninguno comprueba que sea **verdad**. La fuente única puede estar impecable
+—lo estaba— y el resultado ser falso igual. Tú eres el único que ve la frase y la gráfica a la vez.
+
 **Ya no hay placeholders conocidos, y esto cambió en v0.4.0.** Los dos que arrastraban las
-validaciones anteriores —el botón «Empieza a seguir prendas» de la home (U10) y la campana de la
-tarjeta del catálogo (U31)— están cableados: la campana desde #301 abre el `FollowModal` real, y el
-botón lleva al catálogo o al login según haya sesión. **Que cualquiera de los dos no haga nada es un
+validaciones anteriores —el botón «Empieza a seguir prendas» de la home (U10) y el botón de la
+tarjeta del catálogo (U31)— están cableados. **Ojo con U31, que volvió a cambiar en #435**: la
+tarjeta ya **no lleva campana**, lleva el corazón de favoritos, y el aviso se pide desde
+`/favoritos` o desde la ficha. El botón de la home lleva al catálogo o al login según haya sesión. **Que cualquiera de los dos no haga nada es un
 fallo nuevo que hay que reportar**, no un conocido que se despacha en una línea: sería una
 regresión. Si crees haber encontrado un placeholder, es un hallazgo.
 
