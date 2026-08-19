@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Honesty } from '../api/types';
-import { cifrasDeRebaja, llevaBadge, tonoDelDescuento, tonoDelPrecio } from './honesty';
+import type { TonoDescuento } from './honesty';
+import { cifrasDeRebaja, llevaBadge, tonoDeLaCaja, tonoDelDescuento, tonoDelPrecio } from './honesty';
 
 /**
  * Qué cifras pinta la SPA y cuándo se le permite pintarlas en verde (#436).
@@ -114,6 +115,50 @@ describe('tonoDelDescuento', () => {
     // La divergencia que iba al revés: la ficha resolvía `!sostenido` antes que la acusación y le
     // pintaba el porcentaje en gris debajo de su propio badge «Precio inflado».
     expect(tonoDelDescuento('suspicious', false)).toBe('warn');
+  });
+});
+
+/**
+ * De qué color va la caja explicativa de la ficha (#489).
+ *
+ * Esto no existía, y ese era el fallo: la caja decidía su tono con un `const neutro` propio dentro
+ * de `PriceBlock.tsx` que **coincidía** con `tonoDelDescuento()` de casualidad. Nada comparaba las
+ * dos, igual que nada comparaba las dos superficies antes de #473 — y aquellas tres divergencias
+ * tampoco daban un test rojo.
+ */
+describe('tonoDeLaCaja', () => {
+  // Un `Record` y no un array de tuplas **a propósito**: con una lista escrita a mano, un veredicto
+  // nuevo no entra sola en los casos y el test de paridad de aquí abajo seguiría verde por omisión
+  // justo cuando las dos funciones ya discrepan. El `Record` sobre el tipo obliga al compilador.
+  const ESPERADO: Record<Exclude<Honesty, 'none'>, ReturnType<typeof tonoDeLaCaja>> = {
+    real: 'good',
+    suspicious: 'warn',
+    reciente: 'neutro',
+    unverified: 'neutro',
+  };
+  const CASOS = Object.entries(ESPERADO) as [Exclude<Honesty, 'none'>, TonoDescuento][];
+
+  it.each(CASOS)('%s pinta la caja en %s', (honesty, esperado) => {
+    expect(tonoDeLaCaja(honesty)).toBe(esperado);
+  });
+
+  it('coincide con el porcentaje en todo lo que la base puede producir hoy (#489)', () => {
+    // ESTE es el test que faltaba. La coincidencia se venía dando por supuesta sin que nada la
+    // comprobara: si mañana se mueve una de las dos condiciones y la otra no, la ficha vuelve a
+    // afirmar una cosa con el color de la caja y otra con el del porcentaje que tiene encima.
+    // `sostenido` va a `true` porque es lo que produce la base en los cuatro casos: una bajada
+    // siempre lo tiene, y `real` implica PVP creíble.
+    for (const [honesty] of CASOS) {
+      expect(tonoDeLaCaja(honesty)).toBe(tonoDelDescuento(honesty, true));
+    }
+  });
+
+  it('y NO coincide en el único caso que las separa, que es por qué son dos funciones', () => {
+    // Un `real` sin PVP creíble. Hoy es inalcanzable —`real` implica `honestListPrice` no nulo— y
+    // por eso esto no es un fallo vivo, pero es la razón de que la caja no dependa de `sostenido`:
+    // habla de lo que sabemos de la prenda, no de una cifra que haya que avalar.
+    expect(tonoDeLaCaja('real')).toBe('good');
+    expect(tonoDelDescuento('real', false)).toBe('neutro');
   });
 });
 
