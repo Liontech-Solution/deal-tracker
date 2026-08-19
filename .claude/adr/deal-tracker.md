@@ -2257,6 +2257,27 @@ Tres consecuencias que van más allá de estas dos tiendas:
   residuo. Moverla hacia arriba rompería la categoría de producto vivo **en silencio**, porque el
   producto seguiría entrando.
 
+**Y hay un tercer estado, que no es campaña ni hoja viva: el id retirado de verdad que se queda en
+`CATEGORIES`.** Cuesta mucho más de lo que parece, y por un camino que no es el obvio (#516,
+19/08/2026). Lo obvio sería que gastara peticiones fallidas: **no gasta ninguna**, porque una hoja
+ausente del menú ni se pide —`grids.get()` devuelve `None` y se salta antes del request—. Lo que sí
+hace en **cada pasada** es llamar a `_hoja_comprometida()` → `ScanReport.leaf_gone(...,
+tambien_unisex=True)`, y eso, por diseño, **saca su ámbito de la red de bajas** (más el `unisex`
+equivalente). En Lefties eran cuatro ámbitos: una zapatilla **no podía descatalogarse nunca**.
+
+O sea que la protección que existe para que una hoja caída no provoque bajas falsas se convierte,
+sostenida en el tiempo, en **una zona del catálogo donde las bajas dejan de funcionar** — y lo único
+que se ve por fuera es un `errors = 2` en una pasada que sale `success`, que es exactamente el tipo
+de contador que deja de mirarse (la lección de #475). La consecuencia práctica: **un `✖` de hoja
+retirada del vigía no es cosmético aunque no haya hueco de catálogo**, y arreglarlo es actualizar o
+**borrar** la entrada, nunca marcarla `estacional` para callar el aviso — `estacional` significa «su
+id vuelve con la campaña», y usarlo aquí silencia al vigía sobre ese id para siempre.
+
+Cuando la tienda funde una hoja en otra que ya se ingiere —Lefties fundió «Zapatillas» en
+«Deportivos | Zapatillas», que ya mapeaba a `zapatillas`— la salida correcta es **borrar**, no
+buscar id nuevo: por eso no hubo hueco de catálogo y por eso las 84 prendas se siguieron viendo el
+mismo día en que el vigía cantó la retirada.
+
 La deuda que esto dejaba abierta **ya está medida, y salió que sí** (#197, 15/08/2026). Esas prendas
 son las únicas del catálogo que no cuelgan de ninguna hoja permanente, así que al acabar la campaña
 dejan de verse del todo y decide `probe_alive()`. Sondeados sus 58 ids contra `productsArray`:
@@ -2953,6 +2974,42 @@ ventana sobre.
 > ser candidatos con su `last_probe_at` de 2 días y **`skipped_fresh` tiene que despegar también en
 > las tiendas que rescatan**. Si esa noche sigue a 0 en ellas, esta explicación está mal y lo que
 > falla es otra cosa.
+
+**Medida la noche del 19/08 (el 20/08/2026, contra prod, #504): la predicción falla, y el
+discriminante era el equivocado.** Hipercor la cumple —rescata (43 `ALIVE`) y pasa de 0 a **36**—,
+pero C&A (50 `ALIVE`), Springfield (41) y Mango (50) rescatan igual y siguen clavadas en **0**. Con
+el criterio que este propio párrafo escribió, eso obliga a decir que la explicación estaba mal.
+
+Lo que estaba mal **no es la mecánica** —lo de `missing_streak` y el rescate sigue siendo cierto—
+sino haber elegido *«¿rescata?»* como la variable que predice el despegue. La que lo predice es si
+el candidato **ya se ha sondeado alguna vez**:
+
+| tienda | candidatos (`streak ≥ 2`) | nunca sondeados | sondeados < 7 d | `skipped_fresh` |
+|---|---:|---:|---:|---:|
+| mango | 238 | **238** | 0 | **0** |
+| sfera | 185 | 42 | 143 | 93 |
+| hipercor | 86 | 50 | **36** | **36** |
+| zara | 60 | 46 | 14 | 5 |
+| c-and-a | 47 | **47** | 0 | **0** |
+| lefties | 19 | 0 | **19** | **17** |
+| springfield | 0 | 0 | 0 | 0 |
+
+`sondeados < 7 d` **predice `skipped_fresh` casi exactamente** (Hipercor 36/36, Lefties 19→17), y la
+columna de nunca sondeados explica los ceros sin hablar de rescates. La regla corregida:
+
+> **La ventana solo ahorra donde ya se ha sondeado.** Un candidato con `last_probe_at IS NULL` no
+> puede saltarse por frescura, rescate o no. Y mientras la cola de candidatos nunca sondeados sea
+> mayor que el cupo por pasada, el cupo se llena siempre con ésos y `skipped_fresh` se queda en 0
+> **indefinidamente**, por muchas semanas que la tienda lleve rescatando.
+
+Mango es el caso puro: **238 candidatos, los 238 sin sondear jamás**, con cupo 50. Y Springfield no
+pertenecía al análisis: tiene **0 candidatos**, así que su cero nunca dijo nada — la tabla de
+partida que lo listaba con 36 rescatados ya no describe el estado de hoy.
+
+Lo que **sí sobrevive** de la versión anterior es la conclusión operativa, y por otro camino: medir
+el ahorro en QA lo sigue subestimando, ahora porque con cadencia semanal la cola de nunca sondeados
+se drena aún más despacio. Y aparece una pregunta nueva que se solapa con #486: una tienda cuya cola
+de candidatos supera el cupo puede no ver **nunca** el ahorro de la ventana.
 
 **Y la pregunta que la ventana daba por contestada no tenía respuesta: no hay curva de mortalidad**
 (#466, medido 18/08/2026). El comentario de la perilla afirmaba un techo —«debe ser bastante MENOR
@@ -4048,6 +4105,65 @@ Dos trampas de la copia local, medidas el mismo día y las dos silenciosas:
   no coinciden, cualquier medida de rendimiento local habla de un esquema que no existe en ningún
   sitio.
 
+### Una CTE que se referencia UNA vez puede ejecutarse una vez por fila, y la buena estimación es la que lo dispara (#515)
+
+Postgres inlinea una CTE referenciada una sola vez. Si el planificador cree entonces que la relación
+de arriba devuelve pocas filas, la mete como **lado interno de un Nested Loop** — y una CTE en el
+lado interno se **re-evalúa por cada fila de fuera**. Cuando esa CTE es un agregado sobre una tabla
+grande, el resultado es cuadrático sin que nada en el SQL lo insinúe.
+
+Medido contra QA el 19/08/2026 con la consulta real del servicio, en el camino vivo del catálogo:
+
+```
+HashAggregate  (cost=50482 rows=12948) (actual time=816..1147 rows=127927 loops=90)
+  ->  Seq Scan on price_history h  (actual rows=606943 loops=90)
+```
+
+**`loops=90`**: noventa veces el **mismo** agregado sobre las 606.943 filas de `price_history`,
+porque el Hash Join de arriba estimaba **1** fila y salían **90**. 105.978 ms en
+`niña+zapatería+zapatillas+rosa+cacles`; **239.856 ms** en el caso vacío. Con `stats AS
+MATERIALIZED`, **1.853** y **1.827 ms**.
+
+Tres cosas que esto deja escritas, y ninguna es «poner MATERIALIZED».
+
+**1. Es la firma de #342 otra vez, y ya van tres.** *Cuanto mejor filtra el predicado, peor plan
+elige el planificador.* Añadir `retailer` a una consulta que ya filtraba por color la hacía 26×
+más lenta, cuando `retailer` a solas cuesta 23 ms. La intuición de que «filtrar más no puede ser
+peor» es falsa aquí de forma sistemática, y es la que hace que estos casos se descarten al triar.
+
+**2. La valla NO es universalmente buena, y este repo tiene la lección contraria escrita.** En
+`pickSizes`/`pickColors` un `AS MATERIALIZED` se probó y **se descartó**: allí la CTE **sí** puede
+recibir el push-down del filtro, así que vallarla quita una optimización real y el resultado depende
+del planificador de cada máquina («la valla arregla una máquina y estropea la otra»). El criterio
+que las separa no es el rendimiento medido sino **la forma**: ¿puede la CTE recibir los filtros de
+fuera? Si sí, vallarla es quitarle trabajo que se ahorraría. Si no —como `stats`, que no se
+correlaciona con nada de fuera—, las N ejecuciones calculan **lo mismo** N veces y la valla no
+impide ningún plan mejor, solo impide repetir. Y aun así cuesta: el caso que ya iba bien pasó de
+1.992 a 2.618 ms, porque obliga a calcular el agregado entero siempre.
+
+**3. El modo de fallo del arreglo es que alguien lo borre por decorativo.** Quitar la palabra no
+rompe nada visible —el catálogo devuelve exactamente lo mismo, dos órdenes de magnitud más lento—,
+así que va con un test que la fija y con su control, y con el porqué escrito en el propio SQL.
+
+**Y el disparador no fue un cambio de código, lo que reordena dónde buscar.**
+`git diff v0.6.0 v0.7.0 -- services/web/src db/migrations` sale **vacío**: entre las dos versiones
+no cambió una línea del backend ni una migración. Lo que se movió fueron los datos (+5,1 %
+productos, +7,6 % variantes) hasta cruzar el umbral donde el planificador cambia de estrategia. Una
+«regresión» de rendimiento **sin commit que la explique es lo normal aquí, no una anomalía**, y
+buscarla en el `git log` gasta la sesión entera. El primer paso es el plan, no el diff.
+
+**Corolario operativo, medido de paso: la base va con `statement_timeout = 0`.** Por eso la consulta
+del caso vacío corrió **239 s** mientras la pasarela cerraba el HTTP con un 524 a los 125 s — y
+siguió corriendo después, quemando CPU de una base que comparten los tres entornos por una respuesta
+que ya nadie iba a leer. Los 125 s del informe eran el límite de la pasarela, no el de la consulta:
+**un 524 mide al proxy, nunca a Postgres**. El pool del servicio lleva ahora 30 s, holgado sobre los
+~3 s del caso legítimo más lento, como cinturón y no como arreglo.
+
+Lo que esto **no** resuelve queda en **#523**: `latest` y `stats` recorren `price_history` entera
+sin filtrar pase lo que pase, así que el camino vivo tiene un suelo de ~1,8–2,9 s y **el caso que
+devuelve cero filas cuesta lo mismo que el que devuelve noventa** — los filtros no pueden podar las
+CTE, solo descartar su resultado. Ese suelo sube solo con cada pasada.
+
 ### `image_url` es una cadena opaca de la tienda, y el consumidor no puede suponerle forma (#207)
 
 `product.image_url` lo escribe el scraper y lo consume la SPA, así que es contrato entre servicios
@@ -4557,6 +4673,49 @@ cubría la mentira **por exceso** (un «Oferta real» sobre un PVP inflado, una 
 cobertura) y no la **simétrica**, afirmar de menos hasta decir algo falso. El caso `U26e` obliga a
 descargar `/catalog/variants/:id/price-history` y contrastar afirmación a afirmación contra esos
 puntos, en vez de leer la pantalla.
+
+**Cerrado el 20/08/2026 (PR #521), y arreglarlo destapó dos cosas que el diagnóstico no tenía.**
+
+La primera: **la frase estaba en dos sitios**. Además de la ficha, vivía en el array `VEREDICTOS`
+de `HomePage.tsx` — o sea que la home que la v0.7.0 estrenó *para explicar los cuatro veredictos*
+explicaba el `reciente` con la misma mentira. Arreglar solo la ficha habría dejado publicada la
+mitad, y esto generaliza la lección de la sección: cuando una afirmación se repite en dos
+superficies, la que se cita en la issue es la que alguien miró, no necesariamente la única.
+
+La segunda: **el defecto latente de la ventana alcanzaba igual al texto de `real`** («es el precio
+más bajo en los N días que llevamos siguiéndola»), que tiene la misma forma y que la issue no
+señalaba. `recent_min` lleva el `FILTER` de `HONESTY_WINDOW_DAYS` y `tracked_days` se calcula sobre
+la serie entera; los dos textos citaban el segundo para acotar una afirmación sobre el primero.
+
+**La forma del arreglo es lo que merece quedar escrito.** Acotar honestamente exige
+`min(trackedDays, 90)`, y el SPA **no puede saber cuánto vale ese 90**: `@deal-tracker/frontend` es
+otro paquete y no importa `deal-rule.ts` (su `Honesty` es un espejo local escrito a mano). Duplicar
+la constante allí habría sido el **quinto espejo** de esta regla —tras #375, #473, #489 y el #511
+todavía abierto—, así que el número **no cruza**: el backend proyecta
+`claim_days = LEAST(tracked_days, HONESTY_WINDOW_DAYS)` y el SPA lo pinta sin saber que existe una
+ventana. Es la regla general para esta familia: *cuando el frontend necesita una decisión que
+depende de una constante de la regla, se manda la decisión, no la constante.*
+
+La distinción quedó fijada en las dos direcciones, porque confundirlas es el defecto simétrico: las
+afirmaciones de **mínimo** citan `claimDays`, y la de **cobertura** de `unverified` («llevamos N
+días siguiéndola») sigue citando `trackedDays`.
+
+**Y hay una propiedad de esta mitad que conviene no olvidar: no se puede verificar observando.**
+Medido el 19/08/2026, `price_history` abarca **26 días en QA** (24/07→19/08) y **12 en prod**
+(07/08→19/08), con **cero** filas fuera de la ventana en las dos. Así que `claimDays` y
+`trackedDays` coinciden hoy en todo el catálogo y ninguna prenda puede exhibir el defecto; el primer
+caso real llega hacia el **~22/10/2026 en QA** y el **~05/11/2026 en prod** — las mismas fechas del
+blackout de #332 y por la misma razón. Una validación **no puede dar esto por comprobado mirando
+QA**: se sostiene por construcción y por su test, que lo ejercita con `trackedDays: 200,
+claimDays: 90` a mala idea porque es la única forma de verlo.
+
+**Y la razón última de que la frase se pudiera escribir mal sin consecuencias**: el texto vivía en
+un ternario anidado dentro del JSX, y `PriceBlock.tsx` **no tiene ni un test de componente** —no hay
+un solo `.spec.tsx` en el frontend—, así que las cadenas se podían reescribir sin poner nada en
+rojo. Al cerrarlo se mudaron a `textoDeLaCaja()` en `lib/honesty.ts`, que es lo que las pone bajo un
+spec y bajo `revisor-espejo-honestidad`. Los tests fijan **la propiedad, no la redacción**: comparar
+la cadena entera solo diría que el texto es el que alguien escribió, que es exactamente lo que ya se
+creía de la frase anterior.
 
 ### Un release de lunes por la mañana garantiza el P0 de procedencia (#378)
 
