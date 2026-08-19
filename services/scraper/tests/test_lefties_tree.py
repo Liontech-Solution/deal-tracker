@@ -216,8 +216,12 @@ def test_el_padre_declarado_es_el_que_publica_el_menu() -> None:
     de_nina = [c for c in CATEGORIES if c.parent.startswith(_NINA)]
 
     # 19 desde #203, que quitó la segunda hoja `barefoot` de la rama (era el alias de la de dentro
-    # de `ZAPATOS`, y publicaba lo mismo).
-    assert len(de_nina) == 19, "la fixture cubre la rama de niña entera"
+    # de `ZAPATOS`, y publicaba lo mismo). **18 desde #516**, que quitó la hoja suelta de
+    # `Zapatillas` porque la tienda la retiró del menú y la fundió en `Deportivos | Zapatillas`.
+    # Ojo con lo que este test puede y no puede probar aquí: la fixture es del 05/08/2026 y SÍ
+    # trae la 1030272304, así que confirma que la hoja existió, no que siga viva. Que ya no lo
+    # está lo dice `check_leaves()` contra el menú de verdad, que es quien la cazó.
+    assert len(de_nina) == 18, "la fixture cubre la rama de niña entera"
     for cat in de_nina:
         assert f"{cat.parent}/{cat.category_id}" in publicadas, (
             f"la hoja {cat.category_id} dice colgar de {cat.parent}, y el menú no lo publica así"
