@@ -367,7 +367,14 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(1030272335, "niña", "zapateria", "zapatos", _NINA_ZAPATOS),  # zapatos
     CategoryConfig(1030272301, "niña", "zapateria", "botas", _NINA_ZAPATOS),  # botas y botines
     CategoryConfig(1030276114, "niña", "zapateria", "sandalias", _NINA_ZAPATOS),  # sandalias
-    CategoryConfig(1030272304, "niña", "zapateria", "zapatillas", _NINA_ZAPATOS),  # zapatillas
+    # La tienda retiró del menú su hoja suelta de «Zapatillas» (era la 1030272304) y dejó solo
+    # «Deportivos | Zapatillas», que ya ingeríamos y que ya mapea a `zapatillas` (#516). Medido el
+    # 19/08/2026: las 35 zapatillas de niña se siguieron viendo por esta hoja el mismo día en que
+    # el vigía cantó la retirada, así que no hay hueco de catálogo — lo retirado es el id, no las
+    # prendas. Mantenerla apuntando a un id muerto no costaba peticiones (una hoja ausente del
+    # menú se salta antes de pedirse) sino algo peor: `_hoja_comprometida()` sacaba su ámbito
+    # —y el `unisex` equivalente— de la red de bajas en CADA pasada, así que una zapatilla de
+    # Lefties no podía descatalogarse nunca.
     CategoryConfig(1030476904, "niña", "zapateria", "zapatillas", _NINA_ZAPATOS),  # deportivos
     # --- niño / ropa ---
     CategoryConfig(1030267807, "niño", "ropa", "camisetas", _NINO_ROPA),  # camisetas
@@ -386,7 +393,8 @@ CATEGORIES: list[CategoryConfig] = [
     CategoryConfig(1030272391, "niño", "zapateria", "zapatos", _NINO_ZAPATOS),  # zapatos
     CategoryConfig(1030272326, "niño", "zapateria", "botas", _NINO_ZAPATOS),  # botas y botines
     CategoryConfig(1030276115, "niño", "zapateria", "sandalias", _NINO_ZAPATOS),  # sandalias
-    CategoryConfig(1030272329, "niño", "zapateria", "zapatillas", _NINO_ZAPATOS),  # zapatillas
+    # Misma retirada que en niña, y el mismo día: se fue la 1030272329 y queda «Deportivos |
+    # Zapatillas», ya mapeada. Ver el porqué entero en la rama de niña, unas líneas más arriba.
     CategoryConfig(1030272327, "niño", "zapateria", "zapatillas", _NINO_ZAPATOS),  # deportivos
     # --- bebé (#194): tres ramas que el departamento infantil publica y no mirábamos -------------
     #
