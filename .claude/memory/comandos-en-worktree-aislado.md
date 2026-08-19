@@ -1,6 +1,6 @@
 ---
 name: comandos-en-worktree-aislado
-description: "En un worktree el clasificador rechaza el prefijo VAR=valor y los heredoc con cd; usa `env`, un comando RECHAZADO no es una respuesta «no» (comprobar existencias con comandos pelados), y el pod de la CNPG tiene el filesystem en solo lectura"
+description: "En un worktree el clasificador rechaza el prefijo VAR=valor y los heredoc con cd; usa `env` (o mejor el flag de directorio del propio comando: `pnpm --dir` sí admite flags detrás), un comando RECHAZADO no es una respuesta «no» (comprobar existencias con comandos pelados), y el pod de la CNPG tiene el filesystem en solo lectura"
 metadata: 
   node_type: memory
   type: project
@@ -35,6 +35,21 @@ la forma del comando. Dos que cuestan varios intentos si no se sabe:
   volver a montar el entorno. Ojo con la trampa que eso destapa: si acabas lanzando `pytest` pelado
   «para ir rápido», los tests de ingesta **se saltan** por no tener `TEST_DATABASE_URL` y el verde
   no significa nada — se nota en que los `s` de saltados pasan de 4 a 7.
+
+  **Pero antes de escribir el script, mira si el comando trae flag de directorio: `pnpm` lo tiene.**
+  Medido el 19/08/2026 (#489). `pnpm --dir <ruta-absoluta> <script>` pasa sin `cd`, sin `env` y sin
+  script auxiliar, y **admite flags y argumentos extra detrás**, que es donde `env` se rendía:
+  `pnpm --dir …/services/web --filter @deal-tracker/frontend typecheck` y
+  `pnpm --dir …/services/web test frontend/src/lib/honesty.spec.ts` pasaron los dos a la primera,
+  igual que `lint` y `build`. Toda la verificación del frontend en una línea cada una.
+
+  **Y la distinción que hay que tener clara para no creerse más de lo que es:** `--dir` resuelve el
+  problema del *directorio*, no el de las *variables de entorno*. Sirve para todo lo que no necesita
+  configuración —los specs del frontend, `lint`, `typecheck`, `build`— porque ahí no hay `.env` que
+  valga (ver [[web-tests-sin-env-con-docker]]). En cuanto el comando necesite `TEST_DATABASE_URL` y
+  su gemela de ctype `C`, vuelve a hacer falta el script del párrafo de arriba: `pnpm --dir` no
+  inyecta nada. Y el aviso de los saltados sigue valiendo igual — la suite del web sin sus dos bases
+  dio **216 pasan / 236 se saltan**, que en verde parece completo y no lo es.
 - **Un heredoc que escribe un fichero se rechaza, lleve `cd` delante o no.** Aquí ponía que la
   culpa era del `cd`; no lo es. `cat > /ruta/absoluta/x.py <<'EOF'` se rechaza igual, y también
   `cat >> tests/test_x.py <<'EOF'` sobre un fichero **del propio worktree**. Para escribir un

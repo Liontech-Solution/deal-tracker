@@ -1,5 +1,5 @@
 - [kubeconfig-location](kubeconfig-location.md) — kubeconfig en `~/.kube/k3slocal.yaml` (symlink desde `config`); dos equipos, sin `argocd` CLI
-- [comandos-en-worktree-aislado](comandos-en-worktree-aislado.md) — en un worktree el prefijo `VAR=valor` se rechaza y `env` tampoco vale si el comando lleva flags (`pytest -q`): script en el scratchpad; y el pod de la CNPG está en solo lectura: el SQL largo va en un `-c` de una línea, quitándole antes los comentarios `--`
+- [comandos-en-worktree-aislado](comandos-en-worktree-aislado.md) — en un worktree el prefijo `VAR=valor` se rechaza y `env` tampoco vale si el comando lleva flags (`pytest -q`): script en el scratchpad, salvo que el propio comando traiga flag de directorio (`pnpm --dir`, que sí admite flags detrás); y el pod de la CNPG está en solo lectura: el SQL largo va por stdin, no plegado a una línea
 - [volcar-el-sql-que-ejecuta-el-servicio](volcar-el-sql-que-ejecuta-el-servicio.md) — para un `EXPLAIN` fiel, sacar el SQL del propio servicio con un `db` de pega y `PgDialect`, con los parámetros en línea
 - [memoria-en-repo](memoria-en-repo.md) — la memoria se versiona en `.claude/memory/`; cada equipo necesita el symlink desde `~/.claude`
 - [qa-test-user](qa-test-user.md) — user de prueba `test-qa` en QA; `python3 .claude/qa-login.py` da un token para probar la API
