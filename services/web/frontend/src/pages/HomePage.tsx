@@ -43,8 +43,14 @@ const VEREDICTOS: { kind: KindHonestyBadge; titulo?: string; texto: string }[] =
     kind: 'reciente',
     // La mitad honesta de #436, y la que el usuario ve en casi todas las tarjetas: lo que separa
     // esto de «Oferta real» no es el descuento, es la cobertura (`REAL_EVIDENCE_DAYS`).
+    //
+    // Este texto era la SEGUNDA copia de la frase falsa de #517 —decía «o su precio de siempre»,
+    // que es imposible en un `reciente`— y se le escapó a la propia issue, que solo señalaba la
+    // ficha. Dice lo mismo que `textoDeLaCaja()` sin poder compartirlo: allí la frase cita las
+    // cifras de una prenda concreta y aquí explica la etiqueta en abstracto. Si se toca una, se
+    // toca la otra.
     texto:
-      'ha bajado y es lo más barato que la hemos visto, pero llevamos poco tiempo siguiéndola. Todavía no podemos decir si es una rebaja de verdad o su precio de siempre.',
+      'ha bajado y es lo más barato que la hemos visto desde que la seguimos, pero llevamos poco tiempo haciéndolo. Todavía no podemos decir si es una rebaja de las buenas o un vaivén de precio.',
   },
   {
     kind: 'suspicious',

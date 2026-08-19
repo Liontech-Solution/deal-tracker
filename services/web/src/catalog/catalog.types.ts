@@ -128,6 +128,27 @@ export interface VariantWithPrice {
    */
   trackedDays: number;
   /**
+   * El tramo, en días enteros, que una afirmación de MÍNIMO puede citar sin mentir (#517).
+   *
+   * No es `trackedDays`, y la diferencia es el defecto que esta issue vino a cerrar: `recent_min`
+   * se calcula con el filtro de `HONESTY_WINDOW_DAYS` y `trackedDays` se calcula sobre la serie
+   * entera, así que en cuanto una prenda pase de esos días el texto de la ficha estaría diciendo
+   * «es lo más barato que la hemos visto en los N días que llevamos siguiéndola» sobre una ventana
+   * que no cubre esos N. Aquí ya viene el `LEAST` de los dos hecho.
+   *
+   * **Hoy coincide siempre con `trackedDays`**, y eso es un dato, no una casualidad que tape el
+   * problema: medido el 19/08/2026, la serie de `price_history` abarca 26 días en QA y 12 en prod,
+   * con cero filas fuera de la ventana. El primer caso en que los dos números se separan llega
+   * hacia el ~22/10/2026 en QA y el ~05/11/2026 en prod. O sea que esto **no se puede verificar
+   * observando** todavía: se sostiene por construcción y por su test.
+   *
+   * Lo resuelve el backend en vez de exportar el 90 porque el SPA es otro paquete y no puede
+   * importar la regla: la constante duplicada allí sería el quinto espejo de esta misma regla
+   * (#375, #473, #489, #511), que es el mecanismo con el que este repo ya se ha quemado cuatro
+   * veces.
+   */
+  claimDays: number;
+  /**
    * Mínimo de los últimos 30 días que declara la tienda por la directiva Ómnibus (#354). `null` en
    * las siete tiendas que no lo publican — solo lo traen C&A y Springfield.
    *

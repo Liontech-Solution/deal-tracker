@@ -108,6 +108,15 @@ export interface VariantWithPrice {
   variantLabel: string | null;
   /** Días enteros que llevamos observando esta variante. Solo lo trae la ficha (#332). */
   trackedDays: number;
+  /**
+   * El tramo que una afirmación de MÍNIMO puede citar sin mentir (#517): el backend ya le ha
+   * aplicado el techo de la ventana de honestidad, que aquí no se conoce ni debe conocerse.
+   *
+   * Es el que va en el texto cuando la frase dice «lo más barato que la hemos visto en N días»;
+   * `trackedDays` sigue siendo el que va cuando la frase habla de **cobertura** («llevamos N días
+   * siguiéndola»). Los dos coinciden mientras la serie sea más corta que la ventana.
+   */
+  claimDays: number;
   /** Mínimo de 30 días declarado por la tienda (#354); `null` salvo en C&A y Springfield. */
   retailerMin30d: string | null;
   /** PVP creíble de ESTA variante y su descuento sostenible (#436). Mismo criterio que el listado. */
