@@ -190,7 +190,8 @@ acusación `'declarado'` de #354 no espera a nadie y su `trackedDays` bajo es lo
 este P0 es el falso positivo de #430, que en v0.5.0 apuntaba a 199 variantes correctas. Ver A31d y
 A31e · **una combinación de filtros que el propio panel ofrece por encima de
 10 s** · **dato escrito por una imagen anterior cuando la release toca `services/scraper/`** (#378:
-el frente de datos estaría midiendo el scraper de la versión pasada).
+el frente de datos estaría midiendo el scraper de la versión pasada) · **un texto de honestidad que
+afirma algo que la propia gráfica de la ficha desmiente** (#517).
 
 > Ojo con el simétrico de esto, que es un falso rojo fácil, **y desde #354 solo vale para siete de
 > las nueve tiendas**: que no aparezca ni un solo badge «Precio inflado» en ellas es lo esperado, no
@@ -198,6 +199,21 @@ el frente de datos estaría midiendo el scraper de la versión pasada).
 > 24/07/2026, así que hasta ~22/10/2026 no puede haber ninguno por esa vía. **En C&A y Springfield es
 > al revés**: publican el mínimo de 30 días de la Ómnibus, esa vía no espera a nadie, y que no haya
 > ni uno es un hallazgo. Ver U26b/U26c/U26d.
+
+> **Y la mentira tiene dos direcciones, no una.** Todo lo de arriba vigila que no afirmemos **de
+> más** —un «Oferta real» sobre un PVP inflado, una acusación sin cobertura—. La v0.7.0 encontró la
+> simétrica y no estaba cubierta: **afirmar de menos hasta decir algo falso**. El texto de «Bajada
+> reciente» dice «no podemos decir si es una rebaja de verdad **o su precio de siempre**», y a ese
+> veredicto solo se llega **porque sí es una bajada** contra `recent_min` — o sea que existe una
+> observación previa más cara, y la ficha la está dibujando dos centímetros más arriba. Es falso
+> por construcción en el **100 %** de los `reciente`, y llevaba desde #436 (v0.6.0) publicado.
+>
+> Así que el criterio es: **coge la serie que la ficha pinta (`/variants/:id/price-history`) y
+> comprueba que cada afirmación del texto se sostiene contra esos puntos.** No que el texto exista,
+> ni que cite su cifra, ni que las dos superficies coincidan entre sí — eso ya lo miran el bloque A
+> y `revisor-espejo-honestidad`, y **ninguno de los dos pudo ver esto**: la fuente única estaba
+> bien y el resultado era falso igual. Un veredicto prudente está bien; una frase falsa no, y en un
+> producto cuya propuesta entera es la honestidad con los precios no hay APTO que la aguante.
 
 **P1 — no bloquea, pero se abre issue.** `errors > 0` en una pasada `success` · hoja de categoría
 retirada · aviso de ritmo del vigía · `✖ [cobertura]` del vigía · error en la consola del navegador ·
