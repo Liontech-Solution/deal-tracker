@@ -28,7 +28,18 @@ export type Database = ReturnType<typeof drizzle<typeof schema>>;
       useFactory: (config: ConfigService<EnvConfig, true>) => {
         const url = config.get('DATABASE_URL', { infer: true });
         // max moderado: el cluster son Raspberry Pi y la Postgres es compartida.
-        return postgres(url, { max: 10 });
+        //
+        // `statement_timeout` es cinturón, no el arreglo de nada (#515). La base viene con
+        // `statement_timeout = 0`, o sea sin tope: cuando el planificador eligió mal, la consulta
+        // del catálogo corrió **239 s** mientras la pasarela cerraba el HTTP con un 524 a los 125 s
+        // — y seguía corriendo en Postgres después, quemando CPU de una base que comparten los tres
+        // entornos por una respuesta que ya no iba a leer nadie.
+        //
+        // 30 s es holgado a propósito: la consulta más lenta que este servicio hace legítimamente
+        // ronda los 3 s (el suelo del camino vivo, color+tienda), así que esto no puede cortar nada
+        // sano — solo convierte un cuelgue indefinido en un error rápido. No sustituye a arreglar
+        // el plan, y por eso va acompañado y no en lugar del MATERIALIZED de `listProducts()`.
+        return postgres(url, { max: 10, connection: { statement_timeout: 30_000 } });
       },
     },
     {

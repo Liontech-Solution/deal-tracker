@@ -380,7 +380,32 @@ export class CatalogService {
         FROM price_history ph
         ORDER BY ph.variant_id, ph.scraped_at DESC
       ),
-      stats AS (
+      -- MATERIALIZED no es decorativo, es el arreglo de #515, y el porqué merece leerse antes de
+      -- quitarlo. Esta CTE se referencia UNA vez, así que Postgres la inlinea por defecto; y en
+      -- cuanto el planificador se cree que el join de arriba devuelve pocas filas, la mete como
+      -- lado interno de un Nested Loop y la ejecuta UNA VEZ POR FILA. Medido contra QA el
+      -- 19/08/2026 con la consulta real del servicio: nina+zapateria+zapatillas+rosa+cacles daba
+      -- loops=90 sobre un agregado que recorre las 606.943 filas de price_history enteras, o sea
+      -- 105.978 ms; el caso vacio (verde+deditos) llegaba a 239.856 ms. Con MATERIALIZED, 1.853 ms
+      -- y 1.827 ms. Es la firma de #342 otra vez: cuanto MEJOR filtra el predicado, peor estima el
+      -- planificador y peor plan elige.
+      --
+      -- Cuesta algo donde el plan ya era bueno (color solo: 1.992 ms -> 2.618 ms), porque obliga a
+      -- calcular el agregado entero siempre. Se acepta a sabiendas: 0,6 s de peaje contra 104-238 s
+      -- de cuelgue. Lo que NO arregla es el suelo del camino vivo —esta CTE y la de latest recorren
+      -- price_history sin filtrar, y por eso color+tienda no baja de ~1,8 s—, que es cosa aparte.
+      --
+      -- Y hay que leerlo contra la nota de pickSizes/pickColors de este mismo fichero, que dice lo
+      -- contrario: alli se PROBO un AS MATERIALIZED, se descarto, y la leccion escrita es que «la
+      -- valla arregla una maquina y estropea la otra». No es una contradiccion, es que la forma es
+      -- otra. Alli la CTE SI puede recibir el push-down del filtro, asi que vallarla le quita una
+      -- optimizacion real y el resultado depende del planificador de cada maquina. Aqui no hay nada
+      -- que empujar: stats no se correlaciona con los filtros de fuera, de modo que las 90
+      -- ejecuciones calculaban el MISMO agregado entero 90 veces. La valla no impide un plan mejor;
+      -- impide repetir el mismo trabajo. Aun asi, lo de arriba esta medido en el aarch64 del
+      -- cluster, que es la maquina que importa, y no en el portatil.
+      -- (Ojo: sin comillas invertidas, que esto vive dentro de un template literal.)
+      stats AS MATERIALIZED (
         SELECT l.variant_id,
                MIN(h.price) FILTER (
                  WHERE h.scraped_at >= l.scraped_at - make_interval(days => ${HONESTY_WINDOW_DAYS})
