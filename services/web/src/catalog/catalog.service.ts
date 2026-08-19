@@ -781,7 +781,16 @@ export class CatalogService {
              l.price, l.list_price, l.discount_pct, g.in_stock, l.scraped_at,
              l.retailer_min_30d,
              s.recent_min, s.max_observed, COALESCE(s.prior_points, 0) AS prior_points,
-             COALESCE(s.tracked_days, 0) AS tracked_days
+             COALESCE(s.tracked_days, 0) AS tracked_days,
+             -- El tramo que la afirmación «es lo más barato que la hemos visto» cubre DE VERDAD
+             -- (#517). No es tracked_days: recent_min lleva el filtro de HONESTY_WINDOW_DAYS y
+             -- tracked_days no, así que en cuanto una prenda pase de esos días el texto estaría
+             -- afirmando un mínimo sobre una ventana que no cubre lo que dice cubrir.
+             -- Se resuelve aquí y no en el SPA a propósito: el frontend es otro paquete y no
+             -- puede importar la regla, así que duplicar el 90 allí sería un quinto espejo de
+             -- los que este repo ya ha pagado cuatro veces (#375, #473, #489, #511).
+             -- (Sin comillas invertidas: esto vive dentro de un template literal.)
+             LEAST(COALESCE(s.tracked_days, 0), ${HONESTY_WINDOW_DAYS}) AS claim_days
       FROM prenda g
       JOIN variant v ON v.id = g.variant_id
       LEFT JOIN latest l ON l.variant_id = v.id
@@ -842,6 +851,10 @@ export class CatalogService {
       // Días que llevamos siguiendo esta prenda. Solo sale en la ficha —la tarjeta no lo pinta—, y
       // está para que el texto de una `unverified` diga lo que sabemos en vez de acusar (#332).
       trackedDays: Math.floor(Number(row.tracked_days ?? 0)),
+      // Ver `claim_days` en la consulta: el tramo que una afirmación de mínimo puede citar sin
+      // mentir. Coincide con `trackedDays` mientras la serie sea más corta que la ventana —hoy
+      // lo es en todas partes— y se separa de él en cuanto deje de serlo.
+      claimDays: Math.floor(Number(row.claim_days ?? 0)),
       // El mínimo de 30 días que declara la tienda (#354). Sale a la ficha porque el texto de una
       // acusación `declarado` lo cita —«la propia tienda dice haberla vendido a 4,24 €»—, que es lo
       // que la convierte en una afirmación comprobable en vez de una etiqueta.

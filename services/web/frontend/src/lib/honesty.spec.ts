@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import type { Honesty } from '../api/types';
 import type { TonoDescuento } from './honesty';
-import { cifrasDeRebaja, llevaBadge, tonoDeLaCaja, tonoDelDescuento, tonoDelPrecio } from './honesty';
+import {
+  cifrasDeRebaja,
+  llevaBadge,
+  textoDeLaCaja,
+  tonoDeLaCaja,
+  tonoDelDescuento,
+  tonoDelPrecio,
+} from './honesty';
 
 /**
  * Qué cifras pinta la SPA y cuándo se le permite pintarlas en verde (#436).
@@ -181,5 +188,101 @@ describe('llevaBadge', () => {
     // `unverified` es ausencia de prueba, y `none` que no hay nada que decir (#332).
     expect(llevaBadge('unverified')).toBe(false);
     expect(llevaBadge('none')).toBe(false);
+  });
+});
+
+/**
+ * Qué se le PERMITE afirmar al texto de la ficha (#517).
+ *
+ * Esto tampoco existía, y su ausencia es la mitad de por qué la frase falsa llegó a producción:
+ * el texto vivía dentro del JSX de `PriceBlock.tsx`, que no tiene un solo test de componente, así
+ * que se podía escribir cualquier cosa sin poner nada en rojo.
+ *
+ * Lo que se fija aquí es la **propiedad, no la redacción**. Un test que comparase la cadena entera
+ * solo diría que el texto es el que alguien escribió, que es justo lo que ya se creía de la frase
+ * anterior; lo que hay que impedir es que vuelva a afirmar algo que el veredicto desmiente.
+ */
+describe('textoDeLaCaja', () => {
+  const DATOS = { trackedDays: 12, claimDays: 12, honestyBasis: null, min30: null };
+
+  // Mismo `Record` sobre el tipo y por el mismo motivo que en `tonoDeLaCaja`: un veredicto nuevo
+  // tiene que entrar solo en los casos, o el test se queda verde por omisión justo cuando aparece
+  // el texto que nadie ha revisado.
+  const TEXTOS: Record<Exclude<Honesty, 'none'>, string> = {
+    real: textoDeLaCaja('real', DATOS),
+    reciente: textoDeLaCaja('reciente', DATOS),
+    suspicious: textoDeLaCaja('suspicious', DATOS),
+    unverified: textoDeLaCaja('unverified', DATOS),
+  };
+
+  it('un `reciente` NUNCA dice que el precio pueda ser «su precio de siempre»', () => {
+    // El fallo exacto de #517, clavado. A `reciente` solo se llega porque `evaluateDeal` con
+    // `compareBase: 'recent_min'` dio `notify`, y eso exige `price < recentMin` con un punto
+    // previo: existe SIEMPRE una observación anterior más cara, y la ficha la dibuja encima.
+    // Afirmar que quizá sea su precio de siempre es falso en el 100 % de los casos.
+    expect(TEXTOS.reciente).not.toMatch(/precio de siempre/i);
+  });
+
+  it('un `reciente` afirma la bajada en vez de ponerla en duda', () => {
+    // La otra mitad: no basta con quitar la mentira, el texto tiene que decir lo que sí sabemos.
+    expect(TEXTOS.reciente).toMatch(/ha bajado/i);
+  });
+
+  it('ningún texto pone en duda la bajada de un veredicto que la afirma', () => {
+    // `real` y `reciente` son los dos que se alcanzan por la rama de `notify`, o sea los dos que
+    // tienen una observación previa más cara garantizada. Ninguno puede dudar de que haya bajado.
+    for (const honesty of ['real', 'reciente'] as const) {
+      expect(TEXTOS[honesty]).not.toMatch(/precio de siempre|precio habitual|no sabemos si ha bajado/i);
+    }
+  });
+
+  it('las afirmaciones de mínimo citan `claimDays`, no `trackedDays`', () => {
+    // La segunda mitad de #517, y la que hoy NO se puede ver en QA ni en prod: `recent_min` lleva
+    // el techo de la ventana de honestidad y `trackedDays` no, así que una prenda más vieja que la
+    // ventana haría que «lo más barato en N días» citara un tramo que el mínimo no cubre. Con las
+    // series de hoy (26 días en QA, 12 en prod) los dos números coinciden y esto es inobservable;
+    // por eso se fija aquí, con los dos deliberadamente distintos.
+    const viejo = { trackedDays: 200, claimDays: 90, honestyBasis: null, min30: null };
+    for (const honesty of ['real', 'reciente'] as const) {
+      const texto = textoDeLaCaja(honesty, viejo);
+      expect(texto).toContain('90 días');
+      expect(texto).not.toContain('200 días');
+    }
+  });
+
+  it('`unverified` sí cita la cobertura, porque habla de cuánto llevamos mirando', () => {
+    // La excepción, y es deliberada: esa frase no afirma ningún mínimo, dice cuánto hace que la
+    // seguimos. Ahí el número que toca es `trackedDays`, y confundirlos sería el defecto simétrico.
+    const viejo = { trackedDays: 200, claimDays: 90, honestyBasis: null, min30: null };
+    expect(textoDeLaCaja('unverified', viejo)).toContain('200 días');
+  });
+
+  it('`unverified` recién descubierta no dice «llevamos 0 días»', () => {
+    expect(textoDeLaCaja('unverified', { ...DATOS, trackedDays: 0 })).toContain(
+      'acabamos de empezar',
+    );
+  });
+
+  it('una acusación `declarado` cita la cifra que la hace comprobable (#354)', () => {
+    const texto = textoDeLaCaja('suspicious', {
+      ...DATOS,
+      honestyBasis: 'declarado',
+      min30: '4,24 €',
+    });
+    expect(texto).toContain('4,24 €');
+    // Y no dice «respecto a su historial», que sobre una prenda recién descubierta sería falso.
+    expect(texto).not.toMatch(/historial/i);
+  });
+
+  it('una acusación sin cifra declarada cae al texto de histórico y no enseña un hueco', () => {
+    // La vía declarada no puede dispararse sin `min30`, pero si faltara el texto no puede quedar
+    // con un agujero donde iba el número.
+    const texto = textoDeLaCaja('suspicious', { ...DATOS, honestyBasis: 'declarado', min30: null });
+    expect(texto).toMatch(/historial/i);
+    expect(texto).not.toContain('null');
+  });
+
+  it('declina el plural en singular', () => {
+    expect(textoDeLaCaja('real', { ...DATOS, claimDays: 1 })).toContain('1 día ');
   });
 });

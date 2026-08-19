@@ -4,7 +4,14 @@ import { AlertIcon, CheckIcon, ClockIcon } from './icons';
 import type { Honesty, HonestyBasis } from '../api/types';
 import { eurStr } from '../lib/format';
 import type { TonoDescuento } from '../lib/honesty';
-import { cifrasDeRebaja, llevaBadge, tonoDeLaCaja, tonoDelDescuento, tonoDelPrecio } from '../lib/honesty';
+import {
+  cifrasDeRebaja,
+  llevaBadge,
+  textoDeLaCaja,
+  tonoDeLaCaja,
+  tonoDelDescuento,
+  tonoDelPrecio,
+} from '../lib/honesty';
 
 /**
  * Cómo se traduce a CSS el tono de la caja explicativa. Aquí no se DECIDE nada: qué tono le toca a
@@ -46,6 +53,13 @@ interface Props {
   honesty: Honesty;
   /** Días que llevamos observando la variante. Lo enseña el texto de `unverified` (#332). */
   trackedDays: number;
+  /**
+   * El tramo que una afirmación de MÍNIMO puede citar sin mentir (#517): `trackedDays` con el
+   * techo de la ventana de honestidad ya aplicado por el backend. Es el que va en los textos de
+   * `reciente` y `real`, mientras que `trackedDays` es el que va cuando la frase habla de
+   * cobertura. Hoy coinciden en todas partes, y esa coincidencia caduca sola.
+   */
+  claimDays: number;
   /** En qué se apoya la acusación, cuando la hay (#354). Cambia la frase, no el badge. */
   honestyBasis: HonestyBasis | null;
   /** Mínimo de 30 días declarado por la tienda. Lo CITA el texto de una acusación `declarado`. */
@@ -62,14 +76,12 @@ export function PriceBlock({
   stock,
   honesty,
   trackedDays,
+  claimDays,
   honestyBasis,
   retailerMin30d,
   honestListPrice,
   honestDiscountPct,
 }: Props) {
-  const suspicious = honesty === 'suspicious';
-  const unverified = honesty === 'unverified';
-  const reciente = honesty === 'reciente';
   // De qué color va la caja NO se decide aquí: la condición vive en `tonoDeLaCaja()` por lo mismo
   // que la del porcentaje vive en `tonoDelDescuento()` (#489). `null` es «la caja no se pinta», que
   // es el único caso que la función no cubre porque lo tiene fuera del tipo.
@@ -87,9 +99,16 @@ export function PriceBlock({
   // La cifra que cita una acusación `declarado` (#354). Si faltara —no debería: la vía declarada no
   // puede dispararse sin ella— el texto cae al de siempre en vez de enseñar un hueco.
   const min30Str = eurStr(retailerMin30d);
-  // Un solo sitio donde se declina el plural: tres textos distintos lo usan y ya se escribió mal una
-  // vez al añadir el segundo.
-  const diasStr = `${trackedDays} ${trackedDays === 1 ? 'día' : 'días'}`;
+  // Y el TEXTO tampoco se decide aquí, por lo mismo que el color y con un motivo aún más caro
+  // (#517): vivía en un ternario anidado dentro del JSX, sin un solo test que lo mirara, y le
+  // decía de un `reciente` que no sabíamos si el precio era «su precio de siempre» mientras la
+  // gráfica de arriba dibujaba la observación más cara que es justo lo que lo hace `reciente`.
+  // Se calcula junto a `caja` y no en el JSX porque es aquí donde `honesty` se estrecha de verdad:
+  // el `caja !== null` de abajo no le dice nada al compilador sobre el veredicto.
+  const textoCaja =
+    honesty === 'none'
+      ? null
+      : textoDeLaCaja(honesty, { trackedDays, claimDays, honestyBasis, min30: min30Str });
   const hasMarkdown = disc !== null && disc > 0 && listStr !== null;
 
   return (
@@ -165,21 +184,7 @@ export function PriceBlock({
             <caja.Icono size={17} />
           </span>
           <span style={{ fontSize: 13, lineHeight: 1.5, color: caja.texto, fontWeight: 600 }}>
-            {unverified
-              ? `Descuento sin confirmar: ${trackedDays === 0 ? 'acabamos de empezar a seguir esta prenda' : `llevamos ${diasStr} siguiéndola`} y su historial todavía no da para saber si el precio tachado es el que costaba de verdad.`
-              : reciente
-                ? // Afirma la bajada, que sí la sabemos, y NO la llama honesta, que no lo sabemos.
-                  // El número de días va delante a propósito: es la única prueba que tenemos, y
-                  // enseñarla es lo que permite al usuario juzgar por su cuenta.
-                  `Ha bajado de precio: es lo más barato que la hemos visto, pero solo llevamos ${diasStr} siguiéndola. Todavía no podemos decir si es una rebaja de verdad o su precio de siempre.`
-                : suspicious
-                  ? honestyBasis === 'declarado' && min30Str !== null
-                    ? `Descuento no real: la propia tienda declara haber vendido esta prenda a ${min30Str} en los últimos 30 días, por debajo de lo que pides ahora. No ha bajado de verdad.`
-                    : 'Descuento no real: el precio tachado está inflado respecto a su historial. No ha bajado de verdad.'
-                  : // «los últimos meses» era falso mientras el badge se daba con dos puntos de
-                    // histórico (#436). Ahora hace falta cobertura para llegar aquí, así que la
-                    // frase puede decir cuánta, que es más honesto y además más útil.
-                    `Rebaja honesta: es el precio más bajo en los ${diasStr} que llevamos siguiéndola. Buen momento para comprar.`}
+            {textoCaja}
           </span>
         </div>
       )}

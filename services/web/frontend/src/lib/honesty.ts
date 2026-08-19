@@ -1,4 +1,4 @@
-import type { Honesty } from '../api/types';
+import type { Honesty, HonestyBasis } from '../api/types';
 import { discountInt, parseMoney } from './format';
 
 /**
@@ -181,5 +181,88 @@ export function tonoDeLaCaja(honesty: Exclude<Honesty, 'none'>): TonoDescuento {
     case 'unverified':
     case 'reciente':
       return 'neutro';
+  }
+}
+
+/** Lo que el texto de la caja necesita saber de la prenda para no afirmar de más. */
+export interface DatosDelTexto {
+  /** Días que llevamos observándola. Habla de COBERTURA: «llevamos N días siguiéndola». */
+  trackedDays: number;
+  /**
+   * Tramo que una afirmación de MÍNIMO puede citar. Lo acota el backend con la ventana de
+   * honestidad, que aquí no se conoce ni debe conocerse (#517). Habla de ALCANCE.
+   */
+  claimDays: number;
+  /** En qué se apoya una acusación (#354). Solo se mira cuando el veredicto es `suspicious`. */
+  honestyBasis: HonestyBasis | null;
+  /** El mínimo de 30 días que declara la tienda, ya formateado, o `null` si no lo publica. */
+  min30: string | null;
+}
+
+function dias(n: number): string {
+  return `${n} ${n === 1 ? 'día' : 'días'}`;
+}
+
+/**
+ * El texto que explica el veredicto en la ficha. Una función, y no cinco cadenas sueltas dentro
+ * del JSX, y el porqué es #517.
+ *
+ * Ese texto vivía en un ternario anidado en `PriceBlock.tsx` y decía, para `reciente`, que
+ * «todavía no podemos decir si es una rebaja de verdad **o su precio de siempre**». Eso es **falso
+ * por construcción en el 100 % de los `reciente`**: a ese veredicto solo se llega porque
+ * `evaluateDeal` con `compareBase: 'recent_min'` devolvió `notify`, y eso exige `price < recentMin`
+ * con al menos un punto previo. O sea que **siempre** existe una observación anterior más cara —y
+ * la ficha la está dibujando en la gráfica justo encima del párrafo—. Lo que de verdad no sabemos
+ * no es si ha bajado, sino si esa bajada es **significativa**: con poca cobertura no podemos
+ * afirmar que el precio anterior fuera el normal de la prenda y no un vaivén.
+ *
+ * Que nadie lo viera importa tanto como el defecto. `PriceBlock.tsx` no tiene un solo test de
+ * componente, así que estas cadenas se podían reescribir sin poner nada en rojo; y ni el bloque A
+ * de #479, ni `revisor-espejo-honestidad`, ni los casos U26–U26d podían cazarlo, porque todos
+ * comprueban que las superficies **coincidan** entre sí y que el texto **cite** su cifra, y ninguno
+ * que lo que afirma sea **verdad**. Es el patrón de #473 un piso más abajo: la fuente única
+ * impecable y el resultado falso igual. Traerlo aquí es lo que lo pone bajo un test y bajo el
+ * subagente.
+ *
+ * La distinción entre `claimDays` y `trackedDays` es la otra mitad de la issue, y no es cosmética:
+ * `recent_min` lleva el techo de la ventana de honestidad y `trackedDays` no, así que una prenda
+ * con más días que la ventana haría que «lo más barato que la hemos visto en N días» citara un
+ * tramo que el mínimo no cubre. **Hoy los dos números coinciden en todas partes** —la serie va por
+ * 26 días en QA y 12 en prod, medido el 19/08/2026—, así que esto se sostiene por construcción y
+ * no por observación: el primer caso real llega hacia el ~05/11/2026 en prod.
+ *
+ * `none` queda fuera del tipo por lo mismo que en `tonoDeLaCaja()`: ahí no se pinta caja.
+ */
+export function textoDeLaCaja(honesty: Exclude<Honesty, 'none'>, datos: DatosDelTexto): string {
+  switch (honesty) {
+    // Ausencia de prueba, y se dice como tal: ni confirmamos ni desmentimos el tachado. La cifra
+    // que toca aquí es la COBERTURA, porque la frase habla de lo poco que llevamos mirando.
+    case 'unverified':
+      return `Descuento sin confirmar: ${
+        datos.trackedDays === 0
+          ? 'acabamos de empezar a seguir esta prenda'
+          : `llevamos ${dias(datos.trackedDays)} siguiéndola`
+      } y su historial todavía no da para saber si el precio tachado es el que costaba de verdad.`;
+    // La bajada SÍ la afirmamos —es lo que define el veredicto— y lo que se rebaja es el elogio.
+    // Decir «o su precio de siempre» negaba la bajada que la gráfica de al lado dibuja (#517).
+    case 'reciente':
+      return (
+        `Ha bajado de precio: es lo más barato que la hemos visto en los ${dias(datos.claimDays)} ` +
+        'que llevamos siguiéndola. Todavía no podemos decir si es una rebaja de las buenas o un ' +
+        'vaivén de precio, porque aún no la hemos visto fuera de esta bajada.'
+      );
+    // Una acusación tiene que ser comprobable, y por eso cita su base (#354). La `declarado` se
+    // apoya en lo que la tienda publica de sí misma y no espera a que tengamos histórico.
+    case 'suspicious':
+      return datos.honestyBasis === 'declarado' && datos.min30 !== null
+        ? `Descuento no real: la propia tienda declara haber vendido esta prenda a ${datos.min30} en los últimos 30 días, por debajo de lo que pides ahora. No ha bajado de verdad.`
+        : 'Descuento no real: el precio tachado está inflado respecto a su historial. No ha bajado de verdad.';
+    // El único elogio, y también acotado con `claimDays`: este texto arrastraba el mismo defecto
+    // de ventana que `reciente`, y la issue solo señalaba al otro.
+    case 'real':
+      return (
+        `Rebaja honesta: es el precio más bajo en los ${dias(datos.claimDays)} que llevamos ` +
+        'siguiéndola. Buen momento para comprar.'
+      );
   }
 }
