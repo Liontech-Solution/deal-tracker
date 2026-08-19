@@ -249,6 +249,48 @@ describe.skipIf(!TEST_DB)('paridad entre el agregado precomputado y el vivo (#31
     expect(capturadas[0]).toContain('product_agg');
   });
 
+  it('la CTE `stats` del camino vivo va vallada, o el catálogo se cuelga (#515)', async () => {
+    // Una aserción sobre una palabra clave parece poca cosa, y es justo lo que hace falta: el modo
+    // de fallo es que alguien la quite por parecer decorativa, y entonces NO se rompe nada visible
+    // — el catálogo sigue devolviendo lo mismo, solo que tardando dos órdenes de magnitud más.
+    //
+    // Sin `MATERIALIZED`, esta CTE se referencia una sola vez, Postgres la inlinea, y en cuanto
+    // estima pocas filas arriba la mete como lado interno de un Nested Loop: se ejecuta UNA VEZ POR
+    // FILA, recorriendo entera `price_history` cada vez. Medido contra QA el 19/08/2026 con la
+    // consulta real del servicio: `loops=90` y **105.978 ms** en niña+zapatería+zapatillas+rosa+
+    // cacles; **239.856 ms** en el caso vacío (verde+deditos), que por HTTP moría en 524 a los
+    // 125 s y seguía corriendo en la base después. Con la valla: 1.853 ms y 1.827 ms.
+    const capturadas: string[] = [];
+    const espia = {
+      execute: (c: unknown) => {
+        capturadas.push(JSON.stringify(c));
+        return Promise.resolve([]);
+      },
+    };
+    const q = new ProductQueryDto();
+    q.barefoot = 'si';
+    q.sort = 'ofertas';
+    q.color = ['rosa'];
+    await new CatalogService(espia as never).listProducts(q);
+    expect(capturadas[0]).toContain('stats AS MATERIALIZED');
+
+    // Y el control, que es lo que impide que esto se cumpla por accidente: la petición ancha no
+    // pasa por el camino vivo, así que ahí no puede aparecer la valla. Si apareciera, sería que
+    // `filtroDeVariante` se ha vuelto siempre cierto y el precomputado de la 0035 ya no se usa.
+    const anchas: string[] = [];
+    const espiaAncho = {
+      execute: (c: unknown) => {
+        anchas.push(JSON.stringify(c));
+        return Promise.resolve([]);
+      },
+    };
+    const ancha = new ProductQueryDto();
+    ancha.barefoot = 'si';
+    ancha.sort = 'ofertas';
+    await new CatalogService(espiaAncho as never).listProducts(ancha);
+    expect(anchas[0]).not.toContain('stats AS MATERIALIZED');
+  });
+
   it('el mínimo declarado llega igual por los dos caminos, y acusa (#354)', async () => {
     const { precomputado, vivo } = await ambos((q) => (q.q = 'declarado'));
 
