@@ -4510,6 +4510,54 @@ Lo que queda estructuralmente, y es el punto de escribir esto:
   diagnóstico de arriba se cumplió del todo: ninguna de las tres divergencias dio un test rojo, y el
   síntoma no es un test sino dos pantallas del mismo producto afirmando cosas distintas.
 
+### Que las superficies coincidan no las hace ciertas: el texto afirmaba lo que su gráfica desmentía (#517)
+
+Es el piso de abajo de la sección anterior, y lo que cierra su cadena. Aquella dejó el color
+decidido en un solo sitio y `revisor-espejo-honestidad` vigilando tres superficies; #489 cerró la
+tercera función. Todo eso vigila **que las representaciones no se contradigan entre sí**. Ninguna
+mira si lo que dicen es **verdad**.
+
+El texto del veredicto `reciente` (`PriceBlock.tsx`) dice:
+
+> Ha bajado de precio: es lo más barato que la hemos visto, pero solo llevamos N días siguiéndola.
+> Todavía no podemos decir si es una rebaja de verdad **o su precio de siempre**.
+
+A `reciente` solo se llega por una rama de `classifyHonesty()`: `verdict.notify` cierto —o sea que
+**sí es una bajada** contra `recent_min`— con `trackedDays < REAL_EVIDENCE_DAYS`. Para que
+`notify` sea cierto tiene que existir una observación previa **estrictamente más cara**. Luego
+«o su precio de siempre» es **falso por construcción en el 100 %** de los `reciente`, y la ficha
+está dibujando la prueba dos centímetros más arriba. Medido el 19/08/2026 en QA, producto 19286 de
+Hipercor, variante 204211: la serie da `8,00 € (04/08)` → `4,00 € (17/08)` y la ficha declara
+`trackedDays = 12`. Otros dos de la misma tanda: 19253 (6,40 → 4,00) y 19417 (5,60 → 4,00).
+
+**Lo estructural, que es el motivo de escribirlo aquí.** Toda la red construida alrededor de la
+honestidad compara **representaciones entre sí**: `deal-rule-paridad.spec.ts` compara TS contra SQL,
+`revisor-espejo-honestidad` compara las tres superficies, los casos U26–U26d comprueban que el
+texto **cite** su cifra y que el badge cuadre con el descuento. Nada compara una **afirmación**
+contra los **datos que describe**. Por eso la fuente única puede estar impecable —lo estaba, #489 la
+había dejado exhaustiva y con su spec derivado del tipo— y el resultado ser falso igual. La lección
+de #473 era «compartir la función no basta»; esta es la siguiente: **coincidir tampoco basta**.
+
+Y explica por qué escapó tanto tiempo: el texto lo introdujo #436 en la v0.6.0, esa versión salió
+`APTO`, y **prod lo servía** el día que se descubrió. No lo encontró ningún frente automático sino
+el operador mirando una ficha, que es exactamente el modo de fallo que la sección anterior
+describía —«el síntoma no es un test, son dos pantallas afirmando cosas distintas»— con una vuelta
+de tuerca: aquí no hacían falta dos pantallas, bastaba una pantalla y su propia gráfica.
+
+**La misma frase tiene un segundo defecto, latente y por el otro lado.** «Es lo más barato que la
+hemos visto» se apoya en `recent_min`, acotado a `HONESTY_WINDOW_DAYS` (90), mientras la frase no
+lleva acotación ninguna. Hoy es cierta **por accidente**: la serie de QA arranca el 24/07/2026 y la
+ventana la cubre entera. En cuanto una prenda pase de 90 días de histórico —en prod antes que en
+QA, porque ingiere a diario desde el 07/08— habrá un punto más barato fuera de la ventana y
+seguiremos afirmando que es el más barato que hemos visto.
+
+**Consecuencia para el instrumento**, ya aplicada: el listón de `/validar-qa` gana un P0 —«un texto
+de honestidad que afirma algo que la propia gráfica de la ficha desmiente»— porque hasta ahora solo
+cubría la mentira **por exceso** (un «Oferta real» sobre un PVP inflado, una acusación sin
+cobertura) y no la **simétrica**, afirmar de menos hasta decir algo falso. El caso `U26e` obliga a
+descargar `/catalog/variants/:id/price-history` y contrastar afirmación a afirmación contra esos
+puntos, en vez de leer la pantalla.
+
 ### Un release de lunes por la mañana garantiza el P0 de procedencia (#378)
 
 Corolario operativo medido el 17/08/2026, y no es mala suerte sino calendario: en QA los diez
