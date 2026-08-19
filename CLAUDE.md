@@ -221,13 +221,31 @@ diverged three ways at once and **not one of them showed up as a red test**: the
 `unverified` in green while the ficha of the same product called it unconfirmed (28,5 % of the
 catalogue), both painted the majority verdict `reciente` green against what the card's own comment
 claimed, and the ficha greyed out the `-X %` of a first-pass `suspicious` right under its own amber
-badge. The condition now lives once, in `tonoDelDescuento()` / `tonoDelPrecio()`
+badge. The condition now lives once, in `tonoDelDescuento()` / `tonoDelPrecio()` / `tonoDeLaCaja()`
 (`frontend/src/lib/honesty.ts`), and the surfaces only translate a tone into CSS variables. **Green
 is only for `real`**: `reciente` and `unverified` are the two shapes of "we can't sustain this" and
 both go neutral, while an accusation goes amber even with no credible RRP of our own. The same
 subagent audits that mirror too, so it is also what you use on any change to those two components or
 to `lib/honesty.ts` — and the symptom there is never a failing test, it is two screens disagreeing
-about the same garment. Since #436 the
+about the same garment.
+
+**The third of those functions is younger than the other two, and closing it taught the limit of the
+whole net** (#489). `PriceBlock.tsx` kept its own `const neutro = unverified || reciente` for the
+explanatory box — agreeing with `tonoDelDescuento()` by accident, watched by nothing. Two things are
+worth knowing before you touch any of this. First, **`tonoDeLaCaja()` is a sibling and not the same
+function, deliberately**: the percentage colours a figure and so depends on `sostenido`, the box
+speaks about what we know of the garment and does not. Second, all three are **exhaustive `switch`es
+with no `default`**, so a new verdict fails to compile instead of landing in a fallback branch — but
+**that guard stops at the call site**, and the call site is where it hurts. The divergence planted to
+exercise the subagent short-circuited `tonoDeLaCaja()` from `PriceBlock`, and that version passed
+**25/25 tests and a clean `tsc`** while painting the box green on 553 of QA's 800 products, under the
+text saying we cannot sustain it. The reviewer caught it; nothing else could. So the criterion is not
+"a `honesty ===` inside a `style`" — it is any boolean derived from the verdict that ends up choosing
+a colour, wherever it lives, **and following the value from the call down to the `style`**: that the
+single source is right does not prove it is being used. One surface is still outside all of this and
+it is the loudest one — the badge (`Badges.tsx`) decides its own colour, its fallback branch is the
+amber accusation, and it is typed on its own `KindHonestyBadge`, so the compile guard never reaches
+it. That is #511, open. Since #436 the
 parity spec runs a **seventh axis** (`trackedDays`) and its cartesian no longer fits in one
 round-trip — drizzle builds the query recursively and blows the stack — so it goes in batches of
 5,760. Cutting cases to avoid that would pay for the convenience with the very coverage the spec
