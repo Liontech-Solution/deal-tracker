@@ -3,7 +3,40 @@ import type { Stock } from './Badges';
 import { AlertIcon, CheckIcon, ClockIcon } from './icons';
 import type { Honesty, HonestyBasis } from '../api/types';
 import { eurStr } from '../lib/format';
-import { cifrasDeRebaja, llevaBadge, tonoDelDescuento, tonoDelPrecio } from '../lib/honesty';
+import type { TonoDescuento } from '../lib/honesty';
+import { cifrasDeRebaja, llevaBadge, tonoDeLaCaja, tonoDelDescuento, tonoDelPrecio } from '../lib/honesty';
+
+/**
+ * Cómo se traduce a CSS el tono de la caja explicativa. Aquí no se DECIDE nada: qué tono le toca a
+ * cada veredicto lo dice `tonoDeLaCaja()` y esta tabla solo lo pinta (#489). Si en este fichero
+ * vuelve a aparecer un booleano derivado de `honesty`, es la divergencia volviendo.
+ */
+const CAJA: Record<
+  TonoDescuento,
+  { fondo: string; borde: string; icono: string; texto: string; Icono: typeof ClockIcon }
+> = {
+  neutro: {
+    fondo: 'var(--surface-2)',
+    borde: 'var(--border)',
+    icono: 'var(--text-faint)',
+    texto: 'var(--text-muted)',
+    Icono: ClockIcon,
+  },
+  warn: {
+    fondo: 'var(--warn-soft)',
+    borde: 'color-mix(in srgb,var(--warn) 30%,transparent)',
+    icono: 'var(--warn-text)',
+    texto: 'var(--warn-text)',
+    Icono: AlertIcon,
+  },
+  good: {
+    fondo: 'var(--good-soft)',
+    borde: 'color-mix(in srgb,var(--good) 30%,transparent)',
+    icono: 'var(--good-text)',
+    texto: 'var(--good-text)',
+    Icono: CheckIcon,
+  },
+};
 
 interface Props {
   price: string | null;
@@ -37,9 +70,10 @@ export function PriceBlock({
   const suspicious = honesty === 'suspicious';
   const unverified = honesty === 'unverified';
   const reciente = honesty === 'reciente';
-  // `reciente` se pinta con el mismo tono neutro que `unverified` (#436): los dos son «no podemos
-  // sostenerlo», uno por el lado del elogio y otro por el de la acusación.
-  const neutro = unverified || reciente;
+  // De qué color va la caja NO se decide aquí: la condición vive en `tonoDeLaCaja()` por lo mismo
+  // que la del porcentaje vive en `tonoDelDescuento()` (#489). `null` es «la caja no se pinta», que
+  // es el único caso que la función no cubre porque lo tiene fuera del tipo.
+  const caja = honesty === 'none' ? null : CAJA[tonoDeLaCaja(honesty)];
   const priceStr = eurStr(price);
   // El tachado y el porcentaje que se PINTAN salen de la regla, no de la tienda (#436). El tachado
   // declarado no se esconde: sigue abajo, rotulado «PVP declarado», que es donde no lo avalamos.
@@ -112,22 +146,25 @@ export function PriceBlock({
           que está inflado sería acusarla de un fraude que no hemos comprobado. Se pinta en tono
           neutro —ni alerta ni visto bueno— y contando lo único que sabemos: cuánto llevamos
           mirando. */}
-      {honesty !== 'none' && (
+      {caja !== null && (
         <div
           style={{
             marginTop: 12,
             display: 'flex',
             gap: 10,
-            background: neutro ? 'var(--surface-2)' : suspicious ? 'var(--warn-soft)' : 'var(--good-soft)',
-            border: '1px solid ' + (neutro ? 'var(--border)' : suspicious ? 'color-mix(in srgb,var(--warn) 30%,transparent)' : 'color-mix(in srgb,var(--good) 30%,transparent)'),
+            background: caja.fondo,
+            border: '1px solid ' + caja.borde,
             borderRadius: 12,
             padding: '11px 13px',
           }}
         >
-          <span style={{ color: neutro ? 'var(--text-faint)' : suspicious ? 'var(--warn-text)' : 'var(--good-text)', flex: 'none', marginTop: 1 }}>
-            {neutro ? <ClockIcon size={17} /> : suspicious ? <AlertIcon size={17} /> : <CheckIcon size={17} sw={2.6} />}
+          <span style={{ color: caja.icono, flex: 'none', marginTop: 1 }}>
+            {/* Sin `sw`: cada icono trae ya por defecto el grosor que este bloque le pasaba a
+                mano (el visto, 2,6), así que repetirlo aquí solo crea un número que puede
+                separarse del de `icons.tsx` sin que nada lo note. */}
+            <caja.Icono size={17} />
           </span>
-          <span style={{ fontSize: 13, lineHeight: 1.5, color: neutro ? 'var(--text-muted)' : suspicious ? 'var(--warn-text)' : 'var(--good-text)', fontWeight: 600 }}>
+          <span style={{ fontSize: 13, lineHeight: 1.5, color: caja.texto, fontWeight: 600 }}>
             {unverified
               ? `Descuento sin confirmar: ${trackedDays === 0 ? 'acabamos de empezar a seguir esta prenda' : `llevamos ${diasStr} siguiéndola`} y su historial todavía no da para saber si el precio tachado es el que costaba de verdad.`
               : reciente

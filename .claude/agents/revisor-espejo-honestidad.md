@@ -53,19 +53,43 @@ pintan**, cada uno con su propio ternario, y eso ya divergió tres veces a la ve
 - `frontend/src/components/ProductCard.tsx` — la tarjeta del catálogo (y de la portada).
 - `frontend/src/components/PriceBlock.tsx` — la ficha del producto.
 - `frontend/src/lib/honesty.ts` — **la fuente única**: `cifrasDeRebaja()` decide *qué cifras* se
-  pintan, `tonoDelDescuento()` de qué color va el `-X %` y `tonoDelPrecio()` si el precio grande va
-  con el acento de la marca. Las dos superficies solo traducen el tono a sus variables CSS (la
-  tarjeta colorea texto; la ficha, fondo y texto).
+  pintan, `tonoDelDescuento()` de qué color va el `-X %`, `tonoDelPrecio()` si el precio grande va
+  con el acento de la marca y `tonoDeLaCaja()` de qué color va la caja explicativa de la ficha
+  —fondo, borde, icono y texto— (#489). Las dos superficies solo traducen el tono a sus variables
+  CSS (la tarjeta colorea texto; la ficha, fondo y texto).
 
 Lo que hay que comprobar, y es rápido:
 
-- **Que ninguna de las dos vuelva a decidir por su cuenta.** Un `honesty === '…'` o un
-  `cifras.sostenido` dentro de un `style` de esos dos ficheros es la divergencia volviendo. La
-  condición se importa; el color se mapea.
-- **Que un veredicto nuevo entre en `tonoDelDescuento()`**, igual que tiene que entrar en
-  `ETIQUETA_HONESTIDAD` (`components/Badges.tsx`) y en la explicación de la home. #474 es
-  exactamente ese fallo: `reciente` nació en #436 y la home siguió explicando dos etiquetas de
-  cuatro, con el rótulo copiado a mano.
+- **Que ninguna de las dos vuelva a decidir por su cuenta.** El criterio **no es** que aparezca un
+  `honesty === '…'` dentro de un `style`: así estaba escrito y así se le escapó #489, porque allí el
+  booleano se derivaba una vez arriba (`const neutro = unverified || reciente`) y se usaba abajo
+  dentro del `style`. El criterio es **cualquier booleano derivado de `honesty` o de
+  `cifras.sostenido` que acabe decidiendo un color**, viva donde viva en el fichero. La condición se
+  importa; el color se mapea. Ojo a la excepción legítima: `PriceBlock.tsx` sí deriva `unverified` /
+  `reciente` / `suspicious` para elegir **el texto** de la caja, y eso se queda — cada veredicto
+  tiene su frase y eso es copy, no color.
+- **Que un veredicto nuevo entre en `tonoDelDescuento()` y en `tonoDeLaCaja()`**, igual que tiene
+  que entrar en `ETIQUETA_HONESTIDAD` (`components/Badges.tsx`) y en la explicación de la home. #474
+  es exactamente ese fallo: `reciente` nació en #436 y la home siguió explicando dos etiquetas de
+  cuatro, con el rótulo copiado a mano. Las dos funciones de tono son `switch` exhaustivos sin
+  `default` a propósito, así que un veredicto nuevo las pone rojas en compilación en vez de caer por
+  descarte en la rama verde — pero eso solo protege a las que ya están: comprueba que no se haya
+  añadido un `default` de conveniencia para callarlas.
+- **Y mira el PUNTO DE LLAMADA, no solo la función.** Es el límite exacto de todo lo anterior, medido
+  plantando la divergencia a mala idea al cerrar #489: un
+  `const caja = reciente ? CAJA.good : CAJA[tonoDeLaCaja(honesty)]` cortocircuita la función **antes**
+  de llamarla, así que el veredicto interceptado es el único que la función nunca evalúa. Ni el
+  `switch` exhaustivo ni el spec lo ven —el spec ejercita la función, y ahí la respuesta sigue siendo
+  la correcta—, y aquella versión pasaba 25/25 tests y `tsc` limpio mientras pintaba en verde la caja
+  de 553 de los 800 productos de QA, debajo de un texto que dice que no podemos dar el visto bueno.
+  O sea: que la fuente única esté bien no prueba que se esté usando. Sigue el valor desde la llamada
+  hasta el `style`.
+- **Que las dos funciones de tono sigan de acuerdo en lo que la base puede producir.** Son hermanas
+  y no la misma a propósito (la caja no depende de `sostenido`, el porcentaje sí), y hoy coinciden
+  en los cuatro veredictos pintables. Esa coincidencia es la que se daba por supuesta sin vigilar
+  antes de #489; el spec la fija en `honesty.spec.ts`. Si un cambio las separa en un caso
+  **alcanzable**, es un hallazgo: la ficha estaría pintando la caja de un color y el porcentaje que
+  tiene encima de otro.
 - **Que el color siga siendo la afirmación.** Verde solo para `real`. `reciente` y `unverified` son
   las dos formas de «no lo podemos sostener» y van en neutro; `suspicious` va en ámbar **también
   cuando no hay PVP creíble** (la vía declarada de #354 acusa en la primera pasada, y pintar ese

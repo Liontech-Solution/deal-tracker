@@ -102,13 +102,21 @@ export type TonoDescuento = 'good' | 'warn' | 'neutro';
  * dos formas de «no lo podemos sostener», y las dos van en neutro aunque una sea buena noticia.
  */
 export function tonoDelDescuento(honesty: Honesty, sostenido: boolean): TonoDescuento {
-  // La acusación manda sobre todo lo demás, con PVP creíble o sin él: si el badge dice «Precio
-  // inflado», el porcentaje que lo acompaña no puede pintarse como si no dijéramos nada.
-  if (honesty === 'suspicious') return 'warn';
-  // El `&& sostenido` no es redundante aunque hoy `real` lo implique (una bajada real necesita un
-  // PVP creíble contra el que medirla): es la guarda que impide que un veredicto futuro se lleve el
-  // verde sin una referencia que lo sostenga.
-  return honesty === 'real' && sostenido ? 'good' : 'neutro';
+  switch (honesty) {
+    // La acusación manda sobre todo lo demás, con PVP creíble o sin él: si el badge dice «Precio
+    // inflado», el porcentaje que lo acompaña no puede pintarse como si no dijéramos nada.
+    case 'suspicious':
+      return 'warn';
+    // El `sostenido` no es redundante aunque hoy `real` lo implique (una bajada real necesita un
+    // PVP creíble contra el que medirla): es la guarda que impide que un veredicto futuro se lleve
+    // el verde sin una referencia que lo sostenga.
+    case 'real':
+      return sostenido ? 'good' : 'neutro';
+    case 'reciente':
+    case 'unverified':
+    case 'none':
+      return 'neutro';
+  }
 }
 
 /**
@@ -126,4 +134,52 @@ export function tonoDelDescuento(honesty: Honesty, sostenido: boolean): TonoDesc
  */
 export function tonoDelPrecio(honesty: Honesty): 'accent' | 'plano' {
   return honesty === 'suspicious' ? 'plano' : 'accent';
+}
+
+/**
+ * De qué color va la **caja explicativa** de la ficha: fondo, borde, icono y texto (#489).
+ *
+ * Es el último sitio donde la condición del color vivía fuera de aquí. `PriceBlock.tsx` mantenía su
+ * propio `const neutro = unverified || reciente` y con él pintaba las cuatro cosas, que es
+ * exactamente la forma que tenían las tres divergencias de #473 antes de serlo. **No había ninguna
+ * prenda mal pintada** —el reparto coincidía con `tonoDelDescuento()` en los cuatro veredictos que
+ * la caja llega a pintar— pero la coincidencia era accidental y no la vigilaba nada: ni un test
+ * comparaba las dos, y las tres divergencias de #473 tampoco daban un test rojo.
+ *
+ * **Por qué es hermana de `tonoDelDescuento()` y no la misma función**, que es la decisión que la
+ * issue pedía escribir: las dos afirman cosas distintas sobre entradas distintas. `tonoDelDescuento`
+ * colorea **una cifra**, así que depende de `sostenido` — no podemos avalar en verde un número que
+ * no tenemos contra qué medir. La caja no habla de cifras sino de **lo que sabemos de la prenda**,
+ * y eso no depende de que haya PVP creíble. Hoy la diferencia es inalcanzable (un `real` implica
+ * `honestListPrice` no nulo, así que `sostenido` es cierto siempre que el veredicto sea `real`), y
+ * ese único caso divergente —caja verde con porcentaje neutro— está fijado en el spec para que se
+ * vea por qué son dos. Reutilizar una sola ataría la caja a una entrada que no le corresponde, que
+ * es la clase de acoplamiento del que sale la siguiente divergencia.
+ *
+ * El `switch` sin `default` es deliberado, como la guarda de tipo de `llevaBadge()`: si mañana
+ * aparece un veredicto nuevo, el compilador obliga a decidir de qué lado cae. Antes caía por
+ * descarte en la rama verde, que es el peor sitio posible para que aterrice algo que nadie ha
+ * mirado. **`tonoDelDescuento()` se reescribió igual en este mismo cambio, y no por simetría**:
+ * hacer exhaustiva solo una de las dos es peor que no hacer ninguna, porque el `tsc` rojo se
+ * arregla en la caja, la hermana sigue compilando devolviendo `neutro` en silencio y el resultado
+ * es la ficha pintando la caja de un color con el `-X %` de otro justo encima — que es la tercera
+ * divergencia de #473 reintroducida por la puerta de atrás.
+ *
+ * Y `none` está **fuera del tipo** en vez de tener rama propia porque la caja no se pinta ahí: el
+ * llamante tiene que guardarlo, no recibir un color que no va a usar.
+ */
+export function tonoDeLaCaja(honesty: Exclude<Honesty, 'none'>): TonoDescuento {
+  switch (honesty) {
+    // La acusación manda, con PVP creíble o sin él: mismo criterio que el porcentaje (#354).
+    case 'suspicious':
+      return 'warn';
+    // Lo único que podemos sostener, y por eso lo único verde (#436).
+    case 'real':
+      return 'good';
+    // Las dos formas de «no lo podemos sostener»: `unverified` calla una acusación y `reciente`
+    // rebaja un elogio. Una es mala noticia y la otra buena, y las dos van igual de neutras.
+    case 'unverified':
+    case 'reciente':
+      return 'neutro';
+  }
 }
