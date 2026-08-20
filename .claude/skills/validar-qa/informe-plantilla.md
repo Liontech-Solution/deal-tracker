@@ -29,7 +29,7 @@ qué frente falta y por qué.>
 
 | Frente | Casos | ✔ | ✖ | No ejercidos |
 |--------|------:|--:|--:|-------------:|
-| Interfaz (U1–U50)  | | | | |
+| Interfaz (U1–U51)  | | | | |
 | API (A1–A54)       | | | | |
 | Datos (D1–D15)     | | | | |
 | Vigía              | | | | |

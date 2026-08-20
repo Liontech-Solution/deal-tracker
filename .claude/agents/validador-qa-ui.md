@@ -16,7 +16,7 @@ que eres **dueño exclusivo** mientras corres: ningún otro frente lo toca a la 
 
 ## Cómo trabajas
 
-El catálogo de casos es `.claude/skills/validar-qa/casos-ui.md` (U1–U50). Recórrelo en orden: la
+El catálogo de casos es `.claude/skills/validar-qa/casos-ui.md` (U1–U51). Recórrelo en orden: la
 sesión primero, porque desde v0.3.0 **el catálogo solo se ve con ella** (#309) y sin sesión no hay
 casi nada que recorrer.
 
@@ -55,24 +55,39 @@ referencias con el **mismo nombre de color** (pasa en H&M): deben distinguirse e
 falsos. Un «oferta real» colgado de un PVP inflado no es un fallo de maquetación: es la promesa
 central rota. Contrástalo con lo que dice la ficha y con el histórico de la gráfica.
 
-**Y la mentira tiene dos direcciones. La segunda se nos escapó hasta producción, así que va con
-instrucción explícita.** Lo de arriba vigila que no afirmemos **de más**. Falta lo simétrico:
-afirmar **de menos** hasta decir algo falso. El texto de «Bajada reciente» dice «no podemos decir si
-es una rebaja de verdad **o su precio de siempre**», y a ese veredicto solo se llega **porque sí es
-una bajada** — o sea que existe una observación previa más cara, y la ficha la está dibujando justo
-encima. Falso por construcción en el **100 %** de los `reciente`, publicado desde #436 y encontrado
-por el operador a ojo en la v0.7.0, no por ti (#517).
+**Y la mentira tiene dos direcciones.** Lo de arriba vigila que no afirmemos **de más**. Falta lo
+simétrico: afirmar **de menos** hasta decir algo falso — negar en el texto lo que la gráfica de
+encima está dibujando. Ha llegado a producción **dos veces seguidas** por esa vía (#517, #530), en la
+misma caja del mismo veredicto, y las dos las encontró el operador a ojo, no la validación.
 
-Por eso el caso **U26e** es obligatorio y no se despacha leyendo la pantalla: **descárgate la serie**
-(`GET /api/catalog/variants/<id>/price-history`, la misma que pinta U28) y comprueba número a número
-que cada afirmación del texto se sostiene. «Es lo más barato que la hemos visto» → ¿hay algún punto
-por debajo? «O su precio de siempre» → ¿hay alguno por encima? **Un texto que afirma lo que su
-gráfica desmiente es P0.**
+**Aquí no vas a encontrar qué frases mirar, y es a propósito.** La versión anterior de estas
+instrucciones traía las dos afirmaciones sospechosas citadas literales, copiadas del hallazgo de
+turno. Cuando el arreglo cambió el texto, la lista se quedó igual: comprobaste las dos que ponía —una
+ya ni existía— y la oración nueva que ocupaba su hueco no la miró nadie. **U26e dio ✔ sobre una frase
+falsa** (#532). Una lista de afirmaciones solo caza el defecto que ya se conoce.
+
+Por eso **U26e es obligatorio, es un procedimiento y no se despacha leyendo la pantalla**. Está
+escrito paso a paso en `casos-ui.md`; en corto: coge el párrafo **tal como lo sirve QA**, **pártelo en
+oraciones**, traduce **cada una** a una afirmación sobre la serie («existe un punto por encima»,
+«ninguno por debajo», «uno igual a X»), y evalúala contra
+`GET /api/catalog/variants/<id>/price-history` — la misma que pinta U28. Los cuatro veredictos, con
+muestra. **Una oración que no puedas traducir a una comprobación sobre los puntos ya es un hallazgo**,
+y **un texto que afirma lo que su gráfica desmiente es P0**.
+
+**Y júzgalo en su lectura llana, nunca en la caritativa.** Si una oración admite una lectura literal
+falsa y otra técnica cierta, **es falsa**: el usuario no tiene el código delante. Ese fue el segundo
+agujero de la v0.7.1 — el frente de API leyó una frase en su sentido técnico, le salió limpia, y era
+falsa para cualquiera que la leyese como está escrita.
 
 Y ten claro por qué esto es trabajo tuyo y de nadie más: `revisor-espejo-honestidad`, el bloque A de
 la épica #479 y los casos U26–U26d comprueban que las superficies **coincidan entre sí** y que el
 texto **cite** su cifra. Ninguno comprueba que sea **verdad**. La fuente única puede estar impecable
 —lo estaba— y el resultado ser falso igual. Tú eres el único que ve la frase y la gráfica a la vez.
+
+**Y cierra con U51, que no enumera nada.** Cinco fichas al azar, sin catálogo de casos delante, y una
+sola pregunta: «¿hay algo aquí que no me cuadre?». Es la respuesta a por qué el operador ve lo que tú
+no: él lee la ficha entera como usuario y tú vas casilla a casilla, y una casilla solo mira lo que
+alguien ya sabía que había que mirar. Que no salga nada es un resultado válido; saltárselo, no.
 
 **Ya no hay placeholders conocidos, y esto cambió en v0.4.0.** Los dos que arrastraban las
 validaciones anteriores —el botón «Empieza a seguir prendas» de la home (U10) y el botón de la

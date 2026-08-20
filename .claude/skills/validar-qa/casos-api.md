@@ -19,7 +19,7 @@ cod() { curl -s -o /dev/null -w '%{http_code}' "$@"; }   # solo el código
 > vuelve a pedirlo antes de escribir nada.
 
 Estos casos no repiten lo que ya cubren los e2e de `services/web/test/`. Están para lo que aquellos
-no pueden ver: que el **contrato desplegado en QA**, contra el **dato real de nueve tiendas** y con
+no pueden ver: que el **contrato desplegado en QA**, contra el **dato real de todas las tiendas registradas** y con
 Keycloak de por medio, se comporta como dice el código.
 
 ---
@@ -80,7 +80,7 @@ Keycloak de por medio, se comporta como dice el código.
 | A29 | `GET /catalog/products/abc` | **400** (`ParseIntPipe`) |
 | A30 | `GET /catalog/products/999999999` | **404** |
 | A31 | `variants[]` de A28 | ninguna repetida por `(size, color, url)`: la ficha colapsa lo que la tienda duplica (#108). Contrasta con D6 |
-| A31b | `honesty` de cada ítem de A4 y de cada variante de A28 | uno de `real` / `suspicious` / `unverified` / `none`. Un valor fuera de la unión rompe el badge de la SPA en silencio |
+| A31b | `honesty` de cada ítem de A4 y de cada variante de A28 | un valor de `HonestyVerdict` (`services/web/src/matching/deal-rule.ts`), y **la unión se lee ahí, no aquí**: este caso la transcribía y se quedó sin `reciente` cuando #436 lo añadió, así que durante meses el veredicto **mayoritario** de QA caía «fuera de la unión» y el caso solo podía dar un P0 falso o pasar sin mirar. Un valor de verdad fuera de la unión rompe el badge de la SPA en silencio; uno que la SPA no sepa pintar lo caza `llevaBadge()` (`frontend/src/lib/honesty.ts`) |
 | A31b2 | `honestyBasis` de las mismas | `'observado'` / `'declarado'` / `null`, y **`null` en todo lo que no sea `suspicious`** (`honestyBasis()`, `deal-rule.ts`; tipado en `catalog.types.ts`). Es el campo del que dependen A31d y A31e: si llegara `undefined` los dos casos se volverían incomprobables y pasarían en verde sin mirar nada |
 | A31c | Variantes de A28 con `honesty = 'unverified'` | traen `trackedDays` ≥ 0. Es el número que la ficha enseña en «llevamos N días siguiéndola», así que un `undefined` aquí sale impreso en la interfaz (#332) |
 | A31d | Variantes con `honesty = 'suspicious'` y **`honestyBasis = 'observado'`** | **ninguna** con `trackedDays < HONESTY_EVIDENCE_DAYS` (`services/web/src/matching/deal-rule.ts`, hoy 90). Acusar por *nuestro* histórico sin cubrirlo es la regresión de #332 y es **P0**. Es estructural, no una convención: sin la vía declarada, `classifyHonesty()` solo llega a `suspicious` por `superaElMaximo && cobertura >= HONESTY_EVIDENCE_DAYS` |
@@ -93,11 +93,25 @@ Keycloak de por medio, se comporta como dice el código.
 ## Autenticación
 
 Desde v0.3.0 este bloque es el que sostiene la promesa central de la versión: **sin cuenta no se ve
-ni un producto ni una tienda** (#309). Los cuatro del catálogo se suman aquí a los seis de usuario.
+ni un producto ni una tienda** (#309). Los del catálogo se suman aquí a los de usuario.
+
+**La lista de endpoints protegidos se saca del código en cada pasada, no de aquí.** Este caso la
+traía escrita y se quedó en «diez» cuando #435 añadió `/favorites` (×3): durante versiones enteras un
+módulo de usuario entero pudo haberse quedado sin candado y A36 habría dado ✔ sin mirarlo. Sácala
+así, que cuesta un comando:
+
+```bash
+grep -rn -B4 "@Controller" services/web/src --include='*.controller.ts' | grep -E "UseGuards|Controller"
+```
+
+Protegido es todo controlador con `@UseGuards(JwtAuthGuard)` —los de usuario— más el del catálogo,
+que usa `CatalogAuthGuard` (`@UseGuards`, `catalog.controller.ts`); públicos solo `health` y `config`.
+Cuenta los métodos de cada uno y **di el número que te ha salido en el informe**: si no coincide con
+el de la validación anterior, o hay módulo nuevo o hay candado caído, y las dos cosas se miran.
 
 | # | Petición | Se espera |
 |---|---|---|
-| A36 | Los **diez** endpoints protegidos **sin** `Authorization` — los seis de usuario (`/interests` ×3, `/settings/telegram` ×3) y los **cuatro del catálogo** (`/catalog/products`, `/catalog/products/:id`, `/catalog/variants/:id/price-history`, `/catalog/facets`) | **401** los diez. Un 500 significa que la estrategia JWT no se registró — **P0**. Un **200 en cualquiera de los cuatro del catálogo es P0 y hunde la versión**: es exactamente lo que #309 existe para impedir |
+| A36 | **Todos** los endpoints protegidos que acabas de enumerar, **sin** `Authorization` | **401 todos**. Un 500 significa que la estrategia JWT no se registró — **P0**. Un **200 en cualquiera de los del catálogo es P0 y hunde la versión**: es exactamente lo que #309 existe para impedir. Un **200 en uno de usuario es P0 igual**, y además filtra datos de otra persona |
 | A37 | Con `Authorization: Bearer basura` | **401**, no 500 |
 | A38 | `GET /interests` con token válido | 200 y un array (vacío o no) |
 | A52 | `GET /health` y `GET /config` **sin** `Authorization` | **200** los dos. Si el candado se los hubiera llevado por delante, la SPA no podría ni ofrecer login: la página de acceso quedaría muerta y nadie podría entrar — **P0** |

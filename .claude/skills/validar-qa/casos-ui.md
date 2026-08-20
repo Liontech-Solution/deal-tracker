@@ -49,7 +49,7 @@ en casi todos los casos; ahora no, porque sin ella no hay catálogo que recorrer
 | U7 | Escribir en el buscador y enviar | navega a `/catalogo?q=…` con el término aplicado |
 | U8 | Pulsar una sugerencia (`botas`) | misma navegación con ese término |
 | U9 | Tarjeta «Ropa» y tarjeta «Zapatería» | `/catalogo?section=ropa` y `?section=zapateria`, con resultados |
-| U10b | Panel «Dos etiquetas, y cuándo no ponemos ninguna» | enumera **tres** estados —«Oferta real», «Precio inflado» y «Sin etiqueta»— y son los mismos que el catálogo puede enseñar hoy. Es el caso que faltaba: hasta #332 este panel no lo ejercía nadie, y explicaba dos etiquetas cuando los estados ya eran tres, con el ausente siendo el mayoritario (en prod, 15.968 prendas sin etiqueta frente a 335 ofertas reales). Que la home describa un estado que el producto ya no tiene —o se calle uno que sí— es **P1**: es la promesa de honestidad explicada mal, y se pudre en silencio igual que se pudrió U10 |
+| U10b | Panel de la home que explica las etiquetas | **no cuentes los estados contra este caso: cuéntalos contra la fuente**, porque este caso ya caducó una vez por enumerarlos (decía «tres estados» y los nombraba, y desde #436/#474 son **cuatro** — faltaba justo el mayoritario, «Bajada reciente»). Lo verificable: el panel enumera exactamente lo que declara el array `VEREDICTOS` (`HomePage.tsx`), y ese array cubre **todos** los veredictos que el catálogo puede pintar hoy (`HonestyVerdict`, `services/web/src/matching/deal-rule.ts`) más la fila del «cuando no lo sabemos». Comprueba también que el **encabezado** cuadre: cuenta rótulos —los que pasan `llevaBadge()`— y la fila del «sin etiqueta» no es un rótulo, así que un veredicto nuevo con badge también convierte ese título en mentira. Que la home describa un estado que el producto ya no tiene —o se calle uno que sí— es **P1**: es la promesa de honestidad explicada mal, y se pudre en silencio igual que se pudrió U10 |
 | U10 | Botón «Empieza a seguir prendas» | ~~solo lanza un toast, placeholder conocido~~ **ya no lo es**: con sesión lleva a `/catalogo` (`HomePage.tsx`). ~~Sin ella lanza el login de Keycloak~~ — desde #383 el anónimo va a `/acceso`, y eso se ejerce en **U1f**, no aquí. El toast solo es alcanzable con Keycloak **desactivado**, o sea en `dev` y nunca en QA. Aquí, que estamos en el bloque con sesión (ver U5), lo que se exige es la navegación al catálogo; un toast es **P1** de verdad, no un conocido |
 
 ## U2 · Catálogo
@@ -78,15 +78,41 @@ en casi todos los casos; ahora no, porque sin ella no hay catálogo que recorrer
 | U25 | Producto con dos referencias del **mismo** nombre de color (caso H&M) | se distinguen con «· 2ª referencia», no aparecen como duplicado indistinguible |
 | U26 | Badge de honestidad | coherente con el descuento mostrado; un «oferta real» sobre un PVP inflado es **P0** — es justo el fraude que el producto existe para detectar |
 | U26b | Prenda descubierta **ya rebajada** (la tienda enseña tachado y nunca la hemos visto más cara) | **no** lleva badge «Precio inflado», y la ficha dice «Descuento sin confirmar: llevamos N días siguiéndola…» sin acusar a nadie. Un «Precio inflado» aquí es **P0**: es afirmar un fraude que no hemos comprobado (#332) |
-| U26c | Ausencia total de badges «Precio inflado» **en las siete tiendas que no publican el mínimo de 30 días** | **es lo esperado, no un hallazgo.** Desde #332 acusar por histórico propio exige 90 días cubiertos, y la serie más antigua de prod arranca el 07/08/2026: hasta **~05/11/2026** (qa ~22/10/2026) no puede haber ni uno por esa vía. Reportarlo como regresión es un P0 inventado. Lo que sí hay que comprobar es que esas prendas salen como «Descuento sin confirmar» y no como si no pasara nada |
+| U26c | Ausencia total de badges «Precio inflado» **en las tiendas que no publican el mínimo de 30 días** — todas menos C&A y Springfield; el número no se transcribe aquí porque ya caducó una vez (decía «siete» y Deditos lo dejó en ocho), sale de cruzar `available_slugs()` con quién escribe `retailer_min_30d` | **es lo esperado, no un hallazgo.** Desde #332 acusar por histórico propio exige 90 días cubiertos, y la serie más antigua de prod arranca el 07/08/2026: hasta **~05/11/2026** (qa ~22/10/2026) no puede haber ni uno por esa vía. Reportarlo como regresión es un P0 inventado. Lo que sí hay que comprobar es que esas prendas salen como «Descuento sin confirmar» y no como si no pasara nada |
 | U26d | Badges «Precio inflado» **en C&A y Springfield** | **desde #354 tiene que haberlos, y su ausencia total es un P1.** Esas dos publican el mínimo de 30 días de la Ómnibus, y esa vía no espera a los 90 días: acusa desde la primera pasada. Medido en QA el 14/08/2026 sobre datos del 10/08: **291 variantes de 89 productos**. El texto de la ficha tiene que citar la cifra —«la propia tienda declara haber vendido esta prenda a X»— y **no** decir «respecto a su historial»: eso último sobre una prenda con `trackedDays: 0` es **P0**, es afirmar lo que no sabemos |
-| U26e | **Contrastar el TEXTO de honestidad contra la gráfica que la propia ficha dibuja** | **El caso que faltaba, y por el que #517 llegó a producción.** Para al menos una prenda `reciente` y una `real`, lee la serie (`GET /api/catalog/variants/<id>/price-history`, la misma que pinta U28) y comprueba que **cada afirmación del texto se sostiene contra esos puntos**. Dos que hay que mirar sí o sí: «es lo más barato que la hemos visto» (¿hay algún punto por debajo del precio actual?) y «no podemos decir si es una rebaja de verdad **o su precio de siempre**» (¿hay algún punto por encima? si lo hay, **la frase es falsa** — y a `reciente` solo se llega porque lo hay, así que lo es siempre). **Un texto que afirma lo que su gráfica desmiente es P0**, en cualquiera de las dos direcciones. Ojo: esto **no** es lo que miran U26–U26d ni `revisor-espejo-honestidad` — esos comprueban que las superficies coincidan **entre sí** y que el texto **cite** su cifra; aquí se comprueba que sea **verdad**. La fuente única puede estar perfecta y el resultado ser falso |
+| U26e | **Contrastar el TEXTO de honestidad contra la gráfica que la propia ficha dibuja** | **Es un procedimiento, no una lista, y esa es toda la diferencia.** Este caso no nombra ni una frase del producto a propósito: su versión anterior traía las dos afirmaciones a comprobar copiadas del hallazgo de #517, así que **caducó en el mismo commit que lo arreglaba** — cambió el texto, la lista no, y U26e dio ✔ sobre la frase nueva, que era falsa igual (#530, #532). Un caso que enumera afirmaciones solo caza el defecto que ya se conoce. Se ejecuta así, **para los cuatro veredictos** y sobre muestra (ver la nota de abajo): **(a)** coge el párrafo **tal como lo sirve QA** —de la ficha en pantalla o del bundle, **nunca del fuente**—; **(b)** **pártelo en oraciones**; **(c)** por cada oración escribe qué afirma **en términos de la serie**: existe / no existe un punto por encima, por debajo, igual a X, en tal tramo; **(d)** evalúa cada una contra `GET /api/catalog/variants/<id>/price-history`, la misma serie que pinta U28; **(e)** **una oración que no puedas traducir a una comprobación sobre los puntos ya es un hallazgo** — significa que afirma algo que no podemos sostener. **Un texto que afirma lo que su gráfica desmiente es P0**, en las dos direcciones: afirmar **de más** (elogiar sin pruebas) y afirmar **de menos** (negar lo que la gráfica está dibujando). Ojo: esto **no** es lo que miran U26–U26d ni `revisor-espejo-honestidad` — esos comprueban que las superficies coincidan **entre sí** y que el texto **cite** su cifra; aquí se comprueba que sea **verdad**. La fuente única puede estar perfecta y el resultado ser falso |
 | U27 | Badge de stock | `stock` / `agotado` / `descatalogado` según el dato |
 | U28 | Gráfica de histórico | línea de precio, PVP discontinuo, punto de mínimo, y tooltip con precio y fecha en `es-ES` al pasar por encima |
 | U29 | Variante con menos de dos puntos | mensaje «Aún no hay suficiente histórico», no una gráfica vacía ni un error |
 | U30 | «Ver en \<tienda\>» | abre la ficha real de la tienda, `noopener noreferrer`. Una URL rota es **P1** por tienda |
 | U31 | Guardar desde la tarjeta del catálogo, y de ahí al aviso | **Ojo: este caso cambió en #435 y lo que describía antes ya no existe.** La tarjeta **no lleva campana**: lleva el **corazón** de favoritos (`ProductCard.tsx`, `useFavorito`), y es una decisión medida — a 200 px de rejilla dos botones de 38 px dejan 96 px al badge de honestidad y los tres rótulos lo superan. Lo verificable hoy: el corazón guarda (`POST /api/favorites`) **sin navegar** a la ficha, la prenda aparece en `/favoritos`, y **desde ahí** el botón «Avisarme si baja» abre el `FollowModal` con alcance de producto entero. Que el corazón no haga nada, o que te arrastre a la ficha, es **P1** |
 | U31b | Confirmar ese modal con «Crear aviso» | **crea el interés de verdad**: un `POST /api/interests` en `browser_network_requests` (no basta el toast), y la prenda aparece en `/seguimientos` con alcance de producto. Es la mitad que #301 pidió verificar y que ninguna validación había ejercido desde la **tarjeta**. Bórralo después, como todo lo que escribas |
+
+### Las tres condiciones de U26e
+
+Van aparte porque el caso ya falló una vez sin ellas, y cada una tapa un agujero distinto.
+
+**Los cuatro veredictos, no dos.** `real`, `reciente`, `suspicious` y `unverified`, cada uno con su
+párrafo leído entero. La versión anterior pedía «al menos una prenda `reciente` y una `real`» y dejó
+dos veredictos sin mirar nunca.
+
+**Muestra, no un ejemplo.** Con una prenda se ve una anécdota; el informe de la v0.7.1 necesitó
+**120 variantes** para poder escribir «falso en el 100 %». Pide **20 o más por veredicto** que tenga
+población en QA, repartidas entre tiendas, y **di en el informe cuántas has mirado**: un «✔ U26e» sin
+número no distingue haber comprobado de haber ojeado.
+
+**Y es obligatorio, con la muestra al alza, si la release toca los textos o la regla.** Mira el rango
+`<tag-anterior>..<tag-actual>` que ya calculaste en la Fase 0: si toca
+`services/web/frontend/src/lib/honesty.ts`, `components/PriceBlock.tsx`, `components/Badges.tsx`,
+`pages/HomePage.tsx` o `services/web/src/matching/deal-rule.ts`, U26e no se puede declarar «no
+ejercido» sin hundir el veredicto. Es el mismo disparador por diff que `qa-procedencia.sh` aplica a
+`services/scraper/`.
+
+> **Se juzga la lectura llana, nunca la caritativa.** Si una oración admite una lectura literal falsa
+> y otra técnica cierta, **es falsa**: el usuario no tiene el código delante, y lo que se valida es
+> lo que él lee. Por ahí se perdió el frente de API en la v0.7.1 — leyó «aún no la hemos visto fuera
+> de esta bajada» como «el mínimo actual no aparece repetido en el histórico», que es una lectura más
+> débil y sale limpia (#532). Ante la duda entre dos lecturas, se reporta la falsa.
 
 ## U4 · Seguir una prenda
 
@@ -136,6 +162,30 @@ validador se encuentra el caso bloqueado y sin saber por qué.
 | U48 | `browser_console_messages` al final del recorrido | sin errores. Cada uno es **P1** con su traza |
 | U49 | `browser_network_requests` al final | sin 4xx/5xx inesperados. Un 500 es **P0** aunque la pantalla se viera bien |
 | U50 | Capturas | una por pantalla visitada, adjuntas al informe como evidencia |
+
+## U7 · El cierre sin catálogo
+
+| # | Paso | Se espera |
+|---|---|---|
+| U51 | **Cinco fichas al azar, sin lista de comprobación delante**, y una sola pregunta: «¿hay algo aquí que no me cuadre?» | lo que salga. Este caso **no enumera nada, y es lo único que puede cazar lo que no está enumerado** |
+
+Va al final, después de U50 y con el recorrido ya hecho. No es relleno: es la respuesta a la pregunta
+incómoda de #532 — **por qué el P0 lo ve el operador y no el agente, dos versiones seguidas**. El
+operador mira la ficha **como usuario**: lee el párrafo entero, lo compara con el dibujo de encima y
+nota que se contradicen. El agente va caso por caso marcando casillas, y una casilla solo mira lo que
+alguien ya sabía que había que mirar.
+
+Cómo se ejerce, para que no degenere en una línea de trámite:
+
+- **Al azar de verdad**, no las cinco de U26e ni las que ya conoces por otro caso.
+- **Lee la ficha entera, en voz de usuario**: nombre, precio, tachado, badge, el párrafo de
+  honestidad, la gráfica, las tallas, el enlace a la tienda. No abras el código para explicarte nada
+  de lo que veas — en cuanto lo haces, dejas de ser el usuario y empiezas a ser caritativo.
+- **Lo que chirríe se escribe aunque no sepas de quién es la culpa.** Aquí no hay severidad
+  prefabricada: lo describes, y la Fase 5 decide. «Esto dice A y arriba pone B» es un hallazgo
+  completo.
+- **Que no salga nada es un resultado legítimo** y se dice en una línea. Lo que no vale es no
+  hacerlo.
 
 ---
 

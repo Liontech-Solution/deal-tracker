@@ -50,7 +50,13 @@ fallados, `/api/health` y `/api/config`. Además:
   no aplica y el resultado sería un falso verde.
 - **Delta desde la validación anterior.** Mira el informe más reciente de `.claude/qa-reports/` y
   saca `git log <tag-anterior>..<tag-actual> --oneline`. Eso dirige el esfuerzo: lo que cambió se
-  mira con lupa, lo demás se cubre por catálogo.
+  mira con lupa, lo demás se cubre por catálogo. **Ese rango tiene dos consumidores obligatorios, y
+  hay que pasárselo a los dos**: `qa-procedencia.sh` decide con él la severidad de la procedencia
+  (abajo), y el frente de interfaz decide con él si **U26e** es obligatorio y con cuánta muestra —lo
+  es en cuanto el rango toca los textos de honestidad o la regla que los elige, ver «Las tres
+  condiciones de U26e» en `casos-ui.md`—. Un rango que solo se usa para «mirar con lupa» es un rango
+  desaprovechado: es el disparador que habría hecho obligatorio el caso que se saltó el P0 de la
+  v0.7.1 (#532).
 
 ### La versión desplegada no es la que escribió el dato
 
@@ -105,9 +111,12 @@ Lanza los dos subagentes a la vez; ninguno toca el navegador:
 
 ## Fase 3 · Interfaz
 
-`validador-qa-ui` — catálogo `casos-ui.md`, U1–U50. **Solo**, y después de los otros dos: el
+`validador-qa-ui` — catálogo `casos-ui.md`, U1–U51. **Solo**, y después de los otros dos: el
 navegador de Playwright es un MCP único y dos agentes usándolo se pisan las pestañas. Además, saber
 ya qué tiendas están vacías evita que el frente de UI reporte como roto lo que solo es dato ausente.
+
+Y «solo» **incluye a la Fase 4**, que también necesita el navegador: no se adelanta ni se solapa con
+esta. Está escrito allí abajo con lo que costó descubrirlo.
 
 ### Dependencias entre frentes
 
@@ -123,6 +132,17 @@ Dos casos no se sostienen solos, y hay que saberlo antes de correr un frente ais
   tal mete un P0 falso.
 
 ## Fase 4 · Checkpoint manual de Telegram
+
+**No empieza hasta que la Fase 3 ha terminado y ha soltado el navegador.** El navegador de Playwright
+es un MCP único —la Fase 3 ya lo dice para justificar que el frente de UI vaya solo— y **eso vale
+igual para esta fase, que también lo necesita**: la pestaña de `/ajustes` tiene que quedarse abierta
+y quieta durante todo el canje, porque lo que se juzga es que la confirmación entre **sola**. El
+orden de este documento invita justo a lo contrario: la Fase 4 es lo único que necesita a una
+persona, así que adelantarla mientras corre otra cosa parece aprovechar el tiempo. No lo es. En la
+v0.7.1 se lanzaron a la vez, el subagente de UI le cambió la pantalla al operador a mitad del canje, y
+el frente de Telegram quedó en **2 de 4 casos**: el token se resolvió, pero no se pudo observar ni la
+respuesta literal del bot ni la transición sin recargar. **En una validación sin P0 eso fuerza NO
+CONCLUYENTE por sí solo** (#532).
 
 El canje del `/start` y la llegada del aviso necesitan a una persona con la app abierta. El usuario
 `test-qa` está vinculado al Telegram del operador precisamente para esto. Para y pregunta así:
@@ -191,29 +211,36 @@ este P0 es el falso positivo de #430, que en v0.5.0 apuntaba a 199 variantes cor
 A31e · **una combinación de filtros que el propio panel ofrece por encima de
 10 s** · **dato escrito por una imagen anterior cuando la release toca `services/scraper/`** (#378:
 el frente de datos estaría midiendo el scraper de la versión pasada) · **un texto de honestidad que
-afirma algo que la propia gráfica de la ficha desmiente** (#517).
+afirma algo que la propia gráfica de la ficha desmiente** (#517, #530).
 
-> Ojo con el simétrico de esto, que es un falso rojo fácil, **y desde #354 solo vale para siete de
-> las nueve tiendas**: que no aparezca ni un solo badge «Precio inflado» en ellas es lo esperado, no
+> Ojo con el simétrico de esto, que es un falso rojo fácil, **y desde #354 solo vale para las tiendas
+> que no publican el mínimo de 30 días** —todas menos C&A y Springfield; el número sale de
+> `available_slugs()` y no se escribe aquí, que ya caducó una vez—: que no aparezca ni un solo badge
+> «Precio inflado» en ellas es lo esperado, no
 > una regresión — acusar por histórico propio exige 90 días cubiertos y la serie de QA arranca el
 > 24/07/2026, así que hasta ~22/10/2026 no puede haber ninguno por esa vía. **En C&A y Springfield es
 > al revés**: publican el mínimo de 30 días de la Ómnibus, esa vía no espera a nadie, y que no haya
 > ni uno es un hallazgo. Ver U26b/U26c/U26d.
 
 > **Y la mentira tiene dos direcciones, no una.** Todo lo de arriba vigila que no afirmemos **de
-> más** —un «Oferta real» sobre un PVP inflado, una acusación sin cobertura—. La v0.7.0 encontró la
-> simétrica y no estaba cubierta: **afirmar de menos hasta decir algo falso**. El texto de «Bajada
-> reciente» dice «no podemos decir si es una rebaja de verdad **o su precio de siempre**», y a ese
-> veredicto solo se llega **porque sí es una bajada** contra `recent_min` — o sea que existe una
-> observación previa más cara, y la ficha la está dibujando dos centímetros más arriba. Es falso
-> por construcción en el **100 %** de los `reciente`, y llevaba desde #436 (v0.6.0) publicado.
+> más** —un «Oferta real» sobre un PVP inflado, una acusación sin cobertura—. Falta la simétrica, que
+> no estaba cubierta y ha llegado a producción **dos veces**: **afirmar de menos hasta decir algo
+> falso**, negando en el texto lo que la gráfica de encima dibuja. A `reciente` y a `real` solo se
+> llega **porque sí ha bajado** contra `recent_min`, o sea que existe una observación previa más cara
+> y la ficha la está pintando dos centímetros más arriba: cualquier oración que lo ponga en duda es
+> falsa **por construcción, en el 100 % de los casos**. Pasó con #517 (v0.7.0) y volvió a pasar con
+> #530 (v0.7.1), en el mismo hueco de la misma frase, cambiando el verbo.
 >
-> Así que el criterio es: **coge la serie que la ficha pinta (`/variants/:id/price-history`) y
-> comprueba que cada afirmación del texto se sostiene contra esos puntos.** No que el texto exista,
-> ni que cite su cifra, ni que las dos superficies coincidan entre sí — eso ya lo miran el bloque A
-> y `revisor-espejo-honestidad`, y **ninguno de los dos pudo ver esto**: la fuente única estaba
-> bien y el resultado era falso igual. Un veredicto prudente está bien; una frase falsa no, y en un
-> producto cuya propuesta entera es la honestidad con los precios no hay APTO que la aguante.
+> **Aquí no se cita ninguna frase concreta, y es deliberado.** Fue justo así como U26e dio ✔ sobre la
+> segunda: el caso enumeraba las afirmaciones a comprobar, la lista se copió del hallazgo anterior y
+> **caducó en el mismo commit que lo arreglaba** (#532). El criterio es un procedimiento, no una
+> lista: **coge la serie que la ficha pinta (`/variants/:id/price-history`), parte el párrafo en
+> oraciones y comprueba cada una contra esos puntos** — y en su lectura llana, no en la técnica que
+> la salva. No que el texto exista, ni que cite su cifra, ni que las dos superficies coincidan entre
+> sí: eso ya lo miran el bloque A y `revisor-espejo-honestidad`, y **ninguno de los dos pudo ver
+> esto**, porque la fuente única estaba bien y el resultado era falso igual. Un veredicto prudente
+> está bien; una frase falsa no, y en un producto cuya propuesta entera es la honestidad con los
+> precios no hay APTO que la aguante.
 
 **P1 — no bloquea, pero se abre issue.** `errors > 0` en una pasada `success` · hoja de categoría
 retirada · aviso de ritmo del vigía · `✖ [cobertura]` del vigía · error en la consola del navegador ·
@@ -371,3 +398,18 @@ envejecieron sin que nada lo delatara — una de ellas llegó a dar por buena un
 valor lo fija el código, **el caso cita el símbolo y su fichero** además del valor, para que quien
 lo lea pueda contrastarlo en diez segundos en vez de creérselo. Un caso que no se puede contrastar
 contra nada es un caso que va a caducar en silencio.
+
+**Y hay un piso más abajo, que es donde se perdió el P0 de la v0.7.1: tampoco transcribas la lista
+de cosas a verificar.** Un valor copiado caduca cuando cambia el valor; **una lista de afirmaciones
+copiada caduca en el mismo commit que arregla el defecto**, que es peor, porque justo entonces el
+caso da verde. Pasó con U26e: enumeraba las dos frases sospechosas del hallazgo anterior, el arreglo
+quitó una y puso otra en su hueco, se comprobaron las dos de la lista —una ya ni existía— y nadie
+miró la nueva, que era falsa igual (#532). Un caso que enumera solo caza el defecto que ya se conoce.
+
+El criterio, entonces, tiene dos mitades: **lo que el código fija se cita, y lo que hay que
+comprobar se deriva**. Si un caso te da la lista hecha, sospecha; si te da el procedimiento para
+sacarla del artefacto desplegado en cada pasada, está bien escrito. Cuatro se han arreglado por esto
+en la v0.7.2 y **el patrón vuelve a aparecer solo**: cuando escribas un caso nuevo a partir de un
+informe, pregúntate si dentro de tres versiones seguirá siendo verdad, o si solo describe el último
+fallo. Y deja al menos un caso que **no enumere nada** (U51): es lo único que puede cazar lo que
+ninguna lista contiene.
