@@ -390,8 +390,8 @@ dos llevan a concluir lo contrario de lo que pasa: el **preflight `OPTIONS` no p
 cualquier origen, incluso uno inventado—, y el dato bueno es el claim `allowed-origins` del propio
 token. Y **sin navegador no hay CORS**: `.claude/qa-login.py` hace exactamente el mismo flujo que la
 SPA (Authorization Code + PKCE, mismo client, mismo redirect URI) y funciona, así que el frente de
-API de `/validar-qa` puede pasar sus 51 casos autenticados en verde con el login roto para todo el
-mundo. Es justo el punto ciego que obliga a que el frente de UI se ejerza en un navegador de verdad.
+API de `/validar-qa` puede pasar **todos** sus casos autenticados en verde con el login roto para todo
+el mundo. Es justo el punto ciego que obliga a que el frente de UI se ejerza en un navegador de verdad.
 
 **Y ese Keycloak no lo gobierna ninguno de los dos repos de este proyecto.** Vive en un tercero —
 `open-liontechsolution/toolsuite-platform-gitops`, path `apps/security/keycloak`, chart `keycloakx`,
@@ -4766,6 +4766,53 @@ probable que arreglar la regla sea lo que haga que el texto se escriba solo. La 
 la de #354 —una segunda vía de evidencia que no es nuestra serie sino una observación concreta—, con
 la cautela de que **una sola observación al PVP no descarta el diente de sierra**: el caso de Cacles,
 con dos puntos iguales separados once días, es mucho más fuerte que un punto suelto.
+
+**Resuelto el 20/08/2026 (#532 y #530), y con una corrección a lo de arriba.** El párrafo anterior
+apostaba a que la tercera redacción no se podría escribir sin arreglar antes la regla de #531. **Se
+pudo, y el dato que lo permitió no estaba medido.** Remedidas las mismas 120 variantes contra QA:
+además del 120/120 por encima, **0/120 tienen ningún punto por debajo** del precio actual —o sea que
+«es lo más barato que la hemos visto» se sostiene y esa mitad de la frase nunca fue el problema— y,
+sobre todo, **las 120 tienen exactamente un valor distinto antes de la bajada, y 112 lo han visto una
+sola vez**. Ahí está el hueco real: lo que no sabemos no es *si* la vimos más cara —lo sabemos
+siempre— sino si ese precio era el **habitual**, porque el 93 % descansa en una única observación. La
+frase pasa a «Llevamos poco tiempo mirándola, así que todavía no sabemos si el precio de antes era el
+habitual o un pico puntual», que es verdadera con la regla de hoy **y lo seguiría siendo con la de
+#531**. Lección transferible: cuando una frase sale falsa dos veces, la pregunta no es cómo decir
+mejor lo mismo, es **cuál es exactamente la afirmación que el dato sí sostiene** — y eso se contesta
+midiendo, no redactando.
+
+**El test también había caducado por enumerar, y eso es lo que cierra el argumento.** La guarda que
+#517 dejó en `honesty.spec.ts` era una regex negativa con las tres redacciones falsas ya conocidas
+(`precio de siempre|precio habitual|no sabemos si ha bajado`). La frase de #530 no encaja en ninguna:
+**pasó en verde**. O sea que el patrón no es una debilidad del catálogo de casos de `/validar-qa`,
+es una debilidad de cualquier comprobación escrita a partir de un informe — vale igual para un test
+en código. La guarda nueva fija **la forma del error** (una negación y un «visto» en la misma
+oración), no las frases, y se ejerció plantando la de #530: falla esa y solo esa.
+
+**Y el barrido confirmó que no era un caso suelto: cinco casos más caducados por enumerar.** El que
+importa es **A36**, el caso que comprueba que los endpoints protegidos devuelven 401 sin token:
+enumeraba **diez** y desde #435 son **trece**, porque `/favorites` (×3) nunca entró en la lista. Un
+módulo de usuario entero podía haberse quedado sin candado y el caso habría dado ✔ sin mirarlo — es
+exactamente el agujero de #309 que ese caso existe para tapar. Los otros cuatro: `A31b` enumeraba la
+unión de `honesty` sin `reciente` (o sea que el veredicto **mayoritario** de QA caía «fuera de la
+unión» desde #436), `U10b` decía «tres estados» cuando desde #474 son cuatro, `U26c` decía «siete
+tiendas» cuando Deditos las dejó en ocho, y el propio prompt del agente de API decía `A1–A53`
+habiendo `A54`. **La regla queda con dos mitades**: lo que el código fija se **cita** (#343), y lo
+que hay que comprobar se **deriva** del artefacto desplegado en cada pasada (#532). Y U26e pasa a
+ser un procedimiento —párrafo tal como lo sirve QA, partido en oraciones, cada una traducida a una
+afirmación sobre la serie, y *una oración no traducible ya es un hallazgo*—, con los cuatro
+veredictos, muestra de 20+ y disparador por diff. La corazonada del párrafo anterior sobre el cierre
+sin catálogo se implementó tal cual: es **U51**.
+
+**Un segundo hueco de la misma skill, y este puede tumbar una promoción él solo.** La Fase 4
+(checkpoint manual de Telegram) necesita el navegador y la Fase 3 lo tiene ocupado: **Playwright es
+un MCP único**. La skill ya lo sabía —lo dice en la Fase 3 para justificar que el frente de UI vaya
+solo— pero solo lo aplicaba *entre subagentes*, y el orden del documento invita a adelantar la Fase 4
+mientras corre otra cosa, porque es lo único que necesita a una persona. Al lanzarlas a la vez en la
+v0.7.1 el subagente de UI le cambió la pantalla al operador a mitad del canje: el token se resolvió,
+pero no se pudo observar ni la respuesta literal del bot ni la transición sin recargar, y el frente
+quedó en **2 de 4 casos**. En una validación sin P0 eso fuerza `NO CONCLUYENTE`, no `APTO`. Queda
+escrito en la Fase 4: empieza cuando la Fase 3 ha terminado **y ha soltado el navegador**.
 
 ### Un release de lunes por la mañana garantiza el P0 de procedencia (#378)
 
