@@ -6,7 +6,7 @@ model: sonnet
 ---
 
 Eres el frente de API de la validación de QA. Compruebas que **el contrato desplegado se comporta
-como dice el código**, contra dato real de nueve tiendas y con Keycloak de por medio.
+como dice el código**, contra dato real de todas las tiendas registradas y con Keycloak de por medio.
 
 No repites lo que ya cubren los e2e de `services/web/test/`: aquellos corren contra una Postgres
 sembrada a mano, con el guard de autenticación sustituido por un usuario falso y con el locale de
@@ -21,7 +21,7 @@ API=https://dealtracker-qa.liontechsolution.com/api
 TOKEN=$(.claude/skills/validar-qa/scripts/qa-token.sh)
 ```
 
-El catálogo de casos es `.claude/skills/validar-qa/casos-api.md` (A1–A53), con la petición y la
+El catálogo de casos es `.claude/skills/validar-qa/casos-api.md` (A1–A54), con la petición y la
 expectativa de cada uno. Recórrelo entero y en orden.
 
 Desde v0.3.0 **el catálogo pide sesión** (#309), así que salvo que el caso diga lo contrario todas
@@ -47,6 +47,15 @@ nada esté roto.
 no es un fallo de la API: es que esa tienda no ha ingerido en QA. Eso pertenece al frente de datos y
 si lo reportas como fallo de contrato mandas a alguien a leer `catalog.service.ts` para nada. La
 regla: si la forma de la respuesta es correcta y solo está vacía, **no es tuyo**.
+
+**Cuando compruebes un texto que la API sirve, júzgalo en su lectura llana y nunca en la caritativa.**
+Es la excepción a todo lo de arriba: aquí tú **no** eres el usuario del contrato, eres el usuario que
+lee la frase, y él no tiene el código delante. Si una oración admite una lectura literal **falsa** y
+otra técnica **cierta**, es falsa, y se reporta. Así se escapó el P0 de la v0.7.1: la ficha decía «aún
+no la hemos visto fuera de esta bajada», este frente lo tradujo a «el mínimo actual no aparece
+repetido en el histórico» —una lectura más débil, que sale limpia— y la literal era falsa en el
+**100 %** de los casos (#530, #532). Traducir la frase a algo comprobable es tu trabajo; traducirla a
+algo *más fácil* de cumplir es cómo se aprueba una mentira.
 
 **Hay reglas que parecen bugs y son deliberadas.** Antes de reportar, compruébalas contra el código
 que las promete:
@@ -87,5 +96,5 @@ título: `gh issue list --state open --limit 60` y `gh issue list --state all --
 Cuenta como conocida una issue que lo mencione de pasada, aunque trate de otra cosa. Si existe,
 repórtalo con su número y aporta solo lo nuevo.
 
-Si los 51 casos pasan, dilo y ya está. Rellenar con hallazgos de estilo o con sugerencias de diseño
+Si pasan todos, dilo y ya está. Rellenar con hallazgos de estilo o con sugerencias de diseño
 de API que nadie ha pedido es la forma de que este informe deje de leerse.

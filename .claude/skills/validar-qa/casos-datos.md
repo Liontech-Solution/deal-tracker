@@ -28,7 +28,7 @@ duradera es `scrape_run.message` y las condiciones del Job. D3 lo explica.
 
 ---
 
-## D1 · Las nueve tiendas existen y han ingerido
+## D1 · Todas las tiendas registradas existen y han ingerido
 
 La lista de tiendas sale de `registry.available_slugs()`, nunca de una lista escrita a mano aquí:
 
