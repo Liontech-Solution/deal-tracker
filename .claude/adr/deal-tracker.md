@@ -4717,6 +4717,56 @@ spec y bajo `revisor-espejo-honestidad`. Los tests fijan **la propiedad, no la r
 la cadena entera solo diría que el texto es el que alguien escribió, que es exactamente lo que ya se
 creía de la frase anterior.
 
+**Y se reabrió al día siguiente, en la misma frase (#530, 20/08/2026).** Esto es lo que de verdad
+merece quedar escrito, porque invalida la conclusión optimista de arriba.
+
+El arreglo quitó «o su precio de siempre» y puso en su lugar «…porque **aún no la hemos visto fuera
+de esta bajada**». Es falsa **por la misma construcción y en la misma proporción**: a `reciente` solo
+se llega porque existe una observación previa estrictamente más cara, y esa observación **es**
+haberla visto fuera de la bajada. Medido en la validación de la v0.7.1 sobre **120 variantes
+`reciente`** con dos o más puntos, repartidas por las 10 tiendas y contrastadas contra
+`/catalog/variants/:id/price-history`: **120/120 (100 %)** tienen al menos un punto por encima del
+precio actual, y 17 tienen dos o más. El peor caso es Cacles, producto 18166 / variante 194665:
+`64,90 € (04/08)` → `64,90 € (15/08)` → `45,43 € (17/08)`, con el tachado de la tienda en 64,90 €.
+La vimos **dos veces**, a lo largo de once días, fuera de la bajada.
+
+**Por qué la red falló otra vez, que es lo estructural.** El caso `U26e` se creó el 19/08 exactamente
+para esto y dio **✔** sobre la frase falsa. No por descuido: el caso **enumera** qué afirmaciones
+comprobar —«es lo más barato que la hemos visto» y «o su precio de siempre»— y esa lista se copió
+del hallazgo de #517. Con la v0.7.1 desplegada las dos casillas salen bien (la primera es cierta, la
+segunda ya no está en el texto) y la oración nueva, que ocupa el hueco de la que se fue, no la miró
+nadie porque no estaba en la lista. El frente de API llegó al mismo sitio por otro camino: verificó
+«aún no la hemos visto fuera de esta bajada» leyéndola como «el mínimo actual no aparece repetido en
+el histórico», que es una lectura técnica más débil, y con ella sale limpia.
+
+O sea que **el caso caducó en el mismo commit que arreglaba el defecto**. Es la trampa de #343 un
+piso más abajo, y con un objeto nuevo: allí se transcribió un valor que el código fija; aquí se
+transcribió **la lista de cosas a comprobar**. Un caso que enumera afirmaciones solo puede cazar el
+defecto que ya se conoce. La lección de esta sección era «coincidir no basta, hay que contrastar lo
+que el texto afirma»; la de esta coda es que eso hay que aplicarlo **al texto entero, oración a
+oración, cada vez que el texto cambie**, y no a la lista de afirmaciones que traía la issue anterior.
+Queda abierto como #532 con `prioridad-1`, e incluye la parte incómoda: el defecto lo encontró el
+operador a ojo **las dos veces**, porque él lee el párrafo como usuario y el agente marca casillas.
+Puede que a la validación le falte un cierre deliberadamente **sin catálogo** —cinco fichas al azar y
+la pregunta «¿hay algo aquí que no me cuadre?»—, porque un caso que no enumera nada es el único que
+puede cazar lo que no está enumerado.
+
+**Y hay una causa de fondo que explica por qué esta frase concreta sale mal dos veces (#531).**
+`classifyHonesty()` decide entre `real` y `reciente` con **un solo criterio**, la cobertura
+(`trackedDays >= REAL_EVIDENCE_DAYS`, `deal-rule.ts:286`). Eso mide **cuánto tiempo llevamos
+mirando**, no **qué hemos visto** — y hay un caso donde lo visto es justo la prueba que el umbral
+pide: la prenda observada **por nosotros al precio que la tienda tacha**, y después más barata.
+Medido en la misma tanda: **81 de 120 (67,5 %)** de esos `reciente` tienen un punto propio a
+`listPrice`. No es un caso de esquina, son dos de cada tres.
+
+La consecuencia es que la regla **obliga a la caja a decir «no sabemos» sobre prendas de las que sí
+sabemos**, y cada redacción que intenta explicar ese «no sabemos» acaba negando lo que la gráfica
+dibuja. Dos intentos, dos frases falsas. Antes de escribir una tercera conviene mirar #531: es
+probable que arreglar la regla sea lo que haga que el texto se escriba solo. La forma candidata es
+la de #354 —una segunda vía de evidencia que no es nuestra serie sino una observación concreta—, con
+la cautela de que **una sola observación al PVP no descarta el diente de sierra**: el caso de Cacles,
+con dos puntos iguales separados once días, es mucho más fuerte que un punto suelto.
+
 ### Un release de lunes por la mañana garantiza el P0 de procedencia (#378)
 
 Corolario operativo medido el 17/08/2026, y no es mala suerte sino calendario: en QA los diez
