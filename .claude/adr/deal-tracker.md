@@ -4814,6 +4814,107 @@ pero no se pudo observar ni la respuesta literal del bot ni la transición sin r
 quedó en **2 de 4 casos**. En una validación sin P0 eso fuerza `NO CONCLUYENTE`, no `APTO`. Queda
 escrito en la Fase 4: empieza cuando la Fase 3 ha terminado **y ha soltado el navegador**.
 
+**Cerrado y verificado en la v0.7.2 (20/08/2026), y esta vez lo cazó la red y no el operador.** La
+tercera redacción se contrastó con el procedimiento derivado, no con una lista: párrafo del bundle
+desplegado, partido en oraciones, cada una evaluada contra `/catalog/variants/:id/price-history`
+sobre **900 variantes con veredicto de 9 tiendas** (`reciente` 469, `real` 350, `suspicious` 81).
+**0 incumplimientos**, y la afirmación nueva sale además *respaldada* por el dato en vez de
+meramente no desmentida: **400 de 469** vieron el precio inmediatamente anterior una sola vez y
+**407 de 469** tienen todas sus observaciones previas dentro de un único día. De propina, el corte
+de #436 sale sin un solo solape —`reciente` abarca `trackedDays` 4–13 y `real` 14–26— y las **223
+variantes `suspicious`** de C&A y Springfield, revisadas al completo y no por muestreo, son todas
+`declarado` con su mínimo de 30 días por debajo del precio actual, cero `observado`. O sea que la
+frase de arriba —«el defecto lo encontró el operador a ojo las dos veces»— deja de ser cierta a la
+tercera, que era exactamente el objetivo de #532.
+
+**Pero el procedimiento tiene un modo de fallo simétrico al de enumerar, y se estrenó el mismo día.**
+El frente de interfaz de la v0.7.2 levantó como P1 que «la caja de honestidad desaparece» en tres
+fichas. No desaparece: esas tres son **`honesty: 'none'`** con `trackedDays = 0`, y `none` es el
+**cuarto estado, deliberado** — `PriceBlock.tsx:88` corta la caja para `none` a propósito y la
+leyenda de la home lo explica («si acabamos de empezar a seguir una prenda… no la etiquetamos»).
+Enumerar de menos hace que el caso **calle**; derivar sin conocer el dominio hace que **grite**. Las
+dos rompen el instrumento, porque un frente que produce falsos positivos se empieza a leer por
+encima y entonces el hallazgo verdadero de la semana siguiente tampoco se lee. La distinción
+`none` ≠ `unverified`-sin-texto no está escrita en ningún caso, y por eso se redescubre a mano.
+
+### La red de la honestidad tenía un quinto eje, y no es la regla sino a qué variante se le aplica (#541)
+
+Los cuatro espejos conocidos —#375 (la constante repetida), #473 (el color decidido en cada
+superficie), #489 (la tercera función y su call site), #511 (el badge, abierto)— son **la misma
+forma**: dos superficies reciben **los mismos datos** y llegan a conclusiones distintas. La v0.7.2
+encontró el eje que faltaba, que es el contrario: las superficies aplican **la misma regla, sin
+divergencia ninguna**, y difieren en **qué variante están describiendo**.
+
+- **La tarjeta** habla de la **variante representativa**: la más barata *con stock*, que es lo que
+  #402 dejó atado (`price_repr`).
+- **La ficha** abre en la **primera del array que esté disponible** (`ProductPage.tsx:110`,
+  `variants.find(available) ?? variants[0]`), y `available()` es `!delisted && inStock !== false`
+  (`lib/variants.ts:40`): **no mira ni el precio ni el veredicto**. Es orden de array.
+
+Las dos reglas coinciden solo por casualidad. Medido sobre las tarjetas **con veredicto** de las 9
+tiendas con catálogo: **5 de 170 (2,9 %)** enseñan un veredicto que no es el de la variante en la que
+su propia ficha abre, y entre los productos **multicolor** son **4 de 29 (13,8 %)**. Las cinco van en
+la misma dirección —la tarjeta promete más de lo que la ficha enseña al abrir— y tiene que ser así,
+porque la tarjeta elige la más barata con stock, o sea la que más probabilidades tiene de llevar
+rebaja: `real→unverified` ×3, `real→none` ×1, `reciente→suspicious` ×1.
+
+El caso que lo explica mejor **no es multicolor**, y por eso hay que fijarse: `p5572` (C&A,
+«Pantalón de tela - estampado»), **un solo color**, tres tallas. La 146 cuesta 15,99 € con un mínimo
+de 30 días declarado por la tienda de 13,59 € → `suspicious`/`declarado`; las tallas 158 y 164
+cuestan 9,99 € → `reciente`. La tarjeta pinta «Bajada reciente · desde 9,99 €» y la ficha abre en la
+146 con **«Precio inflado» a 15,99 €**. Las dos son **ciertas de su variante**; lo que falla es que
+cada pantalla eligió una distinta para hablar de la misma prenda. Que el brief exija seguir el
+precio **por talla** es justo lo que garantiza que este caso exista y no sea de esquina.
+
+**Lo estructural.** `revisor-espejo-honestidad` compara las superficies entre sí y el procedimiento
+de U26e contrasta cada afirmación contra su serie; **ninguno de los dos puede ver esto**, porque cada
+superficie es internamente coherente y su texto es verdadero de los datos que recibió. La cadena de
+lecciones queda así: #473 «compartir la función no basta», #517 «coincidir tampoco basta, hay que
+contrastar contra el dato», y ésta: **contrastar contra el dato tampoco basta si cada superficie
+contrasta contra un dato distinto**. La pregunta que faltaba no es *¿dicen lo mismo?* ni *¿es
+verdad?*, sino **¿hablan de la misma prenda?**
+
+Agravante de presentación que conviene arreglar a la vez: **la tarjeta no pinta `colorRepr`**. El
+campo viaja en la API y está en `api/types.ts:52`, pero `ProductCard.tsx` no lo usa en ninguna parte.
+Así que el usuario no tiene forma de saber a qué color pertenece el «desde» que le enseñan, y
+cualquier elección de variante que haga la ficha le va a parecer arbitraria.
+
+### Una consulta lenta del catálogo no se queda en lenta: se lleva la única réplica (#540)
+
+Descubierto de rebote en la validación de la v0.7.2 y **bajo carga generada por la propia
+validación** —dos subagentes y un muestreo a la vez—, no con tráfico orgánico. Eso acota lo que se
+puede afirmar, no lo que se puede aprender: la cadena es real y está entera en los logs del
+contenedor muerto.
+
+1. Una consulta del **camino vivo** de #523 cruza el `statement_timeout` de **30 s** que pone la
+   propia app (`database.module.ts:42`, `postgres(url, { max: 10, connection: { statement_timeout:
+   30_000 } })`; la base viene con `statement_timeout = 0`). → 8 × `canceling statement due to
+   statement timeout`.
+2. Al cancelarse se cae la conexión y con ella el pool → **238 × `CONNECTION_ENDED`**.
+3. Y entonces falla el **upsert de `app_user`**, que no es una pantalla sino el peaje de **toda**
+   petición autenticada → **116 × `Failed query: insert into "app_user"`**. Aquí es donde un
+   problema del catálogo se convierte en un problema de todo.
+4. `/api/health` hace `SELECT 1` contra esa misma Postgres (`health.controller.ts`), así que también
+   cae → **503**.
+5. Liveness con `timeoutSeconds: 1`, `periodSeconds: 20`, `failureThreshold: 3` → 60 s después,
+   `Container web failed liveness probe, will be restarted`. Las peticiones en vuelo salen en **502**.
+
+**Lo que lo hace estructural y no una anécdota de laboratorio**: los **tres entornos llevan
+configuración idéntica** —1 réplica, `cpu: 500m` / `256Mi`, liveness y readiness con `timeoutSeconds:
+1`— y comparten **la misma base** (`platform-postgres-dev`), así que el trabajo pesado de un entorno
+es CPU que los otros no tienen. Y el paso 1 engancha con #523, cuyo suelo **sube monótonamente con
+cada pasada**: un suelo que crece y un tope fijo de 30 s se cruzan solos, sin que nadie despliegue
+nada. Con QA tranquila `/api/health` responde 200 en 0,07–0,23 s y no hay reinicios, así que esto no
+es un servicio roto: es un modo de fallo bajo contención, con la causa raíz en otra issue.
+
+Dos decisiones de diseño que la cadena deja a la vista, por si se tocan: **la liveness pregunta por
+la base**, lo que convierte cualquier problema de la Postgres compartida en un reinicio que no
+arregla nada de la base (la readiness sí quiere saberlo; la liveness pregunta «¿sigo vivo?»); y
+`timeoutSeconds: 1` es poco para un pod con `cpu: 500m` que sirve consultas de segundos. **No se
+atribuye a esto el reinicio que prod tiene del 17/08/2026** (`exitCode 255`, `reason: Unknown`): con
+ese código y sin eventos no se puede, y darlo por confirmado sería justo el supuesto silencioso que
+esta clase de sección existe para quitar.
+
 ### Un release de lunes por la mañana garantiza el P0 de procedencia (#378)
 
 Corolario operativo medido el 17/08/2026, y no es mala suerte sino calendario: en QA los diez
