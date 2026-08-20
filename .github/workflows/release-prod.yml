@@ -1,4 +1,7 @@
 name: release-prod
+# El título del run en la lista de Actions: sin esto todos los runs se llaman igual y hay que
+# entrar en cada uno para ver qué versión movió (o intentó mover).
+run-name: release-prod ${{ inputs.version }} → producción
 
 # Promoción a PRODUCCIÓN de una versión semver que ya corre en QA.
 #
@@ -68,6 +71,10 @@ jobs:
             exit 1
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          # Cabecera del resumen del run. De aquí en adelante cada gate escribe su línea SEGÚN PASA,
+          # no al final: los cinco cortan por motivos distintos, y así cuál cortó se lee en la
+          # cabecera del run sin abrir una sola traza.
+          printf '# release-prod %s\n\n' "$VERSION" >> "$GITHUB_STEP_SUMMARY"
 
       # ------------------------------------------- GATE 0: prod solo avanza, y solo hacia lo real
       # Barato y sin checkouts, para que falle en cinco segundos. Tapa lo único que NINGÚN otro gate
@@ -95,31 +102,37 @@ jobs:
         run: |
           set -euo pipefail
 
-          if ! release=$(gh release view "$VERSION" --repo "$REPO" --json isPrerelease,isDraft 2>/dev/null); then
-            echo "::error::$VERSION no tiene GitHub Release. ¿Llegó a lanzarse el release-qa de esta versión?"
+          # El motivo se escribe una vez en `msg` y se usa dos —resumen y anotación— para que no
+          # puedan desincronizarse.
+          corta() {
+            echo "- ❌ **GATE 0** — $1" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::$1"
             exit 1
+          }
+
+          if ! release=$(gh release view "$VERSION" --repo "$REPO" --json isPrerelease,isDraft 2>/dev/null); then
+            corta "$VERSION no tiene GitHub Release. ¿Llegó a lanzarse el release-qa de esta versión?"
           fi
           if [ "$(echo "$release" | jq -r .isDraft)" = "true" ]; then
-            echo "::error::El Release de $VERSION es un borrador: no ha llegado a publicarse."
-            exit 1
+            corta "El Release de $VERSION es un borrador: no ha llegado a publicarse."
           fi
           if [ "$(echo "$release" | jq -r .isPrerelease)" = "true" ]; then
-            echo "::error::$VERSION sigue en prerelease: o no se validó, o su informe no dio APTO. El GATE 1 lo confirmará, pero no hace falta llegar hasta allí."
-            exit 1
+            corta "$VERSION sigue en prerelease: o no se validó, o su informe no dio APTO. El GATE 1 lo confirmará, pero no hace falta llegar hasta allí."
           fi
 
           latest=$(gh api "repos/$REPO/releases/latest" -q .tag_name 2>/dev/null || true)
           if [ -z "$latest" ]; then
+            echo "- ⚠️ **GATE 0** — $VERSION es release publicada, pero no hay ninguna marcada como \`latest\`: la dirección del movimiento queda sin comprobar." >> "$GITHUB_STEP_SUMMARY"
             echo "::warning::No hay ninguna release marcada como latest; no puedo comprobar la dirección. Sigo."
             exit 0
           fi
           # sort -V ordena por semver (v0.10.0 > v0.4.0, que es donde una comparación de texto
           # se equivocaría). Si la mayor de las dos no es la que se pide, se va hacia atrás.
           if [ "$(printf '%s\n%s\n' "$latest" "$VERSION" | sort -V | tail -1)" != "$VERSION" ]; then
-            echo "::error::$VERSION es anterior a la latest actual ($latest). release-prod solo avanza: para volver atrás hace falta otro camino, y no es este workflow."
-            exit 1
+            corta "$VERSION es anterior a la latest actual ($latest). release-prod solo avanza: para volver atrás hace falta otro camino, y no es este workflow."
           fi
           echo "$VERSION es release publicada y >= latest ($latest)"
+          echo "- ✅ **GATE 0** — Release publicada y $VERSION ≥ latest ($latest)" >> "$GITHUB_STEP_SUMMARY"
 
       # Este repo primero: `actions/checkout` limpia su destino, y el segundo checkout cuelga
       # dentro del árbol del primero (gitops/).
@@ -137,24 +150,27 @@ jobs:
       - name: Exigir informe de validación con veredicto APTO
         run: |
           set -euo pipefail
+          corta() {
+            echo "- ❌ **GATE 1** — $1" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::$1"
+            exit 1
+          }
           informe=".claude/qa-reports/$VERSION.md"
           if [ ! -f "$informe" ]; then
-            echo "::error::No existe $informe. Una versión sin validar no va a producción: pasa /validar-qa $VERSION y commitea su informe."
-            exit 1
+            corta "No existe $informe. Una versión sin validar no va a producción: pasa /validar-qa $VERSION y commitea su informe."
           fi
           # El veredicto es la primera línea con el formato `**Veredicto: X**` (informe-plantilla.md).
           # Se extrae y se compara ENTERO a propósito: un `grep APTO` a secas también casa con
           # "NO APTO", que es justo el caso que hay que rechazar.
           veredicto=$(grep -m1 -oP '^\*\*Veredicto: \K[^*]+(?=\*\*$)' "$informe" || true)
           if [ -z "$veredicto" ]; then
-            echo "::error::$informe no declara veredicto en el formato '**Veredicto: X**' de informe-plantilla.md"
-            exit 1
+            corta "$informe no declara veredicto en el formato '**Veredicto: X**' de informe-plantilla.md"
           fi
           if [ "$veredicto" != "APTO" ]; then
-            echo "::error::$informe dice '$veredicto', no APTO. NO APTO y NO CONCLUYENTE bloquean igual: ninguno es un aprobado."
-            exit 1
+            corta "$informe dice '$veredicto', no APTO. NO APTO y NO CONCLUYENTE bloquean igual: ninguno es un aprobado."
           fi
           echo "$informe → APTO"
+          echo "- ✅ **GATE 1** — [\`$informe\`](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/$informe) → **APTO**" >> "$GITHUB_STEP_SUMMARY"
 
       # -------------------------------------------------- GATE 2: QA tuvo que correr esa versión
       - name: Exigir que QA esté corriendo esa versión
@@ -163,10 +179,13 @@ jobs:
           qa_web=$(WEB_IMAGE="$WEB_IMAGE" yq '.images[] | select(.name == strenv(WEB_IMAGE)).newTag' "$QA_KUSTOMIZATION")
           qa_scraper=$(SCRAPER_IMAGE="$SCRAPER_IMAGE" yq '.images[] | select(.name == strenv(SCRAPER_IMAGE)).newTag' "$QA_KUSTOMIZATION")
           if [ "$qa_web" != "$VERSION" ] || [ "$qa_scraper" != "$VERSION" ]; then
-            echo "::error::QA corre web=$qa_web scraper=$qa_scraper, no $VERSION. El informe se emitió sobre lo desplegado en QA; si QA ya no lo corre, no se promueve."
+            msg="QA corre web=$qa_web scraper=$qa_scraper, no $VERSION. El informe se emitió sobre lo desplegado en QA; si QA ya no lo corre, no se promueve."
+            echo "- ❌ **GATE 2** — $msg" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::$msg"
             exit 1
           fi
           echo "QA corre $VERSION en las dos imágenes"
+          echo "- ✅ **GATE 2** — QA corre $VERSION en las dos imágenes" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Login a GHCR
         uses: docker/login-action@v3
@@ -181,11 +200,14 @@ jobs:
           set -euo pipefail
           for image in "$WEB_IMAGE" "$SCRAPER_IMAGE"; do
             if ! docker buildx imagetools inspect "$image:$VERSION" >/dev/null 2>&1; then
-              echo "::error::No existe $image:$VERSION en GHCR — ¿llegó a lanzarse el release-qa de esta versión?"
+              msg="No existe $image:$VERSION en GHCR — ¿llegó a lanzarse el release-qa de esta versión?"
+              echo "- ❌ **GATE 3** — $msg" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::$msg"
               exit 1
             fi
             echo "ok $image:$VERSION"
           done
+          echo "- ✅ **GATE 3** — las dos imágenes \`$VERSION\` siguen en GHCR" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Ascender el GitHub Release (prerelease → release)
         env:
@@ -196,6 +218,7 @@ jobs:
             --repo "${{ github.repository }}" \
             --prerelease=false \
             --latest
+          echo "- **Release ascendido a \`latest\`:** https://github.com/${{ github.repository }}/releases/tag/$VERSION" >> "$GITHUB_STEP_SUMMARY"
           # Deja escrito en las notas de dónde salió la aprobación, para que la release apunte al
           # informe y no solo al revés. Idempotente: relanzar el workflow sobre la misma versión
           # (que es un caso real — el estreno fue con v0.1.9, ya desplegada) no apila coletillas.
@@ -217,8 +240,19 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -f "$PROD_KUSTOMIZATION" ]; then
-            echo "::error::No existe $PROD_KUSTOMIZATION. Esa ruta es contrato con el repo de manifiestos (k3s-local-apps-manifests#86); si el overlay se ha renombrado, hay que arreglarlo aquí."
+            msg="No existe $PROD_KUSTOMIZATION. Esa ruta es contrato con el repo de manifiestos (k3s-local-apps-manifests#86); si el overlay se ha renombrado, hay que arreglarlo aquí."
+            echo "- ❌ **El bump de prod no se ha hecho** — $msg" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::$msg"
             exit 1
+          fi
+          # Lo que prod corría ANTES de que el `yq -i` de abajo lo pise. Es el dato que contesta «¿de
+          # qué versión venimos?», y una vez reescrito el fichero ya no está en ningún sitio: ni el
+          # Release, ni los gates, ni el commit de GitOps lo dicen.
+          prod_previa=$(WEB_IMAGE="$WEB_IMAGE" yq '.images[] | select(.name == strenv(WEB_IMAGE)).newTag' "$PROD_KUSTOMIZATION")
+          if [ -z "$prod_previa" ] || [ "$prod_previa" = "null" ]; then
+            # No corta: aquí ya está todo verificado y el bump debe seguir. Solo se dice que no se
+            # ha podido leer, en vez de escribir un «prod: → vX.Y.Z» que parece un dato.
+            prod_previa="(sin leer)"
           fi
           # yq (mikefarah v4) viene preinstalado en los runners ubuntu-latest.
           WEB_IMAGE="$WEB_IMAGE" VERSION="$VERSION" yq -i \
@@ -229,5 +263,30 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "${PROD_KUSTOMIZATION#gitops/}"
-          git commit -m "chore(prod): deal-tracker $VERSION" || { echo "sin cambios: prod ya corría $VERSION"; exit 0; }
+          git commit -m "chore(prod): deal-tracker $VERSION" || {
+            echo "sin cambios: prod ya corría $VERSION"
+            echo "- ℹ️ **prod ya corría $VERSION** — el overlay no ha cambiado, no hay commit de GitOps." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          }
           git push
+          echo "- **prod: $prod_previa → $VERSION** · [commit de GitOps](https://github.com/juanjocop/k3s-local-apps-manifests/commit/$(git rev-parse HEAD)) · ArgoCD sincroniza" >> "$GITHUB_STEP_SUMMARY"
+
+      # El resumen lo han ido escribiendo los gates de arriba; esto solo lo cierra. Va con
+      # `if: always()` para que un corte también quede rotulado —que es el caso frecuente aquí— y
+      # NO PUEDE FALLAR: si fallara convertiría un fallo atribuido en dos.
+      - name: Cerrar el resumen del run
+        if: always()
+        # Por env y no interpolado en el `run:`: `inputs.version` es texto libre, y ${{ }} dentro de
+        # un script se sustituye ANTES de que lo vea bash. Es el mismo motivo por el que el paso que
+        # valida el formato ya lo recibe así.
+        env:
+          VERSION_PEDIDA: ${{ inputs.version }}
+        run: |
+          {
+            echo
+            if [ "${{ job.status }}" = "success" ]; then
+              echo "✅ **$VERSION está en producción.**"
+            else
+              echo "❌ **$VERSION_PEDIDA NO se ha promovido a producción** (\`${{ job.status }}\`). La línea en rojo de arriba dice qué cortó; prod sigue como estaba."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

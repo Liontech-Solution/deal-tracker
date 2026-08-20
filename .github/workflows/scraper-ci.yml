@@ -115,6 +115,7 @@ jobs:
       # 30 da del orden de dos semanas aquí y una en el web. Pasado ese umbral la imagen YA NO
       # EXISTE y dev no tiene rollback: es una decisión escrita, no un olvido.
       - name: Retención de imágenes en GHCR (conserva las 30 últimas)
+        id: retencion
         if: github.event_name == 'push'
         continue-on-error: true # la limpieza nunca debe tumbar la publicación
         uses: dataaxiom/ghcr-cleanup-action@v1
@@ -129,6 +130,36 @@ jobs:
           # *versions*, no tags, y hay versions que cargan dos `v*` a la vez (#283).
           exclude-tags: latest,v*
           delete-untagged: true
+
+      # Qué tag ha salido de este run, sin abrir la traza. Y sobre todo la distinción de #61 dicha
+      # en voz alta: en un PR esto NO publica nada, así que un check verde no prueba que la imagen
+      # arm64 que el cluster necesita exista.
+      - name: Resumen del run
+        if: always()
+        # La raíz, no el `working-directory` que fija el `defaults` de este workflow: con
+        # `if: always()` esto también corre cuando el checkout no llegó a hacerse, y un cwd que no
+        # existe mata el paso antes de escribir nada.
+        working-directory: .
+        env:
+          TAG: ${{ steps.deploytag.outputs.tag }}
+          RETENCION: ${{ steps.retencion.outcome }}
+        run: |
+          {
+            echo "## Imagen"
+            echo
+            if [ "${{ job.status }}" != "success" ]; then
+              echo "- ❌ El build ha fallado: no hay imagen nueva."
+            elif [ "${{ github.event_name }}" = "push" ]; then
+              echo "- Publicada \`$IMAGE:$TAG\` en GHCR, multiarch (amd64 + arm64)."
+              # La retención lleva `continue-on-error` a propósito —la limpieza nunca debe tumbar la
+              # publicación—, y la consecuencia es que su fallo no pinta nada de rojo en ningún sitio.
+              if [ "$RETENCION" = "failure" ]; then
+                echo "- ⚠️ La retención de GHCR ha fallado (no tumba la publicación, por diseño)."
+              fi
+            else
+              echo "- PR: build de validación **solo amd64 y sin publicar**. La variante arm64 que el cluster necesita no existe hasta que esto entre en \`main\` (#61)."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # Bump GitOps: reescribe images[].newTag de deal-tracker-scraper en el repo de manifiestos
   # (juanjocop/k3s-local-apps-manifests) → ArgoCD auto-sincroniza en el cluster dev.
@@ -161,5 +192,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add deal-tracker/overlays/dev/kustomization.yaml
-          git commit -m "chore: deal-tracker-scraper ${NEW_TAG}" || { echo "sin cambios"; exit 0; }
+          printf '## GitOps (dev)\n\n' >> "$GITHUB_STEP_SUMMARY"
+          git commit -m "chore: deal-tracker-scraper ${NEW_TAG}" || {
+            echo "sin cambios"
+            echo "- ℹ️ El overlay de dev ya apuntaba a \`${NEW_TAG}\`: no hay commit." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          }
           git push
+          echo "- **dev bumpeado a \`${NEW_TAG}\`** → [commit de GitOps](https://github.com/juanjocop/k3s-local-apps-manifests/commit/$(git rev-parse HEAD)) · ArgoCD sincroniza" >> "$GITHUB_STEP_SUMMARY"
