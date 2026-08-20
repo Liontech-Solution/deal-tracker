@@ -1,4 +1,8 @@
 name: prune-prereleases
+# Solo se ve en el disparo manual: cuando lo llama `release-qa` (workflow_call) el run es suyo y
+# manda su run-name. Aun así es donde hace falta, porque el manual arranca en seco y confundir un
+# `dry_run` con un borrado real es fácil.
+run-name: prune-prereleases (techo ${{ inputs.keep }}${{ inputs.dry_run && ', en seco' || '' }})
 
 # Poda de GitHub Releases en `prerelease`, con su tag git.
 #
@@ -66,6 +70,7 @@ jobs:
       # desde `release-qa`, la versión ya está publicada y bumpeada; que la poda falle es ruido, no
       # motivo para pintar de rojo una promoción que salió bien.
       - name: Podar prereleases por encima del techo
+        id: poda
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -99,9 +104,11 @@ jobs:
 
           total=${#prereleases[@]}
           echo "prereleases vivas: $total (techo: $KEEP)"
+          printf '## Poda de prereleases\n\n- Vivas: **%s** · techo: **%s**\n' "$total" "$KEEP" >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$total" -le "$KEEP" ]; then
             echo "nada que podar"
+            echo "- Nada que podar." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
@@ -117,8 +124,16 @@ jobs:
           printf '%s\n' "${a_borrar[@]}"
           echo "::endgroup::"
 
+          # Las mismas dos listas que arriba, pero fuera del `::group::`: plegadas dentro de la traza
+          # de un `release-qa` verde no las mira nadie.
+          {
+            echo "- Se quedan (${#se_quedan[@]}): ${se_quedan[*]}"
+            echo "- Se borran (${#a_borrar[@]}): ${a_borrar[*]}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
           if [ "$DRY_RUN" = "true" ]; then
             echo "::notice::dry_run: no se borra nada. Se irían ${#a_borrar[@]}: ${a_borrar[*]}"
+            echo "- ⚠️ **En seco (\`dry_run\`): no se ha borrado nada.**" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
@@ -127,3 +142,13 @@ jobs:
             gh release delete "$tag" --repo "$REPO" --yes --cleanup-tag
           done
           echo "::notice::podadas ${#a_borrar[@]} prereleases: ${a_borrar[*]}"
+          # Sin número: la línea de arriba ya lo dice, y aquí «1 prereleases» quedaría mal.
+          echo "- ✅ Borradas de verdad, con su tag git." >> "$GITHUB_STEP_SUMMARY"
+
+      # El paso de arriba lleva `continue-on-error` a propósito, y eso tiene una consecuencia que
+      # hasta ahora no se veía: una poda que falla no pinta nada de rojo, así que desaparece dentro
+      # de un `release-qa` verde. Aquí se dice en una línea.
+      - name: Dejar dicho si la poda falló
+        if: always() && steps.poda.outcome == 'failure'
+        run: |
+          echo "- ❌ **La poda ha fallado** (no tumba la release, por diseño). Lánzala a mano cuando puedas: \`gh workflow run prune-prereleases.yml\`." >> "$GITHUB_STEP_SUMMARY"

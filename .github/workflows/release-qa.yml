@@ -1,4 +1,7 @@
 name: release-qa
+# El título del run en la lista de Actions. Sin esto los `workflow_dispatch` se llaman todos
+# igual y la versión —el único dato que los distingue— hay que ir a buscarla dentro de cada run.
+run-name: release-qa ${{ inputs.version }} (dev → QA)
 
 # Promoción a QA por versión semver. NO reconstruye: toma los sha-<7> que dev corre hoy (leídos
 # del repo de manifiestos) y les añade el tag vX.Y.Z al MISMO digest con `imagetools create`
@@ -53,6 +56,10 @@ jobs:
             exit 1
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          # Cabecera del resumen del run. De aquí en adelante cada paso escribe su línea SEGÚN PASA,
+          # no al final: así un corte a mitad deja escrito hasta dónde se llegó sin tener que
+          # arrastrar el motivo entre pasos por $GITHUB_ENV.
+          printf '# release-qa %s\n\n' "$VERSION" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Checkout repo de manifiestos (GitOps)
         uses: actions/checkout@v5
@@ -92,7 +99,11 @@ jobs:
             echo "::group::$image  $sha → $VERSION"
             # Gate: el digest de origen tiene que existir (si no, CI aún no lo publicó).
             if ! docker buildx imagetools inspect "$image:$sha" >/dev/null 2>&1; then
-              echo "::error::No existe $image:$sha en GHCR — ¿ha terminado el CI de ese commit?"
+              # El mensaje se escribe una vez y se usa dos, para que el resumen y la anotación no
+              # se desincronicen.
+              msg="No existe $image:$sha en GHCR — ¿ha terminado el CI de ese commit?"
+              printf '\n❌ **No se promociona nada** — %s\n' "$msg" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::$msg"
               exit 1
             fi
             # Copia la manifest list multiarch por digest: sin pull ni rebuild.
@@ -101,6 +112,13 @@ jobs:
           }
           promote "$WEB_IMAGE" "$WEB_SHA"
           promote "$SCRAPER_IMAGE" "$SCRAPER_SHA"
+          {
+            echo "| imagen | sha de origen (lo que corría dev) | tag publicado |"
+            echo "|---|---|---|"
+            echo "| \`$WEB_IMAGE\` | \`$WEB_SHA\` | \`$VERSION\` |"
+            echo "| \`$SCRAPER_IMAGE\` | \`$SCRAPER_SHA\` | \`$VERSION\` |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Crear GitHub Release (prerelease)
         env:
@@ -118,17 +136,20 @@ jobs:
           Commit de referencia: ${{ github.sha }}
           EOF
           )
-          gh release create "$VERSION" \
+          # `gh release create` imprime la URL del Release en stdout: se recoge para enlazarla.
+          url=$(gh release create "$VERSION" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --title "$VERSION" \
             --prerelease \
-            --notes "$notes"
+            --notes "$notes")
+          echo "- **Release (prerelease):** $url" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Auto-bump del overlay de QA (si existe)
         run: |
           set -euo pipefail
           if [ ! -f "$QA_KUSTOMIZATION" ]; then
+            echo "- ⚠️ **QA NO se ha bumpeado** — no existe \`$QA_KUSTOMIZATION\` en el repo de manifiestos. La imagen $VERSION está publicada, pero el cluster de QA sigue en lo que ya corría." >> "$GITHUB_STEP_SUMMARY"
             echo "::warning::$QA_KUSTOMIZATION aún no existe — salto el bump de QA. Créalo en el repo de manifiestos (k3s-local-apps-manifests#32) y el próximo release lo bumpeará."
             exit 0
           fi
@@ -141,8 +162,33 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "${QA_KUSTOMIZATION#gitops/}"
-          git commit -m "chore(qa): deal-tracker $VERSION" || { echo "sin cambios"; exit 0; }
+          git commit -m "chore(qa): deal-tracker $VERSION" || {
+            echo "sin cambios"
+            echo "- ℹ️ **QA ya corría $VERSION** — el overlay no ha cambiado, no hay commit de GitOps." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          }
           git push
+          echo "- **QA bumpeado** → [\`$(git rev-parse --short HEAD)\`](https://github.com/juanjocop/k3s-local-apps-manifests/commit/$(git rev-parse HEAD)) · ArgoCD sincroniza QA a $VERSION" >> "$GITHUB_STEP_SUMMARY"
+
+      # El resumen lo han ido escribiendo los pasos de arriba; esto solo lo cierra. Va con
+      # `if: always()` para que un corte a mitad también quede rotulado, y NO PUEDE FALLAR: si
+      # fallara convertiría un fallo atribuido en dos.
+      - name: Cerrar el resumen del run
+        if: always()
+        # Por env y no interpolado en el `run:`: `inputs.version` es texto libre, y ${{ }} dentro de
+        # un script se sustituye ANTES de que lo vea bash. Es el mismo motivo por el que el paso que
+        # valida el formato ya lo recibe así.
+        env:
+          VERSION_PEDIDA: ${{ inputs.version }}
+        run: |
+          {
+            echo
+            if [ "${{ job.status }}" = "success" ]; then
+              echo "✅ **$VERSION promocionada a QA.** Queda \`/validar-qa $VERSION\` y commitear su informe: sin él, \`release-prod\` la rechaza."
+            else
+              echo "❌ **release-qa $VERSION_PEDIDA no ha terminado** (\`${{ job.status }}\`). Lo escrito arriba es hasta dónde llegó."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # La versión que acaba de nacer es la enésima `prerelease` viva, y hasta #306 no se borraba
   # ninguna nunca. Se poda justo aquí porque es el momento exacto en que nace una, igual que los dos
