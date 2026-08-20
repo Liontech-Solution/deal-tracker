@@ -236,6 +236,27 @@ describe('textoDeLaCaja', () => {
     }
   });
 
+  it('ningún texto niega haber visto la prenda fuera de la bajada', () => {
+    // #530, y la razón de que este test exista aparte del de arriba: aquel enumeraba las tres
+    // redacciones falsas que ya se conocían, y la de #530 —«porque aún no la hemos visto fuera de
+    // esta bajada»— no encajaba en ninguna. **Pasó en verde.** Es la misma caducidad por enumerar
+    // que se llevó por delante el caso U26e de `/validar-qa` (#532), un piso más abajo.
+    //
+    // Lo que se fija aquí no es una frase sino la forma del error: una negación y un «visto» en la
+    // misma oración. `real` y `reciente` se alcanzan por `notify`, que exige `price < recentMin`
+    // con un punto anterior, así que **existe siempre** una observación previa más cara y negarla
+    // es falso en el 100 % de los casos (medido: 120 de 120 variantes `reciente` de QA el
+    // 20/08/2026 tienen al menos un punto por encima del precio actual).
+    //
+    // No pretende ser exhaustivo —un texto puede negar la observación previa sin usar el verbo
+    // «ver»— y por eso la red de verdad es U26e, que traduce cada oración del párrafo desplegado a
+    // una comprobación sobre la serie. Este test es el que impide que vuelva a entrar la forma que
+    // YA ha entrado dos veces.
+    for (const honesty of ['real', 'reciente'] as const) {
+      expect(TEXTOS[honesty]).not.toMatch(/\b(no|nunca|jamás)\b[^.]{0,40}\bvist[oa]\b/i);
+    }
+  });
+
   it('las afirmaciones de mínimo citan `claimDays`, no `trackedDays`', () => {
     // La segunda mitad de #517, y la que hoy NO se puede ver en QA ni en prod: `recent_min` lleva
     // el techo de la ventana de honestidad y `trackedDays` no, así que una prenda más vieja que la

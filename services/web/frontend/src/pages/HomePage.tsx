@@ -49,8 +49,14 @@ const VEREDICTOS: { kind: KindHonestyBadge; titulo?: string; texto: string }[] =
     // ficha. Dice lo mismo que `textoDeLaCaja()` sin poder compartirlo: allí la frase cita las
     // cifras de una prenda concreta y aquí explica la etiqueta en abstracto. Si se toca una, se
     // toca la otra.
+    //
+    // Y se ha tocado con #530: la duda ya no se enuncia como «no sabemos si es una rebaja o un
+    // vaivén» —que en su lectura llana pone en duda la propia bajada, que es lo único que sí
+    // afirmamos— sino como lo que de verdad no sabemos, **si el precio de antes era el habitual**.
+    // Esta copia no llevaba la cláusula falsa de #530, pero se alinea igual: dos redacciones
+    // distintas del mismo veredicto es como se llega a que una de las dos envejezca sola.
     texto:
-      'ha bajado y es lo más barato que la hemos visto desde que la seguimos, pero llevamos poco tiempo haciéndolo. Todavía no podemos decir si es una rebaja de las buenas o un vaivén de precio.',
+      'ha bajado y es lo más barato que la hemos visto desde que la seguimos, pero llevamos poco tiempo haciéndolo: todavía no sabemos si el precio de antes era el habitual o un pico puntual.',
   },
   {
     kind: 'suspicious',

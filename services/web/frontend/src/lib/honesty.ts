@@ -244,12 +244,25 @@ export function textoDeLaCaja(honesty: Exclude<Honesty, 'none'>, datos: DatosDel
           : `llevamos ${dias(datos.trackedDays)} siguiéndola`
       } y su historial todavía no da para saber si el precio tachado es el que costaba de verdad.`;
     // La bajada SÍ la afirmamos —es lo que define el veredicto— y lo que se rebaja es el elogio.
-    // Decir «o su precio de siempre» negaba la bajada que la gráfica de al lado dibuja (#517).
+    //
+    // Esta frase se ha escrito mal DOS veces, y las dos por el mismo sitio: la subordinada que
+    // explica qué es lo que no sabemos. Decía «o su precio de siempre» (#517) y luego «porque aún
+    // no la hemos visto fuera de esta bajada» (#530), y las dos niegan lo mismo — que exista una
+    // observación previa más cara—, que es justo lo que define el veredicto: a `reciente` solo se
+    // llega porque `evaluateDeal` con `compareBase: 'recent_min'` dio `notify`, y eso exige
+    // `price < recentMin` con un punto anterior. La gráfica de al lado lo está dibujando.
+    //
+    // Lo que de verdad no sabemos no es SI la vimos más cara, es si ese precio era el **habitual**.
+    // Medido en QA el 20/08/2026 sobre 120 variantes `reciente` con dos o más puntos: las 120
+    // tienen exactamente **un** valor distinto antes de la bajada, y **112 lo han visto una sola
+    // vez**. Una observación no hace un precio normal, y por eso la duda va ahí y no en la bajada.
+    // (Cuando la serie sí da para sostenerlo, el veredicto debería subir a `real`: eso es #531, y
+    // esta redacción es verdadera con la regla de hoy y con la de después.)
     case 'reciente':
       return (
         `Ha bajado de precio: es lo más barato que la hemos visto en los ${dias(datos.claimDays)} ` +
-        'que llevamos siguiéndola. Todavía no podemos decir si es una rebaja de las buenas o un ' +
-        'vaivén de precio, porque aún no la hemos visto fuera de esta bajada.'
+        'que llevamos siguiéndola. Llevamos poco tiempo mirándola, así que todavía no sabemos si ' +
+        'el precio de antes era el habitual o un pico puntual.'
       );
     // Una acusación tiene que ser comprobable, y por eso cita su base (#354). La `declarado` se
     // apoya en lo que la tienda publica de sí misma y no espera a que tengamos histórico.
