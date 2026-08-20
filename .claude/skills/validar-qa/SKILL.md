@@ -45,7 +45,21 @@ fallados, `/api/health` y `/api/config`. Además:
 
 - **Los tres tags deben coincidir.** Si no, el `release-qa` quedó a medias: **P0** y se para.
 - **Si se pidió una versión concreta** y la desplegada es otra, para y dilo. Validar una versión
-  creyendo que es otra es peor que no validar.
+  creyendo que es otra es peor que no validar. **Pero mira la hora antes de escribir el P0**: si el
+  `release-qa` acaba de terminar, lo más probable es que ArgoCD no haya sincronizado todavía y estés
+  viendo la versión **anterior**, con los tres tags coincidiendo entre sí. Eso no es un release a
+  medias, es latencia de reconciliación, y ha abierto **dos validaciones seguidas** (v0.7.1 y
+  v0.7.2). Se comprueba y se arregla en un minuto, y solo si después sigue descuadrado es P0:
+
+  ```bash
+  # ¿qué pinta el repo de manifiestos, y qué revisión lleva ArgoCD?
+  gh api repos/juanjocop/k3s-local-apps-manifests/commits --jq '.[0] | "\(.sha[0:8]) \(.commit.committer.date) \(.commit.message | split("\n")[0])"'
+  kubectl -n argocd annotate application deal-tracker-qa argocd.argoproj.io/refresh=hard --overwrite
+  kubectl -n deal-tracker-qa rollout status deploy/deal-tracker-web --timeout=180s
+  ```
+
+  Si el bump a `overlays/qa` está en los manifiestos y el cluster aún no, **espera al rollout y
+  vuelve a lanzar `qa-estado.sh`**; el informe lo anota como nota, no como hallazgo.
 - **`/api/config` con los tres campos nulos** en QA es **P0**: sin Keycloak la mitad de los frentes
   no aplica y el resultado sería un falso verde.
 - **Delta desde la validación anterior.** Mira el informe más reciente de `.claude/qa-reports/` y
