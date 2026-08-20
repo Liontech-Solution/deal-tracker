@@ -32,3 +32,4 @@
 - [migracion-ya-aplicada-no-se-reaplica](migracion-ya-aplicada-no-se-reaplica.md) — el aplicador es idempotente POR NÚMERO: editar una migración que los tests ya aplicaron no vuelve a entrar, y el test rojo acusa a tu código
 - [gh-graphql-503-usar-rest](gh-graphql-503-usar-rest.md) — con la GraphQL de GitHub en 503 casi todo `gh` de alto nivel falla: la salida es `gh api` (REST), y nunca dos intentos en el mismo comando o publicas el comentario dos veces
 - [run-watch-no-da-el-veredicto](run-watch-no-da-el-veredicto.md) — `gh run watch` imprime anotaciones de pasos con `continue-on-error` y parece rojo con el run en `success`: el veredicto es `gh run view --json conclusion`
+- [verificar-workflows-sin-mergear](verificar-workflows-sin-mergear.md) — no hay linter de workflows en CI: actionlint (con shellcheck en el PATH, o no mira el bash) al scratchpad, y los `run:` ejecutados con stubs y un `$GITHUB_STEP_SUMMARY` de pega
