@@ -4776,13 +4776,13 @@ sobre todo, **las 120 tienen exactamente un valor distinto antes de la bajada, y
 sola vez**. Ahí está el hueco real: lo que no sabemos no es *si* la vimos más cara —lo sabemos
 siempre— sino si ese precio era el **habitual**, porque el 93 % descansa en una única observación. La
 frase pasa a «Llevamos poco tiempo mirándola, así que todavía no sabemos si el precio de antes era el
-habitual o un pico puntual», que es verdadera con la regla de hoy **y lo seguiría siendo con la de
-#531**. Lección transferible: cuando una frase sale falsa dos veces, la pregunta no es cómo decir
+habitual o un pico puntual», que es verdadera con la regla de hoy **y lo seguiría siendo con la
+de #531**. Lección transferible: cuando una frase sale falsa dos veces, la pregunta no es cómo decir
 mejor lo mismo, es **cuál es exactamente la afirmación que el dato sí sostiene** — y eso se contesta
 midiendo, no redactando.
 
-**El test también había caducado por enumerar, y eso es lo que cierra el argumento.** La guarda que
-#517 dejó en `honesty.spec.ts` era una regex negativa con las tres redacciones falsas ya conocidas
+**El test también había caducado por enumerar, y eso es lo que cierra el argumento.** La guarda
+que #517 dejó en `honesty.spec.ts` era una regex negativa con las tres redacciones falsas conocidas
 (`precio de siempre|precio habitual|no sabemos si ha bajado`). La frase de #530 no encaja en ninguna:
 **pasó en verde**. O sea que el patrón no es una debilidad del catálogo de casos de `/validar-qa`,
 es una debilidad de cualquier comprobación escrita a partir de un informe — vale igual para un test
