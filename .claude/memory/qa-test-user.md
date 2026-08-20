@@ -24,3 +24,8 @@ curl -H "Authorization: Bearer $TOKEN" https://dealtracker-qa.liontechsolution.c
   `Test QA`) para salvar el `VERIFY_PROFILE` de Keycloak; logins posteriores ya entran directos.
 - El token dura 300 s. Redirect URI registrado: `https://dealtracker-qa.liontechsolution.com/*`
   (la LAN `.17` NO está registrada, a propósito).
+- **`qa-token.sh` y `qa-login.py` solo funcionan con el `cwd` en la raíz del repo**: el script busca
+  `./.claude/qa-login.py` por ruta relativa, así que llamarlo por ruta absoluta desde otro
+  directorio (un script en el scratchpad, por ejemplo) falla con `✖ no encuentro ./.claude/qa-login.py`
+  y devuelve **cadena vacía en vez de error**, con lo que el `curl` siguiente da un 401 que se lee
+  como API caída. En Python: `subprocess.run([...], cwd='/home/juanjocop/Proyectos/deal-tracker')`.
