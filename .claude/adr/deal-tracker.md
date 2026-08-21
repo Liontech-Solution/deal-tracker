@@ -606,6 +606,46 @@ driver en un `DrizzleQueryError`, así que el `code` de postgres.js no está en 
 sino en su `cause`. Un `catch` que mire solo el primer nivel no reconoce nunca su `23505` y el 409
 sale como error interno.
 
+### La SPA estrena página pública, y «token si lo hay» no es anónimo (#550)
+
+Desde el 22/08/2026 la SPA tiene su **primera pantalla pública que llama a la API**: `/registro`,
+fuera de `RequireSession`, a la que se llega desde el enlace del correo. Eso destapa dos cosas que
+no se veían mientras todo lo que hablaba con la API estaba detrás de una sesión.
+
+**`apiGet` no es «sin token», es «token si lo hay», y la diferencia solo aparece con la sesión
+muerta.** El JSDoc de `apiGet` justifica su tolerancia con `/config`, que se pide durante el
+arranque de Keycloak — pero ahí `getFreshToken()` devuelve `null` porque **no hay instancia**. Con
+una instancia viva y un refresh token caducado el camino es otro: `getFreshToken()` **lanza**
+`ApiError(401)` antes del `fetch`, que es la decisión deliberada de #262 (la petición condenada no
+llega a salir, y el `retry: 1` del `QueryClient` le da su segunda oportunidad). Para un endpoint con
+guard eso es exactamente lo correcto; para una página pública es lo contrario — quien abriera su
+invitación con una sesión caducada encima vería «tu sesión ha caducado» **en vez del formulario de
+alta, y sin que nada saliera a la red**. De ahí `apiGetPublic`/`apiSendPublic`, que no son un alias
+declarativo como `apiGetAuth` sino un camino distinto: no llaman a `authHeaders()`. **La regla, para
+la siguiente pantalla pública**: la pregunta no es si el endpoint tolera ir sin token, es si el
+camino que consigue el token puede fallar por su cuenta.
+
+**Que Keycloak no arranque en el navegador NO apaga el registro, y confundirlos esconde el alta
+justo donde funciona.** `invitesEnabled` llega a React por el bootstrap que ya pedía `/api/config`
+—no por una segunda petición— y **sobrevive a los caminos de fallo de `init()`**: el alta la ejecuta
+nuestro backend contra la Admin API, así que una invitación se puede consumar con la instancia del
+navegador caída; lo que fallaría después es el «iniciar sesión», que es otra pantalla. Solo un
+`/api/config` que no contesta lo deja en `false`, y ahí sí es la respuesta honesta. Meterlo en la
+constante `DISABLED` junto a `enabled` es el error fácil, y se comprobó en navegador precisamente
+porque el entorno de prueba tenía Keycloak inalcanzable.
+
+**Y un corolario que vale para cualquier afirmación que la SPA derive de la config**: mientras
+`ready` es `false`, un flag en `false` significa *«todavía no se sabe»*, no *«no lo hay»*. `/acceso`
+afirmaba «el registro está cerrado» durante el arranque —la frase que #550 existía para quitar— por
+colgar el copy solo de `invitesEnabled`. Lo que se enseña mientras no se sabe no es la rama negativa:
+es ninguna de las dos.
+
+**Consecuencia de producto que ya no es cierta en `CLAUDE.md` ni aquí**: las cuentas de prod dejaron
+de crearse a mano. Lo que mantiene cerrada la puerta no es el realm —`registrationAllowed` sigue en
+`false` y el alta es nuestra— sino **el cupo**: `invites_remaining` arranca a 0 para todo el mundo y
+se reparte por SQL de uno en uno, así que «nadie puede invitar» es el estado de reposo y no una
+incidencia.
+
 
 **Convención base/overlay**: `base` nunca se aplica directa y trae **defaults seguros** —
 cronjobs con `suspend: true` y matching con `--dry-run`. El overlay de QA los levanta con patches.
