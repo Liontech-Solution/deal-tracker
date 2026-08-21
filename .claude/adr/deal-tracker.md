@@ -34,8 +34,10 @@ través del Postgres compartido; el esquema SQL de `db/migrations` es el contrat
 
 - El **scraper** posee las escrituras de `retailer` / `product` / `variant` / `price_history` /
   `scrape_run` / `product_tag`. `ingest.py` hace la pasada completa en **una transacción atómica** y
-  detecta altas y bajas. El **web** posee `app_user` (con el vínculo de Telegram), `interest`,
-  `notification` y `job_state`.
+  detecta altas y bajas. El **web** posee `app_user` (con el vínculo de Telegram y, desde la `0044`,
+  el cupo `invites_remaining`), `interest`, `favorite` (`0041`, #435), `notification`, `job_state` e
+  `invitation` (`0044`, #546). Esta lista se ha quedado corta dos veces seguidas —`favorite` faltaba
+  desde su migración—, así que la regla al añadir una tabla del web es tocarla aquí en el mismo PR.
 - Las tiendas son **pluggable**: `stores/base.py` define `BaseStore`, `stores/registry.py` mapea
   slug → factoría. Hoy son **nueve**: `zara` (endpoints AJAX JSON públicos), `sfera` (Chromium,
   detrás de Akamai), `lefties` (Chromium, API `itxrest` de Inditex), `cacles` (Shopify,
