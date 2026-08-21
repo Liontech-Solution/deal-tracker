@@ -477,6 +477,12 @@ porque obliga a re-sellar para cambiar un dato público— y el precedente vivo 
 De las tres variables que estrenó el correo saliente (#545), **solo una se sella**: `RESEND_API_KEY`.
 `INVITE_FROM_EMAIL` y `APP_PUBLIC_URL` van en claro como `env[].value` en el patch del overlay.
 
+**Y desde el 21/08/2026 hay una quinta clave sellada, `KEYCLOAK_ADMIN_CLIENT_SECRET`** (#548). Es el
+secreto del client confidencial que crea las cuentas del alta; su compañera
+`KEYCLOAK_ADMIN_CLIENT_ID` no se sella (vale `deal-tracker-api` y no es secreta, así que cae por
+defecto en el código y no hace falta ni declararla). Llega con `optional: true` por la misma razón
+que la de Resend: sin ella el registro se apaga, la web no.
+
 ### El correo saliente: Resend, y dos dominios que NO son simétricos (#545)
 
 Desde el 21/08/2026 el servicio web puede mandar correo, cosa que antes no hacía en ninguna forma.
@@ -525,6 +531,38 @@ spam en Gmail**. La causa es reputación (dominios de horas de vida) y contenido
 cuerpo de dos caracteres), no configuración. La lección operativa: un `250` de la API y hasta un
 `dmarc=pass` son condiciones necesarias y no suficientes, y **una prueba con un cuerpo de pega no
 mide la entregabilidad** del correo real. Eso se mide con la plantilla de verdad.
+
+### El alta escribe en Keycloak, y eso estrena un client y un tercer interruptor (#548)
+
+Desde el 21/08/2026 el servicio web **escribe** en Keycloak, no solo valida tokens. Hasta ahora su
+autorización era `issuer` + `aud` + `sub` y nada más — sin `RolesGuard`, sin `@Roles` y sin leer
+`realm_access` en ninguna parte—, y el alta por invitación necesita crear la cuenta.
+
+**No usa el client de la SPA, y no podría.** `deal-tracker-web` es **público**, con PKCE y
+`directAccessGrantsEnabled: false` a propósito. El alta habla con un client **confidencial** aparte,
+`deal-tracker-api`, con service account y el rol `manage-users` de `realm-management`. Ese client
+vive en el **tercer vértice** del contrato —`toolsuite-platform-gitops`, `apps/security/keycloak/realms/*.yaml`,
+issue **#61**—, y va en **los dos realms**, porque QA se autentica contra el de dev. `manage-users`
+concede además borrar y deshabilitar usuarios, que es más de lo que necesitamos; no existe un rol
+«solo crear», y queda escrito para que la próxima decisión se tome con el dato y no por omisión.
+
+**El tercer interruptor.** `isAuthConfigured()` decide si hay auth; `isInvitesConfigured()` decide si
+hay registro, y hace falta aparte porque **la auth puede estar puesta y el registro no**. Pide las
+tres piezas —auth, `KEYCLOAK_ADMIN_CLIENT_SECRET` y `RESEND_API_KEY`— y ninguna sobra: descontar el
+cupo de invitaciones sin poder mandar el correo es peor que no dejar invitar. `GET /api/config`
+publica `invitesEnabled` junto a los tres campos de auth, así que **ese endpoint ya no devuelve tres
+campos sino cuatro**: quien lo consuma desde fuera de la SPA (la validación de QA, un script) tiene
+que contar con ello.
+
+Dos consecuencias que se deducen mal:
+
+- **Un `dev` en verde no prueba nada del registro.** Es la lección de #309 otra vez: `dev` borra las
+  `KEYCLOAK_*` a propósito, así que `invitesEnabled` es `false` allí **por construcción**. Que el
+  alta cree de verdad el usuario solo se observa en QA y en prod.
+- **`buildPublicConfig()` fuerza `invitesEnabled: false` en todo camino donde la auth queda
+  deshabilitada**, aunque el interruptor diga que sí. No es defensivo por gusto: el interruptor solo
+  mira que el issuer no esté **vacío**, así que un issuer mal formado con los dos secretos puestos
+  llegaría con `true`, y publicarlo prometería un alta que la SPA no podría completar.
 
 **Convención base/overlay**: `base` nunca se aplica directa y trae **defaults seguros** —
 cronjobs con `suspend: true` y matching con `--dry-run`. El overlay de QA los levanta con patches.
