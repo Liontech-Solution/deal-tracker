@@ -156,13 +156,27 @@ export async function seedUser(sql: postgres.Sql, sub = 'kc-sub-test') {
   return { id: u.id, keycloakSub: sub, email: 'test@example.com', displayName: 'Test User' };
 }
 
+/**
+ * Un proveedor doblado para `makeApp`. Existe para los clientes que hablan con otro sistema —la
+ * Admin API de Keycloak (#548) y Resend (#547)—, que no se pueden ejercer en un test: uno crearía
+ * usuarios de verdad en el realm y el otro gastaría envíos reales. Doblarlos es lo que permite
+ * probar el alta entera sin Keycloak vivo (#549).
+ */
+export interface ProviderDoblado {
+  provide: unknown;
+  useValue: unknown;
+}
+
 /** Levanta la app Nest con el guard de auth opcionalmente sobreescrito para inyectar un usuario. */
-export async function makeApp(fakeUser?: {
-  id: number;
-  keycloakSub: string;
-  email: string | null;
-  displayName: string | null;
-}): Promise<INestApplication> {
+export async function makeApp(
+  fakeUser?: {
+    id: number;
+    keycloakSub: string;
+    email: string | null;
+    displayName: string | null;
+  },
+  doblados: ProviderDoblado[] = [],
+): Promise<INestApplication> {
   process.env.NODE_ENV = 'test';
   process.env.DATABASE_URL = TEST_DB!;
 
@@ -180,6 +194,9 @@ export async function makeApp(fakeUser?: {
         return true;
       },
     });
+  }
+  for (const { provide, useValue } of doblados) {
+    builder.overrideProvider(provide).useValue(useValue);
   }
   const moduleRef = await builder.compile();
 
