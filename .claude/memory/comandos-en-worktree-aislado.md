@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 299671df-4011-4d32-b2b1-df4fc0d7fa27
-  modified: 2026-08-12T22:58:33.619Z
+  modified: 2026-08-21T10:49:36.169Z
 ---
 
 Trabajando dentro de un worktree, el clasificador de comandos rechaza cosas que fuera pasan, con el
@@ -105,6 +105,21 @@ la forma del comando. Dos que cuestan varios intentos si no se sabe:
   (ver [[memoria-en-repo]]), así que `Edit` sobre esa ruta se rechaza. Hay que editar **la copia del
   worktree** (`<worktree>/.claude/memory/...`), y eso significa que una nota de memoria necesita su
   propia rama y su commit, porque si no se cuela en el PR de la issue que estés haciendo.
+
+  **Pero eso es del symlink a la memoria, no de «fuera del worktree» en general.** Medido el
+  21/08/2026 (#545): `Read` y `Edit` sobre rutas absolutas de **otro repo cualquiera**
+  (`/home/juanjocop/Proyectos/k3s-local-apps-manifests/...`) funcionan sin problema desde dentro de
+  un worktree. Lo que se rompe es **`Bash`**: cualquier compuesto que apunte fuera se rechaza con un
+  mensaje distinto al de siempre —*«a worktree-isolated session's git operations must target its own
+  worktree»*— y ahí no hay rodeo que valga, porque afecta a `cd otro-repo && git commit`,
+  `kubectl kustomize` sobre sus ficheros y hasta un `cat >>` suyo.
+
+  **La regla que se saca de eso: si el entregable de la sesión vive en OTRO repo, no entres en un
+  worktree.** El worktree existe para que dos sesiones no se pisen en este checkout; si la sesión no
+  toca ni un fichero de aquí, no aísla nada y sí bloquea el trabajo de verdad. Pasó con #545, cuyo
+  código entero era del repo de manifiestos: hubo que crearlo (lo pide `revisar-backlog` como paso
+  incondicional), chocar dos veces y salir con `ExitWorktree --remove`. Sale más barato decirlo en
+  el plan y no crearlo.
 
 **Y el pod de la CNPG tiene el filesystem en solo lectura**, así que `kubectl cp` de un `.sql` falla
 con `tar: Cannot open: Read-only file system` — ni siquiera en `/tmp`. Las consultas largas contra

@@ -464,10 +464,65 @@ buildx solo se escribe desde `main` (lo que escribe un PR solo lo ve ese PR, per
 la caché multiarch que leen todos).
 
 **Contrato de secretos**: un único SealedSecret `deal-tracker-config` por namespace, con las claves
-`DATABASE_URL`, `KEYCLOAK_ISSUER_URL`, `KEYCLOAK_AUDIENCE` (+ `TELEGRAM_*` en QA), más `ghcr-pull`
-para tirar de GHCR privado. Los SealedSecrets son **namespace-bound**: los de dev no valen en QA.
-Si se añade una variable de entorno nueva al web o al scraper, hay que sellarla allí o el pod
-arranca sin ella.
+`DATABASE_URL`, `KEYCLOAK_ISSUER_URL`, `KEYCLOAK_AUDIENCE` (+ `TELEGRAM_*` y `RESEND_API_KEY` en QA
+y prod), más `ghcr-pull` para tirar de GHCR privado. Los SealedSecrets son **namespace-bound**: los
+de dev no valen en QA. Si se añade una variable de entorno nueva al web o al scraper, hay que
+sellarla allí o el pod arranca sin ella.
+
+**Pero no todo lo que el pod necesita es un secreto, y meterlo ahí tiene un coste.** El ADR del repo
+de manifiestos lo dice con todas las letras —*«una variable que no es secreta no va al SealedSecret»*,
+porque obliga a re-sellar para cambiar un dato público— y el precedente vivo es `VIGIA_GITHUB_REPO`.
+De las tres variables que estrenó el correo saliente (#545), **solo una se sella**: `RESEND_API_KEY`.
+`INVITE_FROM_EMAIL` y `APP_PUBLIC_URL` van en claro como `env[].value` en el patch del overlay.
+
+### El correo saliente: Resend, y dos dominios que NO son simétricos (#545)
+
+Desde el 21/08/2026 el servicio web puede mandar correo, cosa que antes no hacía en ninguna forma.
+Lo necesita el alta por invitación de la v0.8.0, y abre **dos bocas distintas** sobre el mismo
+proveedor: nuestro backend manda la invitación por la **API HTTP** de Resend, y Keycloak manda el
+«he olvidado mi contraseña» por **SMTP** (`smtp.resend.com`, usuario `resend`, contraseña = una API
+key), esto último declarado en `toolsuite-platform-gitops`.
+
+**El reparto de dominios es asimétrico a propósito**, y es la decisión que hay que entender antes de
+tocar nada:
+
+| | dominio | alcance | remitente |
+|---|---|---|---|
+| prod | `dealtracker.liontechsolution.com` | **exclusivo** de deal-tracker | `no-reply@dealtracker.…` |
+| qa | `qa.liontechsolution.com` | **compartido** por todos los QA del cluster | `deal-tracker@qa.…` |
+
+Prod no comparte porque manda a personas reales y su reputación no debe depender de lo que haga otro
+servicio — el mismo argumento que ya estaba escrito para el bot de Telegram, que tampoco se
+reutiliza entre entornos. QA sí comparte porque el plan gratuito de Resend da **3 dominios** y entre
+la raíz, éste y el de prod quedan los 3 usados: al compartirlo, **el cupo deja de crecer con el
+número de servicios**. En QA quien identifica a la aplicación es la *parte local*, no el dominio.
+
+Consecuencia que se deduce mal y conviene tener escrita: **en QA el remitente y el host de la SPA no
+comparten dominio** (`@qa.liontechsolution.com` frente a `dealtracker-qa.liontechsolution.com`). Son
+dos variables independientes y no se puede derivar una de la otra.
+
+**Y el `secretKeyRef` de `RESEND_API_KEY` lleva `optional: true`, que no es cosmético.** Los
+manifiestos se mergean antes de que la clave exista, y sin esa marca un pod que arranque en esa
+ventana se queda en `CreateContainerConfigError` y **tumba el catálogo entero**. La regla es la
+misma que el `VIGIA_GITHUB_TOKEN` del vigía: un secreto que falta tiene que degradar a «no hay
+registro», no a «no hay web». Es también lo que deja el registro apagado en `dev` por construcción,
+porque las tres variables viven en los patch de qa y prod y no en `base` — el patrón de las
+`TELEGRAM_*`, sin necesidad de un `$patch: delete`.
+
+**La trampa de DNS que costó una decisión mal argumentada.** `liontechsolution.com` **ya era un
+dominio de Resend verificado** desde ~feb/2026, con envío *y* recepción. Sus registros bajo `send.`
+dicen `include:amazonses.com` y `feedback-smtp.eu-west-1.amazonses.com`, y eso **no significa que
+haya un AWS SES aparte**: Resend corre sobre SES y ésos son sus propios registros. Leerlo al revés
+lleva a inventarse una colisión que no existe y a creer que hay que editar el SPF `-all` de la raíz
+—que tampoco interviene, porque Resend pone el Return-Path en `send.`—. Antes de razonar sobre el
+correo de este dominio, **mira qué hay ya en el panel de Resend**, no solo en el DNS.
+
+**Que un correo se autentique no dice dónde cae.** Medido el 21/08/2026: los dos envíos de prueba
+salieron con `spf=pass`, `dkim=pass` con firma propia alineada y `dmarc=pass`, y **aun así fueron a
+spam en Gmail**. La causa es reputación (dominios de horas de vida) y contenido (asunto «Prueba» y
+cuerpo de dos caracteres), no configuración. La lección operativa: un `250` de la API y hasta un
+`dmarc=pass` son condiciones necesarias y no suficientes, y **una prueba con un cuerpo de pega no
+mide la entregabilidad** del correo real. Eso se mide con la plantilla de verdad.
 
 **Convención base/overlay**: `base` nunca se aplica directa y trae **defaults seguros** —
 cronjobs con `suspend: true` y matching con `--dry-run`. El overlay de QA los levanta con patches.
