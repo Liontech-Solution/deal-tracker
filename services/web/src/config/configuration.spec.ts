@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isAuthConfigured, validateEnv, validateJobEnv } from './configuration';
+import { isAuthConfigured, isInvitesConfigured, validateEnv, validateJobEnv } from './configuration';
 
 const base = {
   NODE_ENV: 'production',
@@ -66,6 +66,12 @@ describe('entorno sin correo saliente', () => {
     expect(cfg.APP_PUBLIC_URL).toBe('https://dealtracker.example');
   });
 
+  it('el client de administración cae en deal-tracker-api, y su secreto no tiene defecto', () => {
+    const cfg = validateEnv(base);
+    expect(cfg.KEYCLOAK_ADMIN_CLIENT_ID).toBe('deal-tracker-api');
+    expect(cfg.KEYCLOAK_ADMIN_CLIENT_SECRET).toBe('');
+  });
+
   it('el remitente y la URL pública son independientes: en qa ni comparten dominio', () => {
     const cfg = validateEnv({
       ...base,
@@ -74,5 +80,35 @@ describe('entorno sin correo saliente', () => {
     });
     expect(cfg.INVITE_FROM_EMAIL).toBe('deal-tracker@qa.liontechsolution.com');
     expect(cfg.APP_PUBLIC_URL).toBe('https://dealtracker-qa.liontechsolution.com');
+  });
+});
+
+describe('isInvitesConfigured · el tercer interruptor', () => {
+  const completo = {
+    ...base,
+    KEYCLOAK_ADMIN_CLIENT_SECRET: 'sh',
+    RESEND_API_KEY: 're_123',
+  };
+
+  it('con las tres piezas, el registro está encendido', () => {
+    expect(isInvitesConfigured(completo)).toBe(true);
+  });
+
+  it('la auth puede estar puesta y el registro no: por eso no basta con isAuthConfigured', () => {
+    // Es el caso que justifica que exista este interruptor aparte, y el que corre en qa/prod
+    // mientras los secretos no estén sellados (llegan al pod con `optional: true`).
+    const sinSecreto = { ...completo, KEYCLOAK_ADMIN_CLIENT_SECRET: '' };
+    expect(isAuthConfigured(sinSecreto)).toBe(true);
+    expect(isInvitesConfigured(sinSecreto)).toBe(false);
+  });
+
+  it('sin correo tampoco: descontar el cupo y no mandar la invitación es peor que no invitar', () => {
+    expect(isInvitesConfigured({ ...completo, RESEND_API_KEY: '' })).toBe(false);
+    expect(isInvitesConfigured({ ...completo, RESEND_API_KEY: '   ' })).toBe(false);
+  });
+
+  it('sin auth está apagado aunque sobren secretos: es lo que pasa en dev por construcción', () => {
+    const { KEYCLOAK_ISSUER_URL: _issuer, ...sinAuth } = completo;
+    expect(isInvitesConfigured(sinAuth)).toBe(false);
   });
 });

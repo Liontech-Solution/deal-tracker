@@ -15,6 +15,7 @@ import { EmailModule } from './email/email.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { HealthModule } from './health/health.module';
 import { InterestsModule } from './interests/interests.module';
+import { KeycloakAdminModule } from './keycloak-admin/keycloak-admin.module';
 import { SettingsModule } from './settings/settings.module';
 import { TelegramModule } from './telegram/telegram.module';
 
@@ -53,6 +54,7 @@ function staticModule(): DynamicModule[] {
     SettingsModule,
     TelegramModule,
     EmailModule,
+    KeycloakAdminModule,
     HealthModule,
   ],
 })

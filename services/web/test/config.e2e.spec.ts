@@ -32,9 +32,9 @@ describe.skipIf(!TEST_DB)('config pública (e2e)', () => {
       if (saved.clientId !== undefined) process.env.KEYCLOAK_CLIENT_ID = saved.clientId;
     });
 
-    it('responde 200 con los tres campos a null (auth deshabilitada)', async () => {
+    it('responde 200 con los tres campos a null y sin registro (auth deshabilitada)', async () => {
       const res = await request(app.getHttpServer()).get('/api/config').expect(200);
-      expect(res.body).toEqual({ url: null, realm: null, clientId: null });
+      expect(res.body).toEqual({ url: null, realm: null, clientId: null, invitesEnabled: false });
     });
   });
 
@@ -67,13 +67,61 @@ describe.skipIf(!TEST_DB)('config pública (e2e)', () => {
       }
     });
 
-    it('deriva url/realm del issuer y el client-id de la audiencia', async () => {
+    it('deriva url/realm del issuer y el client-id de la audiencia, con el registro apagado', async () => {
       const res = await request(app.getHttpServer()).get('/api/config').expect(200);
       expect(res.body).toEqual({
         url: 'https://kc.example',
         realm: 'deal-tracker-qa',
         clientId: 'deal-tracker-web',
+        // Hay auth pero faltan los secretos del alta: es exactamente el estado de qa/prod hasta
+        // que se sellan, y el motivo de que `isInvitesConfigured()` exista aparte.
+        invitesEnabled: false,
       });
+    });
+  });
+
+  /**
+   * La mitad de la tabla de #548 que sí se puede probar aquí. La otra —que el alta cree de verdad
+   * el usuario en el realm— **solo se observa en QA y en prod**: `dev` no trae ninguna `KEYCLOAK_*`
+   * por construcción, así que un `dev` en verde no prueba nada del registro (#309).
+   */
+  describe('con Keycloak y los secretos del alta', () => {
+    let app: INestApplication;
+    const saved = {
+      issuer: process.env.KEYCLOAK_ISSUER_URL,
+      audience: process.env.KEYCLOAK_AUDIENCE,
+      clientId: process.env.KEYCLOAK_CLIENT_ID,
+      adminSecret: process.env.KEYCLOAK_ADMIN_CLIENT_SECRET,
+      resend: process.env.RESEND_API_KEY,
+    };
+
+    beforeAll(async () => {
+      process.env.KEYCLOAK_ISSUER_URL = 'https://kc.example/realms/deal-tracker-qa';
+      process.env.KEYCLOAK_AUDIENCE = 'deal-tracker-web';
+      delete process.env.KEYCLOAK_CLIENT_ID;
+      process.env.KEYCLOAK_ADMIN_CLIENT_SECRET = 'secreto-de-pega';
+      process.env.RESEND_API_KEY = 're_de_pega';
+      vi.resetModules();
+      app = await makeApp();
+    });
+
+    afterAll(async () => {
+      await app.close();
+      for (const [key, value] of [
+        ['KEYCLOAK_ISSUER_URL', saved.issuer],
+        ['KEYCLOAK_AUDIENCE', saved.audience],
+        ['KEYCLOAK_CLIENT_ID', saved.clientId],
+        ['KEYCLOAK_ADMIN_CLIENT_SECRET', saved.adminSecret],
+        ['RESEND_API_KEY', saved.resend],
+      ] as const) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    });
+
+    it('publica invitesEnabled para que la SPA pueda ofrecer el alta', async () => {
+      const res = await request(app.getHttpServer()).get('/api/config').expect(200);
+      expect(res.body.invitesEnabled).toBe(true);
     });
   });
 });

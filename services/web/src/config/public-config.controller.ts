@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import type { EnvConfig } from './configuration';
+import { isInvitesConfigured, type EnvConfig } from './configuration';
 import { buildPublicConfig, type PublicAuthConfig } from './public-config';
 
 /**
@@ -19,6 +19,9 @@ export class PublicConfigController {
     return buildPublicConfig(
       this.config.get('KEYCLOAK_ISSUER_URL', { infer: true }),
       this.config.get('KEYCLOAK_CLIENT_ID', { infer: true }),
+      // `invitesEnabled` no expone nada: dice si esta instalación acepta altas, que es justo lo que
+      // la SPA necesita para no ofrecer un registro que respondería 503.
+      isInvitesConfigured(),
     );
   }
 }
