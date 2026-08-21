@@ -564,6 +564,49 @@ Dos consecuencias que se deducen mal:
   mira que el issuer no esté **vacío**, así que un issuer mal formado con los dos secretos puestos
   llegaría con `true`, y publicarlo prometería un alta que la SPA no podría completar.
 
+### El alta cruza dos sistemas y ninguna transacción los cubre (#549)
+
+Desde el 21/08/2026 el servicio expone su **primera superficie pública de escritura**: cinco
+endpoints en `/api/invitations`, tres con `JwtAuthGuard` y **dos sin guard**, porque quien los usa
+todavía no tiene cuenta. Los cinco responden 503 sin `isInvitesConfigured()`, comprobado **por
+petición** y no al arrancar, que es lo que deja a `dev` levantar sin ninguna `KEYCLOAK_*`.
+
+**El alta escribe en dos sistemas y solo uno hace `COMMIT`.** Crear el usuario es una llamada HTTP a
+Keycloak; marcar la invitación es SQL. No hay transacción que los abrace, así que no se elige entre
+«atómico» y «no atómico» sino **cuál de los dos desenlaces malos se prefiere**:
+
+- marcar antes → si Keycloak falla, el invitado se queda **sin cuenta y sin token**, y de ahí no se
+  sale sin intervención;
+- marcar después → puede quedar un usuario en Keycloak con su invitación **aún viva**, y de eso sí
+  se sale: el reintento con el mismo token recibe el **409** de Keycloak y cierra la invitación en
+  vez de fallar.
+
+Se elige el segundo, y por eso `KeycloakAdminClient` distingue `exists` de los demás fallos: sin ese
+`reason` propio, la salida del reintento no existiría. El correo del alta lo fija **la invitación** y
+nunca el cuerpo de la petición — el DTO no tiene campo, así que mandarlo es un 400 explícito.
+
+**El cupo se consume en el envío y vuelve en cada fallo.** Un `23505` del índice parcial o un correo
+que no sale devuelven la unidad; en el fallo de envío la fila se **borra** en vez de revocarse,
+porque nada salió del servidor y una fila «revocada» contaría algo que no ocurrió. Y la consecuencia
+que se deduce mal de `ux_invitation_email_viva`: como su predicado no puede mirar `expires_at`
+(Postgres rechaza `now()` en un índice), **una invitación caducada sigue ocupando el correo**. La
+salida es revocarla, que es el mismo gesto que devuelve el cupo — un solo gesto libera las dos cosas
+y por eso no hace falta ningún job de limpieza.
+
+**El aprovisionamiento JIT corre en CADA petición autenticada, no solo en la primera.** Es la vuelta
+de tuerca de lo que ya dice este ADR unas líneas más arriba: la fila de `app_user` nace en la
+primera, pero `JwtStrategy.validate()` llama a `provisionFromClaims()` **siempre**, así que todo lo
+que se cuelgue de ahí se paga por petición contra la base que #540 describe como el eslabón frágil.
+Por eso el enlace de `invitation.accepted_user_id` —el único momento en que existen las dos puntas,
+porque el alta no puede rellenarlo— va detrás de `xmax = 0`, el «esta fila la acabo de insertar» de
+un upsert. Quien añada algo ahí tiene que decidir explícitamente en qué lado de esa puerta va.
+
+**Y un detalle de herramienta que cuesta un 500 la primera vez**: drizzle envuelve lo que le sube el
+driver en un `DrizzleQueryError`, así que el `code` de postgres.js no está en el error que se atrapa
+sino en su `cause`. Un `catch` que mire solo el primer nivel no reconoce nunca su `23505` y el 409
+sale como error interno.
+
+
 **Convención base/overlay**: `base` nunca se aplica directa y trae **defaults seguros** —
 cronjobs con `suspend: true` y matching con `--dry-run`. El overlay de QA los levanta con patches.
 Dev se queda con los defaults y se dispara a mano:
