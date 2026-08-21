@@ -23,6 +23,18 @@ export interface EnvConfig {
   // Enciende el bucle de long-polling (`getUpdates`) que canjea `/start <token>`. Apagado por
   // defecto: `getUpdates` no admite dos consumidores, así que exige replica 1 del Deployment.
   TELEGRAM_POLLING_ENABLED: boolean;
+  // Clave de la API de Resend, por la que sale el correo de invitación. Opcional: sin ella el
+  // cliente queda deshabilitado (no-op con log), como el de Telegram. En el cluster llega con
+  // `optional: true`, así que esa rama es la que corre de verdad hasta que se selle.
+  RESEND_API_KEY: string;
+  // Remitente de la invitación. Distinto por entorno a propósito, y **no** derivable de
+  // APP_PUBLIC_URL: en qa el dominio de correo es compartido por todos los QA del cluster y el de
+  // la SPA no. Opcional; sin él el cliente de correo también queda deshabilitado.
+  INVITE_FROM_EMAIL: string;
+  // URL pública de la SPA, para armar el enlace del alta que viaja en el correo (#549). Vive aquí
+  // aunque la consuma otra pieza: sin dueño, el síntoma sería el peor posible — el correo se manda
+  // con un enlace roto.
+  APP_PUBLIC_URL: string;
 }
 
 function required(env: Record<string, unknown>, key: keyof EnvConfig): string {
@@ -83,6 +95,12 @@ function validate(env: Record<string, unknown>): EnvConfig {
   const telegramBotToken = ((env.TELEGRAM_BOT_TOKEN as string) ?? '').trim();
   const telegramPollingEnabled = ((env.TELEGRAM_POLLING_ENABLED as string) ?? '').trim() === 'true';
 
+  // Correo saliente y enlace del alta. Las tres opcionales: sin ellas el correo queda deshabilitado
+  // y el registro por invitación apagado, en vez de impedir el arranque.
+  const resendApiKey = ((env.RESEND_API_KEY as string) ?? '').trim();
+  const inviteFromEmail = ((env.INVITE_FROM_EMAIL as string) ?? '').trim();
+  const appPublicUrl = ((env.APP_PUBLIC_URL as string) ?? '').trim().replace(/\/+$/, '');
+
   return {
     DATABASE_URL: required(env, 'DATABASE_URL'),
     KEYCLOAK_ISSUER_URL: issuer,
@@ -93,5 +111,8 @@ function validate(env: Record<string, unknown>): EnvConfig {
     TELEGRAM_BOT_USERNAME: telegramBotUsername,
     TELEGRAM_BOT_TOKEN: telegramBotToken,
     TELEGRAM_POLLING_ENABLED: telegramPollingEnabled,
+    RESEND_API_KEY: resendApiKey,
+    INVITE_FROM_EMAIL: inviteFromEmail,
+    APP_PUBLIC_URL: appPublicUrl,
   };
 }
