@@ -12,6 +12,11 @@ export interface EnvConfig {
   // Client-id público de la SPA que expone `GET /api/config`. Si falta cae en `KEYCLOAK_AUDIENCE`,
   // que en nuestros realms ya vale el propio client-id.
   KEYCLOAK_CLIENT_ID: string;
+  // Client CONFIDENCIAL con service account, para crear el usuario del alta por la Admin API. No es
+  // el de la SPA: aquél es público, con PKCE y sin direct grants a propósito. Opcionales las dos:
+  // sin el secreto el registro por invitación queda apagado (`isInvitesConfigured`).
+  KEYCLOAK_ADMIN_CLIENT_ID: string;
+  KEYCLOAK_ADMIN_CLIENT_SECRET: string;
   PORT: number;
   NODE_ENV: 'development' | 'test' | 'production';
   // Usuario del bot de Telegram (sin @), para armar el deep-link t.me/<bot>?start=<token>.
@@ -56,6 +61,31 @@ export function isAuthConfigured(env: Record<string, unknown> = process.env): bo
 }
 
 /**
+ * `true` si este entorno puede dar de alta a alguien por invitación. Es el **tercer interruptor**
+ * del proyecto, hermano de `isAuthConfigured()`, y hace falta aparte porque la auth puede estar
+ * puesta y el registro no: el alta necesita además hablar con Keycloak como administrador y mandar
+ * un correo, y cualquiera de las dos piezas puede faltar sola.
+ *
+ * Las tres condiciones, y ninguna sobra:
+ *
+ * - **La auth**, porque un usuario recién creado tiene que poder entrar después.
+ * - **El secreto del client de administración**, sin el cual no se crea la cuenta.
+ * - **La clave de Resend**, sin la cual la invitación no sale del servidor. Descontar el cupo y no
+ *   mandar el correo es peor que no dejar invitar.
+ *
+ * En `dev` queda apagado **por construcción**: su overlay borra las `KEYCLOAK_*` a propósito (#23).
+ * O sea que, tal cual la lección de #309, **un `dev` en verde no prueba nada del registro** — que el
+ * alta cree de verdad el usuario solo se observa en QA y en prod.
+ */
+export function isInvitesConfigured(env: Record<string, unknown> = process.env): boolean {
+  return (
+    isAuthConfigured(env) &&
+    ((env.KEYCLOAK_ADMIN_CLIENT_SECRET as string) ?? '').trim() !== '' &&
+    ((env.RESEND_API_KEY as string) ?? '').trim() !== ''
+  );
+}
+
+/**
  * Validador para `ConfigModule.forRoot({ validate })`. Devuelve la config tipada; Nest la
  * expone luego por `ConfigService`. La auth (Keycloak) es **opcional**: los entornos que no la
  * usan simplemente no definen `KEYCLOAK_*` (ver `isAuthConfigured`).
@@ -85,6 +115,11 @@ function validate(env: Record<string, unknown>): EnvConfig {
   const audience = ((env.KEYCLOAK_AUDIENCE as string) ?? '').trim();
   const clientId = ((env.KEYCLOAK_CLIENT_ID as string) ?? '').trim() || audience;
 
+  // El client confidencial que crea usuarios. El id cae en `deal-tracker-api`, que es como se llama
+  // en los dos realms; el secreto no tiene defecto posible y sin él el registro queda apagado.
+  const adminClientId = ((env.KEYCLOAK_ADMIN_CLIENT_ID as string) ?? '').trim() || 'deal-tracker-api';
+  const adminClientSecret = ((env.KEYCLOAK_ADMIN_CLIENT_SECRET as string) ?? '').trim();
+
   const portRaw = (env.PORT as string) ?? '3000';
   const port = Number.parseInt(portRaw, 10);
   if (!Number.isInteger(port) || port <= 0) {
@@ -106,6 +141,8 @@ function validate(env: Record<string, unknown>): EnvConfig {
     KEYCLOAK_ISSUER_URL: issuer,
     KEYCLOAK_AUDIENCE: audience,
     KEYCLOAK_CLIENT_ID: clientId,
+    KEYCLOAK_ADMIN_CLIENT_ID: adminClientId,
+    KEYCLOAK_ADMIN_CLIENT_SECRET: adminClientSecret,
     PORT: port,
     NODE_ENV: nodeEnv as EnvConfig['NODE_ENV'],
     TELEGRAM_BOT_USERNAME: telegramBotUsername,

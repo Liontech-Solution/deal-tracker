@@ -8,11 +8,12 @@
  *
  * ── EL REMITENTE Y EL ENLACE NO COMPARTEN DOMINIO, Y NO ES UN DESPISTE ──
  *
- * En QA el `from` es `deal-tracker@qa.liontechsolution.com` —un dominio compartido por todos los
- * entornos de QA del cluster, para no gastar un dominio del cupo de Resend por servicio— mientras
- * que la SPA vive en `dealtracker-qa.liontechsolution.com`. En prod sí coinciden. O sea que
- * `INVITE_FROM_EMAIL` y `APP_PUBLIC_URL` son **dos variables independientes** y ninguna se deriva
- * de la otra: esta plantilla recibe la URL ya armada y no mira el remitente para nada.
+ * Los dos salen del entorno (`INVITE_FROM_EMAIL` y `APP_PUBLIC_URL`, que pone el ConfigMap de cada
+ * overlay: nada de esto se hornea en la imagen), y en QA **ni siquiera comparten dominio** — el de
+ * correo lo comparten todos los entornos de QA del cluster, para no gastar un dominio del cupo de
+ * Resend por servicio, mientras que el de la SPA es propio. En prod sí coinciden, y esa coincidencia
+ * es lo que invita a confundirlos. Son **dos variables independientes** y ninguna se deriva de la
+ * otra: esta plantilla recibe la URL ya armada y no mira el remitente para nada.
  */
 
 /** Lo que hay que saber para escribir el correo. La URL llega ya armada, con su token dentro. */
