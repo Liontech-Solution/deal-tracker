@@ -12,6 +12,7 @@ import { FavoritesPage } from './pages/FavoritesPage';
 import { HomePage } from './pages/HomePage';
 import { InterestsPage } from './pages/InterestsPage';
 import { ProductPage } from './pages/ProductPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { SettingsPage } from './pages/SettingsPage';
 
 const queryClient = new QueryClient({
@@ -46,6 +47,9 @@ const router = createBrowserRouter([
         ),
       },
       { path: 'acceso', element: <AccessPage /> },
+      // El alta por invitación (#550). Pública y **fuera de `RequireSession`** por definición:
+      // quien abre este enlace desde su correo todavía no tiene cuenta.
+      { path: 'registro', element: <RegisterPage /> },
       { path: 'seguimientos', element: <InterestsPage /> },
       { path: 'favoritos', element: <FavoritesPage /> },
       { path: 'ajustes', element: <SettingsPage /> },

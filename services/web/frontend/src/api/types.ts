@@ -333,3 +333,63 @@ export interface ProductQuery {
   limit?: number;
   offset?: number;
 }
+
+// --- El alta por invitación: la mitad pública (#549/#550) ---
+//
+// Los tipos de quien INVITA (la lista, el alta y la revocación de `/ajustes`) son de #551 y van en
+// su propio bloque, debajo de éste: así los dos PR no escriben en el mismo sitio del fichero.
+
+/**
+ * Estado de un token de invitación (espejo de `InvitationTokenView['status']`).
+ *
+ * **No es** `InvitationStatus`, el de la lista de quien invita: allí el vivo se llama `'viva'` y
+ * existe `'revocada'`. Aquí el revocado se colapsa en `'desconocida'` a propósito — quien invitó se
+ * la quitó, y no hay nada útil que contarle a quien recibió el correo. No se unifican.
+ */
+export type InvitationTokenStatus = 'valida' | 'caducada' | 'canjeada' | 'desconocida';
+
+/**
+ * Lo que contesta `GET /invitations/token/:token` (espejo de `InvitationTokenView`).
+ *
+ * Responde **200 siempre**: el estado va en el cuerpo y no en el código, para que la pantalla tenga
+ * un contrato que parsear en vez del cuerpo de un error, y para que el status no diga si un token
+ * existe. Los tres opcionales llegan **solo** con `valida`, que es lo que evita filtrar a qué correo
+ * se invitó.
+ */
+export interface InvitationTokenView {
+  status: InvitationTokenStatus;
+  email?: string;
+  /** Nunca falta cuando el token vale, pero **puede ser `''`**: cae a `inviterEmail` y de ahí a vacío. */
+  inviterName?: string;
+  expiresAt?: string;
+}
+
+/**
+ * Cuerpo del alta (espejo de `AcceptInvitationDto`).
+ *
+ * **No hay campo `email`, y su ausencia es la regla**: el correo lo fija la invitación. Mandarlo no
+ * se ignora en silencio — el `ValidationPipe` global corre con `forbidNonWhitelisted` y es un 400.
+ */
+export interface AcceptInvitationInput {
+  password: string;
+  firstName?: string;
+}
+
+/** Un alta consumada (espejo de `AcceptedInvitation`). El correo, para llevarlo a `/acceso`. */
+export interface AcceptedInvitation {
+  email: string;
+}
+
+/**
+ * Lo que publica `GET /config` (espejo de `PublicAuthConfig` del backend).
+ *
+ * Vivía duplicado y a medias dentro de `auth/keycloak.ts`, que se había quedado sin el cuarto
+ * campo. `invitesEnabled` es `boolean` estricto, nunca nulo: dice si **este entorno** puede dar de
+ * alta a alguien, y en `dev` es `false` por construcción.
+ */
+export interface PublicConfig {
+  url: string | null;
+  realm: string | null;
+  clientId: string | null;
+  invitesEnabled: boolean;
+}

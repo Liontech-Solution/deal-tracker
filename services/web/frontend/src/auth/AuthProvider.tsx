@@ -15,6 +15,15 @@ export interface AuthContextValue {
    * concluyente cuando `ready` es `true` — antes aún no se sabe si hay auth.
    */
   enabled: boolean;
+  /**
+   * Si este entorno puede dar de alta a alguien por invitación (#548). Se lee igual que `enabled`:
+   * **solo es concluyente con `ready`**. En `dev` es `false` por construcción, porque su overlay
+   * borra las `KEYCLOAK_*` a propósito, así que las pantallas que dependen de esto no se ven allí.
+   *
+   * Lo publica `GET /api/config` y lo consumen `/registro` (#550) y `/ajustes` (#551) para esconder
+   * lo que no se puede usar, exactamente igual que hoy se esconde el login.
+   */
+  invitesEnabled: boolean;
   /** `true` cuando se ha resuelto `/api/config` y Keycloak ha comprobado la sesión. */
   ready: boolean;
   authenticated: boolean;
@@ -34,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // La config llega por red (`/api/config`), así que nada se sabe de forma síncrona: se arranca
   // "no listo" y sin auth, y `bootstrapAuth()` fija el estado real.
   const [enabled, setEnabled] = useState(false);
+  const [invitesEnabled, setInvitesEnabled] = useState(false);
   const [ready, setReady] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -45,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    void bootstrapAuth().then(({ enabled: on, authenticated: authed }) => {
+    void bootstrapAuth().then(({ enabled: on, authenticated: authed, invitesEnabled: invites }) => {
       if (cancelled) return;
       const kc = getKeycloak();
 
@@ -62,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setEnabled(on);
+      setInvitesEnabled(invites);
       setAuthenticated(authed);
       const claims = kc?.tokenParsed as
         | { name?: string; preferred_username?: string; email?: string }
@@ -81,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       enabled,
+      invitesEnabled,
       ready,
       authenticated,
       user,
@@ -88,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getKeycloak()?.login({ redirectUri: redirectTo ?? window.location.href }),
       logout: () => getKeycloak()?.logout({ redirectUri: window.location.origin }),
     }),
-    [enabled, ready, authenticated, user],
+    [enabled, invitesEnabled, ready, authenticated, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

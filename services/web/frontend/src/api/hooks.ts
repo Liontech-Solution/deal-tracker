@@ -7,13 +7,16 @@ import {
 } from '@tanstack/react-query';
 import { useRef } from 'react';
 
-import { apiGet, apiGetAuth, apiSend } from './client';
+import { apiGet, apiGetAuth, apiGetPublic, apiSend, apiSendPublic } from './client';
 import type {
+  AcceptedInvitation,
+  AcceptInvitationInput,
   CreateInterestInput,
   Facets,
   FacetQuery,
   FavoriteView,
   InterestView,
+  InvitationTokenView,
   PricePoint,
   ProductDetail,
   ProductListResult,
@@ -236,5 +239,41 @@ export function useUnlinkTelegram() {
   return useMutation({
     mutationFn: () => apiSend<void>('DELETE', '/settings/telegram'),
     onSuccess: () => qc.invalidateQueries({ queryKey: TELEGRAM_KEY }),
+  });
+}
+
+// --- Alta por invitación (#550). Los dos endpoints son PÚBLICOS: quien los usa todavía no tiene
+// cuenta, así que van por el camino anónimo del cliente y no por el de «token si lo hay». ---
+
+/**
+ * Consulta el token del enlace del correo. Contesta **200 siempre** y el estado va en el cuerpo, o
+ * sea que un error aquí es un error de verdad (red o 503), no un token malo.
+ *
+ * `retry: false` a propósito, contra el `retry: 1` que trae el `QueryClient` global: en esta
+ * pantalla todo lo que puede fallar es terminal, y reintentar solo retrasa lo que hay que enseñar.
+ */
+export function useInvitationToken(token: string | null) {
+  return useQuery({
+    queryKey: ['invitation-token', token],
+    enabled: token !== null,
+    retry: false,
+    queryFn: () => apiGetPublic<InvitationTokenView>(`/invitations/token/${encodeURIComponent(token as string)}`),
+  });
+}
+
+/**
+ * Consuma el alta. Sin `onSuccess`: esta página no tiene ninguna caché que refrescar, y lo que pasa
+ * después —llevar a `/acceso` con el correo— lo decide quien llama.
+ *
+ * El cuerpo **no lleva `email`**: lo fija la invitación. Mandarlo sería un 400.
+ */
+export function useAcceptInvitation(token: string | null) {
+  return useMutation({
+    mutationFn: (input: AcceptInvitationInput) =>
+      apiSendPublic<AcceptedInvitation>(
+        'POST',
+        `/invitations/token/${encodeURIComponent(token as string)}/accept`,
+        input,
+      ),
   });
 }
