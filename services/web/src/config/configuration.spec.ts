@@ -52,3 +52,27 @@ describe('entorno sin Keycloak', () => {
     expect(isAuthConfigured(base)).toBe(true);
   });
 });
+
+describe('entorno sin correo saliente', () => {
+  it('las tres del correo son opcionales y quedan vacías (es lo que corre en dev)', () => {
+    const cfg = validateEnv(base);
+    expect(cfg.RESEND_API_KEY).toBe('');
+    expect(cfg.INVITE_FROM_EMAIL).toBe('');
+    expect(cfg.APP_PUBLIC_URL).toBe('');
+  });
+
+  it('recorta y quita la barra final de APP_PUBLIC_URL, que se concatena con la ruta del alta', () => {
+    const cfg = validateEnv({ ...base, APP_PUBLIC_URL: '  https://dealtracker.example/  ' });
+    expect(cfg.APP_PUBLIC_URL).toBe('https://dealtracker.example');
+  });
+
+  it('el remitente y la URL pública son independientes: en qa ni comparten dominio', () => {
+    const cfg = validateEnv({
+      ...base,
+      INVITE_FROM_EMAIL: 'deal-tracker@qa.liontechsolution.com',
+      APP_PUBLIC_URL: 'https://dealtracker-qa.liontechsolution.com',
+    });
+    expect(cfg.INVITE_FROM_EMAIL).toBe('deal-tracker@qa.liontechsolution.com');
+    expect(cfg.APP_PUBLIC_URL).toBe('https://dealtracker-qa.liontechsolution.com');
+  });
+});
