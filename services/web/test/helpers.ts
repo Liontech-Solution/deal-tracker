@@ -75,7 +75,7 @@ export async function resetSchema(sql: postgres.Sql): Promise<void> {
   // no hay ningún suelo que lo delate, así que una pasada "ya procesada" de otro spec dejaría el
   // lote vacío sin que nada lo explicase.
   await sql.unsafe(`
-    TRUNCATE notification, interest, favorite, app_user, job_state, matching_scanned_run,
+    TRUNCATE notification, interest, favorite, invitation, app_user, job_state, matching_scanned_run,
              price_history, product_image, variant, product_agg, product, scrape_run, retailer
     RESTART IDENTITY CASCADE
   `);
