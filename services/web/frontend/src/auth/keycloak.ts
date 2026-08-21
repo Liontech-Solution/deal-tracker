@@ -9,21 +9,21 @@
 import Keycloak from 'keycloak-js';
 
 import { ApiError, apiGet } from '../api/client';
+import type { PublicConfig } from '../api/types';
 import { obtenerToken } from './refresh';
-
-interface PublicAuthConfig {
-  url: string | null;
-  realm: string | null;
-  clientId: string | null;
-}
 
 export interface AuthBootstrap {
   /** `true` solo si había config completa y Keycloak inicializó. */
   enabled: boolean;
   authenticated: boolean;
+  /**
+   * Si **este entorno** puede dar de alta por invitación (#548). Viaja por aquí y no por un hook
+   * aparte porque `/api/config` ya se pide una vez en el arranque y trae los cuatro campos juntos.
+   */
+  invitesEnabled: boolean;
 }
 
-const DISABLED: AuthBootstrap = { enabled: false, authenticated: false };
+const DISABLED: AuthBootstrap = { enabled: false, authenticated: false, invitesEnabled: false };
 
 let kc: Keycloak | null = null;
 
@@ -44,16 +44,23 @@ export function bootstrapAuth(): Promise<AuthBootstrap> {
 }
 
 async function doBootstrap(): Promise<AuthBootstrap> {
-  let config: PublicAuthConfig;
+  let config: PublicConfig;
   try {
-    config = await apiGet<PublicAuthConfig>('/config');
+    config = await apiGet<PublicConfig>('/config');
   } catch (err: unknown) {
     console.error('Keycloak: no pude leer /api/config', err);
     return DISABLED;
   }
 
-  const { url, realm, clientId } = config;
-  if (!url || !realm || !clientId) return DISABLED;
+  const { url, realm, clientId, invitesEnabled } = config;
+
+  // Que Keycloak no arranque **no apaga el registro**, y por eso `invitesEnabled` no vuelve por
+  // `DISABLED`: son cosas distintas. El alta la ejecuta nuestro backend contra la Admin API, así
+  // que se puede consumar una invitación con la instancia de Keycloak caída en el navegador; lo
+  // que fallaría después es el «iniciar sesión», que es otra pantalla. Solo un `/api/config` que
+  // no contesta deja el registro en `false`, y ahí sí es la respuesta honesta: no sabemos nada.
+  const sinAuth: AuthBootstrap = { enabled: false, authenticated: false, invitesEnabled };
+  if (!url || !realm || !clientId) return sinAuth;
 
   const instance = new Keycloak({ url, realm, clientId });
   try {
@@ -66,10 +73,10 @@ async function doBootstrap(): Promise<AuthBootstrap> {
       checkLoginIframe: false,
     });
     kc = instance;
-    return { enabled: true, authenticated };
+    return { enabled: true, authenticated, invitesEnabled };
   } catch (err: unknown) {
     console.error('Keycloak: init falló', err);
-    return DISABLED;
+    return sinAuth;
   }
 }
 

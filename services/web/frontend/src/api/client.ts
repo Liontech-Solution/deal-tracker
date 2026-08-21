@@ -63,6 +63,30 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 /**
+ * El fetch que hay debajo de las cinco funciones exportadas. Lo único que las distingue de verdad
+ * es `conToken`; el resto es la misma petición.
+ */
+async function pedir<T>(
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+  path: string,
+  opciones: { params?: Record<string, unknown>; body?: unknown; conToken: boolean },
+): Promise<T> {
+  const { params, body, conToken } = opciones;
+  const res = await fetch(buildUrl(path, params), {
+    method,
+    headers: {
+      Accept: 'application/json',
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(conToken ? await authHeaders() : {}),
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+  if (!res.ok) await parseError(res);
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
+/**
  * GET que adjunta el token **si lo hay**. Antes era el GET público del catálogo y nunca lo
  * adjuntaba; desde #309 el catálogo pide sesión, así que sus cuatro hooks tienen que ir firmados.
  *
@@ -74,11 +98,7 @@ async function authHeaders(): Promise<Record<string, string>> {
  * El cambio vive aquí y no en los hooks a propósito, para no tocar `hooks.ts` (#292).
  */
 export async function apiGet<T>(path: string, params?: Record<string, unknown>): Promise<T> {
-  const res = await fetch(buildUrl(path, params), {
-    headers: { Accept: 'application/json', ...(await authHeaders()) },
-  });
-  if (!res.ok) await parseError(res);
-  return (await res.json()) as T;
+  return pedir<T>('GET', path, { params, conToken: true });
 }
 
 /**
@@ -97,16 +117,31 @@ export async function apiSend<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const res = await fetch(buildUrl(path), {
-    method,
-    headers: {
-      Accept: 'application/json',
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...(await authHeaders()),
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-  if (!res.ok) await parseError(res);
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  return pedir<T>(method, path, { body, conToken: true });
+}
+
+/**
+ * Las dos **anónimas de verdad**: no adjuntan token ni aunque haya sesión. Las estrena el alta por
+ * invitación (#550), que es pública y a la que se llega desde un enlace de correo.
+ *
+ * No son un alias declarativo como `apiGetAuth`: **cambian el comportamiento**, y arreglan un fallo
+ * concreto. `apiGet` no es «sin token», es «token si lo hay», y cuando la sesión está *muerta*
+ * `getFreshToken()` **lanza** `ApiError(401)` antes del `fetch` (#262). Para un endpoint que exige
+ * sesión eso es lo correcto —la petición condenada no llega a salir—, y para una página pública es
+ * justo lo contrario: quien abre su invitación con una sesión caducada encima vería «tu sesión ha
+ * caducado» en lugar del formulario de alta, sin que nada hubiera salido a la red.
+ *
+ * Los dos endpoints del alta no llevan guard, así que mandar el token tampoco haría daño; lo que
+ * hace daño es el camino que lo consigue.
+ */
+export async function apiGetPublic<T>(path: string, params?: Record<string, unknown>): Promise<T> {
+  return pedir<T>('GET', path, { params, conToken: false });
+}
+
+export async function apiSendPublic<T>(
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  return pedir<T>(method, path, { body, conToken: false });
 }

@@ -345,8 +345,15 @@ These are facts about the running system, not plans:
 - **Auth/login:** **Keycloak**, already deployed in the cluster. The web service is a resource
   server: it validates access JWTs against the realm JWKS.
 - **Environments:** `dev local`, `dev`, `qa`, `prod`. **`prod` is up**: deployed since 2026-08-07,
-  public at `dealtracker.liontechsolution.com`, ingesting daily and with the matching job on. It has
-  0 registered users on purpose — Keycloak users are created by hand with `kcadm.sh`.
+  public at `dealtracker.liontechsolution.com`, ingesting daily and with the matching job on. Since
+  v0.8.0 (#550) **the way in is an invitation, and there is no other**: a user with quota invites an
+  email, the invited one gets a link to `/registro?token=…`, picks a password and the backend creates
+  the account through Keycloak's Admin API. The realm's own `registrationAllowed` stays `false` — the
+  alta is ours, not Keycloak's. And the gate that keeps it shut is the quota: `invites_remaining`
+  **defaults to 0 for everybody** (migration `0044`), handed out by SQL one account at a time, so
+  «nobody can invite» is the resting state and not an incident. Which is also why the whole flow is
+  invisible in `dev`: `isInvitesConfigured()` needs the `KEYCLOAK_*` its overlay deliberately drops,
+  plus `RESEND_API_KEY`, so `invitesEnabled` is `false` there and the SPA hides what cannot be used.
 - **CI/CD:** GitHub Actions (`scraper-ci.yml`, `web-ci.yml`, `release-qa.yml`, `release-prod.yml`)
   build and publish `ghcr.io/liontech-solution/deal-tracker-{scraper,web}`, then a `bump` job
   rewrites the image tag in the manifests repo; **ArgoCD** syncs it. dev tracks `sha-<7>`

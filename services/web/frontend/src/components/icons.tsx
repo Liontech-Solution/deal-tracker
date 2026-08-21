@@ -150,6 +150,21 @@ export const SendIcon = (p: P) => (
     <path d="M22 2 15 22l-4-9-9-4z" />
   </Icon>
 );
+/** El correo al que se invitó. Va junto a un campo que **no se puede editar**: lo fija la invitación. */
+export const MailIcon = (p: P) => (
+  <Icon {...p} sw={p.sw ?? 2.2}>
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="m2 7 10 6 10-6" />
+  </Icon>
+);
+/** La contraseña que elige quien se da de alta. */
+export const KeyIcon = (p: P) => (
+  <Icon {...p} sw={p.sw ?? 2.2}>
+    <circle cx="7.5" cy="15.5" r="4.5" />
+    <path d="m10.7 12.3 9.3-9.3" />
+    <path d="m17 6 3 3" />
+  </Icon>
+);
 export const SettingsIcon = (p: P) => (
   <Icon {...p} sw={p.sw ?? 2.2}>
     <circle cx="12" cy="12" r="3" />
