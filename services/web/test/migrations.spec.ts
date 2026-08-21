@@ -99,6 +99,78 @@ describe.skipIf(!TEST_DB)('migraciones', () => {
     expect(idx).toHaveLength(1);
   });
 
+  it('0044 crea `invitation` con la unicidad PARCIAL del correo vivo y el cupo a cero', async () => {
+    await runMigrations(sql);
+
+    const cols = await sql<{ column_name: string }[]>`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'invitation'`;
+    expect(cols.map((c) => c.column_name).sort()).toEqual([
+      'accepted_at',
+      'accepted_user_id',
+      'created_at',
+      'email',
+      'expires_at',
+      'id',
+      'inviter_user_id',
+      'revoked_at',
+      'token_hash',
+    ]);
+
+    // Las dos FK apuntan a la misma tabla y NO se borran igual, que es el diseño (#546): la
+    // invitación se va con quien invitó —si esa cuenta muere, su invitación pendiente no debe
+    // poder canjearse— pero sobrevive a la cuenta que nació de ella, porque gastar cupo y mandar
+    // un correo son hechos ocurridos. Un `cascade` en la segunda borraría el rastro del alta.
+    const fks = await sql<{ column_name: string; foreign_table: string; delete_rule: string }[]>`
+      SELECT kcu.column_name, ccu.table_name AS foreign_table, rc.delete_rule
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.key_column_usage kcu
+        ON kcu.constraint_name = tc.constraint_name
+      JOIN information_schema.constraint_column_usage ccu
+        ON ccu.constraint_name = tc.constraint_name
+      JOIN information_schema.referential_constraints rc
+        ON rc.constraint_name = tc.constraint_name
+      WHERE tc.table_name = 'invitation' AND tc.constraint_type = 'FOREIGN KEY'
+      ORDER BY kcu.column_name`;
+    expect(fks).toEqual([
+      { column_name: 'accepted_user_id', foreign_table: 'app_user', delete_rule: 'SET NULL' },
+      { column_name: 'inviter_user_id', foreign_table: 'app_user', delete_rule: 'CASCADE' },
+    ]);
+
+    // Dos invitaciones no pueden compartir secreto, y el canje busca por aquí.
+    const uniq = await sql<{ constraint_name: string }[]>`
+      SELECT constraint_name FROM information_schema.table_constraints
+      WHERE table_name = 'invitation' AND constraint_type = 'UNIQUE'`;
+    expect(uniq.map((u) => u.constraint_name)).toEqual(['invitation_token_hash_uniq']);
+
+    // Y la que de verdad importa: que el índice del correo sea PARCIAL. Uno total pasaría todos
+    // los asserts de arriba y cambiaría la regla en silencio — prohibiría reinvitar a quien
+    // declinó y a quien caducó, que es justo lo contrario de lo que la 0044 decide.
+    const [idx] = await sql<{ indexdef: string }[]>`
+      SELECT indexdef FROM pg_indexes
+      WHERE tablename = 'invitation' AND indexname = 'ux_invitation_email_viva'`;
+    expect(idx).toBeDefined();
+    expect(idx.indexdef).toContain('UNIQUE');
+    expect(idx.indexdef).toContain('WHERE ((accepted_at IS NULL) AND (revoked_at IS NULL))');
+
+    // El cupo: `0` es la política, no un relleno. Nadie invita hasta que se le da cupo a mano.
+    const [cupo] = await sql<{ is_nullable: string; column_default: string }[]>`
+      SELECT is_nullable, column_default FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'app_user'
+        AND column_name = 'invites_remaining'`;
+    expect(cupo).toBeDefined();
+    expect(cupo.is_nullable).toBe('NO');
+    expect(cupo.column_default).toBe('0');
+
+    // El CHECK no protege del camino normal —`UPDATE ... WHERE invites_remaining > 0` ya resuelve
+    // la carrera—, sino del reparto de cupo A MANO por SQL en prod, que es el que existe de veras.
+    const chk = await sql<{ constraint_name: string }[]>`
+      SELECT constraint_name FROM information_schema.table_constraints
+      WHERE table_name = 'app_user' AND constraint_type = 'CHECK'
+        AND constraint_name = 'app_user_invites_remaining_chk'`;
+    expect(chk).toHaveLength(1);
+  });
+
   it('es idempotente (re-ejecutar no aplica nada nuevo)', async () => {
     const applied = await runMigrations(sql);
     expect(applied).toEqual([]);

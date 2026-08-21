@@ -351,6 +351,10 @@ export const appUser = pgTable('app_user', {
   telegramLinkTokenExpiresAt: timestamp('telegram_link_token_expires_at', {
     withTimezone: true,
   }),
+  // Cupo de invitaciones (migración 0044, #546). `0` no es relleno: es la política — nadie invita
+  // hasta que se le da cupo a mano. El CHECK `invites_remaining >= 0` que lo acompaña en el SQL no
+  // se refleja aquí, como ningún otro CHECK del esquema.
+  invitesRemaining: integer('invites_remaining').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -420,6 +424,54 @@ export const favorite = pgTable(
   // El favorito es del PRODUCTO entero (un corazón por producto, sin talla), y esta clave es la que
   // hace idempotente el alta: marcar dos veces el mismo corazón no falla ni duplica.
   (t) => [unique('favorite_user_product_uniq').on(t.userId, t.productId)],
+);
+
+/**
+ * Invitaciones al alta (migración 0044, #546). Primera pieza del registro por invitación: hasta
+ * ahora las cuentas se creaban a mano con `kcadm.sh`.
+ *
+ * **Se guarda el hash del token, no el token**, divergiendo a propósito de
+ * `appUser.telegramLinkToken`, que va en claro: aquél enlaza un chat a una cuenta que ya existe y
+ * éste **crea la cuenta**, así que un volcado de la base no debe bastar para darse de alta como
+ * otra persona.
+ *
+ * **`email` se normaliza en la aplicación** —minúsculas y recortado— y el índice va sobre la
+ * columna desnuda: con el ctype `C` del cluster `lower()` no baja las acentuadas (#105), así que un
+ * índice funcional se comportaría distinto en CI que en producción.
+ *
+ * Y hay **una invariante que vive solo en el SQL** y que este tipo no anuncia:
+ * `ux_invitation_email_viva` es un índice único **parcial**
+ * (`WHERE accepted_at IS NULL AND revoked_at IS NULL`), o sea **una invitación viva por correo**.
+ * El espejo no refleja índices —ninguno, en todo el fichero—, así que quien escriba el `INSERT`
+ * tiene que contar con un `23505` sobre un correo ya invitado. Un `UNIQUE` a secas aquí sería otra
+ * cosa: prohibiría reinvitar a quien declinó.
+ *
+ * Ojo con el caso que sorprende: una invitación **caducada sigue ocupando el sitio**, porque el
+ * predicado no puede mirar `expires_at` (Postgres no admite `now()` en un índice). Se libera
+ * revocándola, que es además lo que devuelve el cupo.
+ */
+export const invitation = pgTable(
+  'invitation',
+  {
+    id: bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
+    inviterUserId: bigint('inviter_user_id', { mode: 'number' })
+      .notNull()
+      .references(() => appUser.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    // Sin default en el SQL: la ventana (7 días) la fija quien crea la invitación, igual que el TTL
+    // del vínculo de Telegram vive en el servicio y no en la 0006.
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    // `SET NULL` y no `cascade`: borrar la cuenta que nació de esta invitación no borra el hecho de
+    // que se gastó cupo y se mandó un correo.
+    acceptedUserId: bigint('accepted_user_id', { mode: 'number' }).references(() => appUser.id, {
+      onDelete: 'set null',
+    }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (t) => [unique('invitation_token_hash_uniq').on(t.tokenHash)],
 );
 
 export const notification = pgTable(
@@ -503,6 +555,7 @@ export const schema = {
   appUser,
   interest,
   favorite,
+  invitation,
   notification,
   jobState,
   matchingScannedRun,
@@ -517,3 +570,5 @@ export type AppUser = typeof appUser.$inferSelect;
 export type Interest = typeof interest.$inferSelect;
 export type NewInterest = typeof interest.$inferInsert;
 export type Favorite = typeof favorite.$inferSelect;
+export type Invitation = typeof invitation.$inferSelect;
+export type NewInvitation = typeof invitation.$inferInsert;
