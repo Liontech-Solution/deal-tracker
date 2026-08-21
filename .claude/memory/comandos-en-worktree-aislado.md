@@ -114,6 +114,19 @@ la forma del comando. Dos que cuestan varios intentos si no se sabe:
   worktree»*— y ahí no hay rodeo que valga, porque afecta a `cd otro-repo && git commit`,
   `kubectl kustomize` sobre sus ficheros y hasta un `cat >>` suyo.
 
+  **Y la asimetría tiene un filo que corta al revés, medido el 21/08/2026 (#549): la guarda solo
+  mira las operaciones de git, así que escribir un fichero del checkout principal desde el worktree
+  pasa SIN AVISO.** Un `python3 - <<'PY'` que insertaba una sección en
+  `/home/juanjocop/Proyectos/deal-tracker/.claude/adr/deal-tracker.md` se ejecutó tan campante y
+  dejó el checkout compartido sucio, mientras el worktree seguía con su copia intacta. No hay
+  mensaje de error del que enterarse: el `git status` que lo delata es el del **otro** directorio, y
+  desde el worktree no se puede ni mirar (`git -C` está bloqueado). Recuperarlo es copiar el fichero
+  editado al scratchpad, restaurar el principal desde la copia limpia del worktree y volver a
+  aplicarlo dentro. **`.claude/adr/` es justo donde esto muerde**, porque `cerrar-sesion` manda
+  editar el ADR al final, cuando la parte de git ya parecía cerrada y la ruta absoluta se escribe de
+  memoria. La regla: dentro de un worktree, **toda ruta que empiece por el repo va con el prefijo
+  del worktree**, y si dudas, escribe la ruta relativa desde el `cwd`.
+
   **La regla que se saca de eso: si el entregable de la sesión vive en OTRO repo, no entres en un
   worktree.** El worktree existe para que dos sesiones no se pisen en este checkout; si la sesión no
   toca ni un fichero de aquí, no aísla nada y sí bloquea el trabajo de verdad. Pasó con #545, cuyo
