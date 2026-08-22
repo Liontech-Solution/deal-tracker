@@ -363,6 +363,47 @@ export class CatalogService {
           AND ${barefootCondition(q.barefoot, 'p')}
           AND ${tagCondition(q.deportiva ? TAG_DEPORTIVA : undefined, 'p')}`;
 
+    // Y los de VARIANTE, por el mismo motivo y con una razón añadida desde #523: ahora se usan en
+    // dos sitios del camino vivo —`candidatas`, que poda antes de tocar price_history, y `matched`,
+    // que es donde se filtraba siempre— y los dos tienen que decir exactamente lo mismo o la poda
+    // dejaría fuera filas que `matched` sí quería.
+    //
+    // Ojo al singular y al plural, que son cosas distintas: `filtroDeVariante` (arriba) es el
+    // booleano que decide QUÉ CAMINO se toma; esto son los predicados.
+    //
+    // Los tres se apoyan en `v`, así que solo valen donde `variant` esté en el FROM. El cuarto
+    // filtro de variante, `inStock === false`, NO está aquí a propósito: mira `l.in_stock`, que
+    // nace en `latest`, o sea que se resuelve después de lo que esta constante permite podar.
+    const filtrosDeVariante = sql`
+          -- Talla canónica (#43): variant.size guarda el texto de la tienda, donde la misma talla
+          -- aparece como '26', '26 (16,3 cm)' y '26 (16.3 cm)'. Se canonicaliza también lo que llega
+          -- por query string, así que los enlaces antiguos con la talla cruda siguen vivos.
+          --
+          -- Esta igualdad es la que justifica el índice por expresión de la migración 0014: sin él,
+          -- la función se evalúa una vez por variante y esta consulta pasa de 1,4 ms a 1 segundo
+          -- (medido sobre una copia de dev con 33.311 variantes).
+          ${ejeMultiple(size, sql`${sql.raw(plegadoTalla(section))}(v.size)`, plegadoTalla(section))}
+          -- Segundo piso de la talla (#367): la CONCRETA dentro de la banda. Se cruza con la de
+          -- arriba en vez de sustituirla —la banda es dónde estás, esta es lo que pides dentro—, y
+          -- se apoya en el mismo índice de la 0014 que la canónica de zapatería, que sigue vivo
+          -- porque la 0033 no lo tocó. En zapateria los dos ejes pliegan igual y este sobra, pero
+          -- no estorba: la SPA no lo manda ahí.
+          AND ${ejeMultiple(sizeExact, sql`size_canon(v.size)`, 'size_canon')}
+          -- Color por FAMILIA (#291, migración 0029), no por color canónico. El panel ofrecía 2.859
+          -- chips —el 85,2 % compuestos tipo 'amarillo claro/bluey'— y en un móvil eso es
+          -- inservible; ahora ofrece las ~19 familias que deja color_family.
+          --
+          -- Plegar también lo que llega por query string mantiene vivos los enlaces antiguos, igual
+          -- que en la talla, con una diferencia que conviene tener presente: aquí no solo siguen
+          -- vivos, se ENSANCHAN. Un ?color=azul marino guardado en un marcador pasa a devolver
+          -- todos los azules. Es la consecuencia aceptada de que el filtro sea por familia.
+          --
+          -- El color específico NO se pierde por esto: se sigue guardando en variant.color, la
+          -- tarjeta y la ficha lo siguen enseñando, y el aviso lo sigue casando por color_canon
+          -- (ver la cabecera de la 0029, que explica por qué los dos "color" significan cosas
+          -- distintas). Y es lo que justifica el índice ix_variant_color_family.
+          AND ${ejeMultiple(color, sql`color_family(v.color)`, 'color_family')}`;
+
     // Las mismas columnas y los mismos nombres en los dos caminos: `scored` y el SELECT de fuera
     // leen de `agg` sin saber cuál de los dos la ha producido.
     const columnasDeProducto = sql`p.id, p.retailer_id, r.slug AS retailer_slug,
@@ -373,11 +414,45 @@ export class CatalogService {
     // Es el que se usa cuando hay un filtro de variante puesto. Ahí no duele: el filtro colapsa el
     // conjunto a unos cientos de filas antes de agregarlo.
     const agregadoVivo = sql`
+      -- Qué variantes puede llegar a devolver ESTA petición (#523). Va primero para que latest y
+      -- stats trabajen sobre ellas y no sobre el catálogo entero, que es lo que hacían: las dos
+      -- CTE recorrían las 606.943 filas de price_history de QA sin recibir un solo filtro, y los
+      -- filtros se aplicaban después, en matched. De ahí salía la propiedad que delataba el
+      -- problema — el caso que devuelve cero filas costaba lo mismo que el que devuelve noventa
+      -- (2.363 ms el vacío contra 1.868 ms el lleno, medido el 20/08/2026) — y de ahí que el suelo
+      -- subiera solo con cada pasada de cada tienda, sin que nadie tocara código.
+      --
+      -- Es una PODA, no un cambio de semántica, y conviene ver por qué antes de tocarla: latest
+      -- es un DISTINCT ON (variant_id) y stats agrupa por variant_id, así que lo que se calcula
+      -- para una variante no depende de qué otras variantes haya en la CTE. Quitar las que
+      -- matched iba a descartar de todas formas no puede cambiar ni una fila del resultado —y
+      -- quien lo dude tiene catalog-agregado-paridad.spec.ts, que compara los dos caminos con un
+      -- EXCEPT y es el que dice si esto sigue siendo verdad.
+      --
+      -- (Sin comillas invertidas en estos comentarios: esto vive dentro de un template literal.)
+      --
+      -- Dos casos que esto NO poda, y no es descuido:
+      --   · inStock === false ("enséñame lo agotado"), que filtra sobre l.in_stock y por tanto
+      --     nace en latest: ahí candidatas es el catálogo entero y el suelo sigue pagándose. La
+      --     SPA no lo manda (CatalogPage manda inStock: filters.inStock || undefined).
+      --   · forzarAgregadoVivo, que es costura de test y no lleva filtros por definición.
+      candidatas AS (
+        SELECT v.id AS variant_id
+        FROM product p
+        JOIN retailer r ON r.id = p.retailer_id
+        JOIN variant v ON v.product_id = p.id AND v.delisted_at IS NULL
+        WHERE ${filtrosDeProducto}
+          AND ${filtrosDeVariante}
+      ),
       latest AS (
         SELECT DISTINCT ON (ph.variant_id)
           ph.variant_id, ph.price, ph.list_price, ph.discount_pct, ph.in_stock,
           ph.retailer_min_30d, ph.scraped_at
         FROM price_history ph
+        -- El JOIN que convierte el recorrido entero en un index scan por variante: la clave de
+        -- ix_price_history_variant_time (variant_id, scraped_at DESC), de la 0001, es exactamente
+        -- la que este DISTINCT ON pide.
+        JOIN candidatas c ON c.variant_id = ph.variant_id
         ORDER BY ph.variant_id, ph.scraped_at DESC
       ),
       -- MATERIALIZED no es decorativo, es el arreglo de #515, y el porqué merece leerse antes de
@@ -437,38 +512,21 @@ export class CatalogService {
         FROM product p
         JOIN retailer r ON r.id = p.retailer_id
         JOIN variant v ON v.product_id = p.id AND v.delisted_at IS NULL
+        -- Los filtros de variante NO se repiten aquí: entran por este JOIN, que es la misma
+        -- condición ya resuelta una vez. Repetirlos costaba **1,7 s** en el caso de dos ejes
+        -- (talla + color), y el plan dice por qué: size_band(size) no se resuelve por índice
+        -- cuando el planificador ya ha entrado por ix_variant_color_family, así que se evalúa como
+        -- filtro fila a fila — 34.196 evaluaciones para dejar 2.894 filas, medido contra QA el
+        -- 22/08/2026. Escribirlos dos veces era pagarlas dos veces.
+        --
+        -- Y no es solo una optimización: latest ya viene podada por candidatas, así que este
+        -- JOIN es lo que mantiene EXPLÍCITO en el WHERE de matched un conjunto que, si no, habría
+        -- que deducir de la CTE de arriba. La red que dice que sigue siendo el mismo conjunto es
+        -- catalog-agregado-paridad.spec.ts.
+        JOIN candidatas cand ON cand.variant_id = v.id
         JOIN latest l ON l.variant_id = v.id
         LEFT JOIN stats s ON s.variant_id = v.id
         WHERE ${filtrosDeProducto}
-          -- Talla canónica (#43): variant.size guarda el texto de la tienda, donde la misma talla
-          -- aparece como '26', '26 (16,3 cm)' y '26 (16.3 cm)'. Se canonicaliza también lo que llega
-          -- por query string, así que los enlaces antiguos con la talla cruda siguen vivos.
-          --
-          --
-          -- Esta igualdad es la que justifica el índice por expresión de la migración 0014: sin él,
-          -- la función se evalúa una vez por variante y esta consulta pasa de 1,4 ms a 1 segundo
-          -- (medido sobre una copia de dev con 33.311 variantes).
-          AND ${ejeMultiple(size, sql`${sql.raw(plegadoTalla(section))}(v.size)`, plegadoTalla(section))}
-          -- Segundo piso de la talla (#367): la CONCRETA dentro de la banda. Se cruza con la de
-          -- arriba en vez de sustituirla —la banda es dónde estás, esta es lo que pides dentro—, y
-          -- se apoya en el mismo índice de la 0014 que la canónica de zapatería, que sigue vivo
-          -- porque la 0033 no lo tocó. En zapateria los dos ejes pliegan igual y este sobra, pero
-          -- no estorba: la SPA no lo manda ahí.
-          AND ${ejeMultiple(sizeExact, sql`size_canon(v.size)`, 'size_canon')}
-          -- Color por FAMILIA (#291, migración 0029), no por color canónico. El panel ofrecía 2.859
-          -- chips —el 85,2 % compuestos tipo 'amarillo claro/bluey'— y en un móvil eso es
-          -- inservible; ahora ofrece las ~19 familias que deja color_family.
-          --
-          -- Plegar también lo que llega por query string mantiene vivos los enlaces antiguos, igual
-          -- que en la talla, con una diferencia que conviene tener presente: aquí no solo siguen
-          -- vivos, se ENSANCHAN. Un ?color=azul marino guardado en un marcador pasa a devolver
-          -- todos los azules. Es la consecuencia aceptada de que el filtro sea por familia.
-          --
-          -- El color específico NO se pierde por esto: se sigue guardando en variant.color, la
-          -- tarjeta y la ficha lo siguen enseñando, y el aviso lo sigue casando por color_canon
-          -- (ver la cabecera de la 0029, que explica por qué los dos "color" significan cosas
-          -- distintas). Y es lo que justifica el índice ix_variant_color_family.
-          AND ${ejeMultiple(color, sql`color_family(v.color)`, 'color_family')}
           AND (${inStock}::boolean IS NULL OR l.in_stock = ${inStock})
       ),
       agg AS (
@@ -719,11 +777,24 @@ export class CatalogService {
     }
 
     const variantRows = (await this.db.execute(sql`
-      WITH latest AS (
+      WITH candidatas AS (
+        -- La misma poda del listado (#523), y aquí el ámbito es una sola prenda, así que no hay
+        -- nada que decidir: las variantes de este producto y ya.
+        --
+        -- Esta mitad NO estaba en el cuerpo de la issue —la dejó escrita como "puede que no
+        -- importe (la ficha es una sola prenda) o puede que pague los mismos ~600 ms"— y se midió
+        -- el 20/08/2026: pagaba **~1,6 s en cada carga de ficha**, y lo delataba que el coste no
+        -- dependía del número de variantes (7, 9 y 10 daban lo mismo), que es la firma de un
+        -- recorrido no acotado por la prenda pedida. El contraste que lo cierra: la gráfica de esa
+        -- misma ficha, que sí va acotada por variant_id, se sirve en ~0,1 s.
+        SELECT v.id AS variant_id FROM variant v WHERE v.product_id = ${id}
+      ),
+      latest AS (
         SELECT DISTINCT ON (ph.variant_id)
           ph.variant_id, ph.price, ph.list_price, ph.discount_pct, ph.in_stock,
           ph.retailer_min_30d, ph.scraped_at
         FROM price_history ph
+        JOIN candidatas c ON c.variant_id = ph.variant_id
         ORDER BY ph.variant_id, ph.scraped_at DESC
       ),
       stats AS (
