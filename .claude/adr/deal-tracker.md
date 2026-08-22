@@ -396,11 +396,26 @@ API de `/validar-qa` puede pasar **todos** sus casos autenticados en verde con e
 el mundo. Es justo el punto ciego que obliga a que el frente de UI se ejerza en un navegador de verdad.
 
 **Y ese Keycloak no lo gobierna ninguno de los dos repos de este proyecto.** Vive en un tercero —
-`open-liontechsolution/toolsuite-platform-gitops`, path `apps/security/keycloak`, chart `keycloakx`,
-desplegado en `security-dev/keycloak-dev-0`—, así que el contrato de dos repos que describe este ADR
-tiene un tercer vértice del que depende todo el login. Es **una sola instancia para los tres
-entornos**: lo que se separa es el realm, no el servidor, así que si esa instancia cae, cae también
-el login de producción. Está aceptado a cambio de no desplegar un Keycloak más.
+`open-liontechsolution/toolsuite-platform-gitops`, path `apps/security/keycloak`, chart `keycloakx`—,
+así que el contrato de dos repos que describe este ADR tiene un tercer vértice del que depende todo
+el login.
+
+**Y desde el 22/08/2026 son DOS instancias, no una** (toolsuite `#62`, umbrella `#553`). Hasta esa
+fecha había una sola para los tres entornos —lo que se separaba era el realm, no el servidor—, con
+dos consecuencias aceptadas a cambio de no desplegar un Keycloak más: si esa instancia caía, caía el
+login de producción, y los usuarios de producción veían `keycloak-dev` en la barra. Las dos se
+fueron con el traslado:
+
+| | instancia | namespace | host |
+|---|---|---|---|
+| dev **y QA** | la de siempre | `security-dev` / `keycloak-dev-0` | `keycloak-dev.liontechsolution.com` |
+| **producción** | propia, con su base CNPG | `security-prod` / `keycloak-prod-0` | `keycloak.liontechsolution.com` |
+
+Se hizo **antes** de abrir el registro por invitación de la v0.8.0, y ése fue el motivo del orden:
+el realm tenía 2 usuarios y moverlo era un export/import; con cien habría sido una migración con
+gente dentro. El traslado conservó el `id` de Keycloak del usuario existente —comprobado después:
+`app_user` siguió con una sola fila y sus intereses intactos, porque el backend aprovisiona por el
+claim `sub` y un id nuevo habría creado una cuenta vacía—.
 
 **Y desde el 12/08/2026 el realm SÍ está declarado en git, lo que invierte lo que este ADR decía
 aquí.** Hasta entonces la configuración de realms y clients existía solo en la Postgres de Keycloak
@@ -418,9 +433,15 @@ tenerlo presente al leer el párrafo de #219: **producción estrenó realm propi
 `deal-tracker-prod`, con su client `deal-tracker-web` (mismo nombre, otro realm, no colisionan). Ese
 era el punto de la #50 — compartiendo realm, el fallo que tumbó QA se habría llevado por delante
 producción. El contrato con este repo son dos valores del SealedSecret de `overlays/prod`:
-`KEYCLOAK_ISSUER_URL=https://keycloak-dev.liontechsolution.com/realms/deal-tracker-prod` y
-`KEYCLOAK_AUDIENCE=deal-tracker-web`. Si el nombre del realm o del client cambia allí, aquí deja de
-validar ningún token.
+`KEYCLOAK_ISSUER_URL=https://keycloak.liontechsolution.com/realms/deal-tracker-prod` y
+`KEYCLOAK_AUDIENCE=deal-tracker-web`. Si el nombre del realm, del client **o del host** cambia allí,
+aquí deja de validar ningún token — el host entró en ese contrato con el traslado de la `#62`.
+
+Un detalle de implementación que conviene saber, porque decidió que el corte fuera indoloro: el
+front **no lleva la URL de Keycloak incrustada en el build**, la pide a `/api/config` en caliente.
+Por eso bastó re-sellar el secret y reiniciar el deployment: navegador y backend cambiaron de IdP a
+la vez. Si estuviera en el build, el navegador habría seguido pidiendo tokens al Keycloak viejo que
+el backend ya no acepta, y el síntoma habría sido un login roto sin nada obviamente mal.
 
 **No hay roles, y conviene saberlo antes de buscarlos.** La autorización del backend es
 `issuer` + `aud` + que el token traiga `sub`, y nada más: no hay `RolesGuard`, ni `@Roles`, ni una
