@@ -4342,6 +4342,57 @@ sin filtrar pase lo que pase, así que el camino vivo tiene un suelo de ~1,8–2
 devuelve cero filas cuesta lo mismo que el que devuelve noventa** — los filtros no pueden podar las
 CTE, solo descartar su resultado. Ese suelo sube solo con cada pasada.
 
+### La premisa del camino vivo era falsa: el filtro no podaba, solo descartaba (#523)
+
+La `0035` se diseñó sobre una frase que está escrita más arriba en este mismo ADR y que **el SQL no
+cumplía**: *«se usa cuando hay un filtro de variante puesto; ahí no duele, el filtro colapsa el
+conjunto a unos cientos de filas antes de agregarlo»*. Colapsaba el conjunto, sí — pero **en
+`matched`, después de las dos CTE**. `latest` y `stats` se calculaban antes y sin ver la petición,
+de modo que el filtro no podía podar trabajo: solo descartaba su resultado.
+
+Es un error de razonamiento que merece quedarse escrito porque no se ve leyendo el diseño, solo el
+orden de las CTE. Y su síntoma era observable desde el principio sin necesidad de un `EXPLAIN`: **el
+caso que devuelve cero filas costaba lo mismo que el que devuelve noventa**. Cuando una consulta
+filtrada no baja de precio al filtrar más, la poda está en el sitio equivocado.
+
+**El arreglo (22/08/2026) es una CTE `candidatas` delante de todo**, que resuelve qué variantes puede
+llegar a devolver la petición; `latest` entra por ella y `stats` se encoge sola porque deriva de
+`latest`. Es una **poda y no un cambio de semántica**, y el argumento es de forma, no de medida:
+`latest` es un `DISTINCT ON (variant_id)` y `stats` agrupa por `variant_id`, así que lo que se
+calcula para una variante no depende de qué otras haya en la CTE. Quien lo dude tiene
+`catalog-agregado-paridad.spec.ts`, que compara los dos caminos con un `EXCEPT`.
+
+Medido con `EXPLAIN (ANALYZE)` contra `deal_tracker_qa` —el aarch64 del cluster— volcando el SQL del
+propio servicio:
+
+| consulta | original | poda | poda + `0045` |
+|---|---:|---:|---:|
+| `color=rosa&retailer=cacles` | 2.043–2.153 ms | **69–78 ms** | — |
+| `color=verde&retailer=deditos` *(0 filas)* | 1.801–1.818 ms | **66–80 ms** | — |
+| ficha 2501 | 1.691–1.857 ms | **34–38 ms** | — |
+| `ropa&size=6 años&color=azul` | 7.141–7.343 ms | 6.186–6.355 ms | **157–173 ms** |
+
+Tres cosas que la medición enseñó y que no se deducían del diseño:
+
+- **El cuello se mueve, no desaparece.** Con `price_history` fuera de en medio, el **98 %** del caso
+  de dos ejes pasó a ser `candidatas`, y dentro, `size_band(size)` evaluada **34.196 veces para
+  dejar 2.894 filas**: `variant` tiene un índice de expresión por eje (0029 y 0033) y con los dos
+  filtros puestos **solo uno puede ser la entrada**, el otro se degrada a filtro fila a fila. Eso es
+  la `0045`, un índice compuesto `(color_family(color), size_band(size))`. La lección general es que
+  **arreglar el cuello de una consulta no la deja rápida, la deja con otro cuello** — y que el
+  segundo no se puede adivinar antes de quitar el primero.
+- **Repetir un predicado es pagarlo dos veces, y ningún test lo dice.** La primera versión dejaba los
+  filtros de variante también en `matched` «por si la poda se afloja»: costaba **1,7 s** en el caso
+  de dos ejes, y con los 925 tests en verde. Entran por `JOIN candidatas`.
+- **La poda no alcanza a `inStock=false`**, y no por descuido: ese filtro mira `l.in_stock`, que nace
+  en `latest`. Un filtro solo puede podar si se resuelve sobre las tablas que están **antes** del
+  punto donde se poda, y ése no lo está.
+
+La CTE gemela de `getProduct()` tenía la misma forma sin filtrar y **pagaba ~1,6 s en cada carga de
+ficha**, independientemente del número de variantes — que es la firma de un recorrido no acotado por
+la prenda pedida. El contraste que lo cerraba estaba a la vista desde siempre: la gráfica de esa
+misma ficha, acotada por `variant_id`, se servía en ~0,1 s.
+
 ### `image_url` es una cadena opaca de la tienda, y el consumidor no puede suponerle forma (#207)
 
 `product.image_url` lo escribe el scraper y lo consume la SPA, así que es contrato entre servicios
@@ -5092,6 +5143,26 @@ arregla nada de la base (la readiness sí quiere saberlo; la liveness pregunta �
 atribuye a esto el reinicio que prod tiene del 17/08/2026** (`exitCode 255`, `reason: Unknown`): con
 ese código y sin eventos no se puede, y darlo por confirmado sería justo el supuesto silencioso que
 esta clase de sección existe para quitar.
+
+**Las dos se tocaron el 22/08/2026, y la forma en que se tocaron es lo que importa aquí**, porque es
+un caso del seam con el repo de manifiestos que no estaba escrito. El servicio estrena
+`GET /api/health/live`, que no toca la base; `/api/health` **se queda igual** y pasa a ser solo de
+readiness. En manifiestos, `timeoutSeconds: 5`.
+
+Y el `path` de la liveness **no se puede mover en `base`**, que es la trampa: `base` lo heredan los
+tres entornos, `dev` sigue la imagen por `sha-<7>` en cada push a `main` y **QA y prod van por
+semver**, así que apuntar la sonda a un endpoint que solo existe desde la v0.8.0 es un **404 en cada
+sondeo** en los dos entornos que aún no la sirven — o sea CrashLoopBackOff en producción, provocado
+por el propio arreglo de un CrashLoop. Va por `overlays/dev` y sube a `base` cuando la versión que lo
+trae está servida en prod.
+
+**La regla general, que vale para cualquier sonda futura**: en este repo un cambio de `path` de una
+probe es un cambio **acoplado a la versión de la imagen**, mientras que los umbrales
+(`timeoutSeconds`, `periodSeconds`, `failureThreshold`) no lo son. Los segundos van a `base` el mismo
+día; los primeros van por overlay y esperan a la promoción. Y la asimetría entre las dos sondas no es
+cosmética: una liveness que 404 **mata el pod en bucle**, mientras que una readiness que 404 solo lo
+saca de rotación. Si hay que estrenar una ruta, que la estrene la liveness es lo más caro que se
+puede elegir, y por eso esta se escalona.
 
 ### Un release de lunes por la mañana garantiza el P0 de procedencia (#378)
 
