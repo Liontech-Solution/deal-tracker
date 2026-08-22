@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   desenlaceDelAlta,
   estadoDelRegistro,
+  etiquetaDeEstado,
   leerToken,
   LONGITUD_MINIMA_CONTRASENA,
+  mensajeDelErrorAlInvitar,
+  puedeRevocarse,
 } from './invitation';
 
 /**
@@ -109,5 +112,76 @@ describe('desenlaceDelAlta (#550)', () => {
 describe('LONGITUD_MINIMA_CONTRASENA (#550)', () => {
   it('es el mismo suelo que el @MinLength del DTO: si divergen, el usuario se entera al enviar', () => {
     expect(LONGITUD_MINIMA_CONTRASENA).toBe(12);
+  });
+});
+
+/**
+ * #551, la otra punta. Misma limitación y mismo remedio: la tarjeta de `/ajustes` no se puede
+ * renderizar en un test, así que lo que se fija aquí es lo que decide si el usuario tiene salida.
+ * El caso que justifica el fichero es el de la caducada: es el único de los cuatro estados donde
+ * «ya no sirve» y «no se puede revocar» parecen lo mismo y no lo son.
+ */
+describe('puedeRevocarse (#551)', () => {
+  it('la viva se puede revocar: es lo que devuelve el cupo', () => {
+    expect(puedeRevocarse('viva')).toBe(true);
+  });
+
+  it('la CADUCADA también, porque sigue ocupando el correo', () => {
+    // El predicado de `ux_invitation_email_viva` no puede mirar `expires_at`, así que volver a
+    // invitar a ese correo da 409 mientras la fila caducada siga sin cerrar. Revocar es la única
+    // salida y no hay job de limpieza: si esto fuese `false`, el correo quedaría bloqueado para
+    // siempre.
+    expect(puedeRevocarse('caducada')).toBe(true);
+  });
+
+  it('la aceptada y la revocada no: su DELETE es un 404', () => {
+    expect(puedeRevocarse('canjeada')).toBe(false);
+    expect(puedeRevocarse('revocada')).toBe(false);
+  });
+});
+
+describe('etiquetaDeEstado (#551)', () => {
+  it('da rótulo y tono a los cuatro estados', () => {
+    expect(etiquetaDeEstado('viva')).toEqual({ texto: 'Pendiente', tono: 'vivo' });
+    expect(etiquetaDeEstado('caducada')).toEqual({ texto: 'Caducada', tono: 'neutro' });
+    expect(etiquetaDeEstado('canjeada')).toEqual({ texto: 'Aceptada', tono: 'exito' });
+    expect(etiquetaDeEstado('revocada')).toEqual({ texto: 'Revocada', tono: 'neutro' });
+  });
+
+  it('caducada y revocada comparten tono pero no texto', () => {
+    // Las dos son «ya no sirve», pero una se murió sola y la otra la retiró quien invitaba.
+    // Fundirlas haría creer que el sistema retira invitaciones por su cuenta.
+    expect(etiquetaDeEstado('caducada').tono).toBe(etiquetaDeEstado('revocada').tono);
+    expect(etiquetaDeEstado('caducada').texto).not.toBe(etiquetaDeEstado('revocada').texto);
+  });
+});
+
+describe('mensajeDelErrorAlInvitar (#551)', () => {
+  it('el 409 propaga el mensaje del servidor, que es el que dirige a revocar', () => {
+    const delServidor =
+      'Ese correo ya tiene una invitación pendiente. Revócala en tus ajustes para volver a invitarlo: al revocarla recuperas el cupo, y sirve también si ya ha caducado.';
+    expect(mensajeDelErrorAlInvitar(409, delServidor)).toBe(delServidor);
+    // Y sin él tampoco se queda sin decir cuál es la salida.
+    expect(mensajeDelErrorAlInvitar(409)).toContain('Revócala');
+  });
+
+  it('el 502 dice que NO se ha gastado cupo, que es lo que distingue el reintento', () => {
+    // El servicio borra la fila y devuelve el cupo. Sin esta frase el usuario ve el mismo número y
+    // no sabe si ha perdido una invitación.
+    expect(mensajeDelErrorAlInvitar(502)).toContain('No se ha gastado');
+  });
+
+  it('el 403 es la política, no un fallo', () => {
+    expect(mensajeDelErrorAlInvitar(403)).toBe('No te quedan invitaciones.');
+  });
+
+  it('el 503 habla del servidor, no del usuario', () => {
+    expect(mensajeDelErrorAlInvitar(503)).toContain('servidor');
+  });
+
+  it('el 400 propaga la validación del servidor y nunca se queda en blanco', () => {
+    expect(mensajeDelErrorAlInvitar(400, 'email must be an email')).toBe('email must be an email');
+    expect(mensajeDelErrorAlInvitar(400)).not.toBe('');
+    expect(mensajeDelErrorAlInvitar(418)).not.toBe('');
   });
 });

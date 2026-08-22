@@ -336,8 +336,8 @@ export interface ProductQuery {
 
 // --- El alta por invitación: la mitad pública (#549/#550) ---
 //
-// Los tipos de quien INVITA (la lista, el alta y la revocación de `/ajustes`) son de #551 y van en
-// su propio bloque, debajo de éste: así los dos PR no escriben en el mismo sitio del fichero.
+// Los tipos de quien INVITA (la lista, el alta y la revocación de `/ajustes`) son de #551 y están en
+// su propio bloque, debajo de éste: así los dos PR no escribieron en el mismo sitio del fichero.
 
 /**
  * Estado de un token de invitación (espejo de `InvitationTokenView['status']`).
@@ -392,4 +392,53 @@ export interface PublicConfig {
   realm: string | null;
   clientId: string | null;
   invitesEnabled: boolean;
+}
+
+// --- El alta por invitación: la mitad de QUIEN INVITA (#551) ---
+//
+// Éste es el bloque que el de arriba anunciaba. Los tres endpoints llevan sesión, al revés que los
+// dos públicos de #550.
+
+/**
+ * Estado de una invitación en la lista de quien la mandó (espejo de `InvitationStatus`).
+ *
+ * **No se unifica con `InvitationTokenStatus`** y las dos uniones conviven a propósito: aquí el vivo
+ * se llama `'viva'` y allí `'valida'`, y `'revocada'` no existe en la pública porque el backend la
+ * colapsa en `'desconocida'` — quien invitó se la quitó, y eso no es asunto de quien recibió el
+ * correo. Fundirlas obligaría a mentir en una de las dos puntas.
+ */
+export type InvitationStatus = 'viva' | 'caducada' | 'canjeada' | 'revocada';
+
+/** Una invitación de la lista (espejo de `InvitationView`). El correo viaja **entero**, sin enmascarar. */
+export interface InvitationView {
+  id: number;
+  email: string;
+  status: InvitationStatus;
+  createdAt: string;
+  expiresAt: string;
+}
+
+/**
+ * Lo que contesta `GET /invitations` (espejo de `InvitationListView`).
+ *
+ * **No es un array**: el cupo viaja con la lista para que la pantalla no pueda enseñar un número que
+ * no cuadre con las filas que tiene debajo. Antes de #551 lo era, y `invitesRemaining` no salía por
+ * HTTP más que al gastarlo.
+ */
+export interface InvitationListView {
+  invitesRemaining: number;
+  invitations: InvitationView[];
+}
+
+/**
+ * Lo que devuelve invitar (espejo de `CreatedInvitation`).
+ *
+ * `invitesRemaining` es el cupo **ya descontado**. Aun así la pantalla invalida la lista en vez de
+ * fiarse de este número: la fila nueva hay que traerla igualmente.
+ */
+export interface CreatedInvitation {
+  id: number;
+  email: string;
+  expiresAt: string;
+  invitesRemaining: number;
 }

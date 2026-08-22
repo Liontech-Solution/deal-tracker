@@ -1,15 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type { TelegramLinkResult } from '../api/types';
+import type { InvitationView, TelegramLinkResult } from '../api/types';
 import { ApiError } from '../api/client';
-import { useLinkTelegram, useTelegramSettings, useUnlinkTelegram } from '../api/hooks';
+import {
+  useCreateInvitation,
+  useInvitations,
+  useLinkTelegram,
+  useRevokeInvitation,
+  useTelegramSettings,
+  useUnlinkTelegram,
+} from '../api/hooks';
 import { useAuth } from '../auth/AuthProvider';
-import { CheckIcon, CopyIcon, ExternalIcon, QrIcon, SendIcon, SettingsIcon } from '../components/icons';
+import {
+  CheckIcon,
+  CopyIcon,
+  ExternalIcon,
+  MailIcon,
+  QrIcon,
+  SendIcon,
+  SettingsIcon,
+} from '../components/icons';
 import { ErrorState } from '../components/States';
 import { useToast } from '../components/Toast';
+import { etiquetaDeEstado, mensajeDelErrorAlInvitar, puedeRevocarse } from '../lib/invitation';
 import { qrModules } from '../lib/qr';
 
-/** Página "Ajustes": por ahora, vincular la cuenta con Telegram para recibir avisos. */
+/** Página "Ajustes": vincular la cuenta con Telegram, y repartir las invitaciones propias (#551). */
 export function SettingsPage() {
   const auth = useAuth();
   const toast = useToast();
@@ -76,27 +92,231 @@ export function SettingsPage() {
         </span>
         <div>
           <h1 className="serif" style={{ fontSize: 27, margin: 0, lineHeight: 1.1 }}>Ajustes</h1>
-          <div style={{ fontSize: 13.5, color: 'var(--text-faint)' }}>Vincula Telegram para recibir los avisos de bajada.</div>
+          <div style={{ fontSize: 13.5, color: 'var(--text-faint)' }}>Tus avisos por Telegram y las invitaciones que puedes repartir.</div>
         </div>
       </div>
 
-      {isPending ? (
-        <div className="dt-skel" style={{ height: 160, borderRadius: 'var(--r-lg)' }} />
+      <div style={{ display: 'grid', gap: 16 }}>
+        {isPending ? (
+          <div className="dt-skel" style={{ height: 160, borderRadius: 'var(--r-lg)' }} />
+        ) : isError ? (
+          <ErrorState onRetry={() => refetch()} />
+        ) : (
+          <TelegramCard
+            linked={data.linked}
+            username={data.telegramUsername}
+            pending={data.pendingLink}
+            enlace={link.data ?? null}
+            onLink={onLink}
+            onUnlink={onUnlink}
+            linking={link.isPending}
+            unlinking={unlink.isPending}
+          />
+        )}
+
+        {/*
+          La quinta rama de esta página es de LA TARJETA, no de la página: que este servidor no dé
+          altas no apaga Telegram, así que `invitesEnabled` no puede decidir un `return` de arriba.
+
+          Y llega aquí ya concluyente sin comprobar nada más, porque la página sale antes con
+          `!auth.ready`: mientras eso es falso el flag vale `false` porque **no se sabe**, no porque
+          no lo haya, y colgar un texto de él sin `ready` hace que la pantalla afirme la rama
+          negativa durante el arranque (le pasó a `/acceso`). Si alguien mueve esta tarjeta por
+          encima de esas guardas, ese bug vuelve.
+        */}
+        <InvitationsCard enabled={auth.invitesEnabled} />
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Las invitaciones de quien invita (#551): cuánto cupo le queda, a quién ha invitado y revocar.
+ *
+ * Dos cosas que no se leen en el código y mandan sobre toda la tarjeta:
+ *
+ * **El cupo a cero es el estado normal, no un error.** `app_user.invites_remaining` arranca a 0 para
+ * todo el mundo (`0044`) y se reparte a mano por SQL: al estrenar, esta pantalla la ve una persona
+ * por entorno y la ve a cero. Por eso el vacío se explica con palabras en vez de enseñar un 0 seco,
+ * que se leería como una avería.
+ *
+ * **La lista se pinta aunque el cupo sea cero**, que es justo cuando más falta hace: revocar es lo
+ * único que devuelve cupo, y también la única salida de un correo bloqueado por una invitación
+ * caducada (ver `puedeRevocarse`).
+ */
+function InvitationsCard({ enabled }: { enabled: boolean }) {
+  const toast = useToast();
+  const { data, isPending, isError, refetch } = useInvitations(enabled);
+  const crear = useCreateInvitation();
+  const revocar = useRevokeInvitation();
+  const [email, setEmail] = useState('');
+
+  const onInvitar = (e: React.FormEvent) => {
+    e.preventDefault();
+    const destino = email.trim();
+    if (!destino) return;
+    crear.mutate(destino, {
+      onSuccess: (creada) => {
+        setEmail('');
+        toast(`Invitación enviada a ${creada.email}`);
+      },
+      // Los cuatro códigos de este endpoint dicen cosas distintas y solo uno es un fallo nuestro:
+      // la traducción vive en un módulo puro para poder testearla (#551).
+      onError: (err) =>
+        toast(
+          err instanceof ApiError
+            ? mensajeDelErrorAlInvitar(err.status, err.message)
+            : 'No se ha podido enviar la invitación.',
+        ),
+    });
+  };
+
+  const onRevocar = (invitacion: InvitationView) => {
+    revocar.mutate(invitacion.id, {
+      onSuccess: () => toast('Invitación revocada: recuperas el cupo'),
+      onError: (err) =>
+        toast(err instanceof ApiError ? err.message : 'No se ha podido revocar la invitación'),
+    });
+  };
+
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '20px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <span style={{ width: 42, height: 42, borderRadius: 12, background: 'var(--accent-soft)', color: 'var(--accent)', display: 'grid', placeItems: 'center', flex: 'none' }}>
+          <MailIcon size={21} />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 16 }}>Invitaciones</div>
+          <div style={{ fontSize: 13.5, color: 'var(--text-muted)' }}>
+            Aquí solo se entra por invitación. Estas son las tuyas.
+          </div>
+        </div>
+      </div>
+
+      {!enabled ? (
+        <Aviso>
+          Este servidor no da altas: el registro por invitación no está configurado aquí. Es lo
+          normal en el entorno de desarrollo.
+        </Aviso>
+      ) : isPending ? (
+        <div className="dt-skel" style={{ height: 120, borderRadius: 'var(--r-md)' }} />
       ) : isError ? (
         <ErrorState onRetry={() => refetch()} />
       ) : (
-        <TelegramCard
-          linked={data.linked}
-          username={data.telegramUsername}
-          pending={data.pendingLink}
-          enlace={link.data ?? null}
-          onLink={onLink}
-          onUnlink={onUnlink}
-          linking={link.isPending}
-          unlinking={unlink.isPending}
-        />
+        <div style={{ display: 'grid', gap: 16 }}>
+          <Cupo restantes={data.invitesRemaining} />
+
+          {/* Con cupo 0 no se pinta: un formulario que solo puede contestar 403 es una trampa. */}
+          {data.invitesRemaining > 0 && (
+            <form onSubmit={onInvitar} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="correo@ejemplo.com"
+                aria-label="Correo al que invitar"
+                style={{ flex: '1 1 220px', minWidth: 0, fontSize: 14, padding: '11px 13px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text)' }}
+              />
+              <button
+                type="submit"
+                disabled={crear.isPending}
+                className="btn btn-primary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 18px', fontSize: 14, flex: 'none' }}
+              >
+                <MailIcon size={16} />
+                {crear.isPending ? 'Enviando…' : 'Invitar'}
+              </button>
+            </form>
+          )}
+
+          {data.invitations.length === 0 ? (
+            <div style={{ fontSize: 13.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              Todavía no has invitado a nadie.
+            </div>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
+              {data.invitations.map((inv) => (
+                <FilaDeInvitacion
+                  key={inv.id}
+                  invitacion={inv}
+                  onRevocar={() => onRevocar(inv)}
+                  revocando={revocar.isPending && revocar.variables === inv.id}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
       )}
-    </section>
+    </div>
+  );
+}
+
+/**
+ * El cupo. **Cero no es un error**, así que se explica de dónde sale en vez de enseñar el número a
+ * secas: las invitaciones se reparten a mano, no se ganan usando la aplicación.
+ */
+function Cupo({ restantes }: { restantes: number }) {
+  if (restantes === 0) {
+    return (
+      <Aviso>
+        No te quedan invitaciones. No es un fallo: se reparten a mano, así que si necesitas alguna,
+        pídela. Revocar una pendiente también te devuelve su cupo.
+      </Aviso>
+    );
+  }
+  return (
+    <div style={{ fontSize: 14, color: 'var(--text)' }}>
+      Te {restantes === 1 ? 'queda' : 'quedan'}{' '}
+      <strong>{restantes}</strong> {restantes === 1 ? 'invitación' : 'invitaciones'}.
+    </div>
+  );
+}
+
+function FilaDeInvitacion({
+  invitacion,
+  onRevocar,
+  revocando,
+}: {
+  invitacion: InvitationView;
+  onRevocar: () => void;
+  revocando: boolean;
+}) {
+  const etiqueta = etiquetaDeEstado(invitacion.status);
+  const colores = {
+    vivo: { fondo: 'var(--accent-soft)', texto: 'var(--accent)' },
+    exito: { fondo: 'var(--good-soft)', texto: 'var(--good-text)' },
+    neutro: { fondo: 'var(--surface-2)', texto: 'var(--text-muted)' },
+  }[etiqueta.tono];
+
+  return (
+    <li style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '10px 12px' }}>
+      <span style={{ flex: '1 1 180px', minWidth: 0, fontSize: 13.5, overflowWrap: 'anywhere' }}>
+        {invitacion.email}
+      </span>
+      <span style={{ fontSize: 12, fontWeight: 800, borderRadius: 'var(--r-pill)', padding: '4px 10px', background: colores.fondo, color: colores.texto, flex: 'none' }}>
+        {etiqueta.texto}
+      </span>
+      {puedeRevocarse(invitacion.status) && (
+        <button
+          onClick={onRevocar}
+          disabled={revocando}
+          className="btn-ghost"
+          style={{ padding: '7px 13px', fontSize: 12.5, fontWeight: 700, borderRadius: 'var(--r-pill)', border: '1px solid var(--border)', color: 'var(--text-muted)', flex: 'none' }}
+        >
+          {revocando ? 'Revocando…' : 'Revocar'}
+        </button>
+      )}
+    </li>
+  );
+}
+
+/** El recuadro de «esto es así», que aquí se usa tres veces y nunca para un error. */
+function Aviso({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontSize: 13.5, color: 'var(--text-muted)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '11px 13px', lineHeight: 1.5 }}>
+      {children}
+    </div>
   );
 }
 
