@@ -1,0 +1,76 @@
+-- El índice compuesto que el camino vivo del catálogo pedía cuando se filtra por color Y talla
+-- a la vez (#523), que es la combinación que un padre hace sin pensar: sección, talla del crío,
+-- color.
+--
+-- ── POR QUÉ NO BASTABAN LOS DOS QUE YA HAY ──
+--
+-- `variant` lleva desde la 0029 y la 0033 un índice de expresión por cada eje:
+--
+--     ix_variant_color_family  ON variant (color_family(color)) WHERE delisted_at IS NULL
+--     ix_variant_size_band     ON variant (size_band(size))     WHERE delisted_at IS NULL
+--
+-- Con los dos filtros puestos **solo uno de ellos puede ser la entrada**, y el otro se degrada a
+-- filtro fila a fila. Medido con EXPLAIN (ANALYZE) contra deal_tracker_qa el 22/08/2026, sobre el
+-- SQL que ejecuta el servicio:
+--
+--     Index Scan using ix_variant_color_family on variant
+--       Index Cond: (color_family(color) = ANY ($1))
+--       Filter: (size_band(size) = ANY ($0))
+--       Rows Removed by Filter: 31302          <-- 34.196 evaluaciones para dejar 2.894 filas
+--
+-- Y `size_band` no es barata: llama a `size_canon` por dentro, así que cada evaluación cuesta las
+-- dos. Esas 34.196 llamadas eran **6,4 de los 6,6 segundos** de la consulta, o sea el 98 %.
+--
+-- ── LO QUE ESTE ÍNDICE NO ES ──
+--
+-- **No sustituye a la poda de #523**, que es el cambio de forma del camino vivo (la CTE
+-- `candidatas`, en `catalog.service.ts`) y es lo que quitó de en medio el recorrido de
+-- `price_history` entera. Los dos hacen falta y arreglan cosas distintas; medido en ese orden:
+--
+--     ropa & size=6 años & color=azul     original  7.141-7.343 ms
+--                                         solo poda 6.186-6.355 ms   <-- price_history fuera
+--                                         + índice    157-173 ms     <-- size_band fuera
+--
+-- **Y no deja huérfano a `ix_variant_color_family`**, aunque la teoría diga que un índice sobre
+-- (a, b) sirve para las consultas de `a`. Se comprobó con el índice puesto: el filtro de solo
+-- color sigue eligiendo el índice estrecho y no cambia de tiempo (1.448-1.492 ms sin él frente a
+-- 1.478-1.565 ms con él, o sea ruido). Se quedan los dos. Quien quiera retirar el estrecho que lo
+-- mida antes: aquí solo consta que **no** hace falta retirarlo.
+--
+-- El orden de las columnas no es indiferente: `color_family` va delante porque es la que también
+-- sirve como prefijo. El filtro de solo talla se queda con `ix_variant_size_band`, que es suyo.
+--
+-- ── AL APLICARLA ──
+--
+-- ⚠️ Este CREATE INDEX **bloquea las escrituras de `variant` mientras construye**, y no es
+-- instantáneo: en QA (208.672 variantes, 201.937 vivas) tardó **más de dos minutos**, porque
+-- construir la clave obliga a evaluar las dos funciones sobre cada fila viva. El índice ocupa
+-- 1.464 kB.
+--
+-- No va CONCURRENTLY a propósito: los dos aplicadores (el `--migrate` del scraper y el
+-- `pnpm migrate` que corre como initContainer del web) envuelven cada migración en una
+-- transacción, y CREATE INDEX CONCURRENTLY no puede correr dentro de una. La ventana de bloqueo
+-- cae en el arranque del despliegue, cuando las CronJobs de scraping no están pasando.
+--
+-- ⚠️ Y ESTE ÍNDICE ENTRA EN LA OBLIGACIÓN DE REINDEX QUE ESCRIBIERON LA 0029 Y LA 0033. Las dos
+-- dejan dicho que cambiar el cuerpo de `color_family` o de `size_band` obliga a
+-- `REINDEX INDEX ix_variant_color_family` / `ix_variant_size_band`, porque el índice guarda los
+-- valores YA calculados y un cambio lo deja obsoleto **en silencio**: el filtro devuelve filas
+-- equivocadas, no un error. Desde aquí son **tres** los índices que dependen de esas dos
+-- funciones, y este es el que se olvida, porque su nombre no aparece en ninguna de las dos
+-- migraciones que establecieron la regla:
+--
+--     REINDEX INDEX ix_variant_color_family_size_band;
+--
+-- Se anota aquí y no editando la 0029 y la 0033 porque una migración ya aplicada no se reaplica:
+-- tocarlas no llegaría a ninguna base, y este fichero sí es el que se lee al buscar de dónde sale
+-- el índice.
+--
+-- Las dos funciones ya llevan su `search_path` fijado por la 0037, que es el requisito para que
+-- ANALYZE pueda evaluarlas: un worker de autovacuum corre con el `search_path` vacío, y una
+-- función que llame a otra sin cualificar revienta a mitad del analyze sin dejar rastro en ningún
+-- log (#370). No hay nada que añadir a esa lista: las dos ya estaban en ella.
+
+CREATE INDEX IF NOT EXISTS ix_variant_color_family_size_band
+  ON variant (color_family(color), size_band(size))
+  WHERE delisted_at IS NULL;
