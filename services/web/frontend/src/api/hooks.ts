@@ -11,11 +11,13 @@ import { apiGet, apiGetAuth, apiGetPublic, apiSend, apiSendPublic } from './clie
 import type {
   AcceptedInvitation,
   AcceptInvitationInput,
+  CreatedInvitation,
   CreateInterestInput,
   Facets,
   FacetQuery,
   FavoriteView,
   InterestView,
+  InvitationListView,
   InvitationTokenView,
   PricePoint,
   ProductDetail,
@@ -275,5 +277,49 @@ export function useAcceptInvitation(token: string | null) {
         `/invitations/token/${encodeURIComponent(token as string)}/accept`,
         input,
       ),
+  });
+}
+
+// --- Las invitaciones de quien INVITA (#551). Los tres llevan sesión: van por `apiGetAuth`/`apiSend`
+// de siempre, no por el camino público de arriba, que existe para páginas que se abren sin cuenta. ---
+
+const INVITATIONS_KEY = ['invitations'];
+
+/**
+ * La lista **y el cupo**, que vienen en la misma respuesta (ver `InvitationListView`).
+ *
+ * `enabled` lo decide quien llama y tiene que incluir `invitesEnabled`: sin registro configurado los
+ * cinco endpoints contestan 503, y pedirlo igual solo sirve para pintar un error donde lo correcto
+ * es explicar que este servidor no da altas.
+ */
+export function useInvitations(enabled: boolean) {
+  return useQuery({
+    queryKey: INVITATIONS_KEY,
+    enabled,
+    queryFn: () => apiGetAuth<InvitationListView>('/invitations'),
+  });
+}
+
+/**
+ * Invita a un correo. El error lo interpreta quien llama con `mensajeDelErrorAlInvitar()`: los
+ * cuatro códigos que devuelve este endpoint dicen cosas muy distintas y ninguna es «ha fallado».
+ */
+export function useCreateInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (email: string) => apiSend<CreatedInvitation>('POST', '/invitations', { email }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: INVITATIONS_KEY }),
+  });
+}
+
+/**
+ * Revoca una invitación. Contesta `204` sin cuerpo, así que el cupo nuevo llega por el refetch que
+ * dispara la invalidación — que es exactamente el motivo de que el cupo viaje dentro de la lista.
+ */
+export function useRevokeInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiSend<void>('DELETE', `/invitations/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: INVITATIONS_KEY }),
   });
 }

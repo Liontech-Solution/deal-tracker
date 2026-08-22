@@ -25,6 +25,23 @@ export interface InvitationView {
   expiresAt: string;
 }
 
+/**
+ * Lo que contesta `GET /api/invitations`: la lista **y el cupo**, juntos (#551).
+ *
+ * El cupo va aquí y no en una ruta aparte porque es la única forma de que la pantalla no pueda
+ * enseñar un número que no cuadre con lo que tiene debajo: los dos se leen en el mismo handler, así
+ * que una revocación no puede quedar reflejada en la lista y no en el cupo, ni al revés.
+ *
+ * Antes de #551 esto era un array pelado. Se envolvió porque `invites_remaining` **no salía por HTTP
+ * en ninguna parte** salvo dentro de la respuesta de `create()`, o sea solo *después* de gastarlo:
+ * no había forma de contestar «cuánto me queda» sin invitar a alguien.
+ */
+export interface InvitationListView {
+  /** Lo que le queda a quien pregunta. **Cero es lo normal**: ver `app_user.invites_remaining`. */
+  invitesRemaining: number;
+  invitations: InvitationView[];
+}
+
 /** Lo que devuelve crear una invitación. El cupo va dentro para que la SPA no tenga que releerlo. */
 export interface CreatedInvitation {
   id: number;

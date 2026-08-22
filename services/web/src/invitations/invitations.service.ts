@@ -25,9 +25,9 @@ import type { CreateInvitationDto } from './dto/create-invitation.dto';
 import type {
   AcceptedInvitation,
   CreatedInvitation,
+  InvitationListView,
   InvitationStatus,
   InvitationTokenView,
-  InvitationView,
 } from './invitations.types';
 
 /**
@@ -159,9 +159,23 @@ export class InvitationsService {
     };
   }
 
-  /** Las invitaciones que ha mandado este usuario, de la más reciente a la más antigua. */
-  async list(userId: number): Promise<InvitationView[]> {
+  /**
+   * Las invitaciones que ha mandado este usuario, de la más reciente a la más antigua, **con su
+   * cupo**.
+   *
+   * Las dos consultas van juntas y en este orden a propósito: primero el cupo, luego la lista. Si
+   * una revocación entra en medio, lo peor que se ve es un cupo de menos junto a una fila ya
+   * revocada —un número conservador al lado de un estado nuevo—, y no un cupo ya devuelto junto a
+   * una invitación que todavía se pinta viva, que es la combinación que invitaría a revocar dos
+   * veces. Ninguna transacción hace falta para eso: la pantalla se refresca sola tras cada gesto.
+   */
+  async list(userId: number): Promise<InvitationListView> {
     this.exigirRegistroConfigurado();
+    const [usuario] = await this.db
+      .select({ invitesRemaining: appUser.invitesRemaining })
+      .from(appUser)
+      .where(eq(appUser.id, userId));
+
     const filas = await this.db
       .select({
         id: invitation.id,
@@ -175,13 +189,19 @@ export class InvitationsService {
       .where(eq(invitation.inviterUserId, userId))
       .orderBy(desc(invitation.createdAt), desc(invitation.id));
 
-    return filas.map((f) => ({
-      id: f.id,
-      email: f.email,
-      status: estadoDe(f),
-      createdAt: f.createdAt.toISOString(),
-      expiresAt: f.expiresAt.toISOString(),
-    }));
+    return {
+      // `usuario` no puede faltar —quien pregunta está autenticado y su fila nace en la primera
+      // petición— pero el `?? 0` evita que un imposible se convierta en un `undefined` viajando por
+      // HTTP hasta la pantalla, donde se pintaría como cupo en blanco.
+      invitesRemaining: usuario?.invitesRemaining ?? 0,
+      invitations: filas.map((f) => ({
+        id: f.id,
+        email: f.email,
+        status: estadoDe(f),
+        createdAt: f.createdAt.toISOString(),
+        expiresAt: f.expiresAt.toISOString(),
+      })),
+    };
   }
 
   /**

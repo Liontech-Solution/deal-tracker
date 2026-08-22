@@ -1,13 +1,15 @@
 /**
- * Lo que decide la página de alta (#550), fuera de la página.
+ * Lo que deciden las dos pantallas de la invitación, fuera de ellas: la del invitado (#550,
+ * `/registro`) arriba, y la de quien invita (#551, `/ajustes`) en el bloque de abajo.
  *
  * No es una separación estética: `vitest.config.ts` corre con `environment: 'node'` y sin jsdom ni
  * testing-library, así que **un componente de este repo no se puede testear**. Lo único que puede
  * quedar cubierto es la lógica que viva en un módulo puro, y aquí lo que se decide no es cosmético
- * — de estas tres funciones salen qué pantalla ve alguien que acaba de recibir una invitación y si
- * se le ofrece reintentar algo que no puede salir bien.
+ * — de estas funciones salen qué pantalla ve alguien que acaba de recibir una invitación, si se le
+ * ofrece reintentar algo que no puede salir bien, y si a quien invita se le da la única salida que
+ * tiene un correo bloqueado.
  */
-import type { InvitationTokenView } from '../api/types';
+import type { InvitationStatus, InvitationTokenView } from '../api/types';
 
 /**
  * El suelo de la contraseña, **nuestro y provisional**.
@@ -142,5 +144,84 @@ export function desenlaceDelAlta(status: number, mensajeDelServidor?: string): D
         permiteReintento: true,
         llevaAAcceso: false,
       };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// La otra punta: lo que decide la pantalla de QUIEN INVITA (#551, `/ajustes`).
+//
+// Va en este mismo fichero y no en uno nuevo porque es el mismo dominio visto desde el otro lado, y
+// porque el motivo de que estas funciones existan es idéntico: sin jsdom, esto es lo único de la
+// pantalla que un test puede tocar.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Cómo se pinta un estado: su etiqueta y el tono con el que la tarjeta la colorea. */
+export interface EtiquetaDeEstado {
+  texto: string;
+  tono: 'vivo' | 'neutro' | 'exito';
+}
+
+/**
+ * El rótulo de cada estado. `caducada` y `revocada` comparten tono —las dos son «ya no sirve»— pero
+ * **no texto**: una se murió sola y la otra la retiró quien invitaba, y confundirlas haría pensar
+ * que el sistema retira invitaciones por su cuenta.
+ */
+export function etiquetaDeEstado(status: InvitationStatus): EtiquetaDeEstado {
+  switch (status) {
+    case 'viva':
+      return { texto: 'Pendiente', tono: 'vivo' };
+    case 'caducada':
+      return { texto: 'Caducada', tono: 'neutro' };
+    case 'canjeada':
+      return { texto: 'Aceptada', tono: 'exito' };
+    case 'revocada':
+      return { texto: 'Revocada', tono: 'neutro' };
+  }
+}
+
+/**
+ * Si esa fila puede ofrecer el botón de revocar.
+ *
+ * **Las caducadas sí**, y es lo menos obvio de esta pantalla: el índice `ux_invitation_email_viva`
+ * es parcial y su predicado **no puede mirar `expires_at`** (Postgres no admite `now()` ahí), así
+ * que una invitación caducada **sigue ocupando ese correo** y volver a invitarlo da 409. Revocar es
+ * el único gesto que lo libera, y no hay ningún job de limpieza que lo haga por su cuenta. Si esta
+ * función devolviera `false` aquí, quien invita se quedaría sin salida.
+ *
+ * Las `canjeada` y las `revocada` no: su `DELETE` responde `404` —la primera se gastó de verdad y la
+ * segunda ya está cerrada— y ofrecer un botón que solo puede fallar es peor que no ofrecerlo.
+ */
+export function puedeRevocarse(status: InvitationStatus): boolean {
+  return status === 'viva' || status === 'caducada';
+}
+
+/**
+ * Qué decirle a quien acaba de intentar invitar y no ha podido.
+ *
+ * Los cuatro códigos que devuelve `POST /invitations` significan cosas distintas y **solo uno es un
+ * fallo nuestro**. El del `409` es el que más se cuida: su mensaje del servidor ya dirige a revocar
+ * —que es la salida real, también para las caducadas— así que se propaga tal cual en vez de
+ * sustituirlo por un «ese correo ya está invitado» que dejaría al usuario sin saber qué hacer.
+ */
+export function mensajeDelErrorAlInvitar(status: number, mensajeDelServidor?: string): string {
+  switch (status) {
+    case 403:
+      return 'No te quedan invitaciones.';
+    case 409:
+      return (
+        mensajeDelServidor ??
+        'Ese correo ya tiene una invitación pendiente. Revócala para volver a invitarlo.'
+      );
+    case 502:
+      // Importa decir que no se ha perdido nada: el servicio borra la fila y devuelve el cupo, así
+      // que el reintento es literalmente el mismo gesto. Sin esta frase, el usuario cuenta sus
+      // invitaciones, ve el mismo número y no sabe si se le ha ido una.
+      return 'No hemos podido enviar el correo. No se ha gastado ninguna invitación: inténtalo de nuevo en unos minutos.';
+    case 503:
+      return 'Este servidor no tiene el registro por invitación configurado.';
+    default:
+      // El 400 del correo mal formado entra aquí: la validación es del servidor y su mensaje es más
+      // concreto que nada que podamos inventar, igual que en `desenlaceDelAlta()`.
+      return mensajeDelServidor ?? 'No se ha podido enviar la invitación.';
   }
 }

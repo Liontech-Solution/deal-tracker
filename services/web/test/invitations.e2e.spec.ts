@@ -276,17 +276,36 @@ describe.skipIf(!TEST_DB)('alta por invitación (e2e)', () => {
       await invitar('ana@example.com').expect(201);
     });
 
-    it('la lista enseña el correo entero y el estado calculado', async () => {
+    /**
+     * Los **cuatro** estados en una sola respuesta, y no dos: la tarjeta de `/ajustes` pinta un
+     * rótulo distinto por cada uno y decide con ellos si ofrece el botón de revocar, y esa pantalla
+     * no se puede testear (no hay jsdom). Que los cuatro tengan aquí una fila real es lo más cerca
+     * que se puede estar de verlos.
+     */
+    it('la lista enseña el correo entero y los cuatro estados calculados', async () => {
       await invitar('viva@example.com').expect(201);
       await invitar('caducada@example.com').expect(201);
       await sql`UPDATE invitation SET expires_at = now() - interval '1 day'
                  WHERE email = 'caducada@example.com'`;
+      // Las otras dos se fabrican por SQL: canjear de verdad exige pasar por Keycloak, y lo que se
+      // comprueba aquí es cómo se deducen los estados de las tres marcas de tiempo.
+      await sql`
+        INSERT INTO invitation (inviter_user_id, email, token_hash, expires_at, accepted_at)
+        VALUES (${sesion.id}, 'canjeada@example.com', 'hash-canjeada', now() + interval '7 days', now())`;
+      await sql`
+        INSERT INTO invitation (inviter_user_id, email, token_hash, expires_at, revoked_at)
+        VALUES (${sesion.id}, 'revocada@example.com', 'hash-revocada', now() + interval '7 days', now())`;
 
       const res = await request(app.getHttpServer()).get('/api/invitations').expect(200);
       const porCorreo = Object.fromEntries(
-        (res.body as { email: string; status: string }[]).map((i) => [i.email, i.status]),
+        (res.body.invitations as { email: string; status: string }[]).map((i) => [i.email, i.status]),
       );
-      expect(porCorreo).toEqual({ 'viva@example.com': 'viva', 'caducada@example.com': 'caducada' });
+      expect(porCorreo).toEqual({
+        'viva@example.com': 'viva',
+        'caducada@example.com': 'caducada',
+        'canjeada@example.com': 'canjeada',
+        'revocada@example.com': 'revocada',
+      });
       // Ni el token ni su hash salen nunca por HTTP.
       expect(JSON.stringify(res.body)).not.toContain('token');
     });
@@ -298,8 +317,33 @@ describe.skipIf(!TEST_DB)('alta por invitación (e2e)', () => {
         VALUES (${otroUsuario}, 'ajena@example.com', 'hash-ajeno', now() + interval '7 days')`;
 
       const res = await request(app.getHttpServer()).get('/api/invitations').expect(200);
-      expect(res.body).toHaveLength(1);
-      expect(res.body[0].email).toBe('mia@example.com');
+      expect(res.body.invitations).toHaveLength(1);
+      expect(res.body.invitations[0].email).toBe('mia@example.com');
+    });
+
+    /**
+     * El motivo por el que la lista dejó de ser un array (#551): el cupo tiene que poder leerse
+     * **sin gastar uno**, y tiene que cuadrar con las filas que van al lado. Lo que se comprueba
+     * aquí es que las dos mitades se mueven juntas en los dos sentidos.
+     */
+    it('la lista trae el cupo, que baja al invitar y vuelve al revocar', async () => {
+      const inicial = await request(app.getHttpServer()).get('/api/invitations').expect(200);
+      expect(inicial.body).toEqual({ invitesRemaining: 2, invitations: [] });
+
+      await invitar('ana@example.com').expect(201);
+      const conUna = await request(app.getHttpServer()).get('/api/invitations').expect(200);
+      expect(conUna.body.invitesRemaining).toBe(1);
+      expect(conUna.body.invitations).toHaveLength(1);
+
+      await request(app.getHttpServer())
+        .delete(`/api/invitations/${conUna.body.invitations[0].id}`)
+        .expect(204);
+
+      const trasRevocar = await request(app.getHttpServer()).get('/api/invitations').expect(200);
+      expect(trasRevocar.body.invitesRemaining).toBe(2);
+      // La fila no desaparece: se queda como `revocada`, que es lo que la pantalla pinta sin botón.
+      expect(trasRevocar.body.invitations).toHaveLength(1);
+      expect(trasRevocar.body.invitations[0].status).toBe('revocada');
     });
 
     it('revocar la de otro no la toca, y devuelve 404', async () => {
