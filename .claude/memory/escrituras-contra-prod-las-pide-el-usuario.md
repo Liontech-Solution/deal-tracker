@@ -57,6 +57,21 @@ directamente; ya no hay que preparárselo al usuario. Lo que sí sigue siendo su
 **escriba** o despliegue (el `create job` contra prod, los merges de los repos de GitOps), y ahí
 sigue valiendo el `!`.
 
+**Y el `--escribir` de `qa-sql.sh` cae con lo demás** (medido el 22/08/2026 en #523): la valla de
+solo-lectura del propio script no ablanda al clasificador, así que un `CREATE INDEX` contra QA se
+pide igual. Importa porque abre un método que sin esto no se le ocurre a nadie: **para saber si un
+índice sirve, se crea en QA con nombre de prueba, se mide y se borra**. En local no vale —no hay
+datos representativos— y un plan medido en el portátil no predice el del cluster; QA es el único
+sitio con las dos cosas. Son **dos** comandos del usuario, el `CREATE` y el `DROP`, y el segundo no
+es opcional: si se queda puesto, cuando la migración despliegue el entorno acaba con dos índices
+idénticos. En #523 salió barato — 6,2 s → 0,16 s con el compuesto, o sea que la migración se
+escribió sabiendo lo que iba a pasar en vez de esperando.
+
+Un detalle de ese `!` que despista: **un `CREATE INDEX` tarda más que el timeout del prompt** (más
+de dos minutos sobre 208.672 variantes, porque la clave evalúa dos funciones por fila), así que el
+comando se va a segundo plano y la conversación no enseña su salida. No es un fallo: se comprueba
+con un `SELECT ... FROM pg_indexes`, que sí es lectura y la haces tú.
+
 **Why:** reintentar la misma llamada no la desbloquea y quema la sesión; y dejar el trabajo a medias
 por eso es peor, porque la casilla vuelve al backlog sin que nadie sepa que solo faltaba un comando.
 
